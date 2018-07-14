@@ -1,0 +1,245 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            name 'prok'
+            url 'https://repo.prok.pw/'
+        }
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+        maven {
+            name = "sonatype"
+            url = "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'//files('SForgeGradle-2.2-SNAPSHOT.jar')//'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        //classpath files('FG.jar')
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'net.minecraftforge.gradle.patcher'
+apply plugin: 'net.minecraftforge.gradle.launch4j'
+
+
+group = 'luohuayu.CatServer'
+version = '1.0.0'
+
+repositories {
+    clear()
+    maven {
+        name 'prok'
+        url 'https://repo.prok.pw/'
+    }
+    maven {
+        name = "forge"
+        url = "http://files.minecraftforge.net/maven"
+    }
+    maven {
+        name = "sonatype"
+        url = "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
+    maven {
+        name 'minecraft'
+        url 'https://libraries.minecraft.net/'
+    }
+    maven {
+        name 'spigot'
+        url 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
+    }
+    maven {
+        name 'maven'
+        url 'https://mvnrepository.com/artifact/'
+    }
+
+    mavenCentral()
+}
+
+configurations{
+    compile.extendsFrom libraries
+    libraries
+}
+
+dependencies {
+    libraries 'it.unimi.dsi:fastutil:7.0.12_mojang'
+    libraries 'jline:jline:2.13'
+    libraries 'org.apache.commons:commons-lang3:3.3.2'
+    libraries 'com.mojang:authlib:1.5.22'
+    libraries 'com.mojang:realms:1.9.8'
+    libraries 'io.netty:netty-all:4.0.23.Final'
+    libraries 'net.sf.jopt-simple:jopt-simple:4.7'
+    libraries 'commons-lang:commons-lang:2.6'
+    libraries 'commons-io:commons-io:1.3.2'
+    libraries 'org.avaje:ebean:2.8.1'
+    libraries 'com.googlecode.json-simple:json-simple:1.1'
+    libraries 'org.yaml:snakeyaml:1.15'
+    libraries 'com.google.guava:guava:20.0'
+    libraries 'org.xerial:sqlite-jdbc:3.7.2'
+    libraries 'mysql:mysql-connector-java:5.1.14'
+    libraries 'net.sf.trove4j:trove4j:3.0.3'
+    libraries 'org.apache.logging.log4j:log4j-core:2.10.0'
+    libraries 'net.md-5:SpecialSource:1.8.0'
+}
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+jar{
+    into('lib') {
+        from configurations.libraries
+    }
+    exclude "**/configurations/**"
+    exclude "**/META-INF/**"
+    exclude "log4j2.xml"
+}
+
+minecraft {
+    version = "1.10.2"
+    mappings = 'snapshot_nodoc_20161111'
+    workspaceDir = "projects"
+    versionJson = "jsons/1.10.2-catserver-dev.json"
+    buildUserdev = false
+    buildInstaller = false
+    installerVersion = '1.5'
+
+
+    def common = {
+        patchPrefixOriginal "../src-base/minecraft"
+        patchPrefixChanged "../src-work/minecraft"
+/*        mainClassClient "net.minecraft.launchwrapper.Launch"
+        tweakClassClient "net.minecraftforge.fml.common.launcher.FMLTweaker"*/
+        mainClassServer "net.minecraft.launchwrapper.Launch"
+        tweakClassServer "net.minecraftforge.fml.common.launcher.FMLServerTweaker"
+    }
+
+    projects {
+        forge {
+            rootDir "forge/"
+            patchDir "forge/patches/minecraft/"
+            patchAfter "clean"
+            genPatchesFrom "clean"
+            genMcpPatches = false
+            applyMcpPatches = false
+            s2sKeepImports = true
+            //dchImports = true
+            //ignoreWhiteSpaces = false
+            with common
+        }
+
+        catserver {
+            rootDir "."
+            patchDir "patches/"
+            patchAfter "forge"
+            genPatchesFrom "forge"
+            genMcpPatches = true
+            applyMcpPatches = true
+            s2sKeepImports = true
+            //dchImports = true
+            //ignoreWhiteSpaces = false
+            with common
+        }
+    }
+}
+
+
+
+installer {
+    classifier = 'installer'
+    from "forge/src/main/resources/forge_logo.png"
+    rename "forge_logo\\.png", "big_logo.png"
+}
+
+launch4j {
+    jar = installer.archivePath.canonicalPath
+    outfile = file("build/distributions/${project.name}-${project.version}-installer-win.exe").canonicalPath
+    icon = file('icon.ico').canonicalPath
+    manifest = file('l4jManifest.xml').canonicalPath
+    jreMinVersion = '1.8.0'
+    initialHeapPercent = 5;
+    maxHeapPercent = 100;
+}
+tasks.generateXmlConfig.dependsOn installer
+tasks.build.dependsOn 'launch4j'
+tasks.compileJava.enabled = false
+tasks.reobfuscate.setProperty("extraSrg",["PK: org/bukkit/craftbukkit org/bukkit/craftbukkit/v1_10_R1"])
+task signUniversal(type: SignJar, dependsOn: 'outputJar') {
+    onlyIf {
+        project.hasProperty('jarsigner')
+    }
+
+    def jarsigner = [:];
+
+    if (project.hasProperty('jarsigner'))
+        jarsigner = project.jarsigner;
+
+    alias = 'forge'
+    exclude "paulscode/**"
+    storePass = jarsigner.storepass
+    keyPass = jarsigner.keypass
+    keyStore = jarsigner.keystore
+    inputFile = outputJar.archivePath
+    outputFile = outputJar.archivePath
+}
+build.dependsOn signUniversal
+installer.dependsOn signUniversal
+
+outputJar {
+    classifier = 'universal'
+
+    manifest.attributes([
+            "Implementation-Title": "CraftBukkit",
+            "Implementation-Version": "CraftBukkit-1.10.2",
+            "Specification-Vendor": "Luohuayu",
+            "Specification-Title": "Bukkit",
+            "Specification-Version": "unknown",
+            "Implementation-Vendor": "Luohuayu",
+            "Main-Class": "net.minecraftforge.fml.relauncher.ServerLaunchWrapper",
+            "TweakClass": "net.minecraftforge.fml.common.launcher.FMLTweaker",
+            "Class-Path": getServerClasspath(file("jsons/1.10.2-catserver-rel.json"))
+    ])
+}
+
+processJson {
+    releaseJson = "jsons/1.10.2-catserver-rel.json"
+    addReplacements([
+            "@minecraft_version@": project.minecraft.version,
+            "@version@": project.version,
+            "@project@": "CatServer",
+            "@artifact@": "luohuayu:project:${project.version}",
+            "@universal_jar@": { outputJar.archiveName },
+            "@timestamp@": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+    ])
+}
+
+extractForgeSources {
+    exclude "**/SideOnly.java", "**/Side.java"
+}
+
+genGradleProjects {
+    addCompileDep "junit:junit:4.12"
+}
+
+import groovy.json.JsonSlurper;
+
+String getServerClasspath(File file) {
+    def node = new JsonSlurper().parse(file);
+    def out = new StringBuilder()
+    node.versionInfo.libraries.each { lib ->
+        if (lib.serverreq)
+        {
+            // group : artifact : version
+            def split = lib.name.split(':')
+            def group = split[0].replace('.', '/')
+            def artifact = split[1]
+            def version = split[2]
+            out += "libraries/$group/$artifact/$version/$artifact-${version}.jar "
+        }
+    }
+    out += "minecraft_server.${minecraft.version}.jar"
+    return out.toString();
+}

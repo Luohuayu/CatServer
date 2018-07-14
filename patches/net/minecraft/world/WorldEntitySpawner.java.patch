@@ -1,0 +1,137 @@
+--- ../src-base/minecraft/net/minecraft/world/WorldEntitySpawner.java
++++ ../src-work/minecraft/net/minecraft/world/WorldEntitySpawner.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.world;
+ 
+ import com.google.common.collect.Sets;
++
++import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+ import java.util.Set;
+@@ -20,12 +22,33 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.chunk.Chunk;
++import net.minecraft.world.gen.ChunkProviderServer;
++import org.bukkit.craftbukkit.util.LongHash;
+ 
+ public final class WorldEntitySpawner
+ {
+     private static final int MOB_COUNT_DIV = (int)Math.pow(17.0D, 2.0D);
+     private final Set<ChunkPos> eligibleChunksForSpawning = Sets.<ChunkPos>newHashSet();
+ 
++    // Spigot start - get entity count only from chunks being processed in b
++    private int getEntityCount(WorldServer server, Class oClass)
++    {
++        int i = 0;
++        Iterator<ChunkPos> it = this.eligibleChunksForSpawning.iterator();
++        while ( it.hasNext() )
++        {
++            ChunkPos coord = it.next();
++            int x = LongHash.msw( coord.getCenterXPos() );
++            int z = LongHash.lsw( coord.getCenterZPosition() );
++            if ( !((ChunkProviderServer)server.chunkProvider).droppedChunksSet.contains( coord ) && server.isChunkLoaded( x, z, true ) )
++            {
++                i += server.getChunkProvider().getLoadedChunk( x, z ).entityCount.get( oClass );
++            }
++        }
++        return i;
++    }
++    // Spigot end
++
+     public int findChunksForSpawning(WorldServer worldServerIn, boolean spawnHostileMobs, boolean spawnPeacefulMobs, boolean spawnOnSetTickRate)
+     {
+         if (!spawnHostileMobs && !spawnPeacefulMobs)
+@@ -44,12 +67,16 @@
+                     int j = MathHelper.floor_double(entityplayer.posX / 16.0D);
+                     int k = MathHelper.floor_double(entityplayer.posZ / 16.0D);
+                     int l = 8;
++                    // Spigot Start
++                    byte b0 = worldServerIn.spigotConfig.mobSpawnRange;
++                    b0 = ( b0 > worldServerIn.spigotConfig.viewDistance ) ? (byte) worldServerIn.spigotConfig.viewDistance : b0;
++                    b0 = ( b0 > 8 ) ? 8 : b0;
+ 
+-                    for (int i1 = -8; i1 <= 8; ++i1)
++                    for (int i1 = -b0; i1 <= b0; ++i1)
+                     {
+-                        for (int j1 = -8; j1 <= 8; ++j1)
++                        for (int j1 = -b0; j1 <= b0; ++j1)
+                         {
+-                            boolean flag = i1 == -8 || i1 == 8 || j1 == -8 || j1 == 8;
++                            boolean flag = i1 == -b0 || i1 == b0 || j1 == -b0 || j1 == b0;
+                             ChunkPos chunkpos = new ChunkPos(i1 + j, j1 + k);
+ 
+                             if (!this.eligibleChunksForSpawning.contains(chunkpos))
+@@ -70,27 +97,46 @@
+                     }
+                 }
+             }
+-
++            int mobcnt = 0; // Spigot
+             int j4 = 0;
+             BlockPos blockpos1 = worldServerIn.getSpawnPoint();
+ 
+             for (EnumCreatureType enumcreaturetype : EnumCreatureType.values())
+             {
++                int limit = enumcreaturetype.getMaxNumberOfCreature();
++                switch (enumcreaturetype) {
++                    case MONSTER:
++                        limit = worldServerIn.getWorld().getMonsterSpawnLimit();
++                        break;
++                    case CREATURE:
++                        limit = worldServerIn.getWorld().getAnimalSpawnLimit();
++                        break;
++                    case WATER_CREATURE:
++                        limit = worldServerIn.getWorld().getWaterAnimalSpawnLimit();
++                        break;
++                    case AMBIENT:
++                        limit = worldServerIn.getWorld().getAmbientSpawnLimit();
++                        break;
++                }
++                if(limit == 0) continue;
+                 if ((!enumcreaturetype.getPeacefulCreature() || spawnPeacefulMobs) && (enumcreaturetype.getPeacefulCreature() || spawnHostileMobs) && (!enumcreaturetype.getAnimal() || spawnOnSetTickRate))
+                 {
+                     int k4 = worldServerIn.countEntities(enumcreaturetype, true);
+-                    int l4 = enumcreaturetype.getMaxNumberOfCreature() * i / MOB_COUNT_DIV;
++                    int l4 = limit * i / MOB_COUNT_DIV;
+ 
+-                    if (k4 <= l4)
++                    if (( mobcnt = getEntityCount(worldServerIn,enumcreaturetype.getCreatureClass())) <= limit * i/256)
+                     {
+-                        java.util.ArrayList<ChunkPos> shuffled = com.google.common.collect.Lists.newArrayList(this.eligibleChunksForSpawning);
+-                        java.util.Collections.shuffle(shuffled);
++
++                        Iterator iterator = this.eligibleChunksForSpawning.iterator();
+                         BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
++                        int moblimit = (limit * i / 256) - mobcnt + 1; // Spigot - up to 1 more than limit
+                         label411:
+ 
+-                        for (ChunkPos chunkpos1 : shuffled)
++                       while(iterator.hasNext() && (moblimit >0))
+                         {
+-                            BlockPos blockpos = getRandomChunkPosition(worldServerIn, chunkpos1.chunkXPos, chunkpos1.chunkZPos);
++                            ChunkPos key = ((ChunkPos) iterator.next());
++                            /*BlockPos blockpos = getRandomChunkPosition(worldServerIn, LongHash.msw(key), LongHash.lsw(key));*/ //TODO
++                            BlockPos blockpos = getRandomChunkPosition(worldServerIn, key.chunkXPos, key.chunkZPos);
+                             int k1 = blockpos.getX();
+                             int l1 = blockpos.getY();
+                             int i2 = blockpos.getZ();
+@@ -162,11 +208,13 @@
+                                                     {
+                                                         entityliving.setDead();
+                                                     }
+-
+-                                                    if (j2 >= net.minecraftforge.event.ForgeEventFactory.getMaxSpawnPackSize(entityliving))
+-                                                    {
+-                                                        continue label411;
++                                                    if( --moblimit <= 0){
++                                                        if (j2 >= net.minecraftforge.event.ForgeEventFactory.getMaxSpawnPackSize(entityliving))
++                                                        {
++                                                            continue label411;
++                                                        }
+                                                     }
++
+                                                 }
+ 
+                                                 j4 += j2;

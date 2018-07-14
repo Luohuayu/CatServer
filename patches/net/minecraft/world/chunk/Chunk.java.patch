@@ -1,0 +1,148 @@
+--- ../src-base/minecraft/net/minecraft/world/chunk/Chunk.java
++++ ../src-work/minecraft/net/minecraft/world/chunk/Chunk.java
+@@ -17,6 +17,8 @@
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.crash.ICrashReportDetail;
+ import net.minecraft.entity.Entity;
++import net.minecraft.entity.EntityLiving;
++import net.minecraft.entity.EnumCreatureType;
+ import net.minecraft.init.Biomes;
+ import net.minecraft.init.Blocks;
+ import net.minecraft.network.PacketBuffer;
+@@ -39,7 +41,11 @@
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import com.google.common.collect.Lists; // CraftBukkit
++import org.bukkit.Server; // CraftBukkit
+ 
++import org.bukkit.Server;
++
+ public class Chunk
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -49,13 +55,13 @@
+     private final int[] precipitationHeightMap;
+     private final boolean[] updateSkylightColumns;
+     private boolean isChunkLoaded;
+-    private final World worldObj;
+-    private final int[] heightMap;
++    public final World worldObj;
++    public final int[] heightMap;
+     public final int xPosition;
+     public final int zPosition;
+     private boolean isGapLightingUpdated;
+-    private final Map<BlockPos, TileEntity> chunkTileEntityMap;
+-    private final ClassInheritanceMultiMap<Entity>[] entityLists;
++    public final Map<BlockPos, TileEntity> chunkTileEntityMap;
++    public final ClassInheritanceMultiMap<Entity>[] entityLists;
+     private boolean isTerrainPopulated;
+     private boolean isLightPopulated;
+     private boolean chunkTicked;
+@@ -66,7 +72,36 @@
+     private long inhabitedTime;
+     private int queuedLightChecks;
+     private ConcurrentLinkedQueue<BlockPos> tileEntityPosQueue;
++    public gnu.trove.map.hash.TObjectIntHashMap<Class> entityCount = new gnu.trove.map.hash.TObjectIntHashMap<Class>(); // Spigot
+     public boolean unloaded;
++    // CraftBukkit start - Neighbor loaded cache for chunk lighting and entity ticking
++    private int neighbors = 0x1 << 12;
++    public long chunkKey;
++    
++    public boolean areNeighborsLoaded(final int radius) {
++    	switch (radius) {
++    		case 2:
++    			return this.neighbors == Integer.MAX_VALUE >> 6;
++			case 1:
++				final int mask =
++				//       x        z   offset          x        z   offset          x         z   offset
++				(0x1 << (1 * 5 +  1 + 12)) | (0x1 << (0 * 5 +  1 + 12)) | (0x1 << (-1 * 5 +  1 + 12)) |
++				(0x1 << (1 * 5 +  0 + 12)) | (0x1 << (0 * 5 +  0 + 12)) | (0x1 << (-1 * 5 +  0 + 12)) |
++				(0x1 << (1 * 5 + -1 + 12)) | (0x1 << (0 * 5 + -1 + 12)) | (0x1 << (-1 * 5 + -1 + 12));
++				return (this.neighbors & mask) == mask;
++			default:
++				throw new UnsupportedOperationException(String.valueOf(radius));
++            }
++    }
++    
++    public void setNeighborLoaded(final int x, final int z) {
++    	this.neighbors |= 0x1 << (x * 5 + 12 + z);
++    }
++    
++    public void setNeighborUnloaded(final int x, final int z) {
++    	this.neighbors &= ~(0x1 << (x * 5 + 12 + z));
++    }
++    // CraftBukkit end
+ 
+     public Chunk(World worldIn, int x, int z)
+     {
+@@ -90,7 +125,13 @@
+ 
+         Arrays.fill((int[])this.precipitationHeightMap, (int) - 999);
+         Arrays.fill(this.blockBiomeArray, (byte) - 1);
++        // CraftBukkit start
++        this.bukkitChunk = new org.bukkit.craftbukkit.CraftChunk(this);
++        this.chunkKey = ChunkPos.asLong(this.xPosition, this.zPosition);
+     }
++    public org.bukkit.Chunk bukkitChunk;
++    public boolean mustSave;
++    // CraftBukkit end
+ 
+     public Chunk(World worldIn, ChunkPrimer primer, int x, int z)
+     {
+@@ -728,6 +769,15 @@
+         entityIn.chunkCoordY = k;
+         entityIn.chunkCoordZ = this.zPosition;
+         this.entityLists[k].add(entityIn);
++        if(entityIn instanceof EntityLiving){
++            EntityLiving entityLiving = (EntityLiving)entityIn;
++            if(entityLiving.isNoDespawnRequired() && entityLiving.canDespawn()) return;
++        }
++        for(EnumCreatureType enumCreatureType : EnumCreatureType.values()){
++            if(enumCreatureType.getCreatureClass().isAssignableFrom(entityIn.getClass())){
++                this.entityCount.adjustOrPutValue(enumCreatureType.getCreatureClass(),1,1);
++            }
++        }
+     }
+ 
+     public void removeEntity(Entity entityIn)
+@@ -951,9 +1001,38 @@
+     {
+         return false;
+     }
++    
++    public void populateChunk(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator) {
++    	this.loadNearby(chunkProvider, chunkGenrator, true);
++    }
+ 
+-    public void populateChunk(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator)
++    public void loadNearby(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator, boolean newChunk)
+     {
++    	Server server = worldObj.getServer();
++    	if (server != null) {
++    		/*
++    		 * If it's a new world, the first few chunks are generated inside
++    		 * the World constructor. We can't reliably alter that, so we have
++    		 * no way of creating a CraftWorld/CraftServer at that point.
++    		 */
++    		server.getPluginManager().callEvent(new org.bukkit.event.world.ChunkLoadEvent(bukkitChunk, newChunk));
++    	}
++    	
++    	// Update neighbor counts
++    	for (int x = -2; x < 3; x++) {
++    		for (int z = -2; z < 3; z++) {
++    			if (x == 0 && z == 0) {
++    				continue;
++    			}
++    	
++    			Chunk neighbor = getWorld().getChunkIfLoaded(xPosition + x, zPosition + z);
++    			if (neighbor != null) {
++    				neighbor.setNeighborLoaded(-x, -z);
++    				setNeighborLoaded(x, z);
++    			}
++    		}
++    	}
++    	// CraftBukkit end
+         Chunk chunk = chunkProvider.getLoadedChunk(this.xPosition, this.zPosition - 1);
+         Chunk chunk1 = chunkProvider.getLoadedChunk(this.xPosition + 1, this.zPosition);
+         Chunk chunk2 = chunkProvider.getLoadedChunk(this.xPosition, this.zPosition + 1);

@@ -1,0 +1,225 @@
+--- ../src-base/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
++++ ../src-work/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
+@@ -101,9 +101,26 @@
+ import net.minecraft.world.WorldServer;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.storage.loot.ILootContainer;
++import luohuayu.CatServer.inventory.CBContainer;
++
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.WeatherType;
+ 
++//CraftBukkit start
++import org.bukkit.Bukkit;
++import org.bukkit.WeatherType;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.inventory.InventoryType;
++import org.bukkit.event.player.PlayerChangedMainHandEvent;
++import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
++import org.bukkit.inventory.MainHand;
++// CraftBukkit end
++
+ public class EntityPlayerMP extends EntityPlayer implements IContainerListener
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -124,17 +141,28 @@
+     private float lastHealth = -1.0E8F;
+     private int lastFoodLevel = -99999999;
+     private boolean wasHungry = true;
+-    private int lastExperience = -99999999;
+-    private int respawnInvulnerabilityTicks = 60;
++    public int lastExperience = -99999999;
++    public int respawnInvulnerabilityTicks = 60;
+     private EntityPlayer.EnumChatVisibility chatVisibility;
+     private boolean chatColours = true;
+     private long playerLastActiveTime = System.currentTimeMillis();
+     private Entity spectatingEntity;
+-    private boolean invulnerableDimensionChange;
++    public boolean invulnerableDimensionChange;
+     public int currentWindowId;
+     public boolean isChangingQuantityOnly;
+     public int ping;
+     public boolean playerConqueredTheEnd;
++    // CraftBukkit start
++    public String displayName;
++    public ITextComponent listName;
++    public org.bukkit.Location compassTarget;
++    public int newExp = 0;
++    public int newLevel = 0;
++    public int newTotalExp = 0;
++    public boolean keepLevel = false;
++    public double maxHealthCache;
++    public boolean joining = true;
++    // CraftBukkit end
+ 
+     @SuppressWarnings("unused")
+     public EntityPlayerMP(MinecraftServer server, WorldServer worldIn, GameProfile profile, PlayerInteractionManager interactionManagerIn)
+@@ -171,6 +199,11 @@
+         {
+             this.setPosition(this.posX, this.posY + 1.0D, this.posZ);
+         }
++        // CraftBukkit start
++        this.displayName = this.getName();
++        // this.canPickUpLoot = true; TODO
++        this.maxHealthCache = this.getMaxHealth();
++        // CraftBukkit end
+     }
+ 
+     public void readEntityFromNBT(NBTTagCompound compound)
+@@ -742,6 +775,10 @@
+     {
+         this.currentWindowId = this.currentWindowId % 100 + 1;
+     }
++    public int nextContainerCounter() { // CraftBukkit - void -> int
++        this.currentWindowId = this.currentWindowId % 100 + 1;
++        return currentWindowId; // CraftBukkit
++    }
+ 
+     public void displayGui(IInteractionObject guiOwner)
+     {
+@@ -988,6 +1025,12 @@
+     {
+         this.lastHealth = -1.0E8F;
+     }
++    //CB
++    public void sendMessage(final ITextComponent[] ichatbasecomponent) {
++        for (final ITextComponent component : ichatbasecomponent) {
++            this.addChatMessage(component);
++        }
++    }
+ 
+     public void addChatComponentMessage(ITextComponent chatComponent)
+     {
+@@ -1264,4 +1307,127 @@
+         this.setFlag(7, true);
+         this.setFlag(7, false);
+     }
++    
++    @Override
++    public CraftPlayer getBukkitEntity() {
++    	return (CraftPlayer) super.getBukkitEntity();
++    }
++    
++    // CraftBukkit start - Add per-player time and weather.
++    public long timeOffset = 0;
++    public boolean relativeTime = true;
++    
++    public long getPlayerTime() {
++    	if (this.relativeTime) {
++    		// Adds timeOffset to the current server time.
++    		return this.worldObj.getWorldTime() + this.timeOffset;
++    	} else {
++    		// Adds timeOffset to the beginning of this day.
++    		return this.worldObj.getWorldTime() - (this.worldObj.getWorldTime() % 24000) + this.timeOffset;
++    	}
++    }
++    
++    public WeatherType weather = null;
++    
++    public WeatherType getPlayerWeather() {
++    	return this.weather;
++    }
++    
++    public void setPlayerWeather(WeatherType type, boolean plugin) {
++    	if (!plugin && this.weather != null) {
++    		return;
++    	}
++    
++    	if (plugin) {
++    		this.weather = type;
++    	}
++    		
++    	if (type == WeatherType.DOWNFALL) {
++    		this.connection.sendPacket(new SPacketChangeGameState(2, 0));
++    	} else {
++    		this.connection.sendPacket(new SPacketChangeGameState(1, 0));
++    	}
++    }
++    
++    private float pluginRainPosition;
++    private float pluginRainPositionPrevious;
++    
++    public void updateWeather(float oldRain, float newRain, float oldThunder, float newThunder) {
++    	if (this.weather == null) {
++    		// Vanilla
++    		if (oldRain != newRain) {
++    			this.connection.sendPacket(new SPacketChangeGameState(7, newRain));
++    		}
++    	} else {
++    		// Plugin
++    		if (pluginRainPositionPrevious != pluginRainPosition) {
++    			this.connection.sendPacket(new SPacketChangeGameState(7, pluginRainPosition));
++    		}
++    	}
++    	
++    	if (oldThunder != newThunder) {
++    		if (weather == WeatherType.DOWNFALL || weather == null) {
++    			this.connection.sendPacket(new SPacketChangeGameState(8, newThunder));
++    		} else {
++    			this.connection.sendPacket(new SPacketChangeGameState(8, 0));
++    		}
++    	}
++    }
++    
++    public void tickWeather() {
++    	if (this.weather == null) return;
++    	
++    	pluginRainPositionPrevious = pluginRainPosition;
++    	if (weather == WeatherType.DOWNFALL) {
++    		pluginRainPosition += 0.01;
++    	} else {
++    		pluginRainPosition -= 0.01;
++    	}
++    	
++    	pluginRainPosition = MathHelper.clamp_float(pluginRainPosition, 0.0F, 1.0F);
++    }
++    
++    public void resetPlayerWeather() {
++    	this.weather = null;
++    	this.setPlayerWeather(this.worldObj.getWorldInfo().isRaining() ? WeatherType.DOWNFALL : WeatherType.CLEAR, false);
++    }
++    
++    @Override
++    public String toString() {
++    	return super.toString() + "(" + this.getName() + " at " + this.posX + "," + this.posY + "," + this.posZ + ")";
++    }
++    
++    public void reset() {
++    	float exp = 0;
++    	boolean keepInventory = this.worldObj.getGameRules().getBoolean("keepInventory");
++    
++    	if (this.keepLevel || keepInventory) {
++    		exp = this.experience;
++    		this.newTotalExp = this.experienceTotal;
++    		this.newLevel = this.experienceLevel;
++    	}
++    
++    	this.setHealth(this.getMaxHealth());
++    	this.arrowHitTimer = 0;
++    	this.fallDistance = 0;
++    	//this.foodStats = new FoodStats(this); TODO!!!
++    	this.experienceLevel = this.newLevel;
++    	this.experienceTotal = this.newTotalExp;
++    	this.experience = 0;
++    	this.deathTime = 0;
++    	this.clearActivePotions();
++    	//this.updateEffects = true; TODO!!!
++    	this.openContainer = this.inventoryContainer;
++    	this.attackingPlayer = null;
++    	//this.lastDamager = null; TODO!!!
++    	//this.MAIN_HAND = new CombatTracker(this); TODO!!!
++    	this.lastExperience = -1;
++    	if (this.keepLevel || keepInventory) {
++    		this.experience = exp;
++    	} else {
++    		this.addExperience(this.newExp);
++    	}
++    	this.keepLevel = false;
++    }
++    // CraftBukkit end
+ }

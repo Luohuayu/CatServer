@@ -1,0 +1,96 @@
+--- ../src-base/minecraft/net/minecraft/world/WorldServer.java
++++ ../src-work/minecraft/net/minecraft/world/WorldServer.java
+@@ -78,15 +78,26 @@
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++//CraftBukkit start
++import java.util.logging.Level;
+ 
++import org.bukkit.WeatherType;
++import org.bukkit.block.BlockState;
++import org.bukkit.craftbukkit.util.HashTreeSet;
++
++import org.bukkit.event.block.BlockFormEvent;
++import org.bukkit.event.weather.LightningStrikeEvent;
++import org.spigotmc.SpigotConfig;
++// CraftBukkit end
++
+ public class WorldServer extends World implements IThreadListener
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final MinecraftServer mcServer;
+-    private final EntityTracker theEntityTracker;
++    public final EntityTracker theEntityTracker;
+     private final PlayerChunkMap thePlayerManager;
+     private final Set<NextTickListEntry> pendingTickListEntriesHashSet = Sets.<NextTickListEntry>newHashSet();
+-    private final TreeSet<NextTickListEntry> pendingTickListEntriesTreeSet = new TreeSet();
++    private final TreeSet<NextTickListEntry> pendingTickListEntriesTreeSet = new TreeSet<NextTickListEntry>();
+     private final Map<UUID, Entity> entitiesByUuid = Maps.<UUID, Entity>newHashMap();
+     public boolean disableLevelSaving;
+     private boolean allPlayersSleeping;
+@@ -101,20 +112,24 @@
+     /** Stores the recently processed (lighting) chunks */
+     protected Set<ChunkPos> doneChunks = new java.util.HashSet<ChunkPos>();
+     public List<Teleporter> customTeleporters = new ArrayList<Teleporter>();
++    public final int dimension;
+ 
+-    public WorldServer(MinecraftServer server, ISaveHandler saveHandlerIn, WorldInfo info, int dimensionId, Profiler profilerIn)
++    public WorldServer(MinecraftServer server, ISaveHandler saveHandlerIn, WorldInfo info, int dimensionId, Profiler profilerIn, org.bukkit.World.Environment env, org.bukkit.generator.ChunkGenerator gen)
+     {
+-        super(saveHandlerIn, info, net.minecraftforge.common.DimensionManager.createProviderFor(dimensionId), profilerIn, false);
++        super(saveHandlerIn, info, net.minecraftforge.common.DimensionManager.createProviderFor(dimensionId), profilerIn, false, gen, env);
++        this.dimension = dimensionId;
++        this.pvpMode = server.isPVPEnabled();
+         this.mcServer = server;
+         this.theEntityTracker = new EntityTracker(this);
+-        this.thePlayerManager = new PlayerChunkMap(this);
++        this.thePlayerManager = new PlayerChunkMap(this, spigotConfig.viewDistance);
+         // Guarantee the dimension ID was not reset by the provider
+         int providerDim = this.provider.getDimension();
+         this.provider.registerWorld(this);
+         this.provider.setDimension(providerDim);
+         this.chunkProvider = this.createChunkProvider();
+         perWorldStorage = new MapStorage(new net.minecraftforge.common.WorldSpecificSaveHandler((WorldServer)this, saveHandlerIn));
+-        this.worldTeleporter = new Teleporter(this);
++        //this.worldTeleporter = new Teleporter(this);
++        this.worldTeleporter = new org.bukkit.craftbukkit.CraftTravelAgent(this); // CraftBukkit
+         this.calculateInitialSkylight();
+         this.calculateInitialWeather();
+         this.getWorldBorder().setSize(server.getMaxWorldSize());
+@@ -341,7 +356,7 @@
+         this.worldInfo.setSpawnZ(j);
+     }
+ 
+-    protected boolean isChunkLoaded(int x, int z, boolean allowEmpty)
++    public boolean isChunkLoaded(int x, int z, boolean allowEmpty)
+     {
+         return this.getChunkProvider().chunkExists(x, z);
+     }
+@@ -1304,12 +1319,25 @@
+ 
+     public void spawnParticle(EnumParticleTypes particleType, boolean longDistance, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArguments)
+     {
+-        SPacketParticles spacketparticles = new SPacketParticles(particleType, longDistance, (float)xCoord, (float)yCoord, (float)zCoord, (float)xOffset, (float)yOffset, (float)zOffset, (float)particleSpeed, numberOfParticles, particleArguments);
++        /*SPacketParticles spacketparticles = new SPacketParticles(particleType, longDistance, (float)xCoord, (float)yCoord, (float)zCoord, (float)xOffset, (float)yOffset, (float)zOffset, (float)particleSpeed, numberOfParticles, particleArguments);
+ 
+         for (int i = 0; i < this.playerEntities.size(); ++i)
+         {
+             EntityPlayerMP entityplayermp = (EntityPlayerMP)this.playerEntities.get(i);
+             this.sendPacketWithinDistance(entityplayermp, longDistance, xCoord, yCoord, zCoord, spacketparticles);
++        }*/
++    	sendParticles(null, particleType, longDistance, xCoord, yCoord, zCoord, numberOfParticles, xOffset, yOffset, zOffset, particleSpeed, particleArguments);
++    }
++    // CraftBukkit
++    public void sendParticles(final EntityPlayerMP sender, final EnumParticleTypes enumparticle, final boolean flag, final double d0, final double d1, final double d2, final int i, final double d3, final double d4, final double d5, final double d6, final int... aint) {
++        final SPacketParticles packetplayoutworldparticles = new SPacketParticles(enumparticle, flag, (float)d0, (float)d1, (float)d2, (float)d3, (float)d4, (float)d5, (float)d6, i, aint);
++        for (int j = 0; j < this.playerEntities.size(); ++j) {
++            final EntityPlayerMP entityplayer = (EntityPlayerMP) this.playerEntities.get(j);
++            if (sender == null || entityplayer.getBukkitEntity().canSee(sender.getBukkitEntity())) {
++                //final BlockPos blockposition = entityplayer.getPosition();
++                //blockposition.distanceSq(d0, d1, d2);
++                this.sendPacketWithinDistance(entityplayer, flag, d0, d1, d2, packetplayoutworldparticles);
++            }
+         }
+     }
+ 

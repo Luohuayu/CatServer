@@ -1,0 +1,68 @@
+--- ../src-base/minecraft/net/minecraftforge/fml/common/registry/EntityRegistry.java
++++ ../src-work/minecraft/net/minecraftforge/fml/common/registry/EntityRegistry.java
+@@ -123,6 +123,8 @@
+     private ListMultimap<ModContainer, EntityRegistration> entityRegistrations = ArrayListMultimap.create();
+     private Map<String,ModContainer> entityNames = Maps.newHashMap();
+     private BiMap<Class<? extends Entity>, EntityRegistration> entityClassRegistrations = HashBiMap.create();
++    public static Map<Class <? extends Entity>, String> entityTypeMap = Maps.newHashMap();
++    public static Map<String, Class <? extends Entity>> entityClassMap = Maps.newHashMap();
+ 
+     public static EntityRegistry instance()
+     {
+@@ -147,6 +149,7 @@
+     public static void registerModEntity(Class<? extends Entity> entityClass, String entityName, int id, Object mod, int trackingRange, int updateFrequency, boolean sendsVelocityUpdates)
+     {
+         instance().doModEntityRegistration(entityClass, entityName, id, mod, trackingRange, updateFrequency, sendsVelocityUpdates);
++        registerBukkitType(entityClass, entityName);
+     }
+ 
+     /**
+@@ -167,6 +170,7 @@
+     {
+         instance().doModEntityRegistration(entityClass, entityName, id, mod, trackingRange, updateFrequency, sendsVelocityUpdates);
+         EntityRegistry.registerEgg(entityClass, eggPrimary, eggSecondary);
++        registerBukkitType(entityClass, entityName);
+     }
+ 
+     private void doModEntityRegistration(Class<? extends Entity> entityClass, String entityName, int id, Object mod, int trackingRange, int updateFrequency, boolean sendsVelocityUpdates)
+@@ -182,6 +186,7 @@
+                 String entityModName = String.format("%s.%s", mc.getModId(), entityName);
+                 EntityList.CLASS_TO_NAME.put(entityClass, entityModName);
+                 EntityList.NAME_TO_CLASS.put(entityModName, entityClass);
++                registerBukkitType(entityClass, entityName);
+                 FMLLog.finer("Automatically registered mod %s entity %s as %s", mc.getModId(), entityName, entityModName);
+             }
+             else
+@@ -362,4 +367,32 @@
+         }
+         return false;
+     }
++    // Cauldron start
++    private static void registerBukkitType(Class <? extends Entity > entityClass, String entityName)
++    {
++    ModContainer activeModContainer = Loader.instance().activeModContainer();
++    String modId = "unknown";
++    // fixup bad entity names from mods
++    if (entityName.contains("."))
++    {
++        if ((entityName.indexOf(".") + 1) < entityName.length())
++            entityName = entityName.substring(entityName.indexOf(".") + 1, entityName.length());
++    }
++    entityName = entityName.replace("entity", "");
++    if (entityName.startsWith("ent"))
++        entityName = entityName.replace("ent", "");
++    entityName = entityName.replaceAll("[^A-Za-z0-9]", ""); // remove all non-digits/alphanumeric
++    if (activeModContainer != null)
++        modId = activeModContainer.getModId();
++    entityName = modId + "-" + entityName;
++    entityTypeMap.put(entityClass, entityName);
++    entityClassMap.put(entityName, entityClass);
++    }
++
++    // used by CraftCustomEntity
++    public static String getCustomEntityTypeName(Class <? extends Entity > entityClass)
++    {
++        return entityTypeMap.get(entityClass);
++    }
++
+ }

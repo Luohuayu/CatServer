@@ -1,0 +1,116 @@
+--- ../src-base/minecraft/net/minecraft/world/Explosion.java
++++ ../src-work/minecraft/net/minecraft/world/Explosion.java
+@@ -13,6 +13,7 @@
+ import net.minecraft.enchantment.EnchantmentProtection;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityLivingBase;
++import net.minecraft.entity.item.EntityFallingBlock;
+ import net.minecraft.entity.item.EntityTNTPrimed;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.init.Blocks;
+@@ -26,7 +27,18 @@
+ import net.minecraft.util.math.Vec3d;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.block.BlockExplodeEvent;
++import org.bukkit.event.entity.EntityExplodeEvent;
+ 
++//CraftBukkit start
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityExplodeEvent;
++import org.bukkit.Location;
++import org.bukkit.event.block.BlockExplodeEvent;
++// CraftBukkit end
++
+ public class Explosion
+ {
+     private final boolean isFlaming;
+@@ -36,11 +48,12 @@
+     private final double explosionX;
+     private final double explosionY;
+     private final double explosionZ;
+-    private final Entity exploder;
++    public final Entity exploder;
+     private final float explosionSize;
+     private final List<BlockPos> affectedBlockPositions;
+     private final Map<EntityPlayer, Vec3d> playerKnockbackMap;
+     private final Vec3d position;
++    public boolean wasCanceled = false; // CraftBukkit - add field
+ 
+     @SideOnly(Side.CLIENT)
+     public Explosion(World worldIn, Entity entityIn, double x, double y, double z, float size, List<BlockPos> affectedPositions)
+@@ -62,7 +75,7 @@
+         this.playerKnockbackMap = Maps.<EntityPlayer, Vec3d>newHashMap();
+         this.worldObj = worldIn;
+         this.exploder = entityIn;
+-        this.explosionSize = size;
++        this.explosionSize = (float) Math.max(size, 0.0); // CraftBukkit - clamp bad values
+         this.explosionX = x;
+         this.explosionY = y;
+         this.explosionZ = z;
+@@ -155,7 +168,16 @@
+                         d9 = d9 / d13;
+                         double d14 = (double)this.worldObj.getBlockDensity(vec3d, entity.getEntityBoundingBox());
+                         double d10 = (1.0D - d12) * d14;
+-                        entity.attackEntityFrom(DamageSource.causeExplosionDamage(this), (float)((int)((d10 * d10 + d10) / 2.0D * 7.0D * (double)f3 + 1.0D)));
++                        //entity.attackEntityFrom(DamageSource.causeExplosionDamage(this), (float)((int)((d10 * d10 + d10) / 2.0D * 7.0D * (double)f3 + 1.0D)));
++                        // CraftBukkit start
++                        CraftEventFactory.entityDamage = exploder;
++                        entity.forceExplosionKnockback = false;
++                        boolean wasDamaged = entity.attackEntityFrom(DamageSource.causeExplosionDamage(this), (float) ((int) ((d13 * d13 + d13) / 2.0D * 7.0D * (double) f3 + 1.0D)));
++                        CraftEventFactory.entityDamage = null;
++                        if (!wasDamaged && !(entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) && !entity.forceExplosionKnockback) {
++                        	continue;
++                        }
++                        // CraftBukkit end
+                         double d11 = 1.0D;
+ 
+                         if (entity instanceof EntityLivingBase)
+@@ -197,6 +219,45 @@
+ 
+         if (this.isSmoking)
+         {
++        	// CraftBukkit start
++        	final org.bukkit.World bworld = this.worldObj.getWorld();
++            final org.bukkit.entity.Entity explode = (this.exploder == null) ? null : this.exploder.getBukkitEntity();
++            final Location location = new Location(bworld, this.explosionX, this.explosionY, this.explosionZ);
++            final List<org.bukkit.block.Block> blockList = /*(List<Block>)*/Lists.newArrayList();
++            for (int i1 = this.affectedBlockPositions.size() - 1; i1 >= 0; --i1) {
++                final BlockPos cpos = this.affectedBlockPositions.get(i1);
++                final org.bukkit.block.Block bblock = bworld.getBlockAt(cpos.getX(), cpos.getY(), cpos.getZ());
++                if (bblock.getType() != org.bukkit.Material.AIR) {
++                    blockList.add(bblock);
++                }
++            }
++            boolean cancelled;
++            List<org.bukkit.block.Block> bukkitBlocks;
++            float yield;
++            if (explode != null) {
++                final EntityExplodeEvent event = new EntityExplodeEvent(explode, location, blockList, 1.0f / this.explosionSize);
++                this.worldObj.getServer().getPluginManager().callEvent(event);
++                cancelled = event.isCancelled();
++                bukkitBlocks = event.blockList();
++                yield = event.getYield();
++            }
++            else {
++                final BlockExplodeEvent event2 = new BlockExplodeEvent(location.getBlock(), blockList, 1.0f / this.explosionSize);
++                this.worldObj.getServer().getPluginManager().callEvent(event2);
++                cancelled = event2.isCancelled();
++                bukkitBlocks = event2.blockList();
++                yield = event2.getYield();
++            }
++            this.affectedBlockPositions.clear();
++            for (final org.bukkit.block.Block bblock2 : bukkitBlocks) {
++                final BlockPos coords = new BlockPos(bblock2.getX(), bblock2.getY(), bblock2.getZ());
++                this.affectedBlockPositions.add(coords);
++            }
++            if (cancelled) {
++                this.wasCanceled = true;
++                return;
++            }
++            // CraftBukkit end
+             for (BlockPos blockpos : this.affectedBlockPositions)
+             {
+                 IBlockState iblockstate = this.worldObj.getBlockState(blockpos);

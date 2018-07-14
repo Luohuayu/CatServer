@@ -1,0 +1,107 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityArrow.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityArrow.java
+@@ -11,9 +11,11 @@
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.IProjectile;
++import net.minecraft.entity.item.EntityItem;
+ import net.minecraft.entity.monster.EntityEnderman;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.EntityPlayerMP;
++import net.minecraft.init.Items;
+ import net.minecraft.init.SoundEvents;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.nbt.NBTTagCompound;
+@@ -34,7 +36,16 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.player.PlayerPickupArrowEvent;
+ 
++//CraftBukkit start
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.player.PlayerPickupArrowEvent;
++// CraftBukkit end
++
+ public abstract class EntityArrow extends Entity implements IProjectile
+ {
+     private static final Predicate<Entity> ARROW_TARGETS = Predicates.and(new Predicate[] {EntitySelectors.NOT_SPECTATING, EntitySelectors.IS_ALIVE, new Predicate<Entity>()
+@@ -59,7 +70,7 @@
+     private int ticksInGround;
+     private int ticksInAir;
+     private double damage;
+-    private int knockbackStrength;
++    public int knockbackStrength;
+ 
+     public EntityArrow(World worldIn)
+     {
+@@ -82,7 +93,7 @@
+     {
+         this(worldIn, shooter.posX, shooter.posY + (double)shooter.getEyeHeight() - 0.10000000149011612D, shooter.posZ);
+         this.shootingEntity = shooter;
+-
++        this.projectileSource = (LivingEntity) shooter.getBukkitEntity(); // CraftBukkit
+         if (shooter instanceof EntityPlayer)
+         {
+             this.pickupStatus = EntityArrow.PickupStatus.ALLOWED;
+@@ -338,7 +349,7 @@
+     protected void onHit(RayTraceResult raytraceResultIn)
+     {
+         Entity entity = raytraceResultIn.entityHit;
+-
++        org.bukkit.craftbukkit.event.CraftEventFactory.callProjectileHitEvent(this); // CraftBukkit - Call event
+         if (entity != null)
+         {
+             float f = MathHelper.sqrt_double(this.motionX * this.motionX + this.motionY * this.motionY + this.motionZ * this.motionZ);
+@@ -362,7 +373,14 @@
+ 
+             if (this.isBurning() && !(entity instanceof EntityEnderman))
+             {
+-                entity.setFire(5);
++                //entity.setFire(5);
++            	// CraftBukkit start
++            	EntityCombustByEntityEvent combustEvent = new EntityCombustByEntityEvent(this.getBukkitEntity(), entity.getBukkitEntity(), 5);
++            	org.bukkit.Bukkit.getPluginManager().callEvent(combustEvent);
++            	if (!combustEvent.isCancelled()) {
++            		entity.setFire(combustEvent.getDuration());
++            	}
++            	// CraftBukkit end
+             }
+ 
+             if (entity.attackEntityFrom(damagesource, (float)i))
+@@ -554,6 +572,20 @@
+     {
+         if (!this.worldObj.isRemote && this.inGround && this.arrowShake <= 0)
+         {
++        	// CraftBukkit start
++        	ItemStack itemstack = new ItemStack(Items.ARROW);
++        	if (this.pickupStatus == PickupStatus.ALLOWED && entityIn.inventory.canHold(itemstack) > 0) {
++        		EntityItem item = new EntityItem(this.worldObj, this.posX, this.posY, this.posZ, itemstack);
++        		
++        		PlayerPickupArrowEvent event = new PlayerPickupArrowEvent((org.bukkit.entity.Player) entityIn.getBukkitEntity(), new org.bukkit.craftbukkit.entity.CraftItem(this.worldObj.getServer(), this, item), (org.bukkit.entity.Arrow) this.getBukkitEntity());
++        		// event.setCancelled(!entityhuman.canPickUpLoot); TODO
++        		this.worldObj.getServer().getPluginManager().callEvent(event);
++        		
++        		if (event.isCancelled()) {
++        			return;
++        		}
++        	}
++        	// CraftBukkit end
+             boolean flag = this.pickupStatus == EntityArrow.PickupStatus.ALLOWED || this.pickupStatus == EntityArrow.PickupStatus.CREATIVE_ONLY && entityIn.capabilities.isCreativeMode;
+ 
+             if (this.pickupStatus == EntityArrow.PickupStatus.ALLOWED && !entityIn.inventory.addItemStackToInventory(this.getArrowStack()))
+@@ -627,6 +659,11 @@
+         byte b0 = ((Byte)this.dataManager.get(CRITICAL)).byteValue();
+         return (b0 & 1) != 0;
+     }
++    // CraftBukkit start
++    public boolean isInGround() {
++    	return inGround;
++    }
++    // CraftBukkit end
+ 
+     public static enum PickupStatus
+     {

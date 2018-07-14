@@ -1,0 +1,146 @@
+--- ../src-base/minecraft/net/minecraft/world/storage/SaveHandler.java
++++ ../src-work/minecraft/net/minecraft/world/storage/SaveHandler.java
+@@ -6,8 +6,11 @@
+ import java.io.FileInputStream;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
++import java.util.UUID;
++
+ import javax.annotation.Nullable;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.nbt.CompressedStreamTools;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.server.MinecraftServer;
+@@ -19,7 +22,13 @@
+ import net.minecraft.world.gen.structure.template.TemplateManager;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ 
++// CraftBukkit start
++import java.util.UUID;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++// CraftBukkit end
++
+ public class SaveHandler implements ISaveHandler, IPlayerFileData
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -30,6 +39,7 @@
+     private final String saveDirectoryName;
+     private final TemplateManager structureTemplateManager;
+     protected final DataFixer dataFixer;
++    private UUID uuid = null; // CraftBukkit
+ 
+     public SaveHandler(File p_i46648_1_, String saveDirectoryNameIn, boolean p_i46648_3_, DataFixer dataFixerIn)
+     {
+@@ -219,6 +229,13 @@
+ 
+         if (nbttagcompound != null)
+         {
++        	if (player instanceof EntityPlayerMP) {
++                final CraftPlayer player2 = (CraftPlayer)player.getBukkitEntity();
++                final long modified = new File(this.playersDirectory, String.valueOf(player.getUniqueID().toString()) + ".dat").lastModified();
++                if (modified < player2.getFirstPlayed()) {
++                    player2.setFirstPlayed(modified);
++                }
++            }
+             player.readFromNBT(this.dataFixer.process(FixTypes.PLAYER, nbttagcompound));
+         }
+ 
+@@ -226,6 +243,19 @@
+         return nbttagcompound;
+     }
+ 
++    public NBTTagCompound getPlayerData(final String s) { // Bukkit
++        try {
++            final File file1 = new File(this.playersDirectory, String.valueOf(s) + ".dat");
++            if (file1.exists()) {
++                return CompressedStreamTools.readCompressed(new FileInputStream(file1));
++            }
++        }
++        catch (Exception ex) {
++            SaveHandler.LOGGER.warn("Failed to load player data for " + s);
++        }
++        return null;
++    }
++    
+     public IPlayerFileData getPlayerNBTManager()
+     {
+         return this;
+@@ -282,4 +312,75 @@
+         }
+         return null;
+     }
++
++    @Override
++    public UUID getUUID() {
++        if (this.uuid != null) {
++            return this.uuid;
++        }
++        final File file1 = new File(this.worldDirectory, "uid.dat");
++        if (file1.exists()) {
++            DataInputStream dis = null;
++            try {
++                dis = new DataInputStream(new FileInputStream(file1));
++                final UUID uuid = new UUID(dis.readLong(), dis.readLong());
++                this.uuid = uuid;
++                return uuid;
++            }
++            catch (IOException ex) {
++                SaveHandler.LOGGER.warn("Failed to read " + file1 + ", generating new random UUID", (Throwable)ex);
++                if (dis != null) {
++                    try {
++                        dis.close();
++                    }
++                    catch (IOException ex2) {}
++                }
++            }
++            finally {
++                if (dis != null) {
++                    try {
++                        dis.close();
++                    }
++                    catch (IOException ex3) {}
++                }
++            }
++        }
++        this.uuid = UUID.randomUUID();
++        DataOutputStream dos = null;
++        try {
++            dos = new DataOutputStream(new FileOutputStream(file1));
++            dos.writeLong(this.uuid.getMostSignificantBits());
++            dos.writeLong(this.uuid.getLeastSignificantBits());
++        }
++        catch (IOException ex) {
++            SaveHandler.LOGGER.warn("Failed to write " + file1, (Throwable)ex);
++            if (dos != null) {
++                try {
++                    dos.close();
++                }
++                catch (IOException ex4) {}
++                return this.uuid;
++            }
++            return this.uuid;
++        }
++        finally {
++            if (dos != null) {
++                try {
++                    dos.close();
++                }
++                catch (IOException ex5) {}
++            }
++        }
++        if (dos != null) {
++            try {
++                dos.close();
++            }
++            catch (IOException ex6) {}
++        }
++        return this.uuid;
++    }
++    
++    public File getPlayerDir() {
++        return this.playersDirectory;
++    }
+ }

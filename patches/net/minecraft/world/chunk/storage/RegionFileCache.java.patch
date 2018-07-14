@@ -1,0 +1,50 @@
+--- ../src-base/minecraft/net/minecraft/world/chunk/storage/RegionFileCache.java
++++ ../src-work/minecraft/net/minecraft/world/chunk/storage/RegionFileCache.java
+@@ -1,15 +1,15 @@
+ package net.minecraft.world.chunk.storage;
+ 
+ import com.google.common.collect.Maps;
+-import java.io.DataInputStream;
+-import java.io.DataOutputStream;
+-import java.io.File;
+-import java.io.IOException;
++import net.minecraft.nbt.CompressedStreamTools;
++import net.minecraft.nbt.NBTTagCompound;
++
++import java.io.*;
+ import java.util.Map;
+ 
+ public class RegionFileCache
+ {
+-    private static final Map<File, RegionFile> REGIONS_BY_FILE = Maps.<File, RegionFile>newHashMap();
++    public static final Map<File, RegionFile> REGIONS_BY_FILE = Maps.<File, RegionFile>newHashMap(); // Spigot - private -> public
+ 
+     public static synchronized RegionFile createOrLoadRegionFile(File worldDir, int chunkX, int chunkZ)
+     {
+@@ -58,16 +58,21 @@
+ 
+         REGIONS_BY_FILE.clear();
+     }
+-
+-    public static DataInputStream getChunkInputStream(File worldDir, int chunkX, int chunkZ)
++    // CraftBukkit start - call sites hoisted for synchronization
++    public static synchronized NBTTagCompound getChunkInputStream(File worldDir, int chunkX, int chunkZ) throws IOException
+     {
+         RegionFile regionfile = createOrLoadRegionFile(worldDir, chunkX, chunkZ);
+-        return regionfile.getChunkDataInputStream(chunkX & 31, chunkZ & 31);
++        DataInputStream dataInputStream = regionfile.getChunkDataInputStream(chunkX & 31, chunkZ & 31);
++        if(dataInputStream == null){
++            return null;
++        }
++        return CompressedStreamTools.read(dataInputStream);
+     }
+ 
+-    public static DataOutputStream getChunkOutputStream(File worldDir, int chunkX, int chunkZ)
++    public static synchronized void getChunkOutputStream(File worldDir, int chunkX, int chunkZ, NBTTagCompound nbtTagCompound) throws IOException
+     {
+         RegionFile regionfile = createOrLoadRegionFile(worldDir, chunkX, chunkZ);
+-        return regionfile.getChunkDataOutputStream(chunkX & 31, chunkZ & 31);
++        DataOutputStream dataOutputStream = regionfile.getChunkDataOutputStream(chunkX & 31,chunkZ & 31);
++        CompressedStreamTools.write(nbtTagCompound,(DataOutput) dataOutputStream);
+     }
+ }

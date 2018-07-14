@@ -1,0 +1,135 @@
+--- ../src-base/minecraft/net/minecraft/server/management/PlayerInteractionManager.java
++++ ../src-work/minecraft/net/minecraft/server/management/PlayerInteractionManager.java
+@@ -9,6 +9,7 @@
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.EntityPlayerMP;
++import net.minecraft.init.Blocks;
+ import net.minecraft.inventory.IInventory;
+ import net.minecraft.item.ItemBlock;
+ import net.minecraft.item.ItemStack;
+@@ -26,6 +27,13 @@
+ import net.minecraft.world.ILockableContainer;
+ import net.minecraft.world.World;
+ import net.minecraft.world.WorldServer;
++//CraftBukkit start
++import org.bukkit.event.block.BlockBreakEvent;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.Event;
++import org.bukkit.event.block.Action;
++import org.bukkit.event.player.PlayerInteractEvent;
++// CraftBukkit end
+ 
+ public class PlayerInteractionManager
+ {
+@@ -42,6 +50,10 @@
+     private BlockPos delayedDestroyPos = BlockPos.ORIGIN;
+     private int initialBlockDamage;
+     private int durabilityRemainingOnBlock = -1;
++    // CraftBukkit start
++    public boolean interactResult = false;
++    public boolean firedInteract = false;
++    // CraftBukkit end
+ 
+     public PlayerInteractionManager(World worldIn)
+     {
+@@ -143,7 +155,8 @@
+     public void onBlockClicked(BlockPos pos, EnumFacing side)
+     {
+         net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event = net.minecraftforge.common.ForgeHooks.onLeftClickBlock(thisPlayerMP, pos, side, net.minecraftforge.common.ForgeHooks.rayTraceEyeHitVec(thisPlayerMP, getBlockReachDistance() + 1));
+-        if (event.isCanceled())
++        PlayerInteractEvent eventCB = CraftEventFactory.callPlayerInteractEvent(this.thisPlayerMP, Action.LEFT_CLICK_BLOCK, pos, side, this.thisPlayerMP.inventory.getCurrentItem(), EnumHand.MAIN_HAND);
++        if (event.isCanceled() || eventCB.isCancelled()) // Svarka
+         {
+             // Restore block and te data
+             thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
+@@ -204,7 +217,7 @@
+                 }
+                 f = iblockstate.getPlayerRelativeBlockHardness(this.thisPlayerMP, this.thisPlayerMP.worldObj, pos);
+             }
+-            if (event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
++            if (event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY || eventCB.useItemInHand() == Event.Result.DENY)
+             {
+                 if (f >= 1.0F)
+                 {
+@@ -213,7 +226,16 @@
+                     theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
+                 }
+                 return;
++            }// CB
++            org.bukkit.event.block.BlockDamageEvent blockEvent = CraftEventFactory.callBlockDamageEvent(this.thisPlayerMP, pos.getX(), pos.getY(), pos.getZ(), this.thisPlayerMP.inventory.getCurrentItem(), f >= 1.0f);
++            if(blockEvent.isCancelled()) {
++            	// Let the client know the block still exists
++            	((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++            	return;
+             }
++            if(blockEvent.getInstaBreak()) {
++            	f = 2.0F;
++            }// CB end
+ 
+             if (!iblockstate.getBlock().isAir(iblockstate, theWorld, pos) && f >= 1.0F)
+             {
+@@ -283,7 +305,50 @@
+     }
+ 
+     public boolean tryHarvestBlock(BlockPos pos)
+-    {
++    {// CB
++    	BlockBreakEvent event = null;
++    	org.bukkit.block.Block blockCB = this.theWorld.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++    	boolean isSwordNoBreak = this.isCreative() && this.thisPlayerMP.getActiveItemStack() != null && this.thisPlayerMP.getActiveItemStack().getItem() instanceof ItemSword;
++    	// Tell client the block is gone immediately then process events
++    	// Don't tell the client if its a creative sword break because its not broken!
++    	if (theWorld.getTileEntity(pos) == null && !isSwordNoBreak) {
++    		SPacketBlockChange packet = new SPacketBlockChange(this.theWorld, pos);
++    		packet.blockState = Blocks.AIR.getDefaultState();
++    		((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(packet);
++    	}
++    	event = new BlockBreakEvent(blockCB, this.thisPlayerMP.getBukkitEntity());
++    	// Sword + Creative mode pre-cancel
++    	event.setCancelled(isSwordNoBreak);
++    	// Calculate default block experience
++    	IBlockState nmsData = this.theWorld.getBlockState(pos);
++    	Block nmsBlock = nmsData.getBlock();
++    	ItemStack itemstack = this.thisPlayerMP.getHeldItem(EnumHand.MAIN_HAND);
++    	/*if (nmsBlock != null && !event.isCancelled() && !this.isCreative() && this.player.hasBlock(nmsBlock.getBlockData())) {
++    		// Copied from block.a(World world, EntityHuman entityhuman, BlockPosition blockposition, IBlockData iblockdata, TileEntity tileentity)
++    		// PAIL: checkme each update
++    		if (!(nmsBlock.p() && EnchantmentManager.getEnchantmentLevel(Enchantments.SILK_TOUCH, itemstack) > 0)) {
++    			int data = block.getData();
++    			int bonusLevel = EnchantmentManager.getEnchantmentLevel(Enchantments.LOOT_BONUS_BLOCKS, itemstack);
++    			
++    			event.setExpToDrop(nmsBlock.getExpDrop(nmsData, this.theWorld, pos, bonusLevel));
++    		}
++    	}*/ // TOD
++    	this.theWorld.getServer().getPluginManager().callEvent(event);
++    	if (event.isCancelled()) {
++    		if (isSwordNoBreak) {
++    			return false;
++    		}
++    		// Let the client know the block still exists
++    		((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++    		// Update any tile entity data for this block
++    		TileEntity tileentity = this.theWorld.getTileEntity(pos);
++    		if (tileentity != null) {
++    			this.thisPlayerMP.connection.sendPacket(tileentity.getUpdatePacket());
++    		}
++    		return false;
++    	}
++    	
++    	// Forge
+         int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(theWorld, gameType, thisPlayerMP, pos);
+         if (exp == -1)
+         {
+@@ -338,9 +403,9 @@
+                 }
+ 
+                 // Drop experience
+-                if (!this.isCreative() && flag1 && exp > 0)
++                if (!this.isCreative() && flag1)
+                 {
+-                    iblockstate.getBlock().dropXpOnBlockBreak(theWorld, pos, exp);
++                    iblockstate.getBlock().dropXpOnBlockBreak(theWorld, pos, exp > 0 ? exp : event.getExpToDrop() > 0 ? event.getExpToDrop() : 0); // Svarka
+                 }
+                 return flag1;
+             }

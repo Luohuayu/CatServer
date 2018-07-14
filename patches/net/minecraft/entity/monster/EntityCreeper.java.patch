@@ -1,0 +1,77 @@
+--- ../src-base/minecraft/net/minecraft/entity/monster/EntityCreeper.java
++++ ../src-work/minecraft/net/minecraft/entity/monster/EntityCreeper.java
+@@ -33,7 +33,14 @@
+ import net.minecraft.world.storage.loot.LootTableList;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
++//CraftBukkit start
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
++// CraftBukkit end
++
+ public class EntityCreeper extends EntityMob
+ {
+     private static final DataParameter<Integer> STATE = EntityDataManager.<Integer>createKey(EntityCreeper.class, DataSerializers.VARINT);
+@@ -181,7 +188,7 @@
+ 
+     public void onDeath(DamageSource cause)
+     {
+-        super.onDeath(cause);
++        //super.onDeath(cause);
+ 
+         if (this.worldObj.getGameRules().getBoolean("doMobLoot"))
+         {
+@@ -197,7 +204,7 @@
+                 ((EntityCreeper)cause.getEntity()).incrementDroppedSkulls();
+                 this.entityDropItem(new ItemStack(Items.SKULL, 1, 4), 0.0F);
+             }
+-        }
++        }super.onDeath(cause); // CB - moved.
+     }
+ 
+     public boolean attackEntityAsMob(Entity entityIn)
+@@ -235,8 +242,16 @@
+     public void onStruckByLightning(EntityLightningBolt lightningBolt)
+     {
+         super.onStruckByLightning(lightningBolt);
+-        this.dataManager.set(POWERED, Boolean.valueOf(true));
++        // CraftBukkit start
++        if (CraftEventFactory.callCreeperPowerEvent(this, lightningBolt, org.bukkit.event.entity.CreeperPowerEvent.PowerCause.LIGHTNING).isCancelled()) {
++        	return;
++        }
++        	
++        this.setPowered(true);
+     }
++    public void setPowered(boolean powered) {
++        this.dataManager.set(POWERED, powered);
++    }
+ 
+     protected boolean processInteract(EntityPlayer player, EnumHand hand, @Nullable ItemStack stack)
+     {
+@@ -262,9 +277,20 @@
+         {
+             boolean flag = this.worldObj.getGameRules().getBoolean("mobGriefing");
+             float f = this.getPowered() ? 2.0F : 1.0F;
+-            this.dead = true;
+-            this.worldObj.createExplosion(this, this.posX, this.posY, this.posZ, (float)this.explosionRadius * f, flag);
+-            this.setDead();
++            //this.dead = true;
++            //this.worldObj.createExplosion(this, this.posX, this.posY, this.posZ, (float)this.explosionRadius * f, flag);
++            //this.setDead();
++            // CraftBukkit start
++            ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), this.explosionRadius * f, false);
++            this.worldObj.getServer().getPluginManager().callEvent(event);
++            if (!event.isCancelled()) {
++            	this.dead = true;
++            	this.worldObj.newExplosion(this, this.posX, this.posY, this.posZ, event.getRadius(), event.getFire(), flag);
++            	this.setDead();
++            } else {
++            	timeSinceIgnited = 0;
++            }
++            // CraftBukkit end
+         }
+     }
+ 

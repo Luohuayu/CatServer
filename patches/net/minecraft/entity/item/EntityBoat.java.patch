@@ -1,0 +1,164 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityBoat.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityBoat.java
+@@ -34,7 +34,22 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Location;
++import org.bukkit.entity.Vehicle;
++import org.bukkit.event.vehicle.VehicleDamageEvent;
++import org.bukkit.event.vehicle.VehicleDestroyEvent;
++import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
++import org.bukkit.event.vehicle.VehicleMoveEvent;
+ 
++//CraftBukkit start
++import org.bukkit.Location;
++import org.bukkit.entity.Vehicle;
++import org.bukkit.event.vehicle.VehicleDamageEvent;
++import org.bukkit.event.vehicle.VehicleDestroyEvent;
++import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
++import org.bukkit.event.vehicle.VehicleMoveEvent;
++// CraftBukkit end
++
+ public class EntityBoat extends Entity
+ {
+     private static final DataParameter<Integer> TIME_SINCE_HIT = EntityDataManager.<Integer>createKey(EntityBoat.class, DataSerializers.VARINT);
+@@ -61,6 +76,13 @@
+     private EntityBoat.Status status;
+     private EntityBoat.Status previousStatus;
+     private double lastYd;
++    // CraftBukkit start
++    // PAIL: Some of these haven't worked since a few updates, and since 1.9 they are less and less applicable.
++    public double maxSpeed = 0.4D;
++    public double occupiedDeceleration = 0.2D;
++    public double unoccupiedDeceleration = -1;
++    public boolean landBoats = false;
++    // CraftBukkit end
+ 
+     public EntityBoat(World worldIn)
+     {
+@@ -80,6 +102,7 @@
+         this.prevPosX = x;
+         this.prevPosY = y;
+         this.prevPosZ = z;
++        this.worldObj.getServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleCreateEvent((Vehicle) this.getBukkitEntity())); // CraftBukkit
+     }
+ 
+     protected boolean canTriggerWalking()
+@@ -136,6 +159,18 @@
+             }
+             else
+             {
++            	// CraftBukkit start
++            	Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++            	org.bukkit.entity.Entity attacker = (source.getEntity() == null) ? null : source.getEntity().getBukkitEntity();
++            		
++            	VehicleDamageEvent event = new VehicleDamageEvent(vehicle, attacker, (double) amount);
++            	this.worldObj.getServer().getPluginManager().callEvent(event);
++            		
++            	if (event.isCancelled()) {
++            		return true;
++            	}
++            	// f = event.getDamage(); // TODO Why don't we do this?
++            	// CraftBukkit end
+                 this.setForwardDirection(-this.getForwardDirection());
+                 this.setTimeSinceHit(10);
+                 this.setDamageTaken(this.getDamageTaken() + amount * 10.0F);
+@@ -144,6 +179,15 @@
+ 
+                 if (flag || this.getDamageTaken() > 40.0F)
+                 {
++                	// CraftBukkit start
++                	VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, attacker);
++                	this.worldObj.getServer().getPluginManager().callEvent(destroyEvent);
++                		
++                	if (destroyEvent.isCancelled()) {
++                		this.setDamageTaken(40F); // Maximize damage so this doesn't get triggered again right away
++                		return true;
++                	}
++                	// CraftBukkit end
+                     if (!flag && this.worldObj.getGameRules().getBoolean("doEntityDrops"))
+                     {
+                         this.dropItemWithOffset(this.getItemBoat(), 1, 0.0F);
+@@ -167,11 +211,27 @@
+         {
+             if (entityIn.getEntityBoundingBox().minY < this.getEntityBoundingBox().maxY)
+             {
++            	// CraftBukkit start
++            	VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), entityIn.getBukkitEntity());
++            	this.worldObj.getServer().getPluginManager().callEvent(event);
++            		
++            	if (event.isCancelled()) {
++            		return;
++            	}
++            	                // CraftBukkit end
+                 super.applyEntityCollision(entityIn);
+             }
+         }
+         else if (entityIn.getEntityBoundingBox().minY <= this.getEntityBoundingBox().minY)
+         {
++        	// CraftBukkit start
++        	VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), entityIn.getBukkitEntity());
++        	this.worldObj.getServer().getPluginManager().callEvent(event);
++        		
++        	if (event.isCancelled()) {
++        		return;
++        	}
++        	            // CraftBukkit end
+             super.applyEntityCollision(entityIn);
+         }
+     }
+@@ -224,7 +284,7 @@
+     {
+         return this.getHorizontalFacing().rotateY();
+     }
+-
++    private Location lastLocation; // CraftBukkit
+     public void onUpdate()
+     {
+         this.previousStatus = this.status;
+@@ -283,7 +343,21 @@
+             this.motionY = 0.0D;
+             this.motionZ = 0.0D;
+         }
+-
++        // CraftBukkit start
++        org.bukkit.Server server = this.worldObj.getServer();
++        org.bukkit.World bworld = this.worldObj.getWorld();
++        	
++        Location to = new Location(bworld, this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
++        Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++        	
++        server.getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleUpdateEvent(vehicle));
++        	
++        if (lastLocation != null && !lastLocation.equals(to)) {
++        	VehicleMoveEvent event = new VehicleMoveEvent(vehicle, lastLocation, to);
++        	server.getPluginManager().callEvent(event);
++        }
++        lastLocation = vehicle.getLocation();
++        // CraftBukkit end
+         for (int i = 0; i <= 1; ++i)
+         {
+             if (this.getPaddleState(i))
+@@ -795,7 +869,12 @@
+ 
+                     if (!this.worldObj.isRemote && !this.isDead)
+                     {
+-                        this.setDead();
++                    // CraftBukkit start
++                   	Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++                   	VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, null);
++                   	this.worldObj.getServer().getPluginManager().callEvent(destroyEvent);
++                   	if (!destroyEvent.isCancelled()) {
++                   		this.setDead();
+ 
+                         if (this.worldObj.getGameRules().getBoolean("doEntityDrops"))
+                         {
+@@ -810,6 +889,7 @@
+                             }
+                         }
+                     }
++                    } // CraftBukkit end
+                 }
+ 
+                 this.fallDistance = 0.0F;

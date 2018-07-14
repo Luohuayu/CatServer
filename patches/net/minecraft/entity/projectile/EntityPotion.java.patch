@@ -1,0 +1,147 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityPotion.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityPotion.java
+@@ -5,6 +5,7 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.entity.EntityAreaEffectCloud;
+ import net.minecraft.entity.EntityLivingBase;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Blocks;
+ import net.minecraft.init.Items;
+ import net.minecraft.init.PotionTypes;
+@@ -27,7 +28,21 @@
+ import net.minecraft.world.World;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import java.util.HashMap;
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.entity.PotionSplashEvent;
+ 
++//CraftBukkit start
++import java.util.HashMap;
++
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.entity.LivingEntity;
++// CraftBukkit end
++import org.bukkit.event.entity.PotionSplashEvent;
++
+ public class EntityPotion extends EntityThrowable
+ {
+     private static final DataParameter<Optional<ItemStack>> ITEM = EntityDataManager.<Optional<ItemStack>>createKey(EntityPotion.class, DataSerializers.OPTIONAL_ITEM_STACK);
+@@ -112,11 +127,12 @@
+             }
+             else
+             {
+-                if (!list.isEmpty())
++                if (true/* || !list.isEmpty()*/)
+                 {
+                     if (this.isLingering())
+                     {
+                         EntityAreaEffectCloud entityareaeffectcloud = new EntityAreaEffectCloud(this.worldObj, this.posX, this.posY, this.posZ);
++                        entityareaeffectcloud.projectileSource = this.projectileSource;
+                         entityareaeffectcloud.setOwner(this.getThrower());
+                         entityareaeffectcloud.setRadius(3.0F);
+                         entityareaeffectcloud.setRadiusOnUse(-0.5F);
+@@ -129,11 +145,19 @@
+                             entityareaeffectcloud.addEffect(new PotionEffect(potioneffect.getPotion(), potioneffect.getDuration(), potioneffect.getAmplifier()));
+                         }
+ 
+-                        this.worldObj.spawnEntityInWorld(entityareaeffectcloud);
++                        //this.worldObj.spawnEntityInWorld(entityareaeffectcloud);
++                        // CraftBukkit start
++                        org.bukkit.event.entity.LingeringPotionSplashEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callLingeringPotionSplashEvent(this, entityareaeffectcloud);
++                        if (!(event.isCancelled() || entityareaeffectcloud.isDead)) {
++                        	this.worldObj.spawnEntityInWorld(entityareaeffectcloud);
++                        } else {
++                        	entityareaeffectcloud.isDead = true;
++                        }
++                        // CraftBukkit end
+                     }
+                     else
+                     {
+-                        AxisAlignedBB axisalignedbb = this.getEntityBoundingBox().expand(4.0D, 2.0D, 4.0D);
++                        /*AxisAlignedBB axisalignedbb = this.getEntityBoundingBox().expand(4.0D, 2.0D, 4.0D);
+                         List<EntityLivingBase> list1 = this.worldObj.<EntityLivingBase>getEntitiesWithinAABB(EntityLivingBase.class, axisalignedbb);
+ 
+                         if (!list1.isEmpty())
+@@ -175,16 +199,66 @@
+                                 }
+                             }
+                         }
++                    }*/
++                    	final AxisAlignedBB axisalignedbb = this.getEntityBoundingBox().expand(4.0, 2.0, 4.0);
++                        final List<EntityLivingBase> list2 = this.worldObj.getEntitiesWithinAABB(/*(Class<? extends Entity>)*/EntityLivingBase.class, axisalignedbb);
++                        final HashMap<LivingEntity, Double> affected = new HashMap<LivingEntity, Double>();
++                        if (!list2.isEmpty()) {
++                            for (final EntityLivingBase entityliving : list2) {
++                                if (entityliving.canBeHitWithPotion()) {
++                                    final double d0 = this.getDistanceSqToEntity(entityliving);
++                                    if (d0 >= 16.0) {
++                                        continue;
++                                    }
++                                    double d2 = 1.0 - Math.sqrt(d0) / 4.0;
++                                    if (entityliving == result.entityHit) {
++                                        d2 = 1.0;
++                                    }
++                                    affected.put((LivingEntity)entityliving.getBukkitEntity(), d2);
++                                }
++                            }
++                        }
++                        final PotionSplashEvent event2 = CraftEventFactory.callPotionSplashEvent(this, affected);
++                        if (!event2.isCancelled() && list != null && !list.isEmpty()) {
++                            for (final LivingEntity victim : event2.getAffectedEntities()) {
++                                if (!(victim instanceof CraftLivingEntity)) {
++                                    continue;
++                                }
++                                final EntityLivingBase entityliving2 = ((CraftLivingEntity)victim).getHandle();
++                                final double d2 = event2.getIntensity(victim);
++                                for (final PotionEffect mobeffect2 : list) {
++                                    final Potion mobeffectlist = mobeffect2.getPotion();
++                                    if (!this.worldObj.pvpMode && this.getThrower() instanceof EntityPlayerMP && entityliving2 instanceof EntityPlayerMP && entityliving2 != this.getThrower()) {
++                                        final int i = Potion.getIdFromPotion(mobeffectlist);
++                                        if (i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18) {
++                                            continue;
++                                        }
++                                        if (i == 19) {
++                                            continue;
++                                        }
++                                    }
++                                    if (mobeffectlist.isInstant()) {
++                                        mobeffectlist.affectEntity(this, this.getThrower(), entityliving2, mobeffect2.getAmplifier(), d2);
++                                    }
++                                    else {
++                                        final int i = (int)(d2 * mobeffect2.getDuration() + 0.5);
++                                        if (i <= 20) {
++                                            continue;
++                                        }
++                                        entityliving2.addPotionEffect(new PotionEffect(mobeffectlist, i, mobeffect2.getAmplifier()));
++                                    }
++                                }
++                            }
++                        }
+                     }
+                 }
+-
+-                this.worldObj.playEvent(2002, new BlockPos(this), PotionType.getID(potiontype));
+-                this.setDead();
+             }
++            this.worldObj.playEvent(2002, new BlockPos(this), PotionType.getID(potiontype));
++            this.setDead();
+         }
+     }
+ 
+-    private boolean isLingering()
++    public boolean isLingering()
+     {
+         return this.getPotion().getItem() == Items.LINGERING_POTION;
+     }
+@@ -193,6 +267,7 @@
+     {
+         if (this.worldObj.getBlockState(pos).getBlock() == Blocks.FIRE)
+         {
++        	if (org.bukkit.craftbukkit.event.CraftEventFactory.callEntityChangeBlockEvent(this, pos, Blocks.AIR, 0).isCancelled()) return; // CraftBukkit
+             this.worldObj.setBlockState(pos, Blocks.AIR.getDefaultState(), 2);
+         }
+     }

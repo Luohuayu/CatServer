@@ -1,0 +1,119 @@
+--- ../src-base/minecraft/net/minecraft/entity/player/InventoryPlayer.java
++++ ../src-work/minecraft/net/minecraft/entity/player/InventoryPlayer.java
+@@ -21,7 +21,21 @@
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-public class InventoryPlayer implements IInventory
++import java.util.List;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++
++import luohuayu.CatServer.inventory.ICBInventory;
++
++//CraftBukkit start
++import java.util.List;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++// CraftBukkit end
++
++public class InventoryPlayer implements ICBInventory
+ {
+     public final ItemStack[] mainInventory = new ItemStack[36];
+     public final ItemStack[] armorInventory = new ItemStack[4];
+@@ -31,6 +45,47 @@
+     public EntityPlayer player;
+     private ItemStack itemStack;
+     public boolean inventoryChanged;
++    // CraftBukkit start - add fields and methods
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    private int maxStack = MAX_STACK;
++    
++    public ItemStack[] getContents() {
++    	ItemStack[] combined = new ItemStack[mainInventory.length + armorInventory.length + offHandInventory.length];
++    	System.arraycopy(mainInventory, 0, combined, 0, mainInventory.length);
++    	System.arraycopy(armorInventory, 0, combined, mainInventory.length, armorInventory.length);
++    	System.arraycopy(offHandInventory, 0, combined, mainInventory.length + armorInventory.length, offHandInventory.length);
++    	return combined;
++    }
++    
++    public ItemStack[] getArmorContents() {
++    	return this.armorInventory;
++    }
++    
++    public void onOpen(CraftHumanEntity who) {
++    	transaction.add(who);
++    }
++    
++    public void onClose(CraftHumanEntity who) {
++    	transaction.remove(who);
++    }
++    
++    public List<HumanEntity> getViewers() {
++    	return transaction;
++    }
++    
++    public org.bukkit.inventory.InventoryHolder getOwner() {
++    	return this.player.getBukkitEntity();
++    }
++    
++    public void setMaxStackSize(int size) {
++    	maxStack = size;
++    }
++    
++    @Override
++    public Location getLocation() {
++    	return player.getBukkitEntity().getLocation();
++    }
++        // CraftBukkit end
+ 
+     public InventoryPlayer(EntityPlayer playerIn)
+     {
+@@ -58,7 +113,23 @@
+     {
+         return stack1.getItem() == stack2.getItem() && (!stack1.getHasSubtypes() || stack1.getMetadata() == stack2.getMetadata()) && ItemStack.areItemStackTagsEqual(stack1, stack2);
+     }
+-
++    // CB start
++    public int canHold(final ItemStack itemstack) {
++        int remains = itemstack.stackSize;
++        for (int i = 0; i < this.mainInventory.length; ++i) {
++            if (this.mainInventory[i] == null) {
++                return itemstack.stackSize;
++            }
++            if (this.mainInventory[i] != null && this.mainInventory[i].getItem() == itemstack.getItem() && this.mainInventory[i].isStackable() && this.mainInventory[i].stackSize < this.mainInventory[i].getMaxStackSize() && this.mainInventory[i].stackSize < this.getInventoryStackLimit() && (!this.mainInventory[i].getHasSubtypes() || this.mainInventory[i].getMetadata() == itemstack.getMetadata()) && ItemStack.areItemStackTagsEqual(this.mainInventory[i], itemstack)) {
++                remains -= ((this.mainInventory[i].getMaxStackSize() < this.getInventoryStackLimit()) ? this.mainInventory[i].getMaxStackSize() : this.getInventoryStackLimit()) - this.mainInventory[i].stackSize;
++            }
++            if (remains <= 0) {
++                return itemstack.stackSize;
++            }
++        }
++        return itemstack.stackSize - remains;
++    }
++    // CB end
+     public int getFirstEmptyStack()
+     {
+         for (int i = 0; i < this.mainInventory.length; ++i)
+@@ -634,7 +705,7 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return 64;
++        return maxStack; // CB
+     }
+ 
+     public boolean canHarvestBlock(IBlockState state)
+@@ -706,7 +777,10 @@
+ 
+     @Nullable
+     public ItemStack getItemStack()
+-    {
++    {	// CB start
++    	if (this.itemStack != null && this.itemStack.stackSize == 0) {
++            this.setItemStack(null);
++        } // CB end
+         return this.itemStack;
+     }
+ 
