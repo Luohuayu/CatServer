@@ -241,27 +241,31 @@
      }
  
      public void serverUpdateMountedMovingPlayer(EntityPlayerMP playerIn)
-@@ -374,11 +468,18 @@
+@@ -374,11 +468,22 @@
          playerIn.getServerWorld().getPlayerChunkMap().updateMountedMovingPlayer(playerIn);
      }
  
 -    public void playerLoggedOut(EntityPlayerMP playerIn)
 +    public String playerLoggedOut(EntityPlayerMP playerIn) // CraftBukkit - return string
      {
++    	String quitMessage=null;
          net.minecraftforge.fml.common.FMLCommonHandler.instance().firePlayerLoggedOut(playerIn);
          WorldServer worldserver = playerIn.getServerWorld();
          playerIn.addStat(StatList.LEAVE_GAME);
 +        // CraftBukkit start - Quitting must be before we do final save of data, in case plugins need to modify it
 +        CraftEventFactory.handleInventoryCloseEvent(playerIn);
-+        final PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(this.cserver.getPlayer(playerIn), "§e" + playerIn.getName() + " left the game");
-+        this.cserver.getPluginManager().callEvent(playerQuitEvent);
-+        playerIn.getBukkitEntity().disconnect(playerQuitEvent.getQuitMessage());
-+        playerIn.onUpdateEntity();
++        if(playerIn.connection!=null) {
++        	final PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(this.cserver.getPlayer(playerIn), "§e" + playerIn.getName() + " left the game");
++	        this.cserver.getPluginManager().callEvent(playerQuitEvent);
++	        playerIn.getBukkitEntity().disconnect(playerQuitEvent.getQuitMessage());
++	        playerIn.onUpdateEntity();
++	        quitMessage=playerQuitEvent.getQuitMessage();
++        }
 +        // CraftBukkit end
          this.writePlayerData(playerIn);
  
          if (playerIn.isRiding())
-@@ -412,13 +513,50 @@
+@@ -412,13 +517,50 @@
              this.playerStatFiles.remove(uuid);
          }
          net.minecraftforge.common.chunkio.ChunkIOExecutor.adjustPoolSize(this.getCurrentPlayerCount());
@@ -281,7 +285,7 @@
 +        }
 +        this.cserver.getScoreboardManager().removePlayer(playerIn.getBukkitEntity());
 +        ChunkIOExecutor.adjustPoolSize(this.getCurrentPlayerCount());
-+        return playerQuitEvent.getQuitMessage();
++        return quitMessage;
 +        
      }
  
@@ -316,7 +320,7 @@
          {
              UserListBansEntry userlistbansentry = (UserListBansEntry)this.bannedPlayers.getEntry(profile);
              String s1 = "You are banned from this server!\nReason: " + userlistbansentry.getBanReason();
-@@ -428,15 +566,16 @@
+@@ -428,15 +570,16 @@
                  s1 = s1 + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistbansentry.getBanEndDate());
              }
  
@@ -337,7 +341,7 @@
              String s = "Your IP address is banned from this server!\nReason: " + userlistipbansentry.getBanReason();
  
              if (userlistipbansentry.getBanEndDate() != null)
-@@ -444,17 +583,27 @@
+@@ -444,17 +587,27 @@
                  s = s + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistipbansentry.getBanEndDate());
              }
  
@@ -369,7 +373,7 @@
          List<EntityPlayerMP> list = Lists.<EntityPlayerMP>newArrayList();
  
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -490,11 +639,16 @@
+@@ -490,11 +643,16 @@
              playerinteractionmanager = new PlayerInteractionManager(this.mcServer.worldServerForDimension(0));
          }
  
@@ -387,7 +391,7 @@
          World world = mcServer.worldServerForDimension(dimension);
          if (world == null)
          {
-@@ -502,82 +656,186 @@
+@@ -502,82 +660,186 @@
          }
          else if (!world.provider.canRespawnHere())
          {
@@ -628,7 +632,7 @@
  
      public void updatePermissionLevel(EntityPlayerMP player)
      {
-@@ -620,8 +878,75 @@
+@@ -620,8 +882,75 @@
  
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn)
      {
@@ -705,7 +709,7 @@
  
      @SuppressWarnings("unused")
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn, net.minecraft.world.Teleporter teleporter)
-@@ -720,7 +1045,22 @@
+@@ -720,7 +1049,22 @@
              ((EntityPlayerMP)this.playerEntityList.get(i)).connection.sendPacket(packetIn);
          }
      }
@@ -729,7 +733,7 @@
      public void sendPacketToAllPlayersInDimension(Packet<?> packetIn, int dimension)
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -836,12 +1176,24 @@
+@@ -836,12 +1180,24 @@
          int i = this.mcServer.getOpPermissionLevel();
          this.ops.addEntry(new UserListOpsEntry(profile, this.mcServer.getOpPermissionLevel(), this.ops.bypassesPlayerLimit(profile)));
          this.sendPlayerPermissionLevel(this.getPlayerByUUID(profile.getId()), i);
@@ -754,7 +758,7 @@
      }
  
      private void sendPlayerPermissionLevel(EntityPlayerMP player, int permLevel)
-@@ -896,7 +1248,11 @@
+@@ -896,7 +1252,11 @@
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {
              EntityPlayerMP entityplayermp = (EntityPlayerMP)this.playerEntityList.get(i);
@@ -767,7 +771,7 @@
              if (entityplayermp != except && entityplayermp.dimension == dimension)
              {
                  double d0 = x - entityplayermp.posX;
-@@ -961,16 +1317,21 @@
+@@ -961,16 +1321,21 @@
  
          if (worldIn.isRaining())
          {
@@ -793,7 +797,7 @@
          playerIn.connection.sendPacket(new SPacketHeldItemChange(playerIn.inventory.currentItem));
      }
  
-@@ -1054,15 +1415,21 @@
+@@ -1054,15 +1419,21 @@
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {

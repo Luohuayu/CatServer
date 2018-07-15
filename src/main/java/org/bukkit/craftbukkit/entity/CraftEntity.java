@@ -572,6 +572,8 @@ public static CraftEntity getEntity(CraftServer server, net.minecraft.entity.Ent
     }
     else if (entity instanceof net.minecraft.entity.item.EntityTNTPrimed) { return new CraftTNTPrimed(server, (net.minecraft.entity.item.EntityTNTPrimed) entity); }
     else if (entity instanceof net.minecraft.entity.item.EntityFireworkRocket) { return new CraftFirework(server, (net.minecraft.entity.item.EntityFireworkRocket) entity); }
+    else if ((entity instanceof EntityShulkerBullet)) { return new CraftShulkerBullet(server, (EntityShulkerBullet)entity); }
+    else if ((entity instanceof EntityAreaEffectCloud)) { return new CraftAreaEffectCloud(server, (EntityAreaEffectCloud)entity); }
     // Cauldron - used for custom entities that extend Entity directly
     else if (entity instanceof net.minecraft.entity.Entity) {
         if (entity instanceof net.minecraft.entity.IProjectile) return new luohuayu.CatServer.entity.CustomCraftProjectile(server, entity); // Thermos
