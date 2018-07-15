@@ -243,8 +243,7 @@ public final class CraftServer implements Server
     
     public CraftServer(final MinecraftServer console, final PlayerList playerList) {
         this.bukkitVersion = Versioning.getBukkitVersion();
-        this.logger = Logger.getLogger("Minecraft");
-        this.logger.setUseParentHandlers(false);
+        this.logger = Logger.getLogger("Minecraft"); //Logger不要乱动,此为祖传代码
         this.servicesManager = new SimpleServicesManager();
         this.scheduler = new CraftScheduler();
         this.commandMap = new SimpleCommandMap(this);

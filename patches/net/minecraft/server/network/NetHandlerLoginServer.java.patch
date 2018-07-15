@@ -37,7 +37,7 @@
          }
          else
          {
-@@ -126,11 +134,11 @@
+@@ -126,11 +134,12 @@
              if (entityplayermp != null)
              {
                  this.currentLoginState = NetHandlerLoginServer.LoginState.DELAY_ACCEPT;
@@ -47,7 +47,63 @@
              else
              {
 -                net.minecraftforge.fml.common.network.internal.FMLNetworkHandler.fmlServerHandshake(this.server.getPlayerList(), this.networkManager, this.server.getPlayerList().createPlayerForUser(this.loginGameProfile));
-+                net.minecraftforge.fml.common.network.internal.FMLNetworkHandler.fmlServerHandshake(this.server.getPlayerList(), this.networkManager, this.server.getPlayerList().createPlayerForUser(this.loginGameProfile, s));
++            	if(this.networkManager.isChannelOpen()) 
++            	net.minecraftforge.fml.common.network.internal.FMLNetworkHandler.fmlServerHandshake(this.server.getPlayerList(), this.networkManager, this.server.getPlayerList().createPlayerForUser(this.loginGameProfile, s));
              }
          }
      }
+@@ -159,6 +168,7 @@
+         {
+             this.currentLoginState = NetHandlerLoginServer.LoginState.READY_TO_ACCEPT;
+         }
++        fireLoginEvents(packetIn.getProfile());
+     }
+ 
+     public void processEncryptionResponse(CPacketEncryptionResponse packetIn)
+@@ -237,4 +247,46 @@
+         DELAY_ACCEPT,
+         ACCEPTED;
+     }
++    
++    private void fireLoginEvents(GameProfile gameprofile) {
++    	try {
++            if (!networkManager.isChannelOpen()) {
++                return;
++            }
++            String playerName = gameprofile.getName();
++            java.net.InetAddress address = ((java.net.InetSocketAddress) networkManager.getRemoteAddress()).getAddress();
++            java.util.UUID uniqueId = gameprofile.getId();
++            final org.bukkit.craftbukkit.CraftServer server = NetHandlerLoginServer.this.server.server;
++            
++            AsyncPlayerPreLoginEvent asyncEvent = new AsyncPlayerPreLoginEvent(playerName, address, uniqueId);
++            server.getPluginManager().callEvent(asyncEvent);
++            
++            if (PlayerPreLoginEvent.getHandlerList().getRegisteredListeners().length != 0) {
++                final PlayerPreLoginEvent event = new PlayerPreLoginEvent(playerName, address, uniqueId);
++                if (asyncEvent.getResult() != PlayerPreLoginEvent.Result.ALLOWED) {
++                    event.disallow(asyncEvent.getResult(), asyncEvent.getKickMessage());
++                }
++                Waitable<PlayerPreLoginEvent.Result> waitable = new Waitable<PlayerPreLoginEvent.Result>() {
++                    @Override
++                    protected PlayerPreLoginEvent.Result evaluate() {
++                        server.getPluginManager().callEvent(event);
++                        return event.getResult();
++                    }};
++
++                NetHandlerLoginServer.this.server.processQueue.add(waitable);
++                if (waitable.get() != PlayerPreLoginEvent.Result.ALLOWED) {
++                	closeConnection(event.getKickMessage());
++                    return;
++                }
++            } else {
++                if (asyncEvent.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
++                	closeConnection(asyncEvent.getKickMessage());
++                    return;
++                }
++            }
++    	} catch (Exception exception) {
++    		closeConnection("Failed to verify username!");
++    		server.server.getLogger().log(java.util.logging.Level.WARNING, "Exception verifying " + NetHandlerLoginServer.this.loginGameProfile.getName(), exception);
++    	}
++    }
+ }
