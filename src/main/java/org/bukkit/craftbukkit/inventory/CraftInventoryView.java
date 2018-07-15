@@ -78,6 +78,7 @@ public class CraftInventoryView extends InventoryView
     
     public static InventoryType.SlotType getSlotType(final InventoryView inventory, final int slot) {
         InventoryType.SlotType type = InventoryType.SlotType.CONTAINER;
+        if(inventory == null) return type;
         if (slot >= 0 && slot < inventory.getTopInventory().getSize()) {
             switch (inventory.getType()) {
                 case FURNACE: {

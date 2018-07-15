@@ -100,7 +100,7 @@ class CraftAsyncTask extends CraftTask
                     }
                 }
                 if (!removed) {
-                    throw new IllegalStateException(String.format("Unable to remove worker %s on task %s for %s", thread.getName(), this.getTaskId(), this.getOwner().getDescription().getFullName()), thrown);
+                    //throw new IllegalStateException(String.format("Unable to remove worker %s on task %s for %s", thread.getName(), this.getTaskId(), this.getOwner().getDescription().getFullName()), thrown);
                 }
             }
             finally {
