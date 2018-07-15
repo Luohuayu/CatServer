@@ -1,28 +1,46 @@
 --- ../src-base/minecraft/net/minecraft/server/management/PlayerInteractionManager.java
 +++ ../src-work/minecraft/net/minecraft/server/management/PlayerInteractionManager.java
-@@ -9,6 +9,7 @@
+@@ -1,15 +1,16 @@
+ package net.minecraft.server.management;
+ 
+ import javax.annotation.Nullable;
+-import net.minecraft.block.Block;
+-import net.minecraft.block.BlockChest;
+-import net.minecraft.block.BlockCommandBlock;
+-import net.minecraft.block.BlockStructure;
++
++import net.minecraft.block.*;
+ import net.minecraft.block.material.Material;
  import net.minecraft.block.state.IBlockState;
  import net.minecraft.entity.player.EntityPlayer;
  import net.minecraft.entity.player.EntityPlayerMP;
 +import net.minecraft.init.Blocks;
++import net.minecraft.inventory.ContainerPlayer;
  import net.minecraft.inventory.IInventory;
++import net.minecraft.item.Item;
  import net.minecraft.item.ItemBlock;
  import net.minecraft.item.ItemStack;
-@@ -26,6 +27,13 @@
+ import net.minecraft.item.ItemSword;
+@@ -26,6 +27,18 @@
  import net.minecraft.world.ILockableContainer;
  import net.minecraft.world.World;
  import net.minecraft.world.WorldServer;
 +//CraftBukkit start
++import net.minecraftforge.event.ForgeEventFactory;
++import net.minecraftforge.fml.common.FMLCommonHandler;
++import org.bukkit.craftbukkit.inventory.CraftInventory;
++import org.bukkit.craftbukkit.inventory.CraftInventoryView;
 +import org.bukkit.event.block.BlockBreakEvent;
 +import org.bukkit.craftbukkit.event.CraftEventFactory;
 +import org.bukkit.event.Event;
 +import org.bukkit.event.block.Action;
++import org.bukkit.event.inventory.InventoryType;
 +import org.bukkit.event.player.PlayerInteractEvent;
 +// CraftBukkit end
  
  public class PlayerInteractionManager
  {
-@@ -42,6 +50,10 @@
+@@ -42,6 +55,10 @@
      private BlockPos delayedDestroyPos = BlockPos.ORIGIN;
      private int initialBlockDamage;
      private int durabilityRemainingOnBlock = -1;
@@ -33,43 +51,193 @@
  
      public PlayerInteractionManager(World worldIn)
      {
-@@ -143,7 +155,8 @@
+@@ -142,91 +159,114 @@
+ 
      public void onBlockClicked(BlockPos pos, EnumFacing side)
      {
-         net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event = net.minecraftforge.common.ForgeHooks.onLeftClickBlock(thisPlayerMP, pos, side, net.minecraftforge.common.ForgeHooks.rayTraceEyeHitVec(thisPlayerMP, getBlockReachDistance() + 1));
+-        net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event = net.minecraftforge.common.ForgeHooks.onLeftClickBlock(thisPlayerMP, pos, side, net.minecraftforge.common.ForgeHooks.rayTraceEyeHitVec(thisPlayerMP, getBlockReachDistance() + 1));
 -        if (event.isCanceled())
-+        PlayerInteractEvent eventCB = CraftEventFactory.callPlayerInteractEvent(this.thisPlayerMP, Action.LEFT_CLICK_BLOCK, pos, side, this.thisPlayerMP.inventory.getCurrentItem(), EnumHand.MAIN_HAND);
-+        if (event.isCanceled() || eventCB.isCancelled()) // Svarka
-         {
-             // Restore block and te data
-             thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
-@@ -204,7 +217,7 @@
-                 }
-                 f = iblockstate.getPlayerRelativeBlockHardness(this.thisPlayerMP, this.thisPlayerMP.worldObj, pos);
-             }
--            if (event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
-+            if (event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY || eventCB.useItemInHand() == Event.Result.DENY)
+-        {
+-            // Restore block and te data
+-            thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
+-            theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
+-            return;
+-        }
+-
+-        if (this.isCreative())
+-        {
+-            if (!this.theWorld.extinguishFire((EntityPlayer)null, pos, side))
++        if(!this.gameType.isAdventure()){
++            net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event = net.minecraftforge.common.ForgeHooks.onLeftClickBlock(thisPlayerMP, pos, side, net.minecraftforge.common.ForgeHooks.rayTraceEyeHitVec(thisPlayerMP, getBlockReachDistance() + 1));
++            PlayerInteractEvent eventCB = CraftEventFactory.callPlayerInteractEvent(this.thisPlayerMP, Action.LEFT_CLICK_BLOCK, pos, side, this.thisPlayerMP.inventory.getCurrentItem(), EnumHand.MAIN_HAND);
++            if (eventCB.isCancelled() || event.isCanceled()) // Svarka
              {
-                 if (f >= 1.0F)
-                 {
-@@ -213,7 +226,16 @@
-                     theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
-                 }
-                 return;
-+            }// CB
-+            org.bukkit.event.block.BlockDamageEvent blockEvent = CraftEventFactory.callBlockDamageEvent(this.thisPlayerMP, pos.getX(), pos.getY(), pos.getZ(), this.thisPlayerMP.inventory.getCurrentItem(), f >= 1.0f);
-+            if(blockEvent.isCancelled()) {
-+            	// Let the client know the block still exists
-+            	((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
-+            	return;
+-                this.tryHarvestBlock(pos);
++                // Restore block and te data
++                this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
++                //theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
++                TileEntity tileEntity = this.theWorld.getTileEntity(pos);
++                if(tileEntity != null) {
++                    this.thisPlayerMP.connection.sendPacket(tileEntity.getUpdatePacket());
++                }
++
++                return;
              }
-+            if(blockEvent.getInstaBreak()) {
-+            	f = 2.0F;
-+            }// CB end
+-        }
+-        else
+-        {
+-            IBlockState iblockstate = this.theWorld.getBlockState(pos);
+-            Block block = iblockstate.getBlock();
  
-             if (!iblockstate.getBlock().isAir(iblockstate, theWorld, pos) && f >= 1.0F)
+-            if (this.gameType.isAdventure())
++            if (this.isCreative())
              {
-@@ -283,7 +305,50 @@
+-                if (this.gameType == GameType.SPECTATOR)
++                if (!this.theWorld.extinguishFire((EntityPlayer)null, pos, side))
+                 {
+-                    return;
++                    this.tryHarvestBlock(pos);
+                 }
++            }
++            else
++            {
++                IBlockState iblockstate = this.theWorld.getBlockState(pos);
++                Block block = iblockstate.getBlock();
+ 
+-                if (!this.thisPlayerMP.isAllowEdit())
++                if (this.gameType.isAdventure())
+                 {
+-                    ItemStack itemstack = this.thisPlayerMP.getHeldItemMainhand();
+-
+-                    if (itemstack == null)
++                    if (this.gameType == GameType.SPECTATOR)
+                     {
+                         return;
+                     }
+ 
+-                    if (!itemstack.canDestroy(block))
++                    if (!this.thisPlayerMP.isAllowEdit())
+                     {
+-                        return;
++                        ItemStack itemstack = this.thisPlayerMP.getHeldItemMainhand();
++
++                        if (itemstack == null)
++                        {
++                            return;
++                        }
++
++                        if (!itemstack.canDestroy(block))
++                        {
++                            return;
++                        }
+                     }
+                 }
+-            }
+ 
+-            this.initialDamage = this.curblockDamage;
+-            float f = 1.0F;
++                this.initialDamage = this.curblockDamage;
++                float f = 1.0F;
+ 
+-            if (!iblockstate.getBlock().isAir(iblockstate, theWorld, pos))
+-            {
+-                if (event.getUseBlock() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
++                // CraftBukkit start - Swings at air do *NOT* exist.
++                if (eventCB.useInteractedBlock() == Event.Result.DENY) {
++                    // If we denied a door from opening, we need to send a correcting update to the client, as it already opened the door.
++                    IBlockState data = this.theWorld.getBlockState(pos);
++                    if (block == Blocks.OAK_DOOR) {
++                        // For some reason *BOTH* the bottom/top part have to be marked updated.
++                        boolean bottom = data.getValue(BlockDoor.HALF) == BlockDoor.EnumDoorHalf.LOWER;
++                        this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++                        this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(this.theWorld, bottom ? pos.up() : pos.down()));
++                    } else if (block == Blocks.TRAPDOOR) {
++                        this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++                    }
++                } else if (!block.isAir(iblockstate, theWorld, pos))
+                 {
+                     block.onBlockClicked(this.theWorld, pos, this.thisPlayerMP);
+-                    this.theWorld.extinguishFire((EntityPlayer)null, pos, side);
++                    f = block.getPlayerRelativeBlockHardness(iblockstate,this.thisPlayerMP, this.thisPlayerMP.worldObj, pos);
++                    // Allow fire punching to be blocked
++                    this.theWorld.extinguishFire((EntityPlayer) null, pos, side);
+                 }
+-                else
++                if (eventCB.useItemInHand() == Event.Result.DENY || event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
+                 {
+-                    // Restore block and te data
+-                    thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
+-                    theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
++                    if (f >= 1.0F)
++                    {
++                        // Restore block and te data
++                        thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
++                        theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
++                    }
++                    return;
++                }// CB
++                org.bukkit.event.block.BlockDamageEvent blockEvent = CraftEventFactory.callBlockDamageEvent(this.thisPlayerMP, pos.getX(), pos.getY(), pos.getZ(), this.thisPlayerMP.inventory.getCurrentItem(), f >= 1.0f);
++                if(blockEvent.isCancelled()) {
++                    // Let the client know the block still exists
++                    this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++                    return;
+                 }
+-                f = iblockstate.getPlayerRelativeBlockHardness(this.thisPlayerMP, this.thisPlayerMP.worldObj, pos);
+-            }
+-            if (event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
+-            {
+-                if (f >= 1.0F)
++                if(blockEvent.getInstaBreak()) {
++                    f = 2.0F;
++                }// CB end
++
++                if (!iblockstate.getBlock().isAir(iblockstate, theWorld, pos) && f >= 1.0F)
+                 {
+-                    // Restore block and te data
+-                    thisPlayerMP.connection.sendPacket(new SPacketBlockChange(theWorld, pos));
+-                    theWorld.notifyBlockUpdate(pos, theWorld.getBlockState(pos), theWorld.getBlockState(pos), 3);
++                    this.tryHarvestBlock(pos);
+                 }
+-                return;
++                else
++                {
++                    this.isDestroyingBlock = true;
++                    this.destroyPos = pos;
++                    int i = (int)(f * 10.0F);
++                    this.theWorld.sendBlockBreakProgress(this.thisPlayerMP.getEntityId(), pos, i);
++                    this.durabilityRemainingOnBlock = i;
++                }
+             }
+-
+-            if (!iblockstate.getBlock().isAir(iblockstate, theWorld, pos) && f >= 1.0F)
+-            {
+-                this.tryHarvestBlock(pos);
+-            }
+-            else
+-            {
+-                this.isDestroyingBlock = true;
+-                this.destroyPos = pos;
+-                int i = (int)(f * 10.0F);
+-                this.theWorld.sendBlockBreakProgress(this.thisPlayerMP.getEntityId(), pos, i);
+-                this.durabilityRemainingOnBlock = i;
+-            }
++        } else {
++            org.bukkit.event.player.PlayerInteractEvent cbEvent = CraftEventFactory.callPlayerInteractEvent(this.thisPlayerMP, Action.LEFT_CLICK_BLOCK, pos, side, this.thisPlayerMP.inventory.getCurrentItem(), EnumHand.MAIN_HAND);
+         }
+     }
+ 
+@@ -255,6 +295,10 @@
+                     this.initialBlockDamage = this.initialDamage;
+                 }
+             }
++        } // CraftBukkit start - Force block reset to client
++        else {
++            this.thisPlayerMP.connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++            // CraftBukkit end
+         }
+     }
+ 
+@@ -283,7 +327,50 @@
      }
  
      public boolean tryHarvestBlock(BlockPos pos)
@@ -101,27 +269,27 @@
 +    			
 +    			event.setExpToDrop(nmsBlock.getExpDrop(nmsData, this.theWorld, pos, bonusLevel));
 +    		}
-+    	}*/ // TOD
-+    	this.theWorld.getServer().getPluginManager().callEvent(event);
-+    	if (event.isCancelled()) {
-+    		if (isSwordNoBreak) {
-+    			return false;
-+    		}
-+    		// Let the client know the block still exists
-+    		((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
-+    		// Update any tile entity data for this block
-+    		TileEntity tileentity = this.theWorld.getTileEntity(pos);
-+    		if (tileentity != null) {
-+    			this.thisPlayerMP.connection.sendPacket(tileentity.getUpdatePacket());
-+    		}
-+    		return false;
-+    	}
-+    	
-+    	// Forge
++    	}*/ // TODO
++        this.theWorld.getServer().getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            if (isSwordNoBreak) {
++                return false;
++            }
++            // Let the client know the block still exists
++            ((EntityPlayerMP) this.thisPlayerMP).connection.sendPacket(new SPacketBlockChange(this.theWorld, pos));
++            // Update any tile entity data for this block
++            TileEntity tileentity = this.theWorld.getTileEntity(pos);
++            if (tileentity != null) {
++                this.thisPlayerMP.connection.sendPacket(tileentity.getUpdatePacket());
++            }
++            return false;
++        }
++
++        // Forge
          int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(theWorld, gameType, thisPlayerMP, pos);
          if (exp == -1)
          {
-@@ -338,9 +403,9 @@
+@@ -338,15 +425,16 @@
                  }
  
                  // Drop experience
@@ -132,4 +300,70 @@
 +                    iblockstate.getBlock().dropXpOnBlockBreak(theWorld, pos, exp > 0 ? exp : event.getExpToDrop() > 0 ? event.getExpToDrop() : 0); // Svarka
                  }
                  return flag1;
+             }
+         }
+     }
+ 
++
+     public EnumActionResult processRightClick(EntityPlayer player, World worldIn, ItemStack stack, EnumHand hand)
+     {
+         if (this.gameType == GameType.SPECTATOR)
+@@ -385,8 +473,8 @@
+ 
+                 if (itemstack.stackSize == 0)
+                 {
+-                    player.setHeldItem(hand, (ItemStack)null);
+                     net.minecraftforge.event.ForgeEventFactory.onPlayerDestroyItem(player, itemstack, hand);
++                    player.setHeldItem(hand, (ItemStack)null);
+                 }
+ 
+                 if (!player.isHandActive())
+@@ -399,8 +487,10 @@
+         }
+     }
+ 
++
+     public EnumActionResult processRightClickBlock(EntityPlayer player, World worldIn, @Nullable ItemStack stack, EnumHand hand, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ)
+     {
++
+         if (this.gameType == GameType.SPECTATOR)
+         {
+             TileEntity tileentity = worldIn.getTileEntity(pos);
+@@ -448,10 +538,10 @@
+             {
+                 IBlockState iblockstate = worldIn.getBlockState(pos);
+                 if(event.getUseBlock() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
+-                if (iblockstate.getBlock().onBlockActivated(worldIn, pos, iblockstate, player, hand, stack, facing, hitX, hitY, hitZ))
+-                {
+-                    result = EnumActionResult.SUCCESS;
+-                }
++                    if (iblockstate.getBlock().onBlockActivated(worldIn, pos, iblockstate, player, hand, stack, facing, hitX, hitY, hitZ))
++                    {
++                        result = EnumActionResult.SUCCESS;
++                    }
+             }
+ 
+             if (stack == null)
+@@ -480,17 +570,17 @@
+                     int i = stack.stackSize;
+                     if (result != EnumActionResult.SUCCESS && event.getUseItem() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY
+                             || result == EnumActionResult.SUCCESS && event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.ALLOW) {
+-                    EnumActionResult enumactionresult = stack.onItemUse(player, worldIn, pos, hand, facing, hitX, hitY, hitZ);
+-                    stack.setItemDamage(j);
+-                    stack.stackSize = i;
+-                    return enumactionresult;
++                        EnumActionResult enumactionresult = stack.onItemUse(player, worldIn, pos, hand, facing, hitX, hitY, hitZ);
++                        stack.setItemDamage(j);
++                        stack.stackSize = i;
++                        return enumactionresult;
+                     } else return result;
+                 }
+                 else
+                 {
+                     if (result != EnumActionResult.SUCCESS && event.getUseItem() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY
+                             || result == EnumActionResult.SUCCESS && event.getUseItem() == net.minecraftforge.fml.common.eventhandler.Event.Result.ALLOW)
+-                    return stack.onItemUse(player, worldIn, pos, hand, facing, hitX, hitY, hitZ);
++                        return stack.onItemUse(player, worldIn, pos, hand, facing, hitX, hitY, hitZ);
+                     else return result;
+                 }
              }

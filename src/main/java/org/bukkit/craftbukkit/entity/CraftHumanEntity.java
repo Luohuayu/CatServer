@@ -5,7 +5,6 @@
 package org.bukkit.craftbukkit.entity;
 
 import net.minecraft.entity.passive.EntityVillager;
-import net.minecraft.entity.IMerchant;
 import com.google.common.base.Preconditions;
 import org.bukkit.entity.Villager;
 import org.bukkit.craftbukkit.inventory.CraftInventoryView;
@@ -17,9 +16,6 @@ import net.minecraft.block.BlockWorkbench;
 import net.minecraft.util.math.BlockPos;
 import org.bukkit.Material;
 import org.bukkit.Location;
-import net.minecraft.inventory.IContainerListener;
-import net.minecraft.network.Packet;
-import net.minecraft.util.text.ITextComponent;
 import net.minecraft.network.play.server.SPacketOpenWindow;
 import net.minecraft.util.text.TextComponentString;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
@@ -27,7 +23,6 @@ import org.bukkit.craftbukkit.inventory.CraftContainer;
 import net.minecraft.inventory.Container;
 import org.bukkit.event.inventory.InventoryType;
 import net.minecraft.world.IInteractionObject;
-import luohuayu.CatServer.inventory.CBContainer;
 import net.minecraft.block.BlockAnvil;
 import net.minecraft.tileentity.TileEntityBeacon;
 import net.minecraft.entity.item.EntityMinecartHopper;
@@ -52,8 +47,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.PlayerInventory;
 import net.minecraft.inventory.IInventory;
-import org.bukkit.permissions.ServerOperator;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.GameMode;
@@ -233,7 +226,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity
     
     @Override
     public InventoryView getOpenInventory() {
-        return ((CBContainer)this.getHandle().openContainer).getBukkitView();
+        return ((Container)this.getHandle().openContainer).getBukkitView();
     }
     
     @Override
@@ -328,16 +321,16 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity
         if (this.getHandle().openContainer == formerContainer) {
             return null;
         }
-        ((CBContainer)this.getHandle().openContainer).checkReachable = false;
-        return ((CBContainer)this.getHandle().openContainer).getBukkitView();
+        ((Container)this.getHandle().openContainer).checkReachable = false;
+        return ((Container)this.getHandle().openContainer).getBukkitView();
     }
     
     private void openCustomInventory(final Inventory inventory, final EntityPlayerMP player, final String windowType) {
         if (player.connection == null) {
             return;
         }
-        CBContainer container = new CraftContainer(inventory, this, player.nextContainerCounter());
-        container = (CBContainer) CraftEventFactory.callInventoryOpenEvent(player, container);
+        Container container = new CraftContainer(inventory, this, player.nextContainerCounter());
+        container = CraftEventFactory.callInventoryOpenEvent(player, container);
         if (container == null) {
             return;
         }
@@ -363,9 +356,9 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity
         }
         this.getHandle().displayGui(new BlockWorkbench.InterfaceCraftingTable(this.getHandle().worldObj, new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ())));
         if (force) {
-        	((CBContainer)this.getHandle().openContainer).checkReachable = false;
+        	((Container)this.getHandle().openContainer).checkReachable = false;
         }
-        return ((CBContainer)this.getHandle().openContainer).getBukkitView();
+        return ((Container)this.getHandle().openContainer).getBukkitView();
     }
     
     @Override
@@ -385,9 +378,9 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity
         }
         this.getHandle().displayGui((IInteractionObject)container);
         if (force) {
-        	((CBContainer)this.getHandle().openContainer).checkReachable = false;
+        	((Container)this.getHandle().openContainer).checkReachable = false;
         }
-        return ((CBContainer)this.getHandle().openContainer).getBukkitView();
+        return ((Container)this.getHandle().openContainer).getBukkitView();
     }
     
     @Override
@@ -433,7 +426,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity
         final EntityVillager ev = ((CraftVillager)villager).getHandle();
         ev.setCustomer(this.getHandle());
         this.getHandle().displayVillagerTradeGui(ev);
-        return ((CBContainer)this.getHandle().openContainer).getBukkitView();
+        return ((Container)this.getHandle().openContainer).getBukkitView();
     }
     
     @Override

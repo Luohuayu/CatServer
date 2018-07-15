@@ -1,6 +1,23 @@
 --- ../src-base/minecraft/net/minecraft/tileentity/TileEntitySign.java
 +++ ../src-work/minecraft/net/minecraft/tileentity/TileEntitySign.java
-@@ -24,7 +24,7 @@
+@@ -1,6 +1,8 @@
+ package net.minecraft.tileentity;
+ 
+ import javax.annotation.Nullable;
++
++import com.google.gson.JsonParseException;
+ import net.minecraft.command.CommandException;
+ import net.minecraft.command.CommandResultStats;
+ import net.minecraft.command.ICommandSender;
+@@ -19,12 +21,15 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.command.ProxiedCommandSender;
++import org.bukkit.craftbukkit.command.CraftBlockCommandSender;
++import org.bukkit.craftbukkit.command.ProxiedNativeCommandSender;
+ 
+ public class TileEntitySign extends TileEntity
  {
      public final ITextComponent[] signText = new ITextComponent[] {new TextComponentString(""), new TextComponentString(""), new TextComponentString(""), new TextComponentString("")};
      public int lineBeingEdited = -1;
@@ -9,3 +26,66 @@
      private EntityPlayer player;
      private final CommandResultStats stats = new CommandResultStats();
  
+@@ -38,6 +43,12 @@
+             compound.setString("Text" + (i + 1), s);
+         }
+ 
++        //CraftBukkit start
++        if(Boolean.getBoolean("convertLegacySigns")){
++            compound.setBoolean("Bukkit.isConverted",true);
++        }
++        //CraftBukkit end
++
+         this.stats.writeStatsToNBT(compound);
+         return compound;
+     }
+@@ -97,18 +108,35 @@
+             }
+         };
+ 
++        // CraftBukkit start - Add an option to convert signs correctly
++        // This is done with a flag instead of all the time because
++        // we have no way to tell whether a sign is from 1.7.10 or 1.8
++
++        boolean oldSign = Boolean.getBoolean("convertLegacySigns") && !compound.getBoolean("Bukkit.isConverted");
++
+         for (int i = 0; i < 4; ++i)
+         {
+             String s = compound.getString("Text" + (i + 1));
+-            ITextComponent itextcomponent = ITextComponent.Serializer.jsonToComponent(s);
++            if( s != null && s.length() > 2048){
++                s = "\"\"";
++            }
+ 
+             try
+             {
+-                this.signText[i] = TextComponentUtils.processComponent(icommandsender, itextcomponent, (Entity)null);
++                ITextComponent itextcomponent = ITextComponent.Serializer.jsonToComponent(s);
++                if(oldSign){
++                    this.signText[i] = org.bukkit.craftbukkit.util.CraftChatMessage.fromString(s)[0];
++                    continue;
++                }
++                try {
++                    this.signText[i] = TextComponentUtils.processComponent(icommandsender, itextcomponent, (Entity) null);
++                } catch (CommandException commandExcaption){
++                    this.signText[i] = itextcomponent;
++                }
+             }
+-            catch (CommandException var7)
++            catch (JsonParseException var7)
+             {
+-                this.signText[i] = itextcomponent;
++                this.signText[i] = new TextComponentString(s);
+             }
+         }
+ 
+@@ -219,7 +247,8 @@
+ 
+                 if (clickevent.getAction() == ClickEvent.Action.RUN_COMMAND)
+                 {
+-                    playerIn.getServer().getCommandManager().executeCommand(icommandsender, clickevent.getValue());
++                    CommandBlockBaseLogic.executeCommand(icommandsender, new ProxiedNativeCommandSender(icommandsender, new CraftBlockCommandSender(icommandsender),playerIn.getBukkitEntity()),clickevent.getValue());
++                    //playerIn.getServer().getCommandManager().executeCommand(icommandsender, clickevent.getValue());
+                 }
+             }
+         }

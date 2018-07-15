@@ -4,33 +4,30 @@
 
 package org.bukkit.craftbukkit.inventory;
 
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.crafting.IRecipe;
-
+import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
-
-import luohuayu.CatServer.crafting.ICBRecipe;
-import luohuayu.CatServer.inventory.ICBInventory;
+import luohuayu.CatServer.inventory.CustomModRecipe;
 
 import java.util.Arrays;
-import org.bukkit.inventory.ItemStack;
-import net.minecraft.inventory.InventoryCrafting;
-import net.minecraft.inventory.IInventory;
-import org.bukkit.inventory.CraftingInventory;
 
 public class CraftInventoryCrafting extends CraftInventory implements CraftingInventory
 {
-    private final ICBInventory resultInventory;
+    private final IInventory resultInventory;
     
-    public CraftInventoryCrafting(final InventoryCrafting inventory, final ICBInventory resultInventory) {
+    public CraftInventoryCrafting(final InventoryCrafting inventory, final IInventory resultInventory) {
         super(inventory);
         this.resultInventory = resultInventory;
     }
     
-    public ICBInventory getResultInventory() {
+    public IInventory getResultInventory() {
         return this.resultInventory;
     }
     
-    public ICBInventory getMatrixInventory() {
+    public IInventory getMatrixInventory() {
         return this.inventory;
     }
     
@@ -143,10 +140,14 @@ public class CraftInventoryCrafting extends CraftInventory implements CraftingIn
     
     @Override
     public Recipe getRecipe() {
-        final IRecipe recipe = ((InventoryCrafting)this.getInventory()).currentRecipe;
-        if(recipe instanceof ICBRecipe) {
-        	return (recipe == null) ? null : ((ICBRecipe)recipe).toBukkitRecipe();
+        net.minecraft.item.crafting.IRecipe recipe = ((net.minecraft.inventory.InventoryCrafting)getInventory()).currentRecipe;
+        // Svarka start - handle custom recipe classes without Bukkit API equivalents
+        try {
+            return recipe == null ? null : recipe.toBukkitRecipe();
+        } catch (AbstractMethodError ex) {
+            // No Bukkit wrapper provided
+            return new CustomModRecipe(recipe);
         }
-        return null;
+        // Svarka end
     }
 }

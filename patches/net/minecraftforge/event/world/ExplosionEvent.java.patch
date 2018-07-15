@@ -1,0 +1,68 @@
+--- ../src-base/minecraft/net/minecraftforge/event/world/ExplosionEvent.java
++++ ../src-work/minecraft/net/minecraftforge/event/world/ExplosionEvent.java
+@@ -21,13 +21,21 @@
+ 
+ import java.util.List;
+ 
++import com.mojang.authlib.GameProfile;
++import net.minecraft.entity.EntityLivingBase;
++import net.minecraft.entity.item.EntityTNTPrimed;
++import net.minecraft.world.WorldServer;
+ import net.minecraftforge.common.MinecraftForge;
++import net.minecraftforge.common.util.FakePlayer;
++import net.minecraftforge.common.util.FakePlayerFactory;
+ import net.minecraftforge.fml.common.eventhandler.Cancelable;
+ import net.minecraftforge.fml.common.eventhandler.Event;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.Explosion;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.entity.CraftTNTPrimed;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ /** ExplosionEvent triggers when an explosion happens in the world.<br>
+  * <br>
+@@ -43,9 +51,12 @@
+ {
+     private final World world;
+     private final Explosion explosion;
++    public static FakePlayer exploder_fake = null;
++    public static final GameProfile exploder_profile = new GameProfile(null, "[Explosive]");
+ 
+     public ExplosionEvent(World world, Explosion explosion)
+     {
++        if(exploder_fake == null || !exploder_fake.worldObj.equals(world)) { exploder_fake = FakePlayerFactory.get( (WorldServer) world, exploder_profile); }
+         this.world = world;
+         this.explosion = explosion;
+     }
+@@ -69,10 +80,30 @@
+     @Cancelable
+     public static class Start extends ExplosionEvent
+     {
++        private ExplosionPrimeEvent event;
+         public Start(World world, Explosion explosion)
+         {
+             super(world, explosion);
++            // CraftBukkit start
++            org.bukkit.craftbukkit.CraftServer server = world.getServer();
++            org.bukkit.craftbukkit.entity.CraftEntity ce = null;
++            if(explosion.exploder != null && explosion.exploder instanceof EntityLivingBase){
++                ce = new CraftTNTPrimed(server, new EntityTNTPrimed(world, explosion.getPosition().xCoord, explosion.getPosition().yCoord, explosion.getPosition().zCoord, (EntityLivingBase) explosion.exploder));
++            }
++            if(ce == null){
++                ce = new CraftTNTPrimed(server, new EntityTNTPrimed(world, explosion.getPosition().xCoord, explosion.getPosition().yCoord, explosion.getPosition().zCoord, exploder_fake));
++            }
++            event = new ExplosionPrimeEvent(ce, 8.0F, true);
++            server.getPluginManager().callEvent(event);
++            // CraftBukkit end
+         }
++        @Override
++        public void setCanceled(boolean cancel){
++            if(!isCancelable()){
++                throw new IllegalArgumentException("Attempted to cancel a uncancelable event");
++            }
++            super.setCanceled(cancel); this.event.setCancelled(cancel);
++        }
+     }
+ 
+     /** ExplosionEvent.Detonate is fired once the explosion has a list of affected blocks and entities.  These lists can be modified to change the outcome.<br>

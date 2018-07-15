@@ -1,0 +1,92 @@
+--- ../src-base/minecraft/net/minecraftforge/fml/common/registry/GameRegistry.java
++++ ../src-work/minecraft/net/minecraftforge/fml/common/registry/GameRegistry.java
+@@ -24,13 +24,7 @@
+ import java.lang.annotation.RetentionPolicy;
+ import java.lang.annotation.Target;
+ import java.lang.reflect.Constructor;
+-import java.util.ArrayList;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Random;
+-import java.util.Set;
++import java.util.*;
+ 
+ import net.minecraft.block.Block;
+ import net.minecraft.item.Item;
+@@ -48,13 +42,7 @@
+ import net.minecraft.world.World;
+ import net.minecraft.world.chunk.IChunkGenerator;
+ import net.minecraft.world.chunk.IChunkProvider;
+-import net.minecraftforge.fml.common.FMLLog;
+-import net.minecraftforge.fml.common.IFuelHandler;
+-import net.minecraftforge.fml.common.IWorldGenerator;
+-import net.minecraftforge.fml.common.Loader;
+-import net.minecraftforge.fml.common.LoaderException;
+-import net.minecraftforge.fml.common.LoaderState;
+-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
++import net.minecraftforge.fml.common.*;
+ 
+ import org.apache.logging.log4j.Level;
+ 
+@@ -75,6 +63,11 @@
+     private static List<IFuelHandler> fuelHandlers = Lists.newArrayList();
+     private static List<IWorldGenerator> sortedGeneratorList;
+ 
++    // Cauldron start
++    private static Map<String, Boolean> configWorldGenCache = new HashMap<String, Boolean>();
++    private static Map<String, String> worldGenMap = new HashMap<String, String>();
++    // Cauldron end
++
+     /**
+      * Register a world generator - something that inserts new block types into the world
+      *
+@@ -84,12 +77,18 @@
+      */
+     public static void registerWorldGenerator(IWorldGenerator generator, int modGenerationWeight)
+     {
++        // Cauldron start - mod id's are not available during generateWorld so we must capture them here
++        String modId = Loader.instance().activeModContainer().getModId();
++        modId = modId.replaceAll("[^A-Za-z0-9]", ""); // remove all non-digits/alphanumeric
++        modId = modId.replace(" ", "_");
+         worldGenerators.add(generator);
+         worldGeneratorIndex.put(generator, modGenerationWeight);
+         if (sortedGeneratorList != null)
+         {
+             sortedGeneratorList = null;
+         }
++        worldGenMap.put(generator.getClass().getName(), modId);
++        // Cauldron end
+     }
+ 
+     /**
+@@ -114,11 +113,25 @@
+         long zSeed = fmlRandom.nextLong() >> 2 + 1L;
+         long chunkSeed = (xSeed * chunkX + zSeed * chunkZ) ^ worldSeed;
+ 
+-        for (IWorldGenerator generator : sortedGeneratorList)
++        boolean before = ((net.minecraft.world.WorldServer) world).getChunkProvider().loadChunkOnProvideRequest; // Cauldron store value
++        ((net.minecraft.world.WorldServer) world).getChunkProvider().loadChunkOnProvideRequest = true; // Cauldron load chunks on provide requests
++
++        for (IWorldGenerator generator : worldGenerators)
+         {
+-            fmlRandom.setSeed(chunkSeed);
+-            generator.generate(fmlRandom, chunkX, chunkZ, world, chunkGenerator, chunkProvider);
++            // Cauldron start
++            if (!configWorldGenCache.containsKey(generator.getClass().getName())){
++                String modId = worldGenMap.get(generator.getClass().getName());
++                String generatorName = "";
++                generatorName = modId + "-" + generator.getClass().getSimpleName();
++                configWorldGenCache.put(generator.getClass().getName(), true);
++            }
++            if (configWorldGenCache.get(generator.getClass().getName())) {
++                fmlRandom.setSeed(chunkSeed);
++                generator.generate(fmlRandom, chunkX, chunkZ, world, chunkGenerator, chunkProvider);
++            }
+         }
++        ((net.minecraft.world.WorldServer)world).getChunkProvider().loadChunkOnProvideRequest = before; // reset
++        // Cauldron end
+     }
+ 
+     private static void computeSortedGeneratorList()

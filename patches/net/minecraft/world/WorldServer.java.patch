@@ -1,6 +1,12 @@
 --- ../src-base/minecraft/net/minecraft/world/WorldServer.java
 +++ ../src-work/minecraft/net/minecraft/world/WorldServer.java
-@@ -78,15 +78,26 @@
+@@ -74,19 +74,34 @@
+ import net.minecraft.world.storage.MapStorage;
+ import net.minecraft.world.storage.WorldInfo;
+ import net.minecraft.world.storage.loot.LootTableManager;
++import net.minecraftforge.common.DimensionManager;
++import net.minecraftforge.common.WorldSpecificSaveHandler;
+ import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -9,6 +15,8 @@
  
 +import org.bukkit.WeatherType;
 +import org.bukkit.block.BlockState;
++import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
++import org.bukkit.craftbukkit.generator.InternalChunkGenerator;
 +import org.bukkit.craftbukkit.util.HashTreeSet;
 +
 +import org.bukkit.event.block.BlockFormEvent;
@@ -29,7 +37,7 @@
      private final Map<UUID, Entity> entitiesByUuid = Maps.<UUID, Entity>newHashMap();
      public boolean disableLevelSaving;
      private boolean allPlayersSleeping;
-@@ -101,20 +112,24 @@
+@@ -101,30 +116,31 @@
      /** Stores the recently processed (lighting) chunks */
      protected Set<ChunkPos> doneChunks = new java.util.HashSet<ChunkPos>();
      public List<Teleporter> customTeleporters = new ArrayList<Teleporter>();
@@ -51,14 +59,110 @@
          this.provider.registerWorld(this);
          this.provider.setDimension(providerDim);
          this.chunkProvider = this.createChunkProvider();
-         perWorldStorage = new MapStorage(new net.minecraftforge.common.WorldSpecificSaveHandler((WorldServer)this, saveHandlerIn));
+-        perWorldStorage = new MapStorage(new net.minecraftforge.common.WorldSpecificSaveHandler((WorldServer)this, saveHandlerIn));
 -        this.worldTeleporter = new Teleporter(this);
-+        //this.worldTeleporter = new Teleporter(this);
 +        this.worldTeleporter = new org.bukkit.craftbukkit.CraftTravelAgent(this); // CraftBukkit
++        this.perWorldStorage = new MapStorage(new WorldSpecificSaveHandler((WorldServer) this, saveHandler));
          this.calculateInitialSkylight();
          this.calculateInitialWeather();
          this.getWorldBorder().setSize(server.getMaxWorldSize());
-@@ -341,7 +356,7 @@
+         net.minecraftforge.common.DimensionManager.setWorld(dimensionId, this, mcServer);
+-    }
+-
+-    public World init()
+-    {
+-        this.mapStorage = new MapStorage(this.saveHandler);
++        this.worldScoreboard = new ServerScoreboard(this.mcServer);
++        ((WorldServer) this).worldInfo.setDimension(dimensionId);
+         String s = VillageCollection.fileNameForProvider(this.provider);
++        this.lootTable = new LootTableManager(new File(new File(this.saveHandler.getWorldDirectory(), "data"), "loot_tables"));
+         VillageCollection villagecollection = (VillageCollection)this.perWorldStorage.getOrLoadData(VillageCollection.class, s);
+ 
+         if (villagecollection == null)
+@@ -138,7 +154,20 @@
+             this.villageCollectionObj.setWorldsForAll(this);
+         }
+ 
+-        this.worldScoreboard = new ServerScoreboard(this.mcServer);
++    }
++
++    public WorldServer(MinecraftServer server, ISaveHandler saveHandlerIn, WorldInfo info, int dimensionId, Profiler profilerIn) {
++        super(saveHandlerIn,info, net.minecraftforge.common.DimensionManager.createProviderFor(dimensionId),profilerIn,false);
++        this.dimension = dimensionId;
++        this.pvpMode = server.isPVPEnabled();
++        this.mcServer = server;
++        this.theEntityTracker = null;
++        this.thePlayerManager = null;
++        this.worldTeleporter = null;
++    }
++
++    public World init()
++    {
+         ScoreboardSaveData scoreboardsavedata = (ScoreboardSaveData)this.mapStorage.getOrLoadData(ScoreboardSaveData.class, "scoreboard");
+ 
+         if (scoreboardsavedata == null)
+@@ -146,16 +175,11 @@
+             scoreboardsavedata = new ScoreboardSaveData();
+             this.mapStorage.setData("scoreboard", scoreboardsavedata);
+         }
+-
+-        scoreboardsavedata.setScoreboard(this.worldScoreboard);
++        if (!(this instanceof WorldServerMulti)) //Forge: We fix the global mapStorage, which causes us to share scoreboards early. So don't associate the save data with the temporary scoreboard
++        {
++            scoreboardsavedata.setScoreboard(this.worldScoreboard);
++        }
+         ((ServerScoreboard)this.worldScoreboard).addDirtyRunnable(new WorldSavedDataCallableSave(scoreboardsavedata));
+-        this.lootTable = new LootTableManager(new File(new File(this.saveHandler.getWorldDirectory(), "data"), "loot_tables"));
+-        this.getWorldBorder().setCenter(this.worldInfo.getBorderCenterX(), this.worldInfo.getBorderCenterZ());
+-        this.getWorldBorder().setDamageAmount(this.worldInfo.getBorderDamagePerBlock());
+-        this.getWorldBorder().setDamageBuffer(this.worldInfo.getBorderSafeZone());
+-        this.getWorldBorder().setWarningDistance(this.worldInfo.getBorderWarningDistance());
+-        this.getWorldBorder().setWarningTime(this.worldInfo.getBorderWarningTime());
+-
+         if (this.worldInfo.getBorderLerpTime() > 0L)
+         {
+             this.getWorldBorder().setTransition(this.worldInfo.getBorderSize(), this.worldInfo.getBorderLerpTarget(), this.worldInfo.getBorderLerpTime());
+@@ -165,6 +189,19 @@
+             this.getWorldBorder().setTransition(this.worldInfo.getBorderSize());
+         }
+ 
++        this.lootTable = new LootTableManager(new File(new File(this.saveHandler.getWorldDirectory(), "data"), "loot_tables"));
++        this.getWorldBorder().setCenter(this.worldInfo.getBorderCenterX(), this.worldInfo.getBorderCenterZ());
++        this.getWorldBorder().setDamageAmount(this.worldInfo.getBorderDamagePerBlock());
++        this.getWorldBorder().setDamageBuffer(this.worldInfo.getBorderSafeZone());
++        this.getWorldBorder().setWarningDistance(this.worldInfo.getBorderWarningDistance());
++        this.getWorldBorder().setWarningTime(this.worldInfo.getBorderWarningTime());
++
++        // CraftBukkit start
++        if (generator != null) {
++            getWorld().getPopulators().addAll(generator.getDefaultPopulators(getWorld()));
++        }
++        // CraftBukkit end
++
+         this.initCapabilities();
+         return this;
+     }
+@@ -193,9 +230,10 @@
+ 
+         this.theProfiler.startSection("mobSpawner");
+ 
++        long time = this.worldInfo.getWorldTotalTime();
+         if (this.getGameRules().getBoolean("doMobSpawning") && this.worldInfo.getTerrainType() != WorldType.DEBUG_WORLD)
+         {
+-            this.entitySpawner.findChunksForSpawning(this, this.spawnHostileMobs, this.spawnPeacefulMobs, this.worldInfo.getWorldTotalTime() % 400L == 0L);
++            this.entitySpawner.findChunksForSpawning(this, this.spawnHostileMobs && (this.ticksPerMonsterSpawns != 0 && time % this.ticksPerMonsterSpawns == 0L), this.spawnPeacefulMobs && (this.ticksPerAnimalSpawns != 0 && time % this.ticksPerAnimalSpawns == 0L), this.worldInfo.getWorldTotalTime() % 400L == 0L);
+         }
+ 
+         this.theProfiler.endStartSection("chunkSource");
+@@ -231,6 +269,7 @@
+         }
+         this.theProfiler.endSection();
+         this.sendQueuedBlockEvents();
++        this.getWorld().processChunkGC(); // CraftBukkit
+     }
+ 
+     @Nullable
+@@ -341,7 +380,7 @@
          this.worldInfo.setSpawnZ(j);
      }
  
@@ -67,7 +171,90 @@
      {
          return this.getChunkProvider().chunkExists(x, z);
      }
-@@ -1304,12 +1319,25 @@
+@@ -852,7 +891,38 @@
+     protected IChunkProvider createChunkProvider()
+     {
+         IChunkLoader ichunkloader = this.saveHandler.getChunkLoader(this.provider);
+-        return new ChunkProviderServer(this, ichunkloader, this.provider.createChunkGenerator());
++        // Cauldron start - if provider is vanilla, proceed to create a bukkit compatible chunk generator
++        if (this.provider.getClass().toString().length() <= 3 || this.provider.getClass().toString().contains("net.minecraft"))
++        {
++            // CraftBukkit start
++            org.bukkit.craftbukkit.generator.InternalChunkGenerator gen;
++
++            if (this.generator != null)
++            {
++                gen = new org.bukkit.craftbukkit.generator.CustomChunkGenerator(this, this.getSeed(), this.generator);
++            }
++            else if (this.provider instanceof WorldProviderHell)
++            {
++                gen = new org.bukkit.craftbukkit.generator.NetherChunkGenerator(this, this.getSeed());
++            }
++            else if (this.provider instanceof WorldProviderEnd)
++            {
++                gen = new org.bukkit.craftbukkit.generator.SkyLandsChunkGenerator(this, this.getSeed());
++            }
++            else
++            {
++                gen = new org.bukkit.craftbukkit.generator.NormalChunkGenerator(this, this.getSeed());
++            }
++            this.chunkProvider = new ChunkProviderServer(this, ichunkloader, gen);
++            // CraftBukkit end
++        }
++        else
++        // custom provider, load normally for forge compatibility
++        {
++            this.chunkProvider = new ChunkProviderServer(this, ichunkloader, this.provider.createChunkGenerator());
++        }
++        // Cauldron end
++        return chunkProvider;
+     }
+ 
+     public boolean isBlockModifiable(EntityPlayer player, BlockPos pos)
+@@ -998,6 +1068,7 @@
+ 
+         if (chunkproviderserver.canSave())
+         {
++            org.bukkit.Bukkit.getPluginManager().callEvent(new org.bukkit.event.world.WorldSaveEvent(getWorld())); // CraftBukkit
+             if (progressCallback != null)
+             {
+                 progressCallback.displaySavingString("Saving level");
+@@ -1012,9 +1083,10 @@
+ 
+             chunkproviderserver.saveChunks(p_73044_1_);
+             net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Save(this));
+-
+-            for (Chunk chunk : Lists.newArrayList(chunkproviderserver.getLoadedChunks()))
+-            {
++            Collection<Chunk> chunkList = chunkproviderserver.getLoadedChunks();
++            Iterator iterator = chunkList.iterator();
++            while (iterator.hasNext()){
++                Chunk chunk = (Chunk) iterator.next();
+                 if (chunk != null && !this.thePlayerManager.contains(chunk.xPosition, chunk.zPosition))
+                 {
+                     chunkproviderserver.unload(chunk);
+@@ -1033,7 +1105,7 @@
+         }
+     }
+ 
+-    protected void saveLevel() throws MinecraftException
++    public void saveLevel() throws MinecraftException
+     {
+         this.checkSessionLock();
+ 
+@@ -1044,7 +1116,10 @@
+                 ((WorldServerMulti)worldserver).saveAdditionalData();
+             }
+         }
+-
++        if (this instanceof WorldServerMulti)
++        {
++            ((WorldServerMulti)this).saveAdditionalData();
++        }
+         this.worldInfo.setBorderSize(this.getWorldBorder().getDiameter());
+         this.worldInfo.getBorderCenterX(this.getWorldBorder().getCenterX());
+         this.worldInfo.getBorderCenterZ(this.getWorldBorder().getCenterZ());
+@@ -1304,12 +1379,25 @@
  
      public void spawnParticle(EnumParticleTypes particleType, boolean longDistance, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArguments)
      {

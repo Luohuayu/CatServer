@@ -1,14 +1,49 @@
 --- ../src-base/minecraft/net/minecraft/world/gen/ChunkProviderServer.java
 +++ ../src-work/minecraft/net/minecraft/world/gen/ChunkProviderServer.java
-@@ -26,11 +26,15 @@
+@@ -4,15 +4,11 @@
+ import com.google.common.collect.Sets;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+-import java.io.IOException;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Set;
+-import javax.annotation.Nullable;
++import net.minecraft.block.BlockSand;
+ import net.minecraft.crash.CrashReport;
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.entity.EnumCreatureType;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.ReportedException;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.ChunkPos;
+@@ -21,22 +17,58 @@
+ import net.minecraft.world.WorldServer;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.chunk.Chunk;
++import net.minecraft.world.chunk.EmptyChunk;
+ import net.minecraft.world.chunk.IChunkGenerator;
+ import net.minecraft.world.chunk.IChunkProvider;
++import net.minecraft.world.chunk.storage.AnvilChunkLoader;
  import net.minecraft.world.chunk.storage.IChunkLoader;
++import net.minecraftforge.common.ForgeChunkManager;
++import net.minecraftforge.common.chunkio.ChunkIOExecutor;
++import net.minecraftforge.fml.common.FMLCommonHandler;
++import net.minecraftforge.fml.common.FMLLog;
++import net.minecraftforge.fml.common.registry.GameRegistry;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-+//CraftBukkit start
-+import org.bukkit.craftbukkit.chunkio.ChunkIOExecutor;
++import org.bukkit.Server;
++import org.bukkit.craftbukkit.util.LongHash;
++import org.bukkit.craftbukkit.util.LongHashSet;
 +import org.bukkit.event.world.ChunkUnloadEvent;
-+// CraftBukkit end
  
++import javax.annotation.Nullable;
++import java.io.IOException;
++import java.util.*;
++
++
  public class ChunkProviderServer implements IChunkProvider
  {
      private static final Logger LOGGER = LogManager.getLogger();
@@ -16,4 +51,217 @@
 +    public final Set<Long> droppedChunksSet = Sets.<Long>newHashSet();
      public final IChunkGenerator chunkGenerator;
      public final IChunkLoader chunkLoader;
-     public final Long2ObjectMap<Chunk> id2ChunkMap = new Long2ObjectOpenHashMap(8192);
+-    public final Long2ObjectMap<Chunk> id2ChunkMap = new Long2ObjectOpenHashMap(8192);
++    protected Chunk lastChunkByPos = null;
++    public final Long2ObjectMap<Chunk> id2ChunkMap = new Long2ObjectOpenHashMap<Chunk>(8192){
++
++        @Override
++        public Chunk get(long key){
++            if(lastChunkByPos != null && key == lastChunkByPos.chunkKey){
++                return lastChunkByPos;
++            }
++            return lastChunkByPos = super.get(key);
++        }
++
++        @Override
++        public Chunk remove(long key) {
++            if(lastChunkByPos != null && key == lastChunkByPos.chunkKey){
++                lastChunkByPos = null;
++            }
++            return super.remove(key);
++        }
++    };
+     public final WorldServer worldObj;
+     private Set<Long> loadingChunks = com.google.common.collect.Sets.newHashSet();
++    public boolean loadChunkOnProvideRequest = true;
+ 
++
+     public ChunkProviderServer(WorldServer worldObjIn, IChunkLoader chunkLoaderIn, IChunkGenerator chunkGeneratorIn)
+     {
+         this.worldObj = worldObjIn;
+@@ -60,8 +92,10 @@
+ 
+     public void unloadAllChunks()
+     {
+-        for (Chunk chunk : this.id2ChunkMap.values())
++        Iterator<Chunk> iterator = this.id2ChunkMap.values().iterator();
++        while (iterator.hasNext())
+         {
++            Chunk chunk = iterator.next();
+             this.unload(chunk);
+         }
+     }
+@@ -101,9 +135,9 @@
+ 
+                 if (chunk != null)
+                 {
+-                this.id2ChunkMap.put(ChunkPos.asLong(x, z), chunk);
+-                chunk.onChunkLoad();
+-                chunk.populateChunk(this, this.chunkGenerator);
++                    this.id2ChunkMap.put(ChunkPos.asLong(x, z), chunk);
++                    chunk.onChunkLoad();
++                    chunk.populateChunk(this, this.chunkGenerator);
+                 }
+ 
+                 loadingChunks.remove(pos);
+@@ -122,6 +156,24 @@
+             }
+         }
+ 
++        /*AnvilChunkLoader loader = null;
++
++        if (this.chunkGenerator instanceof AnvilChunkLoader)
++        {
++            loader = (AnvilChunkLoader) this.chunkGenerator;
++        }
++        if (chunk == null && loader != null && loader.chunkExists(this.worldObj,x,z))
++        {
++            if(runnable != null){
++                ChunkIOExecutor.queueChunkLoad(this.worldObj, loader, this, x, z, runnable);
++                return null;
++            }else{
++                chunk = ChunkIOExecutor.syncChunkLoad(this.worldObj, loader, this, x, z);
++            }
++        } else if (chunk == null) {
++            chunk = this.provideChunk(x,z);
++        }
++*/
+         // If we didn't load the chunk async and have a callback run it now
+         if (runnable != null) runnable.run();
+         return chunk;
+@@ -151,12 +203,56 @@
+ 
+             this.id2ChunkMap.put(i, chunk);
+             chunk.onChunkLoad();
+-            chunk.populateChunk(this, this.chunkGenerator);
++            chunk.loadNearby(this, this.chunkGenerator,true);
+         }
+ 
+         return chunk;
+     }
++    public void populate(IChunkProvider p_73153_1_, int p_73153_2_, int p_73153_3_)
++    {
++        Chunk chunk = this.provideChunk(p_73153_2_, p_73153_3_);
+ 
++        if (!chunk.isTerrainPopulated())
++        {
++            chunk.resetRelightChecks();
++
++            if (this.chunkGenerator != null)
++            {
++                this.chunkGenerator.populate(p_73153_2_, p_73153_3_);
++                // CraftBukkit start
++                BlockSand.fallInstantly = true;
++                Random random = new Random();
++                random.setSeed(worldObj.getSeed());
++                long xRand = random.nextLong() / 2L * 2L + 1L;
++                long zRand = random.nextLong() / 2L * 2L + 1L;
++                random.setSeed((long) p_73153_2_ * xRand + (long) p_73153_3_ * zRand ^ worldObj.getSeed());
++                org.bukkit.World world = this.worldObj.getWorld();
++
++                if (world != null)
++                {
++                    this.worldObj.populating = true;
++
++                    try
++                    {
++                        for (org.bukkit.generator.BlockPopulator populator : world.getPopulators())
++                        {
++                            populator.populate(world, random, chunk.bukkitChunk);
++                        }
++                    }
++                    finally
++                    {
++                        this.worldObj.populating = false;
++                    }
++                }
++
++                BlockSand.fallInstantly = false;
++                this.worldObj.getServer().getPluginManager().callEvent(new org.bukkit.event.world.ChunkPopulateEvent(chunk.bukkitChunk));
++                // CraftBukkit end
++                GameRegistry.generateWorld(p_73153_2_, p_73153_3_, worldObj, this.chunkGenerator, p_73153_1_);
++                chunk.setChunkModified();
++            }
++        }
++    }
+     @Nullable
+     private Chunk loadChunkFromFile(int x, int z)
+     {
+@@ -212,11 +308,10 @@
+     {
+         int i = 0;
+         List<Chunk> list = Lists.newArrayList(this.id2ChunkMap.values());
++        Iterator<Chunk> iterator = this.getLoadedChunks().iterator();
++        while (iterator.hasNext()){
++            Chunk chunk = iterator.next();
+ 
+-        for (int j = 0; j < ((List)list).size(); ++j)
+-        {
+-            Chunk chunk = (Chunk)list.get(j);
+-
+             if (p_186027_1_)
+             {
+                 this.saveChunkExtraData(chunk);
+@@ -228,7 +323,7 @@
+                 chunk.setModified(false);
+                 ++i;
+ 
+-                if (i == 24 && !p_186027_1_)
++                if (i == 24 && !p_186027_1_ && false) //Spigot patch..
+                 {
+                     return false;
+                 }
+@@ -263,10 +358,10 @@
+ 
+                     if (chunk != null && chunk.unloaded)
+                     {
+-                        chunk.onChunkUnload();
+-                        this.saveChunkData(chunk);
+-                        this.saveChunkExtraData(chunk);
+-                        this.id2ChunkMap.remove(olong);
++                        if (!unloadChunk(chunk, true)) {
++                            continue;
++                        }
++
+                         ++i;
+                         net.minecraftforge.common.ForgeChunkManager.putDormantChunk(ChunkPos.asLong(chunk.xPosition, chunk.zPosition), chunk);
+                         if (id2ChunkMap.size() == 0 && net.minecraftforge.common.ForgeChunkManager.getPersistentChunksFor(this.worldObj).size() == 0 && !this.worldObj.provider.getDimensionType().shouldLoadSpawn()){
+@@ -283,6 +378,38 @@
+         return false;
+     }
+ 
++    private boolean unloadChunk(Chunk chunk, boolean save) {
++        ChunkUnloadEvent event = new ChunkUnloadEvent(chunk.bukkitChunk, save);
++        this.worldObj.getServer().getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            return false;
++        }
++        save = event.isSaveChunk();
++
++        // Update neighbor counts
++        for (int x = -2; x < 3; x++) {
++            for (int z = -2; z < 3; z++) {
++                if (x == 0 && z == 0) {
++                    continue;
++                }
++
++                Chunk neighbor = this.getLoadedChunk(chunk.xPosition + x, chunk.zPosition + z);
++                if (neighbor != null) {
++                    neighbor.setNeighborUnloaded(-x, -z);
++                    chunk.setNeighborUnloaded(x, z);
++                }
++            }
++        }
++        // Moved from unloadChunks above
++        chunk.onChunkUnload();
++        if(save){
++            this.saveChunkData(chunk);
++            this.saveChunkExtraData(chunk);
++        }
++        this.id2ChunkMap.remove(chunk.chunkKey);
++        return true;
++    }
++
+     public boolean canSave()
+     {
+         return !this.worldObj.disableLevelSaving;

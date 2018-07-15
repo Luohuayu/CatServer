@@ -9,7 +9,7 @@
  import net.minecraft.init.Biomes;
  import net.minecraft.init.Blocks;
  import net.minecraft.network.PacketBuffer;
-@@ -39,7 +41,11 @@
+@@ -39,7 +41,12 @@
  import net.minecraftforge.fml.relauncher.SideOnly;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -17,11 +17,12 @@
 +import org.bukkit.Server; // CraftBukkit
  
 +import org.bukkit.Server;
++import org.bukkit.event.world.ChunkLoadEvent;
 +
  public class Chunk
  {
      private static final Logger LOGGER = LogManager.getLogger();
-@@ -49,13 +55,13 @@
+@@ -49,13 +56,13 @@
      private final int[] precipitationHeightMap;
      private final boolean[] updateSkylightColumns;
      private boolean isChunkLoaded;
@@ -39,7 +40,7 @@
      private boolean isTerrainPopulated;
      private boolean isLightPopulated;
      private boolean chunkTicked;
-@@ -66,7 +72,36 @@
+@@ -66,7 +73,36 @@
      private long inhabitedTime;
      private int queuedLightChecks;
      private ConcurrentLinkedQueue<BlockPos> tileEntityPosQueue;
@@ -76,7 +77,7 @@
  
      public Chunk(World worldIn, int x, int z)
      {
-@@ -90,7 +125,13 @@
+@@ -90,7 +126,13 @@
  
          Arrays.fill((int[])this.precipitationHeightMap, (int) - 999);
          Arrays.fill(this.blockBiomeArray, (byte) - 1);
@@ -90,7 +91,7 @@
  
      public Chunk(World worldIn, ChunkPrimer primer, int x, int z)
      {
-@@ -728,6 +769,15 @@
+@@ -728,6 +770,15 @@
          entityIn.chunkCoordY = k;
          entityIn.chunkCoordZ = this.zPosition;
          this.entityLists[k].add(entityIn);
@@ -106,43 +107,35 @@
      }
  
      public void removeEntity(Entity entityIn)
-@@ -951,9 +1001,38 @@
+@@ -951,9 +1002,29 @@
      {
          return false;
      }
 +    
 +    public void populateChunk(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator) {
-+    	this.loadNearby(chunkProvider, chunkGenrator, true);
++        this.loadNearby(chunkProvider,chunkGenrator,true);
 +    }
  
 -    public void populateChunk(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator)
-+    public void loadNearby(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator, boolean newChunk)
-     {
-+    	Server server = worldObj.getServer();
-+    	if (server != null) {
-+    		/*
-+    		 * If it's a new world, the first few chunks are generated inside
-+    		 * the World constructor. We can't reliably alter that, so we have
-+    		 * no way of creating a CraftWorld/CraftServer at that point.
-+    		 */
-+    		server.getPluginManager().callEvent(new org.bukkit.event.world.ChunkLoadEvent(bukkitChunk, newChunk));
-+    	}
-+    	
-+    	// Update neighbor counts
-+    	for (int x = -2; x < 3; x++) {
-+    		for (int z = -2; z < 3; z++) {
-+    			if (x == 0 && z == 0) {
-+    				continue;
-+    			}
-+    	
-+    			Chunk neighbor = getWorld().getChunkIfLoaded(xPosition + x, zPosition + z);
-+    			if (neighbor != null) {
-+    				neighbor.setNeighborLoaded(-x, -z);
-+    				setNeighborLoaded(x, z);
-+    			}
-+    		}
-+    	}
-+    	// CraftBukkit end
+-    {
++    public void loadNearby(IChunkProvider chunkProvider, IChunkGenerator chunkGenrator, boolean newChunk) {
++        Server server = worldObj.getServer();
++        if(server != null){
++            server.getPluginManager().callEvent(new ChunkLoadEvent(bukkitChunk,newChunk));
++        }
++        //Update neighbor counts
++        for (int x = -2; x < 3; x++) {
++            for (int z = -2; z < 3; z++) {
++                if (x == 0 && z == 0) {
++                    continue;
++                }
++                Chunk neighbor = getWorld().getChunkIfLoaded(xPosition + x, zPosition + z);
++                if(neighbor != null){
++                    neighbor.setNeighborLoaded(-x,-z);
++                    setNeighborLoaded(x,z);
++                }
++            }
++        }
          Chunk chunk = chunkProvider.getLoadedChunk(this.xPosition, this.zPosition - 1);
          Chunk chunk1 = chunkProvider.getLoadedChunk(this.xPosition + 1, this.zPosition);
          Chunk chunk2 = chunkProvider.getLoadedChunk(this.xPosition, this.zPosition + 1);

@@ -1,6 +1,6 @@
 --- ../src-base/minecraft/net/minecraft/world/WorldServerMulti.java
 +++ ../src-work/minecraft/net/minecraft/world/WorldServerMulti.java
-@@ -7,15 +7,16 @@
+@@ -7,16 +7,18 @@
  import net.minecraft.world.border.WorldBorder;
  import net.minecraft.world.storage.DerivedWorldInfo;
  import net.minecraft.world.storage.ISaveHandler;
@@ -15,7 +15,68 @@
 +    public WorldServerMulti(MinecraftServer server, ISaveHandler saveHandlerIn, int dimensionId, WorldServer delegate, Profiler profilerIn, WorldInfo info, org.bukkit.World.Environment env, org.bukkit.generator.ChunkGenerator gen)
      {
 -        super(server, saveHandlerIn, new DerivedWorldInfo(delegate.getWorldInfo()), dimensionId, profilerIn);
-+        super(server, saveHandlerIn, new DerivedWorldInfo(delegate.getWorldInfo()), dimensionId, profilerIn, env, gen);
++        super(server, saveHandlerIn, /*new DerivedWorldInfo(delegate.getWorldInfo())*/ info, dimensionId, profilerIn, env, gen);
          this.delegate = delegate;
++        this.mapStorage = delegate.mapStorage;
          this.borderListener = new IBorderListener()
          {
+             public void onSizeChanged(WorldBorder border, double newSize)
+@@ -50,8 +52,48 @@
+         };
+         this.delegate.getWorldBorder().addListener(this.borderListener);
+     }
++    public WorldServerMulti(MinecraftServer server, ISaveHandler saveHandlerIn, int dimensionId, WorldServer delegate, Profiler profilerIn, WorldInfo info)
++    {
++        super(server, saveHandlerIn, info, dimensionId, profilerIn);
++        this.delegate = delegate;
++        this.mapStorage = delegate.mapStorage;
++        this.worldScoreboard = delegate.getScoreboard();
++        this.worldInfo = new DerivedWorldInfo(delegate.getWorldInfo());
++        this.borderListener = new IBorderListener()
++        {
++            public void onSizeChanged(WorldBorder border, double newSize)
++            {
++                WorldServerMulti.this.getWorldBorder().setTransition(newSize);
++            }
++            public void onTransitionStarted(WorldBorder border, double oldSize, double newSize, long time)
++            {
++                WorldServerMulti.this.getWorldBorder().setTransition(oldSize, newSize, time);
++            }
++            public void onCenterChanged(WorldBorder border, double x, double z)
++            {
++                WorldServerMulti.this.getWorldBorder().setCenter(x, z);
++            }
++            public void onWarningTimeChanged(WorldBorder border, int newTime)
++            {
++                WorldServerMulti.this.getWorldBorder().setWarningTime(newTime);
++            }
++            public void onWarningDistanceChanged(WorldBorder border, int newDistance)
++            {
++                WorldServerMulti.this.getWorldBorder().setWarningDistance(newDistance);
++            }
++            public void onDamageAmountChanged(WorldBorder border, double newAmount)
++            {
++                WorldServerMulti.this.getWorldBorder().setDamageAmount(newAmount);
++            }
++            public void onDamageBufferChanged(WorldBorder border, double newSize)
++            {
++                WorldServerMulti.this.getWorldBorder().setDamageBuffer(newSize);
++            }
++        };
++        this.delegate.getWorldBorder().addListener(this.borderListener);
++    }
+ 
+-    protected void saveLevel() throws MinecraftException
++    public void saveLevel() throws MinecraftException
+     {
+         this.perWorldStorage.saveAllData();
+     }
+@@ -76,7 +118,7 @@
+         }
+ 
+         this.initCapabilities();
+-        return this;
++        return super.init();
+     }
+ 
+ 

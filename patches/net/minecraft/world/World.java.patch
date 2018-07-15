@@ -1,24 +1,67 @@
 --- ../src-base/minecraft/net/minecraft/world/World.java
 +++ ../src-work/minecraft/net/minecraft/world/World.java
-@@ -4,13 +4,33 @@
+@@ -4,13 +4,8 @@
  import com.google.common.base.Objects;
  import com.google.common.base.Predicate;
  import com.google.common.collect.Lists;
+-import java.util.Calendar;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Random;
+-import java.util.UUID;
+-import javax.annotation.Nullable;
 +import com.google.common.collect.Maps;
-+
-+import java.util.ArrayList;
- import java.util.Calendar;
- import java.util.Collection;
- import java.util.Iterator;
- import java.util.List;
-+import java.util.Map;
- import java.util.Random;
- import java.util.UUID;
- import javax.annotation.Nullable;
-+
++import mcp.MethodsReturnNonnullByDefault;
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockLiquid;
+ import net.minecraft.block.material.Material;
+@@ -20,6 +15,15 @@
+ import net.minecraft.crash.ICrashReportDetail;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityLiving;
 +import net.minecraft.entity.EntityLivingBase;
++import net.minecraft.entity.item.EntityItem;
 +import net.minecraft.entity.item.EntityXPOrb;
++import net.minecraft.entity.monster.EntityGhast;
++import net.minecraft.entity.monster.EntityGolem;
++import net.minecraft.entity.monster.EntityMob;
++import net.minecraft.entity.monster.EntitySlime;
++import net.minecraft.entity.passive.EntityAnimal;
++import net.minecraft.entity.passive.EntityWaterMob;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Biomes;
+@@ -32,19 +36,8 @@
+ import net.minecraft.scoreboard.Scoreboard;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.tileentity.TileEntity;
+-import net.minecraft.util.EntitySelectors;
+-import net.minecraft.util.EnumFacing;
+-import net.minecraft.util.EnumParticleTypes;
+-import net.minecraft.util.ITickable;
+-import net.minecraft.util.IntHashMap;
+-import net.minecraft.util.ReportedException;
+-import net.minecraft.util.SoundCategory;
+-import net.minecraft.util.SoundEvent;
+-import net.minecraft.util.math.AxisAlignedBB;
+-import net.minecraft.util.math.BlockPos;
+-import net.minecraft.util.math.MathHelper;
+-import net.minecraft.util.math.RayTraceResult;
+-import net.minecraft.util.math.Vec3d;
++import net.minecraft.util.*;
++import net.minecraft.util.math.*;
+ import net.minecraft.village.VillageCollection;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.biome.BiomeProvider;
+@@ -56,9 +49,28 @@
+ import net.minecraft.world.storage.MapStorage;
+ import net.minecraft.world.storage.WorldInfo;
+ import net.minecraft.world.storage.loot.LootTableManager;
 +import net.minecraftforge.common.DimensionManager;
++import net.minecraftforge.common.WorldSpecificSaveHandler;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
 +import org.bukkit.Bukkit;
 +import org.bukkit.block.BlockState;
 +import org.bukkit.craftbukkit.CraftServer;
@@ -30,51 +73,17 @@
 +import org.bukkit.event.block.BlockPhysicsEvent;
 +import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 +import org.bukkit.generator.ChunkGenerator;
-+
- import net.minecraft.block.Block;
- import net.minecraft.block.BlockLiquid;
- import net.minecraft.block.material.Material;
-@@ -20,6 +40,13 @@
- import net.minecraft.crash.ICrashReportDetail;
- import net.minecraft.entity.Entity;
- import net.minecraft.entity.EntityLiving;
-+import net.minecraft.entity.item.EntityItem;
-+import net.minecraft.entity.monster.EntityGhast;
-+import net.minecraft.entity.monster.EntityGolem;
-+import net.minecraft.entity.monster.EntityMob;
-+import net.minecraft.entity.monster.EntitySlime;
-+import net.minecraft.entity.passive.EntityAnimal;
-+import net.minecraft.entity.passive.EntityWaterMob;
- import net.minecraft.entity.player.EntityPlayer;
- import net.minecraft.entity.player.EntityPlayerMP;
- import net.minecraft.init.Biomes;
-@@ -27,6 +54,7 @@
- import net.minecraft.item.ItemStack;
- import net.minecraft.nbt.NBTTagCompound;
- import net.minecraft.network.Packet;
-+import net.minecraft.network.play.server.SPacketWorldBorder;
- import net.minecraft.pathfinding.PathWorldListener;
- import net.minecraft.profiler.Profiler;
- import net.minecraft.scoreboard.Scoreboard;
-@@ -48,6 +76,7 @@
- import net.minecraft.village.VillageCollection;
- import net.minecraft.world.biome.Biome;
- import net.minecraft.world.biome.BiomeProvider;
-+import net.minecraft.world.border.IBorderListener;
- import net.minecraft.world.border.WorldBorder;
- import net.minecraft.world.chunk.Chunk;
- import net.minecraft.world.chunk.IChunkProvider;
-@@ -58,6 +87,9 @@
- import net.minecraft.world.storage.loot.LootTableManager;
- import net.minecraftforge.fml.relauncher.Side;
- import net.minecraftforge.fml.relauncher.SideOnly;
 +import org.spigotmc.ActivationRange;
 +import org.spigotmc.SpigotWorldConfig;
 +import org.spigotmc.TickLimiter;
  
++import javax.annotation.Nullable;
++import java.util.*;
++
  public abstract class World implements IBlockAccess, net.minecraftforge.common.capabilities.ICapabilityProvider
  {
-@@ -66,7 +98,15 @@
+     /**
+@@ -66,7 +78,15 @@
       * Modders should change this variable to a higher value if it is less then the radius
       * of one of there entities.
       */
@@ -84,13 +93,13 @@
 +    public static String blockLocation;
 +    public final SpigotWorldConfig spigotConfig;
 +    public final SpigotTimings.WorldTimingsHandler timings;
-+    private final TickLimiter entityLimiter;
-+    private final TickLimiter tileLimiter;
++    private TickLimiter entityLimiter;
++    private TickLimiter tileLimiter;
 +    //Svarka end
  
      private int seaLevel = 63;
      protected boolean scheduledUpdatesAreImmediate;
-@@ -89,22 +129,22 @@
+@@ -89,22 +109,22 @@
      public float thunderingStrength;
      private int lastLightningBolt;
      public final Random rand = new Random();
@@ -119,7 +128,7 @@
      private boolean processingLoadedTiles;
      private final WorldBorder worldBorder;
      int[] lightUpdateBlockList;
-@@ -114,10 +154,59 @@
+@@ -114,9 +134,73 @@
      public java.util.ArrayList<net.minecraftforge.common.util.BlockSnapshot> capturedBlockSnapshots = new java.util.ArrayList<net.minecraftforge.common.util.BlockSnapshot>();
      private net.minecraftforge.common.capabilities.CapabilityDispatcher capabilities;
      private net.minecraftforge.common.util.WorldCapabilityData capabilityData;
@@ -156,7 +165,6 @@
  
 -    protected World(ISaveHandler saveHandlerIn, WorldInfo info, WorldProvider providerIn, Profiler profilerIn, boolean client)
 -    {
--        this.eventListeners = Lists.newArrayList(new IWorldEventListener[] {this.pathListener});
 +    public CraftWorld getWorld() {
 +    	return this.world;
 +    }
@@ -164,37 +172,132 @@
 +    public CraftServer getServer() {
 +    	return (CraftServer) Bukkit.getServer();
 +    }
-+        
++
++    @MethodsReturnNonnullByDefault
 +    public Chunk getChunkIfLoaded(int x, int z) {
-+    	return ((net.minecraft.world.gen.ChunkProviderServer) this.chunkProvider).getLoadedChunk(x, z);
++    	return this.chunkProvider.getLoadedChunk(x, z);
 +    }
 +
-+    //protected World(ISaveHandler saveHandlerIn, WorldInfo info, WorldProvider providerIn, Profiler profilerIn, boolean client)
-+    //{
-+    //   this.eventListeners = Lists.newArrayList(new IWorldEventListener[] {this.pathListener});
-+    protected World(ISaveHandler saveHandlerIn, WorldInfo info, WorldProvider providerIn, Profiler profilerIn, boolean client, ChunkGenerator gen, org.bukkit.World.Environment env) {
-+    	this.generator = gen;
-+    	this.world = new CraftWorld((WorldServer) this, gen, env);
-+    	this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
-+    	this.ticksPerMonsterSpawns = this.getServer().getTicksPerMonsterSpawns(); // CraftBukkit
-+    	// CB end
-+    	this.eventListeners = Lists.newArrayList(new IWorldEventListener[] {this.pathListener});
++    private void initLimiter() {
++        entityLimiter = new TickLimiter(spigotConfig.entityMaxTickTime);
++        tileLimiter = new TickLimiter(spigotConfig.tileMaxTickTime);
++    }
++
++    protected World(ISaveHandler saveHandlerIn, WorldInfo info, WorldProvider providerIn, Profiler profilerIn, boolean client) {
++        // Cauldron start - handle dummy worlds
++        if (DimensionManager.getWorld(0) != null)
++        {
++            this.spigotConfig = new org.spigotmc.SpigotWorldConfig(info.getWorldName()); // Spigot
++            initLimiter(); // Spigot
++            this.world = DimensionManager.getWorld(0).getWorld();
++            this.timings = DimensionManager.getWorld(0).timings;
++            this.mapStorage = DimensionManager.getWorld(0).mapStorage;
++        }
++        else
++        {
++            this.spigotConfig = null;
++            this.world = null;
++            this.timings = null;
++            this.mapStorage = null;
++        }
++        // Cauldron end
+         this.eventListeners = Lists.newArrayList(new IWorldEventListener[] {this.pathListener});
          this.theCalendar = Calendar.getInstance();
          this.worldScoreboard = new Scoreboard();
-         this.spawnHostileMobs = true;
-@@ -130,6 +219,11 @@
+@@ -126,12 +210,90 @@
+         this.saveHandler = saveHandlerIn;
+         this.theProfiler = profilerIn;
+         this.worldInfo = info;
+-        this.provider = providerIn;
          this.isRemote = client;
          this.worldBorder = providerIn.createWorldBorder();
-         perWorldStorage = new MapStorage((ISaveHandler)null);
-+        this.getServer().addWorld(this.world);
-+        this.spigotConfig = new SpigotWorldConfig(info.getWorldName());
-+        this.timings = new SpigotTimings.WorldTimingsHandler(this);
-+        this.entityLimiter = new TickLimiter(this.spigotConfig.entityMaxTickTime);
-+        this.tileLimiter = new TickLimiter(this.spigotConfig.tileMaxTickTime);
+-        perWorldStorage = new MapStorage((ISaveHandler)null);
++        if(providerIn != null){
++            this.provider = providerIn;
++        } else if (this.worldInfo != null && this.worldInfo.getDimension() != 0) { // Cauldron
++            this.provider = WorldProvider.getProviderForDimension(this.worldInfo.getDimension());
++        } else {
++            this.provider = WorldProvider.getProviderForDimension(0);
++        }
++        if(this.worldInfo != null){
++            if(this.worldInfo.getDimension() != 0){
++                this.provider.setDimension(this.worldInfo.getDimension());
++            } else {
++                this.worldInfo.setDimension(this.provider.getDimension());
++            }
++        }
++
++        int providerId = this.provider.getDimension();
++        this.provider.registerWorld(this);
++        this.provider.setDimension(providerId);
++
      }
  
++    protected World(ISaveHandler saveHandlerIn, WorldInfo info, WorldProvider providerIn, Profiler profilerIn, boolean client, ChunkGenerator gen, org.bukkit.World.Environment env) {
++    	this.generator = gen;
++        this.world = new CraftWorld((WorldServer) this, gen, env);
++        this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
++        this.ticksPerMonsterSpawns = this.getServer().getTicksPerMonsterSpawns(); // CraftBukkit
++    	// CB end
++    	this.eventListeners = Lists.newArrayList(new IWorldEventListener[] {this.pathListener});
++        this.theCalendar = Calendar.getInstance();
++        this.worldScoreboard = new Scoreboard();
++        this.spawnHostileMobs = true;
++        this.spawnPeacefulMobs = true;
++        this.lightUpdateBlockList = new int[32768];
++        this.spigotConfig = new SpigotWorldConfig(info.getWorldName());
++        this.initLimiter();
++        this.saveHandler = saveHandlerIn;
++        this.theProfiler = profilerIn;
++        this.worldInfo = info;
++        //this.provider = providerIn;
++        this.isRemote = client;
++        this.worldBorder = providerIn.createWorldBorder();
++        if (DimensionManager.getWorld(0) != null) // if overworld has loaded, use its mapstorage
++        {
++            this.mapStorage = DimensionManager.getWorld(0).mapStorage;
++        }
++        else
++        {
++            this.mapStorage = new MapStorage(saveHandlerIn);
++        }
++        if(providerIn != null){
++            this.provider = providerIn;
++        } else if (this.worldInfo != null && this.worldInfo.getDimension() != 0) { // Cauldron
++            this.provider = WorldProvider.getProviderForDimension(this.worldInfo.getDimension());
++        } else {
++            this.provider = WorldProvider.getProviderForDimension(0);
++        }
++        if(this.worldInfo != null){
++            // Cauldron start - Use saved dimension from level.dat. Fixes issues with MultiVerse
++            if (this.worldInfo.getDimension() != 0)
++                this.provider.setDimension(this.worldInfo.getDimension());
++            else
++            {
++                this.worldInfo.setDimension(this.provider.getDimension());
++            }
++        }
++        int providerId = this.provider.getDimension();
++        this.provider.registerWorld(this);
++        this.provider.setDimension(providerId);
++        if (this.worldInfo.getDimension() == 0)
++        {
++            generator = this.getServer().getGenerator(this.worldInfo.getWorldName());
++            if (generator != null)
++            {
++                getWorld().generator=generator;
++                getWorld().getPopulators().addAll(generator.getDefaultPopulators(getWorld()));
++            }
++        }
++        this.getServer().addWorld(this.world);
++        this.timings = new SpigotTimings.WorldTimingsHandler(this);
++
++    }
++
      public World init()
-@@ -291,7 +385,7 @@
+     {
+         return this;
+@@ -291,7 +453,7 @@
          }
      }
  
@@ -203,51 +306,7 @@
  
      public Chunk getChunkFromBlockCoords(BlockPos pos)
      {
-@@ -313,7 +407,28 @@
-         {
-             return false;
-         }
--        else
-+        // CraftBukkit start - tree generation
-+        if (this.captureTreeGeneration) {
-+        	BlockState blockstate = null;
-+        	Iterator<BlockState> it = capturedBlockStates.iterator();
-+        	while (it.hasNext()) {
-+        		BlockState previous = it.next();
-+        		if (previous.getX() == pos.getX() && previous.getY() == pos.getY() && previous.getZ() == pos.getZ()) {
-+        			blockstate = previous;
-+        			it.remove();
-+        			break;
-+        		}
-+        	}
-+        	if (blockstate == null) {
-+        		blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(this, pos.getX(), pos.getY(), pos.getZ(), flags);
-+        	}
-+        	blockstate.setTypeId(CraftMagicNumbers.getId(newState.getBlock()));
-+        	blockstate.setRawData((byte) newState.getBlock().getMetaFromState(newState));
-+        	this.capturedBlockStates.add(blockstate);
-+        	return true;
-+        }
-+        // CraftBukkit end
-+        //else
-         {
-             Chunk chunk = this.getChunkFromBlockCoords(pos);
-             Block block = newState.getBlock();
-@@ -324,6 +439,13 @@
-                 blockSnapshot = net.minecraftforge.common.util.BlockSnapshot.getBlockSnapshot(this, pos, flags);
-                 this.capturedBlockSnapshots.add(blockSnapshot);
-             }
-+            // CraftBukkit start - capture blockstates
-+            BlockState blockstate = null;
-+            if (this.captureBlockStates) {
-+            	blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(this, pos.getX(), pos.getY(), pos.getZ(), flags);
-+            	this.capturedBlockStates.add(blockstate);
-+            }
-+            // CraftBukkit end
-             IBlockState oldState = getBlockState(pos);
-             int oldLight = oldState.getLightValue(this, pos);
-             int oldOpacity = oldState.getLightOpacity(this, pos);
-@@ -420,6 +542,11 @@
+@@ -420,6 +582,11 @@
      {
          if (this.worldInfo.getTerrainType() != WorldType.DEBUG_WORLD)
          {
@@ -259,7 +318,7 @@
              this.notifyNeighborsOfStateChange(pos, blockType);
          }
      }
-@@ -516,7 +643,21 @@
+@@ -516,7 +683,21 @@
  
              try
              {
@@ -281,12 +340,11 @@
              }
              catch (Throwable throwable)
              {
-@@ -837,7 +978,18 @@
+@@ -837,6 +1018,17 @@
          {
              return Blocks.AIR.getDefaultState();
          }
--        else
-+        // CraftBukkit start - tree generation
++/*        // CraftBukkit start - tree generation
 +        if (captureTreeGeneration) {
 +        	Iterator<BlockState> it = capturedBlockStates.iterator();
 +        	while (it.hasNext()) {
@@ -296,12 +354,11 @@
 +        		}
 +        	}
 +        }
-+        // CraftBukkit end
-+        //else
++        // CraftBukkit end*/
+         else
          {
              Chunk chunk = this.getChunkFromBlockCoords(pos);
-             return chunk.getBlockState(pos);
-@@ -1098,8 +1250,10 @@
+@@ -1098,8 +1290,10 @@
          this.weatherEffects.add(entityIn);
          return true;
      }
@@ -314,57 +371,71 @@
      {
          // do not drop any items while restoring blocksnapshots. Prevents dupes
          if (!this.isRemote && (entityIn == null || (entityIn instanceof net.minecraft.entity.item.EntityItem && this.restoringBlockSnapshots))) return false;
-@@ -1119,6 +1273,49 @@
+@@ -1112,13 +1306,55 @@
+         {
+             flag = true;
+         }
++        // CraftBukkit start
++        org.bukkit.event.Cancellable event = null;
++        if (entityIn instanceof EntityLivingBase && !(entityIn instanceof EntityPlayerMP)) {
++            boolean isAnimal = entityIn instanceof EntityAnimal || entityIn instanceof EntityWaterMob || entityIn instanceof EntityGolem;
++            boolean isMonster = entityIn instanceof EntityMob || entityIn instanceof EntityGhast || entityIn instanceof EntitySlime;
+ 
++            if (reason != SpawnReason.CUSTOM) {
++                if (isAnimal && !spawnPeacefulMobs || isMonster && !spawnHostileMobs) {
++                    entityIn.isDead = true;
++                    return false;
++                }
++            }
++
++            event = CraftEventFactory.callCreatureSpawnEvent((EntityLivingBase) entityIn, reason);
++        } else if (entityIn instanceof EntityItem) {
++            event = CraftEventFactory.callItemSpawnEvent((EntityItem) entityIn);
++        } else if (entityIn.getBukkitEntity() instanceof org.bukkit.entity.Projectile) {
++            // Not all projectiles extend EntityProjectile, so check for Bukkit interface instead
++            event = CraftEventFactory.callProjectileLaunchEvent(entityIn);
++        } else if(entityIn instanceof EntityXPOrb){
++            EntityXPOrb xp = (EntityXPOrb)entityIn;
++            double radius = this.getSpigotConfig().expMerge;
++            if(radius > 0){
++                List<Entity> entities = this.getEntitiesWithinAABBExcludingEntity(entityIn,entityIn.getEntityBoundingBox().expand(radius,radius,radius));
++                for(Entity e: entities){
++                    if(e instanceof EntityXPOrb){
++                        EntityXPOrb loopItem = (EntityXPOrb) e;
++                        if(!loopItem.isDead){
++                            xp.xpValue += loopItem.xpValue;
++                            loopItem.setDead();
++                        }
++                    }
++                }
++            }
++        }
++
++        if (event != null && (event.isCancelled() || entityIn.isDead)) {
++            entityIn.isDead = true;
++            return false;
++        }
++        // CraftBukkit end
+         if (!flag && !this.isChunkLoaded(i, j, false))
+         {
++            entityIn.isDead = true;
+             return false;
          }
          else
          {
-+        	// CraftBukkit start
-+        	org.bukkit.event.Cancellable event = null;
-+        	if (entityIn instanceof EntityLivingBase && !(entityIn instanceof EntityPlayerMP)) {
-+        	            boolean isAnimal = entityIn instanceof EntityAnimal || entityIn instanceof EntityWaterMob || entityIn instanceof EntityGolem;
-+        	            boolean isMonster = entityIn instanceof EntityMob || entityIn instanceof EntityGhast || entityIn instanceof EntitySlime;
-+        	
-+        	            if (reason != SpawnReason.CUSTOM) {
-+        	                if (isAnimal && !spawnPeacefulMobs || isMonster && !spawnHostileMobs) {
-+        	                    entityIn.isDead = true;
-+        	                    return false;
-+        	                }
-+        	            }
-+        	
-+        	            event = CraftEventFactory.callCreatureSpawnEvent((EntityLivingBase) entityIn, reason);
-+        	        } else if (entityIn instanceof EntityItem) {
-+        	            event = CraftEventFactory.callItemSpawnEvent((EntityItem) entityIn);
-+        	        } else if (entityIn.getBukkitEntity() instanceof org.bukkit.entity.Projectile) {
-+        	            // Not all projectiles extend EntityProjectile, so check for Bukkit interface instead
-+        	            event = CraftEventFactory.callProjectileLaunchEvent(entityIn);
-+        	        } else if(entityIn instanceof EntityXPOrb){
-+        	            EntityXPOrb xp = (EntityXPOrb)entityIn;
-+        	            double radius = this.getSpigotConfig().expMerge;
-+        	            if(radius > 0){
-+        	                List<Entity> entities = this.getEntitiesWithinAABBExcludingEntity(entityIn,entityIn.getEntityBoundingBox().expand(radius,radius,radius));
-+        	                for(Entity e: entities){
-+        	                    if(e instanceof EntityXPOrb){
-+        	                        EntityXPOrb loopItem = (EntityXPOrb) e;
-+        	                        if(!loopItem.isDead){
-+        	                            xp.xpValue += loopItem.xpValue;
-+        	                            loopItem.setDead();
-+                                    }
-+                                }
-+                            }
-+                        }
-+                    }
-+
-+
-+
-+        	        if (event != null && (event.isCancelled() || entityIn.isDead)) {
-+        	            entityIn.isDead = true;
-+        	            return false;
-+        	        }
-+        	        // CraftBukkit end
++            if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinWorldEvent(entityIn, this)) && !flag) return false;
              if (entityIn instanceof EntityPlayer)
              {
                  EntityPlayer entityplayer = (EntityPlayer)entityIn;
-@@ -1141,6 +1338,7 @@
+@@ -1126,7 +1362,6 @@
+                 this.updateAllPlayersSleepingFlag();
+             }
+ 
+-            if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinWorldEvent(entityIn, this)) && !flag) return false;
+ 
+             this.getChunkFromChunkCoords(i, j).addEntity(entityIn);
+             this.loadedEntityList.add(entityIn);
+@@ -1141,6 +1376,7 @@
          {
              ((IWorldEventListener)this.eventListeners.get(i)).onEntityAdded(entityIn);
          }
@@ -372,7 +443,7 @@
      }
  
      public void onEntityRemoved(Entity entityIn)
-@@ -1149,6 +1347,7 @@
+@@ -1149,6 +1385,7 @@
          {
              ((IWorldEventListener)this.eventListeners.get(i)).onEntityRemoved(entityIn);
          }
@@ -380,7 +451,7 @@
      }
  
      public void removeEntity(Entity entityIn)
-@@ -1191,8 +1390,16 @@
+@@ -1191,8 +1428,16 @@
          {
              this.getChunkFromChunkCoords(i, j).removeEntity(entityIn);
          }
@@ -399,7 +470,7 @@
          this.onEntityRemoved(entityIn);
      }
  
-@@ -1667,7 +1874,11 @@
+@@ -1667,7 +1912,11 @@
          for (int i = 0; i < this.weatherEffects.size(); ++i)
          {
              Entity entity = (Entity)this.weatherEffects.get(i);
@@ -412,7 +483,7 @@
              try
              {
                  ++entity.ticksExisted;
-@@ -1678,14 +1889,14 @@
+@@ -1678,14 +1927,14 @@
                  CrashReport crashreport = CrashReport.makeCrashReport(throwable2, "Ticking entity");
                  CrashReportCategory crashreportcategory = crashreport.makeCategory("Entity being ticked");
  
@@ -434,7 +505,7 @@
  
                  if (net.minecraftforge.common.ForgeModContainer.removeErroringEntities)
                  {
-@@ -1725,10 +1936,22 @@
+@@ -1725,10 +1974,22 @@
          this.unloadedEntityList.clear();
          this.tickPlayers();
          this.theProfiler.endStartSection("regular");
@@ -460,7 +531,7 @@
              Entity entity3 = entity2.getRidingEntity();
  
              if (entity3 != null)
-@@ -1747,7 +1970,9 @@
+@@ -1747,7 +2008,9 @@
              {
                  try
                  {
@@ -470,7 +541,7 @@
                  }
                  catch (Throwable throwable1)
                  {
-@@ -1776,22 +2001,46 @@
+@@ -1776,22 +2039,46 @@
                  {
                      this.getChunkFromChunkCoords(l1, i2).removeEntity(entity2);
                  }
@@ -525,7 +596,7 @@
              if (!tileentity.isInvalid() && tileentity.hasWorldObj())
              {
                  BlockPos blockpos = tileentity.getPos();
-@@ -1801,6 +2050,7 @@
+@@ -1801,6 +2088,7 @@
                      try
                      {
                          this.theProfiler.startSection(this.theProfiler.profilingEnabled ? tileentity.getClass().getSimpleName() : ""); // Fix for MC-117087
@@ -533,7 +604,7 @@
                          ((ITickable)tileentity).update();
                          this.theProfiler.endSection();
                      }
-@@ -1818,13 +2068,17 @@
+@@ -1818,13 +2106,17 @@
                          else
                          throw new ReportedException(crashreport2);
                      }
@@ -552,7 +623,7 @@
  
                  if (this.isBlockLoaded(tileentity.getPos()))
                  {
-@@ -1835,8 +2089,9 @@
+@@ -1835,8 +2127,9 @@
                  }
              }
          }
@@ -564,7 +635,7 @@
          {
              for (Object tile : tileEntitiesToBeRemoved)
              {
-@@ -1849,7 +2104,7 @@
+@@ -1849,7 +2142,7 @@
              this.tickableTileEntities.removeAll(remove);
              this.loadedTileEntityList.removeAll(remove);
              this.tileEntitiesToBeRemoved.clear();
@@ -573,7 +644,7 @@
  
          this.processingLoadedTiles = false;  //FML Move below remove to prevent CMEs
  
-@@ -1863,10 +2118,11 @@
+@@ -1863,10 +2156,11 @@
  
                  if (!tileentity1.isInvalid())
                  {
@@ -586,7 +657,7 @@
  
                      if (this.isBlockLoaded(tileentity1.getPos()))
                      {
-@@ -1874,13 +2130,19 @@
+@@ -1874,13 +2168,19 @@
                          IBlockState iblockstate = chunk.getBlockState(tileentity1.getPos());
                          chunk.addTileEntity(tileentity1.getPos(), tileentity1);
                          this.notifyBlockUpdate(tileentity1.getPos(), iblockstate, iblockstate, 3);
@@ -607,7 +678,7 @@
          this.theProfiler.endSection();
          this.theProfiler.endSection();
      }
-@@ -1941,9 +2203,11 @@
+@@ -1941,9 +2241,11 @@
      {
          int i = MathHelper.floor_double(entityIn.posX);
          int j = MathHelper.floor_double(entityIn.posZ);
@@ -622,7 +693,7 @@
          if (!canUpdate) canUpdate = net.minecraftforge.event.ForgeEventFactory.canEntityUpdate(entityIn);
  
          if (canUpdate)
-@@ -2383,7 +2647,7 @@
+@@ -2383,7 +2685,7 @@
      {
          return this.chunkProvider.makeString();
      }
@@ -631,7 +702,7 @@
      @Nullable
      public TileEntity getTileEntity(BlockPos pos)
      {
-@@ -2393,6 +2657,11 @@
+@@ -2393,6 +2695,11 @@
          }
          else
          {
@@ -643,7 +714,7 @@
              TileEntity tileentity = null;
  
              if (this.processingLoadedTiles)
-@@ -2437,6 +2706,14 @@
+@@ -2437,6 +2744,14 @@
          {
              if (tileEntityIn != null && !tileEntityIn.isInvalid())
              {
@@ -658,7 +729,7 @@
                  if (this.processingLoadedTiles)
                  {
                      tileEntityIn.setPos(pos);
-@@ -2659,6 +2936,13 @@
+@@ -2659,6 +2974,13 @@
                  }
  
                  this.rainingStrength = MathHelper.clamp_float(this.rainingStrength, 0.0F, 1.0F);
@@ -672,7 +743,7 @@
              }
          }
      }
-@@ -2843,8 +3127,11 @@
+@@ -2843,8 +3165,11 @@
  
      public boolean checkLightFor(EnumSkyBlock lightType, BlockPos pos)
      {
@@ -686,7 +757,7 @@
              return false;
          }
          else
-@@ -3131,11 +3418,20 @@
+@@ -3131,11 +3456,20 @@
          int i = 0;
  
          for (Entity entity : this.loadedEntityList)
@@ -711,7 +782,7 @@
          }
  
          return i;
-@@ -3145,6 +3441,11 @@
+@@ -3145,6 +3479,11 @@
      {
          for (Entity entity : entityCollection)
          {
@@ -723,7 +794,7 @@
              if (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinWorldEvent(entity, this)))
              {
                  loadedEntityList.add(entity);
-@@ -3159,10 +3460,17 @@
+@@ -3159,10 +3498,17 @@
      }
  
      public boolean canBlockBePlaced(Block blockIn, BlockPos pos, boolean p_175716_3_, EnumFacing side, @Nullable Entity entityIn, @Nullable ItemStack itemStackIn)
@@ -745,7 +816,7 @@
      }
  
      public int getSeaLevel()
-@@ -3296,6 +3604,11 @@
+@@ -3296,6 +3642,11 @@
          for (int i = 0; i < this.playerEntities.size(); ++i)
          {
              EntityPlayer entityplayer1 = (EntityPlayer)this.playerEntities.get(i);
@@ -757,7 +828,7 @@
  
              if ((EntitySelectors.CAN_AI_TARGET.apply(entityplayer1) || !spectator) && (EntitySelectors.NOT_SPECTATING.apply(entityplayer1) || spectator))
              {
-@@ -3541,6 +3854,16 @@
+@@ -3541,6 +3892,16 @@
      public void updateAllPlayersSleepingFlag()
      {
      }
@@ -774,7 +845,7 @@
  
      public float getThunderStrength(float delta)
      {
-@@ -3939,4 +4262,9 @@
+@@ -3939,4 +4300,9 @@
      {
          return this.lootTable;
      }

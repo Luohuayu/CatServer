@@ -1,0 +1,188 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/CommandBlockBaseLogic.java
++++ ../src-work/minecraft/net/minecraft/tileentity/CommandBlockBaseLogic.java
+@@ -1,15 +1,18 @@
+ package net.minecraft.tileentity;
+ 
++import com.google.common.base.Joiner;
+ import io.netty.buffer.ByteBuf;
+ import java.text.SimpleDateFormat;
++import java.util.ArrayList;
+ import java.util.Date;
++import java.util.logging.Level;
+ import javax.annotation.Nullable;
+-import net.minecraft.command.CommandResultStats;
+-import net.minecraft.command.ICommandManager;
+-import net.minecraft.command.ICommandSender;
++
++import net.minecraft.command.*;
+ import net.minecraft.crash.CrashReport;
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.crash.ICrashReportDetail;
++import net.minecraft.entity.item.EntityMinecartCommandBlock;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.server.MinecraftServer;
+@@ -17,8 +20,14 @@
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.TextComponentString;
+ import net.minecraft.world.World;
++import net.minecraft.world.WorldServer;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandMap;
++import org.bukkit.command.CommandSender;
++import org.bukkit.command.SimpleCommandMap;
++import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
+ 
+ public abstract class CommandBlockBaseLogic implements ICommandSender
+ {
+@@ -26,8 +35,9 @@
+     private int successCount;
+     private boolean trackOutput = true;
+     private ITextComponent lastOutput;
+-    private String commandStored = "";
++    public String commandStored = "";
+     private String customName = "@";
++    public CommandSender sender;
+     private final CommandResultStats resultStats = new CommandResultStats();
+ 
+     public int getSuccessCount()
+@@ -128,12 +138,11 @@
+ 
+             if (minecraftserver != null && minecraftserver.isAnvilFileSet() && minecraftserver.isCommandBlockEnabled())
+             {
+-                ICommandManager icommandmanager = minecraftserver.getCommandManager();
+ 
+                 try
+                 {
+                     this.lastOutput = null;
+-                    this.successCount = icommandmanager.executeCommand(this, this.commandStored);
++                    this.successCount = executeCommand(this, sender, this.commandStored);
+                 }
+                 catch (Throwable throwable)
+                 {
+@@ -162,7 +171,123 @@
+             }
+         }
+     }
++    public static int executeCommand(ICommandSender sender, CommandSender bSender, String command){
++        // CraftBukkit start - Handle command block commands using Bukkit dispatcher
++        SimpleCommandMap commandMap = sender.getEntityWorld().getServer().getCommandMap();
++        Joiner joiner = Joiner.on(" ");
++        if (command.startsWith("/")) {
++            command = command.substring(1);
++        }
++        String[] args = command.split(" ");
++        ArrayList<String[]> commands = new ArrayList<String[]>();
+ 
++        String cmd = args[0];
++        if (cmd.startsWith("minecraft:")) cmd = cmd.substring("minecraft:".length());
++        if (cmd.startsWith("bukkit:")) cmd = cmd.substring("bukkit:".length());
++
++        // Block disallowed commands
++        if (cmd.equalsIgnoreCase("stop") || cmd.equalsIgnoreCase("kick") || cmd.equalsIgnoreCase("op")
++                || cmd.equalsIgnoreCase("deop") || cmd.equalsIgnoreCase("ban") || cmd.equalsIgnoreCase("ban-ip")
++                || cmd.equalsIgnoreCase("pardon") || cmd.equalsIgnoreCase("pardon-ip") || cmd.equalsIgnoreCase("reload")) {
++            return 0;
++        }
++
++        // Handle vanilla commands;
++        org.bukkit.command.Command commandBlockCommand = commandMap.getCommand(args[0]);
++        if (sender.getEntityWorld().getServer().getCommandBlockOverride(args[0])) {
++            commandBlockCommand = commandMap.getCommand("minecraft:" + args[0]);
++        }
++        if (commandBlockCommand instanceof VanillaCommandWrapper) {
++            command = command.trim();
++            if (command.startsWith("/")) {
++                command = command.substring(1);
++            }
++            String as[] = command.split(" ");
++            as = VanillaCommandWrapper.dropFirstArgument(as);
++            if (!((VanillaCommandWrapper) commandBlockCommand).testPermission(bSender)) {
++                return 0;
++            }
++            return ((VanillaCommandWrapper) commandBlockCommand).dispatchVanillaCommand(bSender, sender, as);
++        }
++
++        // Make sure this is a valid command
++        if (commandMap.getCommand(args[0]) == null) {
++            return 0;
++        }
++
++        commands.add(args);
++
++        // Find positions of command block syntax, if any
++        WorldServer[] prev = MinecraftServer.getServerInst().worldServers;
++        MinecraftServer server = MinecraftServer.getServerInst();
++        server.worldServers = new WorldServer[server.worlds.size()];
++        server.worldServers[0] = (WorldServer) sender.getEntityWorld();
++        int bpos = 0;
++        for (int pos = 1; pos < server.worldServers.length; pos++) {
++            WorldServer world = server.worlds.get(bpos++);
++            if (server.worldServers[0] == world) {
++                pos--;
++                continue;
++            }
++            server.worldServers[pos] = world;
++        }
++        try {
++            ArrayList<String[]> newCommands = new ArrayList<String[]>();
++            for (int i = 0; i < args.length; i++) {
++                if (EntitySelector.hasArguments(args[i])) {
++                    for (int j = 0; j < commands.size(); j++) {
++                        newCommands.addAll(buildCommands(sender, commands.get(j), i));
++                    }
++                    ArrayList<String[]> temp = commands;
++                    commands = newCommands;
++                    newCommands = temp;
++                    newCommands.clear();
++                }
++            }
++        } finally {
++            MinecraftServer.getServerInst().worldServers = prev;
++        }
++
++        int completed = 0;
++
++        // Now dispatch all of the commands we ended up with
++        for (int i = 0; i < commands.size(); i++) {
++            try {
++                if (commandMap.dispatch(bSender, joiner.join(java.util.Arrays.asList(commands.get(i))))) {
++                    completed++;
++                }
++            } catch (Throwable exception) {
++                if (sender.getCommandSenderEntity() instanceof EntityMinecartCommandBlock) {
++                    MinecraftServer.getServerInst().server.getLogger().log(Level.WARNING, String.format("MinecartCommandBlock at (%d,%d,%d) failed to handle command", sender.getPosition().getX(), sender.getPosition().getY(), sender.getPosition().getZ()), exception);
++                } else if (sender instanceof CommandBlockBaseLogic) {
++                    CommandBlockBaseLogic listener = (CommandBlockBaseLogic) sender;
++                    MinecraftServer.getServerInst().server.getLogger().log(Level.WARNING, String.format("CommandBlock at (%d,%d,%d) failed to handle command", listener.getPosition().getX(), listener.getPosition().getY(), listener.getPosition().getZ()), exception);
++                } else {
++                    MinecraftServer.getServerInst().server.getLogger().log(Level.WARNING, String.format("Unknown CommandBlock failed to handle command"), exception);
++                }
++            }
++        }
++
++        return completed;
++    }
++    private static ArrayList<String[]> buildCommands(ICommandSender sender, String[] args, int pos) {
++        ArrayList<String[]> commands = new ArrayList<String[]>();
++        java.util.List<EntityPlayer> players = (java.util.List<EntityPlayer>)EntitySelector.matchEntities(sender, args[pos], EntityPlayer.class);
++
++        if (players != null) {
++            for (EntityPlayer player : players) {
++                if (player.worldObj != sender.getEntityWorld()) {
++                    continue;
++                }
++                String[] command = args.clone();
++                command[pos] = player.getName();
++                commands.add(command);
++            }
++        }
++
++        return commands;
++    }
++
+     public String getName()
+     {
+         return this.customName;

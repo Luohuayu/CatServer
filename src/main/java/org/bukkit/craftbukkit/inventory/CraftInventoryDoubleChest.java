@@ -4,13 +4,9 @@
 
 package org.bukkit.craftbukkit.inventory;
 
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.Location;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.inventory.ItemStack;
-
-import luohuayu.CatServer.inventory.ICBInventory;
-
 import org.bukkit.inventory.Inventory;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryLargeChest;
@@ -35,13 +31,13 @@ public class CraftInventoryDoubleChest extends CraftInventory implements DoubleC
             this.left = new CraftInventoryDoubleChest((InventoryLargeChest)largeChest.upperChest);
         }
         else {
-            this.left = new CraftInventory((ICBInventory) largeChest.upperChest);
+            this.left = new CraftInventory((IInventory) largeChest.upperChest);
         }
         if (largeChest.lowerChest instanceof InventoryLargeChest) {
             this.right = new CraftInventoryDoubleChest((InventoryLargeChest)largeChest.lowerChest);
         }
         else {
-            this.right = new CraftInventory((ICBInventory) largeChest.lowerChest);
+            this.right = new CraftInventory((IInventory) largeChest.lowerChest);
         }
     }
     

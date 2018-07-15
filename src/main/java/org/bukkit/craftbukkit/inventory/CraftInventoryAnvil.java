@@ -5,8 +5,6 @@
 package org.bukkit.craftbukkit.inventory;
 
 import org.bukkit.inventory.ItemStack;
-
-import luohuayu.CatServer.inventory.ICBInventory;
 import net.minecraft.inventory.IInventory;
 
 import org.bukkit.Location;
@@ -17,7 +15,7 @@ public class CraftInventoryAnvil extends CraftInventory implements AnvilInventor
     private final Location location;
     private final IInventory resultInventory;
     
-    public CraftInventoryAnvil(final Location location, final ICBInventory inventory, final IInventory resultInventory) {
+    public CraftInventoryAnvil(final Location location, final IInventory inventory, final IInventory resultInventory) {
         super(inventory);
         this.location = location;
         this.resultInventory = resultInventory;

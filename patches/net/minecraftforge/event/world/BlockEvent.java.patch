@@ -1,0 +1,61 @@
+--- ../src-base/minecraft/net/minecraftforge/event/world/BlockEvent.java
++++ ../src-work/minecraft/net/minecraftforge/event/world/BlockEvent.java
+@@ -25,6 +25,7 @@
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.enchantment.EnchantmentHelper;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Enchantments;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.util.EnumHand;
+@@ -39,6 +40,7 @@
+ import net.minecraftforge.fml.common.eventhandler.Event.Result;
+ 
+ import com.google.common.collect.ImmutableList;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+ import javax.annotation.Nullable;
+ 
+@@ -123,17 +125,23 @@
+         {
+             super(world, pos, state);
+             this.player = player;
+-
+-            if (state == null || !ForgeHooks.canHarvestBlock(state.getBlock(), player, world, pos) || // Handle empty block or player unable to break block scenario
++            // Svarka start - handle event on bukkit side
++            org.bukkit.event.block.BlockBreakEvent bukkitEvent = CraftEventFactory.callBlockBreakEvent(world, pos, state, (EntityPlayerMP) player);
++           /* if (bukkitEvent.isCancelled() || state == null || !ForgeHooks.canHarvestBlock(state.getBlock(), player, world, pos) || // Handle empty block or player unable to break block scenario
+                 (state.getBlock().canSilkHarvest(world, pos, world.getBlockState(pos), player) && EnchantmentHelper.getEnchantmentLevel(Enchantments.SILK_TOUCH, player.getHeldItemMainhand()) > 0)) // If the block is being silk harvested, the exp dropped is 0
++            */
++            if(bukkitEvent.isCancelled())
+             {
+-                this.exp = 0;
++                //this.exp = 0;
++                this.setCanceled(true);
+             }
+             else
+             {
+-                int bonusLevel = EnchantmentHelper.getEnchantmentLevel(Enchantments.FORTUNE, player.getHeldItemMainhand());
+-                this.exp = state.getBlock().getExpDrop(state, world, pos, bonusLevel);
++                /*int bonusLevel = EnchantmentHelper.getEnchantmentLevel(Enchantments.FORTUNE, player.getHeldItemMainhand());
++                this.exp = state.getBlock().getExpDrop(state, world, pos, bonusLevel);*/
++                this.exp = bukkitEvent.getExpToDrop();
+             }
++            // Svarka end
+         }
+ 
+         public EntityPlayer getPlayer()
+@@ -191,6 +199,13 @@
+             this.placedBlock = blockSnapshot.getCurrentBlock();
+             this.placedAgainst = placedAgainst;
+             this.hand = hand;
++            // Svarka start - handle event on bukkit side
++            org.bukkit.craftbukkit.block.CraftBlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(super.world, super.pos.getX(), super.pos.getY(), super.getPos().getZ());
++            org.bukkit.event.block.BlockPlaceEvent bukkitEvent = CraftEventFactory.callBlockPlaceEvent(super.world, player, hand , blockstate, super.pos.getX(), super.pos.getY(), super.getPos().getZ());
++            if (bukkitEvent.isCancelled() || !bukkitEvent.canBuild()) {
++                this.setCanceled(true);
++            }
++            // Svarka end
+             if (DEBUG)
+             {
+                 System.out.printf("Created PlaceEvent - [PlacedBlock: %s ][PlacedAgainst: %s ][ItemStack: %s ][Player: %s ][Hand: %s]\n", getPlacedBlock(), placedAgainst, getItemInHand(), player, hand);

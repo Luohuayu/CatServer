@@ -254,7 +254,7 @@ public class CraftWorld implements World
     private WorldBorder worldBorder;
     private Environment environment;
     private final CraftServer server;
-    private final ChunkGenerator generator;
+    public ChunkGenerator generator;
     private final List<BlockPopulator> populators;
     private final BlockMetadataStore blockMetadata;
     private int monsterSpawn;

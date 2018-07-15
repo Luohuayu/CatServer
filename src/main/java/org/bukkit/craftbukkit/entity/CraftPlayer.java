@@ -4,118 +4,64 @@
 
 package org.bukkit.craftbukkit.entity;
 
-import org.bukkit.metadata.MetadataStoreBase;
-import net.minecraft.network.play.server.SPacketParticles;
-import org.bukkit.craftbukkit.CraftParticle;
-import org.bukkit.Particle;
-import net.minecraft.network.play.server.SPacketTitle;
 import com.google.common.base.Preconditions;
-import net.minecraft.entity.ai.attributes.ModifiableAttributeInstance;
-import net.minecraft.entity.ai.attributes.IAttribute;
-import net.minecraft.entity.ai.attributes.RangedAttribute;
-import net.minecraft.network.play.server.SPacketUpdateHealth;
-import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.network.play.server.SPacketEntityProperties;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.ai.attributes.AttributeMap;
-import net.minecraft.network.NetHandlerPlayServer;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
-import net.minecraft.inventory.Container;
-import org.bukkit.inventory.InventoryView;
-import java.util.List;
-import org.bukkit.metadata.MetadataValue;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.io.ByteArrayOutputStream;
 import com.google.common.collect.ImmutableSet;
-import org.bukkit.event.player.PlayerUnregisterChannelEvent;
-import org.bukkit.event.player.PlayerRegisterChannelEvent;
-import org.bukkit.plugin.messaging.StandardMessenger;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.conversations.ConversationCanceller;
-import org.bukkit.conversations.ConversationAbandonedEvent;
-import org.bukkit.conversations.ManuallyAbandonedConversationCanceller;
-import org.bukkit.conversations.Conversation;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import com.mojang.authlib.GameProfile;
+import io.netty.buffer.Unpooled;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EntityTracker;
 import net.minecraft.entity.EntityTrackerEntry;
-import net.minecraft.network.play.server.SPacketChangeGameState;
-import net.minecraft.world.GameType;
-import net.minecraft.entity.Entity;
-import org.bukkit.event.player.PlayerGameModeChangeEvent;
-import org.bukkit.GameMode;
-import java.util.Date;
-import org.bukkit.BanList;
-import org.bukkit.WeatherType;
-import org.bukkit.entity.EntityType;
-import org.bukkit.Statistic;
-import net.minecraft.stats.StatBase;
-import org.bukkit.craftbukkit.CraftStatistic;
-import org.bukkit.Achievement;
-import net.minecraft.world.WorldServer;
-import luohuayu.CatServer.inventory.CBContainer;
-
-import org.bukkit.event.Event;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import java.util.Collection;
-import org.bukkit.craftbukkit.map.RenderData;
-import net.minecraft.network.play.server.SPacketMaps;
-import org.bukkit.map.MapCursor;
-import net.minecraft.util.math.Vec4b;
-import java.util.ArrayList;
-import org.bukkit.craftbukkit.map.CraftMapView;
-import org.bukkit.map.MapView;
-import org.apache.commons.lang.NotImplementedException;
-import net.minecraft.tileentity.TileEntitySign;
-import org.bukkit.craftbukkit.block.CraftSign;
-import org.bukkit.craftbukkit.util.CraftMagicNumbers;
-import net.minecraft.world.World;
-import net.minecraft.network.play.server.SPacketBlockChange;
-import org.bukkit.craftbukkit.CraftWorld;
-import org.bukkit.Material;
-import org.bukkit.craftbukkit.CraftEffect;
-import org.apache.commons.lang.Validate;
-import net.minecraft.network.play.server.SPacketEffect;
-import org.bukkit.Effect;
-import net.minecraft.network.play.server.SPacketCustomPayload;
-import net.minecraft.network.PacketBuffer;
-import io.netty.buffer.Unpooled;
-import net.minecraft.network.play.server.SPacketCustomSound;
-import org.bukkit.Sound;
-import org.bukkit.Note;
-import org.bukkit.Instrument;
-import net.minecraft.network.play.server.SPacketSoundEffect;
-import net.minecraft.util.SoundCategory;
-import org.bukkit.craftbukkit.CraftSound;
-import org.bukkit.command.CommandSender;
-import net.minecraft.network.play.server.SPacketSpawnPosition;
-import net.minecraft.util.math.BlockPos;
-import org.bukkit.Location;
-import org.bukkit.OfflinePlayer;
-import java.util.Iterator;
-import net.minecraft.network.play.server.SPacketPlayerListItem;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.network.Packet;
-import net.minecraft.network.play.server.SPacketChat;
-import org.bukkit.craftbukkit.util.CraftChatMessage;
-import java.net.SocketAddress;
-import java.net.InetSocketAddress;
-import com.mojang.authlib.GameProfile;
-import java.util.HashSet;
+import net.minecraft.entity.ai.attributes.*;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import org.bukkit.craftbukkit.CraftServer;
-import java.util.UUID;
-import java.util.Set;
-import org.bukkit.craftbukkit.conversations.ConversationTracker;
-import org.bukkit.craftbukkit.CraftOfflinePlayer;
+import net.minecraft.inventory.Container;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.NetHandlerPlayServer;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.network.play.server.*;
+import net.minecraft.stats.StatBase;
+import net.minecraft.tileentity.TileEntitySign;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec4b;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.world.GameType;
+import net.minecraft.world.WorldServer;
+import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang.Validate;
+import org.bukkit.*;
 import org.bukkit.configuration.serialization.DelegateDeserialization;
+import org.bukkit.conversations.Conversation;
+import org.bukkit.conversations.ConversationAbandonedEvent;
+import org.bukkit.conversations.ManuallyAbandonedConversationCanceller;
+import org.bukkit.craftbukkit.*;
+import org.bukkit.craftbukkit.block.CraftSign;
+import org.bukkit.craftbukkit.conversations.ConversationTracker;
+import org.bukkit.craftbukkit.map.CraftMapView;
+import org.bukkit.craftbukkit.map.RenderData;
+import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
+import org.bukkit.craftbukkit.util.CraftChatMessage;
+import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
+import org.bukkit.event.player.PlayerRegisterChannelEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerUnregisterChannelEvent;
+import org.bukkit.inventory.InventoryView;
+import org.bukkit.map.MapCursor;
+import org.bukkit.map.MapView;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.messaging.StandardMessenger;
+import org.bukkit.scoreboard.Scoreboard;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @DelegateDeserialization(CraftOfflinePlayer.class)
 public class CraftPlayer extends CraftHumanEntity implements Player
@@ -1137,7 +1083,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player
                     stream.write(0);
                 }
                 catch (IOException ex) {
-                    Logger.getLogger(CraftPlayer.class.getName()).log(Level.SEVERE, "Could not send Plugin Channel REGISTER to " + this.getName(), ex);
+                	Logger.getLogger(CraftPlayer.class.getName()).log(Level.SEVERE, "Could not send Plugin Channel REGISTER to " + this.getName(), ex);
                 }
             }
             this.getHandle().connection.sendPacket(new SPacketCustomPayload("REGISTER", new PacketBuffer(Unpooled.wrappedBuffer(stream.toByteArray()))));
@@ -1172,7 +1118,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player
     @Override
     public boolean setWindowProperty(final InventoryView.Property prop, final int value) {
         final Container container = this.getHandle().openContainer;
-        if (((CBContainer)container).getBukkitView().getType() != prop.getType()) {
+        if (((Container)container).getBukkitView().getType() != prop.getType()) {
             return false;
         }
         this.getHandle().sendProgressBarUpdate(container, prop.getId(), value);

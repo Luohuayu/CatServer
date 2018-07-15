@@ -1421,6 +1421,11 @@ public interface World extends PluginMessageRecipient, Metadatable {
             this.id = id;
         }
 
+        // Svarka - allow forge to register environments
+        public static void registerEnvironment(Environment env) {
+            lookup.put(env.getId(),env);
+        }
+
         /**
          * Gets the dimension ID of this environment
          *

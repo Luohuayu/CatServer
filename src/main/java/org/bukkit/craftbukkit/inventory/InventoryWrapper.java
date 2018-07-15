@@ -9,9 +9,6 @@ import org.bukkit.craftbukkit.util.CraftChatMessage;
 import net.minecraft.util.text.ITextComponent;
 
 import org.bukkit.inventory.InventoryHolder;
-
-import luohuayu.CatServer.inventory.ICBInventory;
-
 import org.bukkit.craftbukkit.entity.CraftHumanEntity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -21,7 +18,7 @@ import java.util.List;
 import org.bukkit.inventory.Inventory;
 import net.minecraft.inventory.IInventory;
 
-public class InventoryWrapper implements ICBInventory
+public class InventoryWrapper implements IInventory
 {
     private final Inventory inventory;
     private final List<HumanEntity> viewers;

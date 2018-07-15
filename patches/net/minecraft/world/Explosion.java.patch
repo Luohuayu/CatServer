@@ -1,14 +1,17 @@
 --- ../src-base/minecraft/net/minecraft/world/Explosion.java
 +++ ../src-work/minecraft/net/minecraft/world/Explosion.java
-@@ -13,6 +13,7 @@
+@@ -13,8 +13,10 @@
  import net.minecraft.enchantment.EnchantmentProtection;
  import net.minecraft.entity.Entity;
  import net.minecraft.entity.EntityLivingBase;
 +import net.minecraft.entity.item.EntityFallingBlock;
  import net.minecraft.entity.item.EntityTNTPrimed;
  import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.projectile.EntityFireball;
  import net.minecraft.init.Blocks;
-@@ -26,7 +27,18 @@
+ import net.minecraft.init.SoundEvents;
+ import net.minecraft.util.DamageSource;
+@@ -26,7 +28,18 @@
  import net.minecraft.util.math.Vec3d;
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
@@ -27,7 +30,7 @@
  public class Explosion
  {
      private final boolean isFlaming;
-@@ -36,11 +48,12 @@
+@@ -36,11 +49,12 @@
      private final double explosionX;
      private final double explosionY;
      private final double explosionZ;
@@ -41,7 +44,7 @@
  
      @SideOnly(Side.CLIENT)
      public Explosion(World worldIn, Entity entityIn, double x, double y, double z, float size, List<BlockPos> affectedPositions)
-@@ -62,7 +75,7 @@
+@@ -62,7 +76,7 @@
          this.playerKnockbackMap = Maps.<EntityPlayer, Vec3d>newHashMap();
          this.worldObj = worldIn;
          this.exploder = entityIn;
@@ -50,7 +53,37 @@
          this.explosionX = x;
          this.explosionY = y;
          this.explosionZ = z;
-@@ -155,7 +168,16 @@
+@@ -73,6 +87,11 @@
+ 
+     public void doExplosionA()
+     {
++        // CraftBukkit start
++        if (this.explosionSize < 0.1F) {
++            return;
++        }
++        // CraftBukkit end
+         Set<BlockPos> set = Sets.<BlockPos>newHashSet();
+         int i = 16;
+ 
+@@ -107,7 +126,7 @@
+                                 f -= (f2 + 0.3F) * 0.3F;
+                             }
+ 
+-                            if (f > 0.0F && (this.exploder == null || this.exploder.verifyExplosion(this, this.worldObj, blockpos, iblockstate, f)))
++                            if (f > 0.0F && (this.exploder == null || this.exploder.verifyExplosion(this, this.worldObj, blockpos, iblockstate, f)) && blockpos.getY() < 256 && blockpos.getY() >= 0)
+                             {
+                                 set.add(blockpos);
+                             }
+@@ -130,7 +149,7 @@
+         int j2 = MathHelper.floor_double(this.explosionZ - (double)f3 - 1.0D);
+         int j1 = MathHelper.floor_double(this.explosionZ + (double)f3 + 1.0D);
+         List<Entity> list = this.worldObj.getEntitiesWithinAABBExcludingEntity(this.exploder, new AxisAlignedBB((double)k1, (double)i2, (double)j2, (double)l1, (double)i1, (double)j1));
+-        net.minecraftforge.event.ForgeEventFactory.onExplosionDetonate(this.worldObj, this, list, f3);
++        //net.minecraftforge.event.ForgeEventFactory.onExplosionDetonate(this.worldObj, this, list, f3);
+         Vec3d vec3d = new Vec3d(this.explosionX, this.explosionY, this.explosionZ);
+ 
+         for (int k2 = 0; k2 < list.size(); ++k2)
+@@ -155,7 +174,16 @@
                          d9 = d9 / d13;
                          double d14 = (double)this.worldObj.getBlockDensity(vec3d, entity.getEntityBoundingBox());
                          double d10 = (1.0D - d12) * d14;
@@ -68,7 +101,7 @@
                          double d11 = 1.0D;
  
                          if (entity instanceof EntityLivingBase)
-@@ -197,6 +219,45 @@
+@@ -197,6 +225,45 @@
  
          if (this.isSmoking)
          {
@@ -114,3 +147,33 @@
              for (BlockPos blockpos : this.affectedBlockPositions)
              {
                  IBlockState iblockstate = this.worldObj.getBlockState(blockpos);
+@@ -227,7 +294,8 @@
+                 {
+                     if (block.canDropFromExplosion(this))
+                     {
+-                        block.dropBlockAsItemWithChance(this.worldObj, blockpos, this.worldObj.getBlockState(blockpos), 1.0F / this.explosionSize, 0);
++                        // CraftBukkit - add yield
++                        block.dropBlockAsItemWithChance(this.worldObj, blockpos, this.worldObj.getBlockState(blockpos), yield, 0);
+                     }
+ 
+                     block.onBlockExploded(this.worldObj, blockpos, this);
+@@ -241,7 +309,9 @@
+             {
+                 if (this.worldObj.getBlockState(blockpos1).getMaterial() == Material.AIR && this.worldObj.getBlockState(blockpos1.down()).isFullBlock() && this.explosionRNG.nextInt(3) == 0)
+                 {
+-                    this.worldObj.setBlockState(blockpos1, Blocks.FIRE.getDefaultState());
++                    if(!CraftEventFactory.callBlockIgniteEvent(this.worldObj,blockpos1.getX(),blockpos1.getY(),blockpos1.getZ(),this).isCancelled()){
++                        this.worldObj.setBlockState(blockpos1, Blocks.FIRE.getDefaultState());
++                    }
+                 }
+             }
+         }
+@@ -254,7 +324,7 @@
+ 
+     public EntityLivingBase getExplosivePlacedBy()
+     {
+-        return this.exploder == null ? null : (this.exploder instanceof EntityTNTPrimed ? ((EntityTNTPrimed)this.exploder).getTntPlacedBy() : (this.exploder instanceof EntityLivingBase ? (EntityLivingBase)this.exploder : null));
++        return this.exploder == null ? null : (this.exploder instanceof EntityTNTPrimed ? ((EntityTNTPrimed)this.exploder).getTntPlacedBy() : (this.exploder instanceof EntityLivingBase ? (EntityLivingBase)this.exploder : (this.exploder instanceof EntityFireball ? ((EntityFireball) this.exploder).shootingEntity : null)));
+     }
+ 
+     public void clearAffectedBlockPositions()

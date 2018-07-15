@@ -4,7 +4,6 @@
 
 package org.bukkit.craftbukkit.inventory;
 
-import java.util.Iterator;
 import org.bukkit.Location;
 import org.bukkit.inventory.InventoryHolder;
 import net.minecraft.tileentity.IHopper;
@@ -25,20 +24,18 @@ import java.util.HashMap;
 import org.apache.commons.lang.Validate;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-
-import luohuayu.CatServer.inventory.ICBInventory;
 import net.minecraft.inventory.IInventory;
 import org.bukkit.inventory.Inventory;
 
 public class CraftInventory implements Inventory
 {
-    protected final ICBInventory inventory;
+    protected final IInventory inventory;
     
-    public CraftInventory(final ICBInventory inventory) {
+    public CraftInventory(final IInventory inventory) {
         this.inventory = inventory;
     }
     
-    public ICBInventory getInventory() {
+    public IInventory getInventory() {
         return this.inventory;
     }
     

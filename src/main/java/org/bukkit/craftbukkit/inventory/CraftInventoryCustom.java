@@ -18,8 +18,6 @@ import net.minecraft.inventory.IInventory;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.InventoryHolder;
 
-import luohuayu.CatServer.inventory.ICBInventory;
-
 public class CraftInventoryCustom extends CraftInventory
 {
     public CraftInventoryCustom(final InventoryHolder owner, final InventoryType type) {
@@ -38,7 +36,7 @@ public class CraftInventoryCustom extends CraftInventory
         super(new MinecraftInventory(owner, size, title));
     }
     
-    static class MinecraftInventory implements ICBInventory
+    static class MinecraftInventory implements IInventory
     {
         private final ItemStack[] items;
         private int maxStack;

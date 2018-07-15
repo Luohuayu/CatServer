@@ -1,0 +1,72 @@
+--- ../src-base/minecraft/net/minecraft/command/CommandExecuteAt.java
++++ ../src-work/minecraft/net/minecraft/command/CommandExecuteAt.java
+@@ -7,10 +7,16 @@
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.dedicated.DedicatedServer;
++import net.minecraft.tileentity.CommandBlockBaseLogic;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.Vec3d;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.world.World;
++import org.bukkit.command.CommandSender;
++import org.bukkit.command.RemoteConsoleCommandSender;
++import org.bukkit.craftbukkit.command.ProxiedNativeCommandSender;
++import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
+ 
+ public class CommandExecuteAt extends CommandBase
+ {
+@@ -70,8 +76,10 @@
+             }
+ 
+             String s = buildString(args, i);
+-            ICommandSender icommandsender = new ICommandSender()
++            // CraftBukkit start - name class
++            class ProxyListener implements ICommandSender
+             {
++                private final ICommandSender base = sender;
+                 public String getName()
+                 {
+                     return entity.getName();
+@@ -117,11 +125,32 @@
+                     return entity.getServer();
+                 }
+             };
+-            ICommandManager icommandmanager = server.getCommandManager();
++            ICommandSender icommandsender = new ProxyListener();
+ 
+             try
+             {
+-                int k = icommandmanager.executeCommand(icommandsender, s);
++                // CraftBukkit start
++                CommandSender cbSender = null;
++                ICommandSender sender1 = sender;
++                while(cbSender == null){
++                    if(sender1 instanceof DedicatedServer){
++                        cbSender = server.console;
++                    } else if(sender1 instanceof RemoteConsoleCommandSender){
++                        cbSender = server.remoteConsole;
++                    } else if(sender1 instanceof CommandBlockBaseLogic){
++                        cbSender = ((CommandBlockBaseLogic) sender1).sender;
++                    } else if(sender1 instanceof ProxyListener){
++                        sender1 = ((ProxyListener) sender1).base;
++                    } else if(VanillaCommandWrapper.lastSender != null){
++                        cbSender = VanillaCommandWrapper.lastSender;
++                    } else if(sender1.getCommandSenderEntity() != null){
++                        cbSender = sender1.getCommandSenderEntity().getBukkitEntity();
++                    } else {
++                        throw new CommandException("Unhandled executor " + icommandsender.getClass().getSimpleName(), new Object[0]);
++                    }
++                }
++                int k = CommandBlockBaseLogic.executeCommand(icommandsender, new ProxiedNativeCommandSender(icommandsender, cbSender, entity.getBukkitEntity()), s);
++                // CraftBukkit end
+ 
+                 if (k < 1)
+                 {
+@@ -144,4 +173,5 @@
+     {
+         return index == 0;
+     }
++
+ }

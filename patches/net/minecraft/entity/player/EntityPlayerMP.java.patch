@@ -1,10 +1,27 @@
 --- ../src-base/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
 +++ ../src-work/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
-@@ -101,9 +101,26 @@
+@@ -4,6 +4,8 @@
+ import com.google.common.collect.Sets;
+ import com.mojang.authlib.GameProfile;
+ import io.netty.buffer.Unpooled;
++
++import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+@@ -12,7 +14,6 @@
+ import net.minecraft.block.BlockFence;
+ import net.minecraft.block.BlockFenceGate;
+ import net.minecraft.block.BlockWall;
+-import net.minecraft.block.material.Material;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.crash.CrashReport;
+ import net.minecraft.crash.CrashReportCategory;
+@@ -101,9 +102,18 @@
  import net.minecraft.world.WorldServer;
  import net.minecraft.world.biome.Biome;
  import net.minecraft.world.storage.loot.ILootContainer;
-+import luohuayu.CatServer.inventory.CBContainer;
++import org.bukkit.event.entity.PlayerDeathEvent;
 +
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -12,22 +29,14 @@
 +import org.bukkit.WeatherType;
  
 +//CraftBukkit start
-+import org.bukkit.Bukkit;
-+import org.bukkit.WeatherType;
-+import org.bukkit.craftbukkit.CraftWorld;
-+import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.event.CraftEventFactory;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
-+import org.bukkit.event.inventory.InventoryType;
-+import org.bukkit.event.player.PlayerChangedMainHandEvent;
-+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-+import org.bukkit.inventory.MainHand;
 +// CraftBukkit end
 +
  public class EntityPlayerMP extends EntityPlayer implements IContainerListener
  {
      private static final Logger LOGGER = LogManager.getLogger();
-@@ -124,17 +141,28 @@
+@@ -124,17 +134,28 @@
      private float lastHealth = -1.0E8F;
      private int lastFoodLevel = -99999999;
      private boolean wasHungry = true;
@@ -59,7 +68,7 @@
  
      @SuppressWarnings("unused")
      public EntityPlayerMP(MinecraftServer server, WorldServer worldIn, GameProfile profile, PlayerInteractionManager interactionManagerIn)
-@@ -171,6 +199,11 @@
+@@ -171,6 +192,11 @@
          {
              this.setPosition(this.posX, this.posY + 1.0D, this.posZ);
          }
@@ -71,7 +80,73 @@
      }
  
      public void readEntityFromNBT(NBTTagCompound compound)
-@@ -742,6 +775,10 @@
+@@ -306,8 +332,15 @@
+             {
+                 ItemStack itemstack = this.inventory.getStackInSlot(i);
+ 
+-                if (itemstack != null && itemstack.getItem().isMap())
++                if (itemstack == null) continue;
++
++                if (itemstack.stackSize <= 0 )
+                 {
++                    this.inventory.setInventorySlotContents(i, null);
++                }
++
++                if (itemstack.getItem().isMap())
++                {
+                     Packet<?> packet = ((ItemMapBase)itemstack.getItem()).createMapDataPacket(itemstack, this.worldObj, this);
+ 
+                     if (packet != null)
+@@ -319,7 +352,7 @@
+ 
+             if (this.getHealth() != this.lastHealth || this.lastFoodLevel != this.foodStats.getFoodLevel() || this.foodStats.getSaturationLevel() == 0.0F != this.wasHungry)
+             {
+-                this.connection.sendPacket(new SPacketUpdateHealth(this.getHealth(), this.foodStats.getFoodLevel(), this.foodStats.getSaturationLevel()));
++                this.connection.sendPacket(new SPacketUpdateHealth(this.getBukkitEntity().getScaledHealth(), this.foodStats.getFoodLevel(), this.foodStats.getSaturationLevel()));
+                 this.lastHealth = this.getHealth();
+                 this.lastFoodLevel = this.foodStats.getFoodLevel();
+                 this.wasHungry = this.foodStats.getSaturationLevel() == 0.0F;
+@@ -439,7 +472,38 @@
+         if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, cause)) return;
+         boolean flag = this.worldObj.getGameRules().getBoolean("showDeathMessages");
+         this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
+-
++        List<org.bukkit.inventory.ItemStack> loot = new ArrayList();
++        boolean keepInventory = this.worldObj.getGameRules().getBoolean("keepInventory");
++        if (!keepInventory) {
++            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
++                if (this.inventory.mainInventory[i] != null) {
++                    loot.add(CraftItemStack.asCraftMirror(this.inventory.mainInventory[i]));
++                }
++            }
++            for (int i = 0; i < this.inventory.armorInventory.length; i++) {
++                if (this.inventory.armorInventory[i] != null) {
++                    loot.add(CraftItemStack.asCraftMirror(this.inventory.armorInventory[i]));
++                }
++            }
++            for (int i = 0; i < this.inventory.offHandInventory.length; i++) {
++                if (this.inventory.offHandInventory[i] != null) {
++                    loot.add(CraftItemStack.asCraftMirror(this.inventory.offHandInventory[i]));
++                }
++            }
++        }
++        PlayerDeathEvent eventd = CraftEventFactory.callPlayerDeathEvent(this, loot, this.getCombatTracker().getDeathMessage().getFormattedText(), this.worldObj.getGameRules().getBoolean("keepInventory"));
++        if (!eventd.getKeepInventory())
++        {
++            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
++                this.inventory.mainInventory[i] = null;
++            }
++            for (int i = 0; i < this.inventory.armorInventory.length; i++) {
++                this.inventory.armorInventory[i] = null;
++            }
++            for (int i = 0; i < this.inventory.offHandInventory.length; i++) {
++                this.inventory.offHandInventory[i] = null;
++            }
++        }
+         if (flag)
+         {
+             Team team = this.getTeam();
+@@ -742,9 +806,14 @@
      {
          this.currentWindowId = this.currentWindowId % 100 + 1;
      }
@@ -82,7 +157,11 @@
  
      public void displayGui(IInteractionObject guiOwner)
      {
-@@ -988,6 +1025,12 @@
++
+         if (guiOwner instanceof ILootContainer && ((ILootContainer)guiOwner).getLootTable() != null && this.isSpectator())
+         {
+             this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0])).setStyle((new Style()).setColor(TextFormatting.RED)));
+@@ -988,6 +1057,12 @@
      {
          this.lastHealth = -1.0E8F;
      }
@@ -95,7 +174,7 @@
  
      public void addChatComponentMessage(ITextComponent chatComponent)
      {
-@@ -1264,4 +1307,127 @@
+@@ -1264,4 +1339,127 @@
          this.setFlag(7, true);
          this.setFlag(7, false);
      }

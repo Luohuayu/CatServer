@@ -1,7 +1,64 @@
 --- ../src-base/minecraft/net/minecraft/server/network/NetHandlerHandshakeTCP.java
 +++ ../src-work/minecraft/net/minecraft/server/network/NetHandlerHandshakeTCP.java
-@@ -31,13 +31,13 @@
+@@ -8,9 +8,23 @@
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.TextComponentString;
++import net.minecraftforge.fml.common.FMLCommonHandler;
++import org.apache.logging.log4j.LogManager;
++import org.spigotmc.SpigotConfig;
  
++import java.net.InetAddress;
++import java.net.InetSocketAddress;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++
+ public class NetHandlerHandshakeTCP implements INetHandlerHandshakeServer
+ {
++    private static final com.google.gson.Gson gson = new com.google.gson.Gson(); // Spigot
++    // CraftBukkit start - add fields
++    private static final HashMap<InetAddress, Long> throttleTracker = new HashMap<InetAddress, Long>();
++    private static int throttleCounter = 0;
++    // CraftBukkit end
+     private final MinecraftServer server;
+     private final NetworkManager networkManager;
+ 
+@@ -28,22 +42,70 @@
+         {
+             case LOGIN:
+                 this.networkManager.setConnectionState(EnumConnectionState.LOGIN);
++                TextComponentString textComponentString;
++                try{
++                    long currentTime = System.currentTimeMillis();
++                    long connectionThrottle = FMLCommonHandler.instance().getMinecraftServerInstance().server.getConnectionThrottle();
++                    InetAddress address = ((java.net.InetSocketAddress)this.networkManager.getRemoteAddress()).getAddress();
+ 
++                    synchronized (throttleTracker){
++                        if(throttleTracker.containsKey(address) && !"127.0.0.1".equals(address.getHostAddress()) && currentTime - throttleTracker.get(address) < connectionThrottle){
++                            throttleTracker.put(address,currentTime);
++                            textComponentString = new TextComponentString("Connection throttled! Please wait before reconnecting.");
++                            this.networkManager.sendPacket(new SPacketDisconnect(textComponentString));
++                            this.networkManager.closeChannel(textComponentString);
++                            return;
++                        }
++                        throttleTracker.put(address,currentTime);
++                        throttleCounter++;
++                        if(throttleCounter > 200){
++                            throttleCounter = 0;
++                            Iterator iter = throttleTracker.entrySet().iterator();
++                            while (iter.hasNext()){
++                                Map.Entry<InetAddress,Long> entry = (Map.Entry<InetAddress, Long>) iter.next();
++                                if(entry.getValue() > connectionThrottle){
++                                    iter.remove();
++                                }
++                            }
++                        }
++                    }
++                } catch (Throwable t){
++                    LogManager.getLogger().debug("Failed to check connection throttle",t);
++                }
++
                  if (packetIn.getProtocolVersion() > 210)
                  {
 -                    TextComponentString textcomponentstring = new TextComponentString("Outdated server! I\'m still on 1.10.2");
@@ -12,7 +69,33 @@
                  else if (packetIn.getProtocolVersion() < 210)
                  {
 -                    TextComponentString textcomponentstring1 = new TextComponentString("Outdated client! Please use 1.10.2");
-+                    TextComponentString textcomponentstring1 = new TextComponentString( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), "1.10.2" ) ); // Spigot
-                     this.networkManager.sendPacket(new SPacketDisconnect(textcomponentstring1));
-                     this.networkManager.closeChannel(textcomponentstring1);
+-                    this.networkManager.sendPacket(new SPacketDisconnect(textcomponentstring1));
+-                    this.networkManager.closeChannel(textcomponentstring1);
++                    TextComponentString textcomponentstring = new TextComponentString( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), "1.10.2" ) ); // Spigot
++                    this.networkManager.sendPacket(new SPacketDisconnect(textcomponentstring));
++                    this.networkManager.closeChannel(textcomponentstring);
                  }
+                 else
+                 {
+                     this.networkManager.setNetHandler(new NetHandlerLoginServer(this.server, this.networkManager));
++                    //Spigot Start
++                    if(SpigotConfig.bungee){
++                        String[] split = packetIn.ip.split("\00\\|", 2)[0].split("\00");
++                        if(split.length == 3 || split.length == 4){
++                            packetIn.ip = split[0];
++                            networkManager.socketAddress = new InetSocketAddress(split[1],((InetSocketAddress)networkManager.getRemoteAddress()).getPort());
++                            networkManager.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString(split[2]);
++                        }else{
++                            textComponentString = new TextComponentString("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
++                            this.networkManager.sendPacket(new SPacketDisconnect(textComponentString));
++                            this.networkManager.closeChannel(textComponentString);
++                            return;
++                        }
++                        if(split.length == 4){
++                            networkManager.spoofedProfile = gson.fromJson(split[3],com.mojang.authlib.properties.Property[].class);
++                        }
++                    }
++                    ((NetHandlerLoginServer)this.networkManager.getNetHandler()).hostname = packetIn.ip + ":" + packetIn.port; // CraftBukkit - set hostname
+                 }
+ 
+                 break;

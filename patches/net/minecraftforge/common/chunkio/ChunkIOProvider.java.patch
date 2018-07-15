@@ -1,0 +1,48 @@
+--- ../src-base/minecraft/net/minecraftforge/common/chunkio/ChunkIOProvider.java
++++ ../src-work/minecraft/net/minecraftforge/common/chunkio/ChunkIOProvider.java
+@@ -26,6 +26,7 @@
+ import net.minecraft.util.math.ChunkPos;
+ import net.minecraftforge.common.MinecraftForge;
+ import net.minecraftforge.event.world.ChunkDataEvent;
++import org.bukkit.Server;
+ 
+ import java.io.IOException;
+ import java.util.concurrent.ConcurrentLinkedQueue;
+@@ -91,7 +92,7 @@
+             this.runCallbacks();
+             return;
+         }
+-
++        //TODO Добавить queuedChunk
+         // Load Entities
+         this.loader.loadEntities(this.chunkInfo.world, this.nbt.getCompoundTag("Level"), this.chunk);
+ 
+@@ -100,9 +101,27 @@
+         this.chunk.setLastSaveTime(provider.worldObj.getTotalWorldTime());
+         this.provider.chunkGenerator.recreateStructures(this.chunk, this.chunkInfo.x, this.chunkInfo.z);
+ 
++        Server server = this.provider.worldObj.getServer();
++        if (server != null) {
++            server.getPluginManager().callEvent(new org.bukkit.event.world.ChunkLoadEvent(chunk.bukkitChunk, false));
++        }
++        // Update neighbor counts
++        for (int x = -2; x < 3; x++) {
++            for (int z = -2; z < 3; z++) {
++                if (x == 0 && z == 0) {
++                    continue;
++                }
++
++                net.minecraft.world.chunk.Chunk neighbor = this.provider.getLoadedChunk(chunk.xPosition + x, chunk.zPosition + z);
++                if (neighbor != null) {
++                    neighbor.setNeighborLoaded(-x, -z);
++                    chunk.setNeighborLoaded(x, z);
++                }
++            }
++        }
+         provider.id2ChunkMap.put(ChunkPos.asLong(this.chunkInfo.x, this.chunkInfo.z), this.chunk);
+         this.chunk.onChunkLoad();
+-        this.chunk.populateChunk(provider, provider.chunkGenerator);
++        this.chunk.loadNearby(provider, provider.chunkGenerator,false);
+ 
+         this.runCallbacks();
+     }
