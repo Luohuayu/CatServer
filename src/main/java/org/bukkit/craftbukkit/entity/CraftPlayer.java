@@ -457,12 +457,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player
         if (this.getHandle().openContainer != this.getHandle().inventoryContainer) {
             this.getHandle().closeScreen();
         }
+        
+        if (fromWorld != toWorld) entity.changeDimension(toWorld.dimension);
+        entity.connection.teleport(to);
+        /*
         if (fromWorld == toWorld) {
             entity.connection.teleport(to);
         }
         else {
             this.server.getHandle().moveToWorld(entity, toWorld.dimension, true, to, true);
         }
+        */
         return true;
     }
     
