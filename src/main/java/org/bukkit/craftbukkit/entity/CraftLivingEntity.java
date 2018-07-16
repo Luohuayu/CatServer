@@ -362,7 +362,10 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity
     @Override
     public Collection<PotionEffect> getActivePotionEffects() {
         final List<PotionEffect> effects = new ArrayList<PotionEffect>();
-        for (final net.minecraft.potion.PotionEffect handle : this.getHandle().activePotionsMap.values()) {
+        for (final Object raw : this.getHandle().activePotionsMap.values()) {
+            if (!(raw instanceof net.minecraft.potion.PotionEffect)) continue;
+            final net.minecraft.potion.PotionEffect handle = (net.minecraft.potion.PotionEffect) raw;
+            if (PotionEffectType.getById(Potion.getIdFromPotion(handle.getPotion()))==null) continue; // Cauldron - ignore null types
             effects.add(new PotionEffect(PotionEffectType.getById(Potion.getIdFromPotion(handle.getPotion())), handle.getDuration(), handle.getAmplifier(), handle.getIsAmbient(), handle.doesShowParticles()));
         }
         return effects;
