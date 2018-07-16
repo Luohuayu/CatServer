@@ -5,6 +5,8 @@
 package org.bukkit.craftbukkit;
 
 import net.minecraft.server.management.UserList;
+import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.inventory.ItemFactory;
@@ -91,6 +93,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.storage.ISaveHandler;
 import net.minecraft.world.storage.ISaveFormat;
 import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.event.Event;
 import org.bukkit.event.world.WorldInitEvent;
 import net.minecraft.world.IWorldEventListener;
@@ -867,112 +870,59 @@ public final class CraftServer implements Server
     
     @Override
     public World createWorld(final WorldCreator creator) {
-        /*Validate.notNull((Object)creator, "Creator may not be null");
-        final String name = creator.name();
+        Validate.notNull(creator, "Creator may not be null");
+        return getWorld(creator.name());
+        /* TODO
+        String name = creator.name();
         ChunkGenerator generator = creator.generator();
-        final File folder = new File(this.getWorldContainer(), name);
-        final World world = this.getWorld(name);
-        final WorldType type = WorldType.parseWorldType(creator.type().getName());
-        final boolean generateStructures = creator.generateStructures();
+        File folder = new File(getWorldContainer(), name);
+        World world = getWorld(name);
+        net.minecraft.world.WorldType type = net.minecraft.world.WorldType.parseWorldType(creator.type().getName());
+        boolean generateStructures = creator.generateStructures();
+
+        if ((folder.exists()) && (!folder.isDirectory())) {
+            throw new IllegalArgumentException("File exists with the name '" + name + "' and isn't a folder");
+        }
+
         if (world != null) {
             return world;
         }
-        if (folder.exists() && !folder.isDirectory()) {
-            throw new IllegalArgumentException("File exists with the name '" + name + "' and isn't a folder");
-        }
-        if (generator == null) {
-            generator = this.getGenerator(name);
-        }
-        final ISaveFormat converter = new AnvilSaveConverter(this.getWorldContainer(), this.getHandle().getServerInstance().getDataFixer());
-        if (converter.isOldMapFormat(name)) {
-            this.getLogger().info("Converting world '" + name + "'");
-            converter.convertMapFormat(name, new IProgressUpdate() {
-                private long b = System.currentTimeMillis();
-                
-                @Override
-                public void displaySavingString(final String s) {
-                }
-                
-                @Override
-                public void setLoadingProgress(final int i) {
-                    if (System.currentTimeMillis() - this.b >= 1000L) {
-                        this.b = System.currentTimeMillis();
-                        MinecraftServer.LOG.info("Converting... " + i + "%");
-                    }
-                }
-                
-                @Override
-                public void displayLoadingString(final String s) {
-                }
 
-				@Override
-				public void resetProgressAndMessage(String message) {
-				}
+        boolean hardcore = false;
+        WorldSettings worldSettings = new WorldSettings(creator.seed(), WorldSettings.getGameTypeById(getDefaultGameMode().getValue()), generateStructures, hardcore, type);
+        WorldServer worldserver = DimensionManager.initDimension(creator, worldSettings);
+        
+        pluginManager.callEvent(new WorldInitEvent(worldserver.getWorld()));
+        logger.info("Preparing start region for level " + (console.worlds.size() - 1) + " (Dimension: " + worldserver.provider.getDimension() + ", Seed: " + worldserver.getSeed() + ")"); // Cauldron - log dimension
 
-				@Override
-				public void setDoneWorking() {
-				}
-            });
-        }
-        int dimension = 10 + /*this.console.worlds.size()this.console.worldServers.length;
-        boolean used = false;
-        do {
-            for (final WorldServer server : /*this.console.worldsthis.console.worldServers.length) {
-                used = (server.dimension == dimension);
-                if (used) {
-                    ++dimension;
-                    break;
-                }
-            }
-        } while (used);
-        final boolean hardcore = false;
-        final ISaveHandler sdm = new AnvilSaveHandler(this.getWorldContainer(), name, true, this.getHandle().getServerInstance().getDataFixer());
-        WorldInfo worlddata = sdm.loadWorldInfo();
-        WorldSettings worldSettings = null;
-        if (worlddata == null) {
-            worldSettings = new WorldSettings(creator.seed(), GameType.getByID(this.getDefaultGameMode().getValue()), generateStructures, hardcore, type);
-            worldSettings.setGeneratorOptions(creator.generatorSettings());
-            worlddata = new WorldInfo(worldSettings, name);
-        }
-        worlddata.checkName(name);
-        final WorldServer internal = (WorldServer)new WorldServer(this.console, sdm, worlddata, dimension, this.console.methodProfiler, creator.environment(), generator).init();
-        if (!this.worlds.containsKey(name.toLowerCase(Locale.ENGLISH))) {
-            return null;
-        }
-        if (worldSettings != null) {
-            internal.initialize(worldSettings);
-        }
-        internal.worldScoreboard = this.getScoreboardManager().getMainScoreboard().getHandle();
-        internal.theEntityTracker = new EntityTracker(internal);
-        internal.addEventListener(new ServerWorldEventHandler(this.console, internal));
-        internal.worldInfo.setDifficulty(EnumDifficulty.EASY);
-        internal.setAllowedSpawnTypes(true, true);
-        this.console.worlds.add(internal);
-        this.pluginManager.callEvent(new WorldInitEvent(internal.getWorld()));
-        System.out.print("Preparing start region for level " + (this.console.worlds.size() - 1) + " (Seed: " + internal.getSeed() + ")");
-        if (internal.getWorld().getKeepSpawnInMemory()) {
-            final short short1 = 196;
+        if (worldserver.getWorld().getKeepSpawnInMemory()) {
+            short short1 = 196;
             long i = System.currentTimeMillis();
             for (int j = -short1; j <= short1; j += 16) {
                 for (int k = -short1; k <= short1; k += 16) {
-                    final long l = System.currentTimeMillis();
+                    long l = System.currentTimeMillis();
+
                     if (l < i) {
                         i = l;
                     }
+
                     if (l > i + 1000L) {
-                        final int i2 = (short1 * 2 + 1) * (short1 * 2 + 1);
-                        final int j2 = (j + short1) * (short1 * 2 + 1) + k + 1;
-                        System.out.println("Preparing spawn area for " + name + ", " + j2 * 100 / i2 + "%");
+                        int i1 = (short1 * 2 + 1) * (short1 * 2 + 1);
+                        int j1 = (j + short1) * (short1 * 2 + 1) + k + 1;
+
+                        logger.info("Preparing spawn area for " + worldserver.getWorld().getName() + ", " + (j1 * 100 / i1) + "%");
                         i = l;
                     }
-                    final BlockPos chunkcoordinates = internal.getSpawnPoint();
-                    internal.getChunkProvider().provideChunk(chunkcoordinates.getX() + j >> 4, chunkcoordinates.getZ() + k >> 4);
+
+                    BlockPos pos = worldserver.getSpawnPoint();
+                    worldserver.getChunkProvider().loadChunk(pos.getX() + j >> 4, pos.getZ() + k >> 4);
                 }
             }
         }
-        this.pluginManager.callEvent(new WorldLoadEvent(internal.getWorld()));
-        return internal.getWorld();*/ // TODO!!!
-    	return null;
+
+        pluginManager.callEvent(new WorldLoadEvent(worldserver.getWorld()));
+        return worldserver.getWorld();
+        */
     }
     
     @Override
@@ -982,35 +932,40 @@ public final class CraftServer implements Server
     
     @Override
     public boolean unloadWorld(final World world, final boolean save) {
-        /*if (world == null) {
+        if (world == null) {
             return false;
         }
-        final WorldServer handle = ((CraftWorld)world).getHandle();
-        if (!this.console.worlds.contains(handle)) {
+
+        net.minecraft.world.WorldServer handle = ((CraftWorld) world).getHandle();
+
+        if (!(console.worlds.contains(handle))) {
             return false;
         }
-        if (handle.dimension <= 1) {
-            return false;
-        }
+
         if (handle.playerEntities.size() > 0) {
             return false;
         }
-        final WorldUnloadEvent e = new WorldUnloadEvent(handle.getWorld());
-        this.pluginManager.callEvent(e);
+
+        WorldUnloadEvent e = new WorldUnloadEvent(handle.getWorld());
+        pluginManager.callEvent(e);
+
         if (e.isCancelled()) {
             return false;
         }
+
         if (save) {
             try {
                 handle.saveAllChunks(true, null);
                 handle.flush();
-            }
-            catch (MinecraftException ex) {
-                this.getLogger().log(Level.SEVERE, null, ex);
+                WorldSaveEvent event = new WorldSaveEvent(handle.getWorld());
+                getPluginManager().callEvent(event);
+            } catch (net.minecraft.world.MinecraftException ex) {
+                logger.log(Level.SEVERE, null, ex);
             }
         }
-        this.worlds.remove(world.getName().toLowerCase(Locale.ENGLISH));
-        this.console.worlds.remove(this.console.worlds.indexOf(handle));*/ //TODO!!!
+        MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Unload(handle)); // Cauldron - fire unload event before removing world
+        worlds.remove(world.getName().toLowerCase());
+        DimensionManager.setWorld(handle.provider.getDimension(), null, FMLCommonHandler.instance().getMinecraftServerInstance()); // Cauldron - remove world from DimensionManager
         return true;
     }
     
