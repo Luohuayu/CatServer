@@ -1,13 +1,12 @@
 package luohuayu.CatServer;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+
+import net.minecraft.server.MinecraftServer;
 
 public class CatServerLogger {
     public static Logger getLogger(String name) {
@@ -16,7 +15,7 @@ public class CatServerLogger {
         
         ConsoleHandler handler = new ConsoleHandler();
         handler.setLevel(Level.ALL);
-        handler.setFormatter(new LoggerHander(name));
+        handler.setFormatter(new LoggerHander());
         logger.addHandler(handler);
         
         return logger;
@@ -24,14 +23,16 @@ public class CatServerLogger {
 }
 
 class LoggerHander extends Formatter {
-    private final DateFormat df = new SimpleDateFormat("hh:mm:ss");
-    private final String name;
-    
-    public LoggerHander(String name) {
-        this.name=name;
+    public LoggerHander() {
+        super();
     }
-    
+
     public String format(LogRecord record) {
-        return "["+df.format(new Date())+"] ["+name+"/"+record.getLevel()+"]: "+record.getMessage()+"\n";
+        try {
+            MinecraftServer.LOG.log(org.apache.logging.log4j.Level.toLevel(record.getLevel().toString()), record.getMessage());
+        }catch (Exception e){
+            System.out.println(record.getMessage());
+        }
+        return "";
     }
 }
