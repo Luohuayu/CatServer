@@ -1,9 +1,17 @@
 package org.bukkit.plugin.java;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.CodeSigner;
+import java.security.CodeSource;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +19,15 @@ import java.util.Set;
 import org.apache.commons.lang.Validate;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
+
+import luohuayu.CatServer.CatServer;
+import luohuayu.CatServer.CatServerRemapper;
+import net.md_5.specialsource.JarMapping;
+import net.md_5.specialsource.JarRemapper;
+import net.md_5.specialsource.RemapperProcessor;
+import net.md_5.specialsource.provider.ClassLoaderProvider;
+import net.md_5.specialsource.repo.RuntimeRepo;
+import net.md_5.specialsource.transformer.MavenShade;
 
 /**
  * A ClassLoader for plugins, to allow shared classes across multiple plugins
@@ -24,6 +41,10 @@ final class PluginClassLoader extends URLClassLoader {
     final JavaPlugin plugin;
     private JavaPlugin pluginInit;
     private IllegalStateException pluginState;
+    
+    private JarRemapper remapper;
+    private RemapperProcessor remapperProcessor;
+    private static final String org_bukkit_craftbukkit = new String(new char[] {'o','r','g','/','b','u','k','k','i','t','/','c','r','a','f','t','b','u','k','k','i','t'});
 
     PluginClassLoader(final JavaPluginLoader loader, final ClassLoader parent, final PluginDescriptionFile description, final File dataFolder, final File file) throws InvalidPluginException, MalformedURLException {
         super(new URL[] {file.toURI().toURL()}, parent);
@@ -33,6 +54,15 @@ final class PluginClassLoader extends URLClassLoader {
         this.description = description;
         this.dataFolder = dataFolder;
         this.file = file;
+
+        JarMapping jarMapping = getJarMapping();
+        jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
+        jarMapping.setFallbackInheritanceProvider(new ClassLoaderProvider(this));
+
+        remapper = new CatServerRemapper(jarMapping);
+        remapperProcessor = new RemapperProcessor(loader.getGlobalInheritanceMap(), jarMapping);
+        remapperProcessor.setRemapReflectField(true);
+        remapperProcessor.setRemapReflectClass(true);
 
         try {
             Class<?> jarClass;
@@ -74,7 +104,11 @@ final class PluginClassLoader extends URLClassLoader {
             }
 
             if (result == null) {
-                result = super.findClass(name);
+                if (remapper == null) {
+                    result = super.findClass(name);
+                } else {
+                    result = remappedFindClass(name);
+                }
 
                 if (result != null) {
                     loader.setClass(name, result);
@@ -102,5 +136,81 @@ final class PluginClassLoader extends URLClassLoader {
         this.pluginInit = javaPlugin;
 
         javaPlugin.init(loader, loader.server, description, dataFolder, file, this);
+    }
+    
+    private void loadNmsMappings(JarMapping jarMapping, String obfVersion) throws IOException {
+        Map<String, String> relocations = new HashMap<String, String>();
+        relocations.put("net.minecraft.server", "net.minecraft.server." + obfVersion);
+
+        jarMapping.loadMappings(
+                new BufferedReader(new InputStreamReader(loader.getClass().getClassLoader().getResourceAsStream("mappings/"+obfVersion+"/cb2numpkg.srg"))),
+                new MavenShade(relocations),
+                null, false);
+        
+        jarMapping.loadMappings(
+                new BufferedReader(new InputStreamReader(loader.getClass().getClassLoader().getResourceAsStream("mappings/"+obfVersion+"/obf2numpkg.srg"))),
+                null,
+                null, false);
+
+        jarMapping.methods.put("net/minecraft/server/"+obfVersion+"/PlayerConnection/getPlayer ()Lorg/bukkit/craftbukkit/"+CatServer.getNativeVersion()+"/entity/CraftPlayer;", "getPlayerB");
+    }
+
+    private JarMapping getJarMapping() {
+        JarMapping jarMapping = new JarMapping();
+        try {
+            jarMapping.packages.put(org_bukkit_craftbukkit + "/libs/com/google/gson", "com/google/gson");
+
+            loadNmsMappings(jarMapping, CatServer.getNativeVersion());
+
+            return jarMapping;
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
+        }
+}
+    
+    private Class<?> remappedFindClass(String name) throws ClassNotFoundException {
+        Class<?> result = null;
+
+        try {
+            // Load the resource to the name
+            String path = name.replace('.', '/').concat(".class");
+            URL url = this.findResource(path);
+            if (url != null) {
+                InputStream stream = url.openStream();
+                if (stream != null) {
+                    byte[] bytecode = null;
+
+                    // Reflection remap and inheritance extract
+                    if (remapperProcessor != null) {
+                        // add to inheritance map
+                        bytecode = remapperProcessor.process(stream);
+                        if (bytecode == null) stream = url.openStream();
+                    }
+
+                    // Remap the classes
+                    byte[] remappedBytecode = remapper.remapClassFile(bytecode, RuntimeRepo.getInstance());
+
+                    // Define (create) the class using the modified byte code
+                    // The top-child class loader is used for this to prevent access violations
+                    // Set the codesource to the jar, not within the jar, for compatibility with
+                    // plugins that do new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()))
+                    // instead of using getResourceAsStream - see https://github.com/MinecraftPortCentral/Cauldron-Plus/issues/75
+                    JarURLConnection jarURLConnection = (JarURLConnection) url.openConnection(); // parses only
+                    URL jarURL = jarURLConnection.getJarFileURL();
+                    CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
+
+                    result = this.defineClass(name, remappedBytecode, 0, remappedBytecode.length, codeSource);
+                    if (result != null) {
+                        // Resolve it - sets the class loader of the class
+                        this.resolveClass(result);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            throw new ClassNotFoundException("Failed to remap class "+name, t);
+        }
+
+        return result;
     }
 }

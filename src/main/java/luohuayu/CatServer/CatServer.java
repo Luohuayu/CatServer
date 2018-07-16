@@ -12,4 +12,8 @@ public class CatServer {
     public static void restart() {
 		RestartCommand.restart();
     }
+    
+    public static String getNativeVersion() {
+        return "v1_10_R1";
+    }
 }
