@@ -17,7 +17,7 @@
  import net.minecraft.block.state.IBlockState;
  import net.minecraft.crash.CrashReport;
  import net.minecraft.crash.CrashReportCategory;
-@@ -101,9 +102,18 @@
+@@ -101,11 +102,19 @@
  import net.minecraft.world.WorldServer;
  import net.minecraft.world.biome.Biome;
  import net.minecraft.world.storage.loot.ILootContainer;
@@ -28,15 +28,18 @@
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.WeatherType;
  
+-public class EntityPlayerMP extends EntityPlayer implements IContainerListener
+-{
 +//CraftBukkit start
 +import org.bukkit.craftbukkit.event.CraftEventFactory;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +// CraftBukkit end
 +
- public class EntityPlayerMP extends EntityPlayer implements IContainerListener
- {
++public class EntityPlayerMP extends EntityPlayer implements IContainerListener {
      private static final Logger LOGGER = LogManager.getLogger();
-@@ -124,17 +134,28 @@
+     private String language = "en_US";
+     public NetHandlerPlayServer connection;
+@@ -124,42 +133,52 @@
      private float lastHealth = -1.0E8F;
      private int lastFoodLevel = -99999999;
      private boolean wasHungry = true;
@@ -67,9 +70,48 @@
 +    // CraftBukkit end
  
      @SuppressWarnings("unused")
-     public EntityPlayerMP(MinecraftServer server, WorldServer worldIn, GameProfile profile, PlayerInteractionManager interactionManagerIn)
-@@ -171,6 +192,11 @@
-         {
+-    public EntityPlayerMP(MinecraftServer server, WorldServer worldIn, GameProfile profile, PlayerInteractionManager interactionManagerIn)
+-    {
++    public EntityPlayerMP(MinecraftServer server, WorldServer worldIn, GameProfile profile,
++            PlayerInteractionManager interactionManagerIn) {
+         super(worldIn, profile);
+         interactionManagerIn.thisPlayerMP = this;
+         this.interactionManager = interactionManagerIn;
+         BlockPos blockpos = worldIn.provider.getRandomizedSpawnPoint();
+ 
+-        if (false && !worldIn.provider.getHasNoSky() && worldIn.getWorldInfo().getGameType() != GameType.ADVENTURE)
+-        {
++        if (false && !worldIn.provider.getHasNoSky() && worldIn.getWorldInfo().getGameType() != GameType.ADVENTURE) {
+             int i = Math.max(0, server.getSpawnRadius(worldIn));
+-            int j = MathHelper.floor_double(worldIn.getWorldBorder().getClosestDistance((double)blockpos.getX(), (double)blockpos.getZ()));
++            int j = MathHelper.floor_double(
++                    worldIn.getWorldBorder().getClosestDistance((double) blockpos.getX(), (double) blockpos.getZ()));
+ 
+-            if (j < i)
+-            {
++            if (j < i) {
+                 i = j;
+             }
+ 
+-            if (j <= 1)
+-            {
++            if (j <= 1) {
+                 i = 1;
+             }
+ 
+-            blockpos = worldIn.getTopSolidOrLiquidBlock(blockpos.add(this.rand.nextInt(i * 2 + 1) - i, 0, this.rand.nextInt(i * 2 + 1) - i));
++            blockpos = worldIn.getTopSolidOrLiquidBlock(
++                    blockpos.add(this.rand.nextInt(i * 2 + 1) - i, 0, this.rand.nextInt(i * 2 + 1) - i));
+         }
+ 
+         this.mcServer = server;
+@@ -167,37 +186,37 @@
+         this.stepHeight = 0.0F;
+         this.moveToBlockPosAndAngles(blockpos, 0.0F, 0.0F);
+ 
+-        while (!worldIn.getCollisionBoxes(this, this.getEntityBoundingBox()).isEmpty() && this.posY < 255.0D)
+-        {
++        while (!worldIn.getCollisionBoxes(this, this.getEntityBoundingBox()).isEmpty() && this.posY < 255.0D) {
              this.setPosition(this.posX, this.posY + 1.0D, this.posZ);
          }
 +        // CraftBukkit start
@@ -79,60 +121,401 @@
 +        // CraftBukkit end
      }
  
-     public void readEntityFromNBT(NBTTagCompound compound)
-@@ -306,8 +332,15 @@
-             {
+-    public void readEntityFromNBT(NBTTagCompound compound)
+-    {
++    public void readEntityFromNBT(NBTTagCompound compound) {
+         super.readEntityFromNBT(compound);
+ 
+-        if (compound.hasKey("playerGameType", 99))
+-        {
+-            if (this.getServer().getForceGamemode())
+-            {
++        if (compound.hasKey("playerGameType", 99)) {
++            if (this.getServer().getForceGamemode()) {
+                 this.interactionManager.setGameType(this.getServer().getGameType());
+-            }
+-            else
+-            {
++            } else {
+                 this.interactionManager.setGameType(GameType.getByID(compound.getInteger("playerGameType")));
+             }
+         }
++
++        this.getBukkitEntity().readExtraData(compound); // CraftBukkit
+     }
+ 
+-    public void writeEntityToNBT(NBTTagCompound compound)
+-    {
++    public void writeEntityToNBT(NBTTagCompound compound) {
+         super.writeEntityToNBT(compound);
+         compound.setInteger("playerGameType", this.interactionManager.getGameType().getID());
+         Entity entity = this.getLowestRidingEntity();
+ 
+-        if (this.getRidingEntity() != null && entity != this & entity.getRecursivePassengersByType(EntityPlayerMP.class).size() == 1)
+-        {
++        if (this.getRidingEntity() != null
++                && entity != this & entity.getRecursivePassengersByType(EntityPlayerMP.class).size() == 1) {
+             NBTTagCompound nbttagcompound = new NBTTagCompound();
+             NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+             entity.writeToNBTOptional(nbttagcompound1);
+@@ -205,70 +224,63 @@
+             nbttagcompound.setTag("Entity", nbttagcompound1);
+             compound.setTag("RootVehicle", nbttagcompound);
+         }
++
++        this.getBukkitEntity().setExtraData(compound); // CraftBukkit
+     }
+ 
+-    public void addExperienceLevel(int levels)
+-    {
++    public void addExperienceLevel(int levels) {
+         super.addExperienceLevel(levels);
+         this.lastExperience = -1;
+     }
+ 
+-    public void removeExperienceLevel(int levels)
+-    {
++    public void removeExperienceLevel(int levels) {
+         super.removeExperienceLevel(levels);
+         this.lastExperience = -1;
+     }
+ 
+-    public void addSelfToInternalCraftingInventory()
+-    {
++    public void addSelfToInternalCraftingInventory() {
+         this.openContainer.addListener(this);
+     }
+ 
+-    public void sendEnterCombat()
+-    {
++    public void sendEnterCombat() {
+         super.sendEnterCombat();
+-        this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTER_COMBAT));
++        this.connection
++                .sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTER_COMBAT));
+     }
+ 
+-    public void sendEndCombat()
+-    {
++    public void sendEndCombat() {
+         super.sendEndCombat();
+-        this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.END_COMBAT));
++        this.connection
++                .sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.END_COMBAT));
+     }
+ 
+-    protected CooldownTracker createCooldownTracker()
+-    {
++    protected CooldownTracker createCooldownTracker() {
+         return new CooldownTrackerServer(this);
+     }
+ 
+-    public void onUpdate()
+-    {
++    public void onUpdate() {
+         this.interactionManager.updateBlockRemoving();
+         --this.respawnInvulnerabilityTicks;
+ 
+-        if (this.hurtResistantTime > 0)
+-        {
++        if (this.hurtResistantTime > 0) {
+             --this.hurtResistantTime;
+         }
+ 
+         this.openContainer.detectAndSendChanges();
+ 
+-        if (!this.worldObj.isRemote && this.openContainer != null && !this.openContainer.canInteractWith(this))
+-        {
++        if (!this.worldObj.isRemote && this.openContainer != null && !this.openContainer.canInteractWith(this)) {
+             this.closeScreen();
+             this.openContainer = this.inventoryContainer;
+         }
+ 
+-        while (!this.entityRemoveQueue.isEmpty())
+-        {
++        while (!this.entityRemoveQueue.isEmpty()) {
+             int i = Math.min(this.entityRemoveQueue.size(), Integer.MAX_VALUE);
+             int[] aint = new int[i];
+             Iterator<Integer> iterator = this.entityRemoveQueue.iterator();
+             int j = 0;
+ 
+-            while (iterator.hasNext() && j < i)
+-            {
+-                aint[j++] = ((Integer)iterator.next()).intValue();
++            while (iterator.hasNext() && j < i) {
++                aint[j++] = ((Integer) iterator.next()).intValue();
+                 iterator.remove();
+             }
+ 
+@@ -277,103 +289,96 @@
+ 
+         Entity entity = this.getSpectatingEntity();
+ 
+-        if (entity != this)
+-        {
+-            if (entity.isEntityAlive())
+-            {
+-                this.setPositionAndRotation(entity.posX, entity.posY, entity.posZ, entity.rotationYaw, entity.rotationPitch);
++        if (entity != this) {
++            if (entity.isEntityAlive()) {
++                this.setPositionAndRotation(entity.posX, entity.posY, entity.posZ, entity.rotationYaw,
++                        entity.rotationPitch);
+                 this.mcServer.getPlayerList().serverUpdateMountedMovingPlayer(this);
+ 
+-                if (this.isSneaking())
+-                {
++                if (this.isSneaking()) {
+                     this.setSpectatingEntity(this);
+                 }
+-            }
+-            else
+-            {
++            } else {
+                 this.setSpectatingEntity(this);
+             }
+         }
+     }
+ 
+-    public void onUpdateEntity()
+-    {
+-        try
+-        {
++    public void onUpdateEntity() {
++        try {
+             super.onUpdate();
+ 
+-            for (int i = 0; i < this.inventory.getSizeInventory(); ++i)
+-            {
++            for (int i = 0; i < this.inventory.getSizeInventory(); ++i) {
                  ItemStack itemstack = this.inventory.getStackInSlot(i);
  
 -                if (itemstack != null && itemstack.getItem().isMap())
-+                if (itemstack == null) continue;
-+
-+                if (itemstack.stackSize <= 0 )
-                 {
+-                {
+-                    Packet<?> packet = ((ItemMapBase)itemstack.getItem()).createMapDataPacket(itemstack, this.worldObj, this);
++                if (itemstack == null)
++                    continue;
+ 
+-                    if (packet != null)
+-                    {
++                if (itemstack.stackSize <= 0) {
 +                    this.inventory.setInventorySlotContents(i, null);
 +                }
 +
-+                if (itemstack.getItem().isMap())
-+                {
-                     Packet<?> packet = ((ItemMapBase)itemstack.getItem()).createMapDataPacket(itemstack, this.worldObj, this);
++                if (itemstack.getItem().isMap()) {
++                    Packet<?> packet = ((ItemMapBase) itemstack.getItem()).createMapDataPacket(itemstack, this.worldObj,
++                            this);
++
++                    if (packet != null) {
+                         this.connection.sendPacket(packet);
+                     }
+                 }
+             }
  
-                     if (packet != null)
-@@ -319,7 +352,7 @@
- 
-             if (this.getHealth() != this.lastHealth || this.lastFoodLevel != this.foodStats.getFoodLevel() || this.foodStats.getSaturationLevel() == 0.0F != this.wasHungry)
-             {
+-            if (this.getHealth() != this.lastHealth || this.lastFoodLevel != this.foodStats.getFoodLevel() || this.foodStats.getSaturationLevel() == 0.0F != this.wasHungry)
+-            {
 -                this.connection.sendPacket(new SPacketUpdateHealth(this.getHealth(), this.foodStats.getFoodLevel(), this.foodStats.getSaturationLevel()));
-+                this.connection.sendPacket(new SPacketUpdateHealth(this.getBukkitEntity().getScaledHealth(), this.foodStats.getFoodLevel(), this.foodStats.getSaturationLevel()));
++            if (this.getHealth() != this.lastHealth || this.lastFoodLevel != this.foodStats.getFoodLevel()
++                    || this.foodStats.getSaturationLevel() == 0.0F != this.wasHungry) {
++                this.connection.sendPacket(new SPacketUpdateHealth(this.getBukkitEntity().getScaledHealth(),
++                        this.foodStats.getFoodLevel(), this.foodStats.getSaturationLevel()));
                  this.lastHealth = this.getHealth();
                  this.lastFoodLevel = this.foodStats.getFoodLevel();
                  this.wasHungry = this.foodStats.getSaturationLevel() == 0.0F;
-@@ -439,7 +472,38 @@
-         if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, cause)) return;
+             }
+ 
+-            if (this.getHealth() + this.getAbsorptionAmount() != this.lastHealthScore)
+-            {
++            if (this.getHealth() + this.getAbsorptionAmount() != this.lastHealthScore) {
+                 this.lastHealthScore = this.getHealth() + this.getAbsorptionAmount();
+                 this.updateScorePoints(IScoreCriteria.HEALTH, MathHelper.ceiling_float_int(this.lastHealthScore));
+             }
+ 
+-            if (this.foodStats.getFoodLevel() != this.lastFoodScore)
+-            {
++            if (this.foodStats.getFoodLevel() != this.lastFoodScore) {
+                 this.lastFoodScore = this.foodStats.getFoodLevel();
+-                this.updateScorePoints(IScoreCriteria.FOOD, MathHelper.ceiling_float_int((float)this.lastFoodScore));
++                this.updateScorePoints(IScoreCriteria.FOOD, MathHelper.ceiling_float_int((float) this.lastFoodScore));
+             }
+ 
+-            if (this.getAir() != this.lastAirScore)
+-            {
++            if (this.getAir() != this.lastAirScore) {
+                 this.lastAirScore = this.getAir();
+-                this.updateScorePoints(IScoreCriteria.AIR, MathHelper.ceiling_float_int((float)this.lastAirScore));
++                this.updateScorePoints(IScoreCriteria.AIR, MathHelper.ceiling_float_int((float) this.lastAirScore));
+             }
+ 
+-            if (this.getTotalArmorValue() != this.lastArmorScore)
+-            {
++            if (this.getTotalArmorValue() != this.lastArmorScore) {
+                 this.lastArmorScore = this.getTotalArmorValue();
+-                this.updateScorePoints(IScoreCriteria.ARMOR, MathHelper.ceiling_float_int((float)this.lastArmorScore));
++                this.updateScorePoints(IScoreCriteria.ARMOR, MathHelper.ceiling_float_int((float) this.lastArmorScore));
+             }
+ 
+-            if (this.experienceTotal != this.lastExperienceScore)
+-            {
++            if (this.experienceTotal != this.lastExperienceScore) {
+                 this.lastExperienceScore = this.experienceTotal;
+-                this.updateScorePoints(IScoreCriteria.XP, MathHelper.ceiling_float_int((float)this.lastExperienceScore));
++                this.updateScorePoints(IScoreCriteria.XP,
++                        MathHelper.ceiling_float_int((float) this.lastExperienceScore));
+             }
+ 
+-            if (this.experienceLevel != this.lastLevelScore)
+-            {
++            if (this.experienceLevel != this.lastLevelScore) {
+                 this.lastLevelScore = this.experienceLevel;
+-                this.updateScorePoints(IScoreCriteria.LEVEL, MathHelper.ceiling_float_int((float)this.lastLevelScore));
++                this.updateScorePoints(IScoreCriteria.LEVEL, MathHelper.ceiling_float_int((float) this.lastLevelScore));
+             }
+ 
+-            if (this.experienceTotal != this.lastExperience)
+-            {
++            if (this.experienceTotal != this.lastExperience) {
+                 this.lastExperience = this.experienceTotal;
+-                this.connection.sendPacket(new SPacketSetExperience(this.experience, this.experienceTotal, this.experienceLevel));
++                this.connection.sendPacket(
++                        new SPacketSetExperience(this.experience, this.experienceTotal, this.experienceLevel));
+             }
+ 
+-            if (this.ticksExisted % 20 * 5 == 0 && !this.getStatFile().hasAchievementUnlocked(AchievementList.EXPLORE_ALL_BIOMES))
+-            {
++            if (this.ticksExisted % 20 * 5 == 0
++                    && !this.getStatFile().hasAchievementUnlocked(AchievementList.EXPLORE_ALL_BIOMES)) {
+                 this.updateBiomesExplored();
+             }
+-        }
+-        catch (Throwable throwable)
+-        {
++        } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.makeCrashReport(throwable, "Ticking player");
+             CrashReportCategory crashreportcategory = crashreport.makeCategory("Player being ticked");
+             this.addEntityCrashInfo(crashreportcategory);
+@@ -381,118 +386,137 @@
+         }
+     }
+ 
+-    private void updateScorePoints(IScoreCriteria criteria, int points)
+-    {
+-        for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(criteria))
+-        {
++    private void updateScorePoints(IScoreCriteria criteria, int points) {
++        for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(criteria)) {
+             Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
+             score.setScorePoints(points);
+         }
+     }
+ 
+-    protected void updateBiomesExplored()
+-    {
+-        Biome biome = this.worldObj.getBiome(new BlockPos(MathHelper.floor_double(this.posX), 0, MathHelper.floor_double(this.posZ)));
++    protected void updateBiomesExplored() {
++        Biome biome = this.worldObj
++                .getBiome(new BlockPos(MathHelper.floor_double(this.posX), 0, MathHelper.floor_double(this.posZ)));
+         String s = biome.getBiomeName();
+-        JsonSerializableSet jsonserializableset = (JsonSerializableSet)this.getStatFile().getProgress(AchievementList.EXPLORE_ALL_BIOMES);
++        JsonSerializableSet jsonserializableset = (JsonSerializableSet) this.getStatFile()
++                .getProgress(AchievementList.EXPLORE_ALL_BIOMES);
+ 
+-        if (jsonserializableset == null)
+-        {
+-            jsonserializableset = (JsonSerializableSet)this.getStatFile().setProgress(AchievementList.EXPLORE_ALL_BIOMES, new JsonSerializableSet());
++        if (jsonserializableset == null) {
++            jsonserializableset = (JsonSerializableSet) this.getStatFile()
++                    .setProgress(AchievementList.EXPLORE_ALL_BIOMES, new JsonSerializableSet());
+         }
+ 
+         jsonserializableset.add(s);
+ 
+-        if (this.getStatFile().canUnlockAchievement(AchievementList.EXPLORE_ALL_BIOMES) && jsonserializableset.size() >= Biome.EXPLORATION_BIOMES_LIST.size())
+-        {
++        if (this.getStatFile().canUnlockAchievement(AchievementList.EXPLORE_ALL_BIOMES)
++                && jsonserializableset.size() >= Biome.EXPLORATION_BIOMES_LIST.size()) {
+             Set<Biome> set = Sets.newHashSet(Biome.EXPLORATION_BIOMES_LIST);
+ 
+-            for (String s1 : jsonserializableset)
+-            {
++            for (String s1 : jsonserializableset) {
+                 Iterator<Biome> iterator = set.iterator();
+ 
+-                while (iterator.hasNext())
+-                {
+-                    Biome biome1 = (Biome)iterator.next();
++                while (iterator.hasNext()) {
++                    Biome biome1 = (Biome) iterator.next();
+ 
+-                    if (biome1.getBiomeName().equals(s1))
+-                    {
++                    if (biome1.getBiomeName().equals(s1)) {
+                         iterator.remove();
+                     }
+                 }
+ 
+-                if (set.isEmpty())
+-                {
++                if (set.isEmpty()) {
+                     break;
+                 }
+             }
+ 
+-            if (set.isEmpty())
+-            {
++            if (set.isEmpty()) {
+                 this.addStat(AchievementList.EXPLORE_ALL_BIOMES);
+             }
+         }
+     }
+ 
+-    public void onDeath(DamageSource cause)
+-    {
+-        if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, cause)) return;
++    public void onDeath(DamageSource cause) {
++        if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, cause))
++            return;
          boolean flag = this.worldObj.getGameRules().getBoolean("showDeathMessages");
-         this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
+-        this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
 -
+-        if (flag)
+-        {
+-            Team team = this.getTeam();
+-
+-            if (team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS)
+-            {
+-                if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OTHER_TEAMS)
+-                {
+-                    this.mcServer.getPlayerList().sendMessageToAllTeamMembers(this, this.getCombatTracker().getDeathMessage());
++        this.connection.sendPacket(
++                new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
 +        List<org.bukkit.inventory.ItemStack> loot = new ArrayList();
 +        boolean keepInventory = this.worldObj.getGameRules().getBoolean("keepInventory");
 +        if (!keepInventory) {
 +            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
 +                if (this.inventory.mainInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.mainInventory[i]));
-+                }
+                 }
+-                else if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OWN_TEAM)
+-                {
+-                    this.mcServer.getPlayerList().sendMessageToTeamOrAllPlayers(this, this.getCombatTracker().getDeathMessage());
 +            }
 +            for (int i = 0; i < this.inventory.armorInventory.length; i++) {
 +                if (this.inventory.armorInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.armorInventory[i]));
-+                }
-+            }
+                 }
+             }
+-            else
+-            {
 +            for (int i = 0; i < this.inventory.offHandInventory.length; i++) {
 +                if (this.inventory.offHandInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.offHandInventory[i]));
 +                }
 +            }
 +        }
-+        PlayerDeathEvent eventd = CraftEventFactory.callPlayerDeathEvent(this, loot, this.getCombatTracker().getDeathMessage().getFormattedText(), this.worldObj.getGameRules().getBoolean("keepInventory"));
-+        if (!eventd.getKeepInventory())
-+        {
++        PlayerDeathEvent eventd = CraftEventFactory.callPlayerDeathEvent(this, loot,
++                this.getCombatTracker().getDeathMessage().getFormattedText(),
++                this.worldObj.getGameRules().getBoolean("keepInventory"));
++        if (!eventd.getKeepInventory()) {
 +            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
 +                this.inventory.mainInventory[i] = null;
 +            }
@@ -143,162 +526,1165 @@
 +                this.inventory.offHandInventory[i] = null;
 +            }
 +        }
-         if (flag)
-         {
-             Team team = this.getTeam();
-@@ -742,9 +806,14 @@
-     {
++        if (flag) {
++            Team team = this.getTeam();
++
++            if (team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS) {
++                if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OTHER_TEAMS) {
++                    this.mcServer.getPlayerList().sendMessageToAllTeamMembers(this,
++                            this.getCombatTracker().getDeathMessage());
++                } else if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OWN_TEAM) {
++                    this.mcServer.getPlayerList().sendMessageToTeamOrAllPlayers(this,
++                            this.getCombatTracker().getDeathMessage());
++                }
++            } else {
+                 this.mcServer.getPlayerList().sendChatMsg(this.getCombatTracker().getDeathMessage());
+             }
+         }
+ 
+-        if (!this.worldObj.getGameRules().getBoolean("keepInventory") && !this.isSpectator())
+-        {
++        if (!this.worldObj.getGameRules().getBoolean("keepInventory") && !this.isSpectator()) {
+             captureDrops = true;
+             capturedDrops.clear();
+ 
+             this.inventory.dropAllItems();
+ 
+             captureDrops = false;
+-            net.minecraftforge.event.entity.player.PlayerDropsEvent event = new net.minecraftforge.event.entity.player.PlayerDropsEvent(this, cause, capturedDrops, recentlyHit > 0);
+-            if (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event))
+-            {
+-                for (net.minecraft.entity.item.EntityItem item : capturedDrops)
+-                {
++            net.minecraftforge.event.entity.player.PlayerDropsEvent event = new net.minecraftforge.event.entity.player.PlayerDropsEvent(
++                    this, cause, capturedDrops, recentlyHit > 0);
++            if (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) {
++                for (net.minecraft.entity.item.EntityItem item : capturedDrops) {
+                     this.worldObj.spawnEntityInWorld(item);
+                 }
+             }
+         }
+ 
+-        for (ScoreObjective scoreobjective : this.worldObj.getScoreboard().getObjectivesFromCriteria(IScoreCriteria.DEATH_COUNT))
+-        {
++        for (ScoreObjective scoreobjective : this.worldObj.getScoreboard()
++                .getObjectivesFromCriteria(IScoreCriteria.DEATH_COUNT)) {
+             Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
+             score.incrementScore();
+         }
+ 
+         EntityLivingBase entitylivingbase = this.getAttackingEntity();
+ 
+-        if (entitylivingbase != null)
+-        {
+-            EntityList.EntityEggInfo entitylist$entityegginfo = (EntityList.EntityEggInfo)EntityList.ENTITY_EGGS.get(EntityList.getEntityString(entitylivingbase));
++        if (entitylivingbase != null) {
++            EntityList.EntityEggInfo entitylist$entityegginfo = (EntityList.EntityEggInfo) EntityList.ENTITY_EGGS
++                    .get(EntityList.getEntityString(entitylivingbase));
+ 
+-            if (entitylist$entityegginfo != null)
+-            {
++            if (entitylist$entityegginfo != null) {
+                 this.addStat(entitylist$entityegginfo.entityKilledByStat);
+             }
+ 
+@@ -504,37 +528,28 @@
+         this.getCombatTracker().reset();
+     }
+ 
+-    public boolean attackEntityFrom(DamageSource source, float amount)
+-    {
+-        if (this.isEntityInvulnerable(source))
+-        {
++    public boolean attackEntityFrom(DamageSource source, float amount) {
++        if (this.isEntityInvulnerable(source)) {
+             return false;
+-        }
+-        else
+-        {
+-            boolean flag = this.mcServer.isDedicatedServer() && this.canPlayersAttack() && "fall".equals(source.damageType);
++        } else {
++            boolean flag = this.mcServer.isDedicatedServer() && this.canPlayersAttack()
++                    && "fall".equals(source.damageType);
+ 
+-            if (!flag && this.respawnInvulnerabilityTicks > 0 && source != DamageSource.outOfWorld)
+-            {
++            if (!flag && this.respawnInvulnerabilityTicks > 0 && source != DamageSource.outOfWorld) {
+                 return false;
+-            }
+-            else
+-            {
+-                if (source instanceof EntityDamageSource)
+-                {
++            } else {
++                if (source instanceof EntityDamageSource) {
+                     Entity entity = source.getEntity();
+ 
+-                    if (entity instanceof EntityPlayer && !this.canAttackPlayer((EntityPlayer)entity))
+-                    {
++                    if (entity instanceof EntityPlayer && !this.canAttackPlayer((EntityPlayer) entity)) {
+                         return false;
+                     }
+ 
+-                    if (entity instanceof EntityArrow)
+-                    {
+-                        EntityArrow entityarrow = (EntityArrow)entity;
++                    if (entity instanceof EntityArrow) {
++                        EntityArrow entityarrow = (EntityArrow) entity;
+ 
+-                        if (entityarrow.shootingEntity instanceof EntityPlayer && !this.canAttackPlayer((EntityPlayer)entityarrow.shootingEntity))
+-                        {
++                        if (entityarrow.shootingEntity instanceof EntityPlayer
++                                && !this.canAttackPlayer((EntityPlayer) entityarrow.shootingEntity)) {
+                             return false;
+                         }
+                     }
+@@ -545,52 +560,40 @@
+         }
+     }
+ 
+-    public boolean canAttackPlayer(EntityPlayer other)
+-    {
++    public boolean canAttackPlayer(EntityPlayer other) {
+         return !this.canPlayersAttack() ? false : super.canAttackPlayer(other);
+     }
+ 
+-    private boolean canPlayersAttack()
+-    {
++    private boolean canPlayersAttack() {
+         return this.mcServer.isPVPEnabled();
+     }
+ 
+     @Nullable
+-    public Entity changeDimension(int dimensionIn)
+-    {
+-        if (!net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, dimensionIn)) return this;
++    public Entity changeDimension(int dimensionIn) {
++        if (!net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, dimensionIn))
++            return this;
+         this.invulnerableDimensionChange = true;
+ 
+-        if (this.dimension == 1 && dimensionIn == 1)
+-        {
++        if (this.dimension == 1 && dimensionIn == 1) {
+             this.worldObj.removeEntity(this);
+ 
+-            if (!this.playerConqueredTheEnd)
+-            {
++            if (!this.playerConqueredTheEnd) {
+                 this.playerConqueredTheEnd = true;
+ 
+-                if (this.hasAchievement(AchievementList.THE_END2))
+-                {
++                if (this.hasAchievement(AchievementList.THE_END2)) {
+                     this.connection.sendPacket(new SPacketChangeGameState(4, 0.0F));
+-                }
+-                else
+-                {
++                } else {
+                     this.addStat(AchievementList.THE_END2);
+                     this.connection.sendPacket(new SPacketChangeGameState(4, 1.0F));
+                 }
+             }
+ 
+             return this;
+-        }
+-        else
+-        {
+-            if (this.dimension == 0 && dimensionIn == 1)
+-            {
++        } else {
++            if (this.dimension == 0 && dimensionIn == 1) {
+                 this.addStat(AchievementList.THE_END);
+                 dimensionIn = 1;
+-            }
+-            else
+-            {
++            } else {
+                 this.addStat(AchievementList.PORTAL);
+             }
+ 
+@@ -603,36 +606,30 @@
+         }
+     }
+ 
+-    public boolean isSpectatedByPlayer(EntityPlayerMP player)
+-    {
+-        return player.isSpectator() ? this.getSpectatingEntity() == this : (this.isSpectator() ? false : super.isSpectatedByPlayer(player));
++    public boolean isSpectatedByPlayer(EntityPlayerMP player) {
++        return player.isSpectator() ? this.getSpectatingEntity() == this
++                : (this.isSpectator() ? false : super.isSpectatedByPlayer(player));
+     }
+ 
+-    private void sendTileEntityUpdate(TileEntity p_147097_1_)
+-    {
+-        if (p_147097_1_ != null)
+-        {
++    private void sendTileEntityUpdate(TileEntity p_147097_1_) {
++        if (p_147097_1_ != null) {
+             SPacketUpdateTileEntity spacketupdatetileentity = p_147097_1_.getUpdatePacket();
+ 
+-            if (spacketupdatetileentity != null)
+-            {
++            if (spacketupdatetileentity != null) {
+                 this.connection.sendPacket(spacketupdatetileentity);
+             }
+         }
+     }
+ 
+-    public void onItemPickup(Entity entityIn, int quantity)
+-    {
++    public void onItemPickup(Entity entityIn, int quantity) {
+         super.onItemPickup(entityIn, quantity);
+         this.openContainer.detectAndSendChanges();
+     }
+ 
+-    public EntityPlayer.SleepResult trySleep(BlockPos bedLocation)
+-    {
++    public EntityPlayer.SleepResult trySleep(BlockPos bedLocation) {
+         EntityPlayer.SleepResult entityplayer$sleepresult = super.trySleep(bedLocation);
+ 
+-        if (entityplayer$sleepresult == EntityPlayer.SleepResult.OK)
+-        {
++        if (entityplayer$sleepresult == EntityPlayer.SleepResult.OK) {
+             this.addStat(StatList.SLEEP_IN_BED);
+             Packet<?> packet = new SPacketUseBed(this, bedLocation);
+             this.getServerWorld().getEntityTracker().sendToAllTrackingEntity(this, packet);
+@@ -643,87 +640,71 @@
+         return entityplayer$sleepresult;
+     }
+ 
+-    public void wakeUpPlayer(boolean immediately, boolean updateWorldFlag, boolean setSpawn)
+-    {
+-        if (this.isPlayerSleeping())
+-        {
++    public void wakeUpPlayer(boolean immediately, boolean updateWorldFlag, boolean setSpawn) {
++        if (this.isPlayerSleeping()) {
+             this.getServerWorld().getEntityTracker().sendToTrackingAndSelf(this, new SPacketAnimation(this, 2));
+         }
+ 
+         super.wakeUpPlayer(immediately, updateWorldFlag, setSpawn);
+ 
+-        if (this.connection != null)
+-        {
++        if (this.connection != null) {
+             this.connection.setPlayerLocation(this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
+         }
+     }
+ 
+-    public boolean startRiding(Entity entityIn, boolean force)
+-    {
++    public boolean startRiding(Entity entityIn, boolean force) {
+         Entity entity = this.getRidingEntity();
+ 
+-        if (!super.startRiding(entityIn, force))
+-        {
++        if (!super.startRiding(entityIn, force)) {
+             return false;
+-        }
+-        else
+-        {
++        } else {
+             Entity entity1 = this.getRidingEntity();
+ 
+-            if (entity1 != entity && this.connection != null)
+-            {
+-                this.connection.setPlayerLocation(this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
++            if (entity1 != entity && this.connection != null) {
++                this.connection.setPlayerLocation(this.posX, this.posY, this.posZ, this.rotationYaw,
++                        this.rotationPitch);
+             }
+ 
+             return true;
+         }
+     }
+ 
+-    public void dismountRidingEntity()
+-    {
++    public void dismountRidingEntity() {
+         Entity entity = this.getRidingEntity();
+         super.dismountRidingEntity();
+         Entity entity1 = this.getRidingEntity();
+ 
+-        if (entity1 != entity && this.connection != null)
+-        {
++        if (entity1 != entity && this.connection != null) {
+             this.connection.setPlayerLocation(this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
+         }
+     }
+ 
+-    public boolean isEntityInvulnerable(DamageSource source)
+-    {
++    public boolean isEntityInvulnerable(DamageSource source) {
+         return super.isEntityInvulnerable(source) || this.isInvulnerableDimensionChange();
+     }
+ 
+-    protected void updateFallState(double y, boolean onGroundIn, IBlockState state, BlockPos pos)
+-    {
++    protected void updateFallState(double y, boolean onGroundIn, IBlockState state, BlockPos pos) {
+     }
+ 
+-    protected void frostWalk(BlockPos pos)
+-    {
+-        if (!this.isSpectator())
+-        {
++    protected void frostWalk(BlockPos pos) {
++        if (!this.isSpectator()) {
+             super.frostWalk(pos);
+         }
+     }
+ 
+-    public void handleFalling(double y, boolean onGroundIn)
+-    {
++    public void handleFalling(double y, boolean onGroundIn) {
+         int i = MathHelper.floor_double(this.posX);
+         int j = MathHelper.floor_double(this.posY - 0.20000000298023224D);
+         int k = MathHelper.floor_double(this.posZ);
+         BlockPos blockpos = new BlockPos(i, j, k);
+         IBlockState iblockstate = this.worldObj.getBlockState(blockpos);
+ 
+-        if (iblockstate.getBlock().isAir(iblockstate, this.worldObj, blockpos))
+-        {
++        if (iblockstate.getBlock().isAir(iblockstate, this.worldObj, blockpos)) {
+             BlockPos blockpos1 = blockpos.down();
+             IBlockState iblockstate1 = this.worldObj.getBlockState(blockpos1);
+             Block block = iblockstate1.getBlock();
+ 
+-            if (block instanceof BlockFence || block instanceof BlockWall || block instanceof BlockFenceGate)
+-            {
++            if (block instanceof BlockFence || block instanceof BlockWall || block instanceof BlockFenceGate) {
+                 blockpos = blockpos1;
+                 iblockstate = iblockstate1;
+             }
+@@ -732,92 +713,95 @@
+         super.updateFallState(y, onGroundIn, iblockstate, blockpos);
+     }
+ 
+-    public void openEditSign(TileEntitySign signTile)
+-    {
++    public void openEditSign(TileEntitySign signTile) {
+         signTile.setPlayer(this);
+         this.connection.sendPacket(new SPacketSignEditorOpen(signTile.getPos()));
+     }
+ 
+-    public void getNextWindowId()
+-    {
++    public void getNextWindowId() {
          this.currentWindowId = this.currentWindowId % 100 + 1;
      }
+ 
+-    public void displayGui(IInteractionObject guiOwner)
+-    {
+-        if (guiOwner instanceof ILootContainer && ((ILootContainer)guiOwner).getLootTable() != null && this.isSpectator())
+-        {
+-            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0])).setStyle((new Style()).setColor(TextFormatting.RED)));
+-        }
+-        else
+-        {
 +    public int nextContainerCounter() { // CraftBukkit - void -> int
 +        this.currentWindowId = this.currentWindowId % 100 + 1;
 +        return currentWindowId; // CraftBukkit
 +    }
- 
-     public void displayGui(IInteractionObject guiOwner)
-     {
 +
-         if (guiOwner instanceof ILootContainer && ((ILootContainer)guiOwner).getLootTable() != null && this.isSpectator())
-         {
-             this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0])).setStyle((new Style()).setColor(TextFormatting.RED)));
-@@ -988,6 +1057,12 @@
-     {
++    public void displayGui(IInteractionObject guiOwner) {
++
++        if (guiOwner instanceof ILootContainer && ((ILootContainer) guiOwner).getLootTable() != null
++                && this.isSpectator()) {
++            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0]))
++                    .setStyle((new Style()).setColor(TextFormatting.RED)));
++        } else {
+             this.getNextWindowId();
+-            this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, guiOwner.getGuiID(), guiOwner.getDisplayName()));
++            this.connection.sendPacket(
++                    new SPacketOpenWindow(this.currentWindowId, guiOwner.getGuiID(), guiOwner.getDisplayName()));
+             this.openContainer = guiOwner.createContainer(this.inventory, this);
+             this.openContainer.windowId = this.currentWindowId;
+             this.openContainer.addListener(this);
+-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
++                    new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
+         }
+     }
+ 
+-    public void displayGUIChest(IInventory chestInventory)
+-    {
+-        if (chestInventory instanceof ILootContainer && ((ILootContainer)chestInventory).getLootTable() != null && this.isSpectator())
+-        {
+-            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0])).setStyle((new Style()).setColor(TextFormatting.RED)));
+-        }
+-        else
+-        {
+-            if (this.openContainer != this.inventoryContainer)
+-            {
++    public void displayGUIChest(IInventory chestInventory) {
++        if (chestInventory instanceof ILootContainer && ((ILootContainer) chestInventory).getLootTable() != null
++                && this.isSpectator()) {
++            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0]))
++                    .setStyle((new Style()).setColor(TextFormatting.RED)));
++        } else {
++            if (this.openContainer != this.inventoryContainer) {
+                 this.closeScreen();
+             }
+ 
+-            if (chestInventory instanceof ILockableContainer)
+-            {
+-                ILockableContainer ilockablecontainer = (ILockableContainer)chestInventory;
++            if (chestInventory instanceof ILockableContainer) {
++                ILockableContainer ilockablecontainer = (ILockableContainer) chestInventory;
+ 
+-                if (ilockablecontainer.isLocked() && !this.canOpen(ilockablecontainer.getLockCode()) && !this.isSpectator())
+-                {
+-                    this.connection.sendPacket(new SPacketChat(new TextComponentTranslation("container.isLocked", new Object[] {chestInventory.getDisplayName()}), (byte)2));
+-                    this.connection.sendPacket(new SPacketSoundEffect(SoundEvents.BLOCK_CHEST_LOCKED, SoundCategory.BLOCKS, this.posX, this.posY, this.posZ, 1.0F, 1.0F));
++                if (ilockablecontainer.isLocked() && !this.canOpen(ilockablecontainer.getLockCode())
++                        && !this.isSpectator()) {
++                    this.connection.sendPacket(new SPacketChat(new TextComponentTranslation("container.isLocked",
++                            new Object[] { chestInventory.getDisplayName() }), (byte) 2));
++                    this.connection.sendPacket(new SPacketSoundEffect(SoundEvents.BLOCK_CHEST_LOCKED,
++                            SoundCategory.BLOCKS, this.posX, this.posY, this.posZ, 1.0F, 1.0F));
+                     return;
+                 }
+             }
+ 
+             this.getNextWindowId();
+ 
+-            if (chestInventory instanceof IInteractionObject)
+-            {
+-                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, ((IInteractionObject)chestInventory).getGuiID(), chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
+-                this.openContainer = ((IInteractionObject)chestInventory).createContainer(this.inventory, this);
+-            }
+-            else
+-            {
+-                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:container", chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
++            if (chestInventory instanceof IInteractionObject) {
++                this.connection.sendPacket(
++                        new SPacketOpenWindow(this.currentWindowId, ((IInteractionObject) chestInventory).getGuiID(),
++                                chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
++                this.openContainer = ((IInteractionObject) chestInventory).createContainer(this.inventory, this);
++            } else {
++                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:container",
++                        chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
+                 this.openContainer = new ContainerChest(this.inventory, chestInventory, this);
+             }
+ 
+             this.openContainer.windowId = this.currentWindowId;
+             this.openContainer.addListener(this);
+-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
++                    new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
+         }
+     }
+ 
+-    public void displayVillagerTradeGui(IMerchant villager)
+-    {
++    public void displayVillagerTradeGui(IMerchant villager) {
+         this.getNextWindowId();
+         this.openContainer = new ContainerMerchant(this.inventory, villager, this.worldObj);
+         this.openContainer.windowId = this.currentWindowId;
+         this.openContainer.addListener(this);
+-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
+-        IInventory iinventory = ((ContainerMerchant)this.openContainer).getMerchantInventory();
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS
++                .post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
++        IInventory iinventory = ((ContainerMerchant) this.openContainer).getMerchantInventory();
+         ITextComponent itextcomponent = villager.getDisplayName();
+-        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:villager", itextcomponent, iinventory.getSizeInventory()));
++        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:villager", itextcomponent,
++                iinventory.getSizeInventory()));
+         MerchantRecipeList merchantrecipelist = villager.getRecipes(this);
+ 
+-        if (merchantrecipelist != null)
+-        {
++        if (merchantrecipelist != null) {
+             PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
+             packetbuffer.writeInt(this.currentWindowId);
+             merchantrecipelist.writeToBuf(packetbuffer);
+@@ -825,105 +809,86 @@
+         }
+     }
+ 
+-    public void openGuiHorseInventory(EntityHorse horse, IInventory inventoryIn)
+-    {
+-        if (this.openContainer != this.inventoryContainer)
+-        {
++    public void openGuiHorseInventory(EntityHorse horse, IInventory inventoryIn) {
++        if (this.openContainer != this.inventoryContainer) {
+             this.closeScreen();
+         }
+ 
+         this.getNextWindowId();
+-        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "EntityHorse", inventoryIn.getDisplayName(), inventoryIn.getSizeInventory(), horse.getEntityId()));
++        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "EntityHorse",
++                inventoryIn.getDisplayName(), inventoryIn.getSizeInventory(), horse.getEntityId()));
+         this.openContainer = new ContainerHorseInventory(this.inventory, inventoryIn, horse, this);
+         this.openContainer.windowId = this.currentWindowId;
+         this.openContainer.addListener(this);
+     }
+ 
+-    public void openBook(ItemStack stack, EnumHand hand)
+-    {
++    public void openBook(ItemStack stack, EnumHand hand) {
+         Item item = stack.getItem();
+ 
+-        if (item == Items.WRITTEN_BOOK)
+-        {
++        if (item == Items.WRITTEN_BOOK) {
+             PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
+             packetbuffer.writeEnumValue(hand);
+             this.connection.sendPacket(new SPacketCustomPayload("MC|BOpen", packetbuffer));
+         }
+     }
+ 
+-    public void displayGuiCommandBlock(TileEntityCommandBlock commandBlock)
+-    {
++    public void displayGuiCommandBlock(TileEntityCommandBlock commandBlock) {
+         commandBlock.setSendToClient(true);
+         this.sendTileEntityUpdate(commandBlock);
+     }
+ 
+-    public void sendSlotContents(Container containerToSend, int slotInd, ItemStack stack)
+-    {
+-        if (!(containerToSend.getSlot(slotInd) instanceof SlotCrafting))
+-        {
+-            if (!this.isChangingQuantityOnly)
+-            {
++    public void sendSlotContents(Container containerToSend, int slotInd, ItemStack stack) {
++        if (!(containerToSend.getSlot(slotInd) instanceof SlotCrafting)) {
++            if (!this.isChangingQuantityOnly) {
+                 this.connection.sendPacket(new SPacketSetSlot(containerToSend.windowId, slotInd, stack));
+             }
+         }
+     }
+ 
+-    public void sendContainerToPlayer(Container containerIn)
+-    {
++    public void sendContainerToPlayer(Container containerIn) {
+         this.updateCraftingInventory(containerIn, containerIn.getInventory());
+     }
+ 
+-    public void updateCraftingInventory(Container containerToSend, List<ItemStack> itemsList)
+-    {
++    public void updateCraftingInventory(Container containerToSend, List<ItemStack> itemsList) {
+         this.connection.sendPacket(new SPacketWindowItems(containerToSend.windowId, itemsList));
+         this.connection.sendPacket(new SPacketSetSlot(-1, -1, this.inventory.getItemStack()));
+     }
+ 
+-    public void sendProgressBarUpdate(Container containerIn, int varToUpdate, int newValue)
+-    {
++    public void sendProgressBarUpdate(Container containerIn, int varToUpdate, int newValue) {
+         this.connection.sendPacket(new SPacketWindowProperty(containerIn.windowId, varToUpdate, newValue));
+     }
+ 
+-    public void sendAllWindowProperties(Container containerIn, IInventory inventory)
+-    {
+-        for (int i = 0; i < inventory.getFieldCount(); ++i)
+-        {
++    public void sendAllWindowProperties(Container containerIn, IInventory inventory) {
++        for (int i = 0; i < inventory.getFieldCount(); ++i) {
+             this.connection.sendPacket(new SPacketWindowProperty(containerIn.windowId, i, inventory.getField(i)));
+         }
+     }
+ 
+-    public void closeScreen()
+-    {
++    public void closeScreen() {
+         this.connection.sendPacket(new SPacketCloseWindow(this.openContainer.windowId));
+         this.closeContainer();
+     }
+ 
+-    public void updateHeldItem()
+-    {
+-        if (!this.isChangingQuantityOnly)
+-        {
++    public void updateHeldItem() {
++        if (!this.isChangingQuantityOnly) {
+             this.connection.sendPacket(new SPacketSetSlot(-1, -1, this.inventory.getItemStack()));
+         }
+     }
+ 
+-    public void closeContainer()
+-    {
++    public void closeContainer() {
+         this.openContainer.onContainerClosed(this);
+-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Close(this, this.openContainer));
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS
++                .post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Close(this, this.openContainer));
+         this.openContainer = this.inventoryContainer;
+     }
+ 
+-    public void setEntityActionState(float strafe, float forward, boolean jumping, boolean sneaking)
+-    {
+-        if (this.isRiding())
+-        {
+-            if (strafe >= -1.0F && strafe <= 1.0F)
+-            {
++    public void setEntityActionState(float strafe, float forward, boolean jumping, boolean sneaking) {
++        if (this.isRiding()) {
++            if (strafe >= -1.0F && strafe <= 1.0F) {
+                 this.moveStrafing = strafe;
+             }
+ 
+-            if (forward >= -1.0F && forward <= 1.0F)
+-            {
++            if (forward >= -1.0F && forward <= 1.0F) {
+                 this.moveForward = forward;
+             }
+ 
+@@ -932,144 +897,127 @@
+         }
+     }
+ 
+-    public boolean hasAchievement(Achievement achievementIn)
+-    {
++    public boolean hasAchievement(Achievement achievementIn) {
+         return this.statsFile.hasAchievementUnlocked(achievementIn);
+     }
+ 
+-    public void addStat(StatBase stat, int amount)
+-    {
+-        if (stat != null)
+-        {
+-            if (stat.isAchievement() && net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.AchievementEvent(this, (net.minecraft.stats.Achievement) stat))) return;
++    public void addStat(StatBase stat, int amount) {
++        if (stat != null) {
++            if (stat.isAchievement() && net.minecraftforge.common.MinecraftForge.EVENT_BUS
++                    .post(new net.minecraftforge.event.entity.player.AchievementEvent(this,
++                            (net.minecraft.stats.Achievement) stat)))
++                return;
+             this.statsFile.increaseStat(this, stat, amount);
+ 
+-            for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(stat.getCriteria()))
+-            {
++            for (ScoreObjective scoreobjective : this.getWorldScoreboard()
++                    .getObjectivesFromCriteria(stat.getCriteria())) {
+                 this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective).increaseScore(amount);
+             }
+ 
+-            if (this.statsFile.hasUnsentAchievement())
+-            {
++            if (this.statsFile.hasUnsentAchievement()) {
+                 this.statsFile.sendStats(this);
+             }
+         }
+     }
+ 
+-    public void takeStat(StatBase stat)
+-    {
+-        if (stat != null)
+-        {
++    public void takeStat(StatBase stat) {
++        if (stat != null) {
+             this.statsFile.unlockAchievement(this, stat, 0);
+ 
+-            for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(stat.getCriteria()))
+-            {
++            for (ScoreObjective scoreobjective : this.getWorldScoreboard()
++                    .getObjectivesFromCriteria(stat.getCriteria())) {
+                 this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective).setScorePoints(0);
+             }
+ 
+-            if (this.statsFile.hasUnsentAchievement())
+-            {
++            if (this.statsFile.hasUnsentAchievement()) {
+                 this.statsFile.sendStats(this);
+             }
+         }
+     }
+ 
+-    public void mountEntityAndWakeUp()
+-    {
++    public void mountEntityAndWakeUp() {
+         this.removePassengers();
+ 
+-        if (this.sleeping)
+-        {
++        if (this.sleeping) {
+             this.wakeUpPlayer(true, false, false);
+         }
+     }
+ 
+-    public void setPlayerHealthUpdated()
+-    {
++    public void setPlayerHealthUpdated() {
          this.lastHealth = -1.0E8F;
      }
-+    //CB
+ 
+-    public void addChatComponentMessage(ITextComponent chatComponent)
+-    {
++    // CB
 +    public void sendMessage(final ITextComponent[] ichatbasecomponent) {
 +        for (final ITextComponent component : ichatbasecomponent) {
 +            this.addChatMessage(component);
 +        }
 +    }
++
++    public void addChatComponentMessage(ITextComponent chatComponent) {
+         this.connection.sendPacket(new SPacketChat(chatComponent));
+     }
  
-     public void addChatComponentMessage(ITextComponent chatComponent)
-     {
-@@ -1264,4 +1339,127 @@
+-    protected void onItemUseFinish()
+-    {
+-        if (this.activeItemStack != null && this.isHandActive())
+-        {
+-            this.connection.sendPacket(new SPacketEntityStatus(this, (byte)9));
++    protected void onItemUseFinish() {
++        if (this.activeItemStack != null && this.isHandActive()) {
++            this.connection.sendPacket(new SPacketEntityStatus(this, (byte) 9));
+             super.onItemUseFinish();
+         }
+     }
+ 
+-    public void clonePlayer(EntityPlayer oldPlayer, boolean respawnFromEnd)
+-    {
++    public void clonePlayer(EntityPlayer oldPlayer, boolean respawnFromEnd) {
+         super.clonePlayer(oldPlayer, respawnFromEnd);
+         this.lastExperience = -1;
+         this.lastHealth = -1.0F;
+         this.lastFoodLevel = -1;
+-        this.entityRemoveQueue.addAll(((EntityPlayerMP)oldPlayer).entityRemoveQueue);
++        this.entityRemoveQueue.addAll(((EntityPlayerMP) oldPlayer).entityRemoveQueue);
+     }
+ 
+-    protected void onNewPotionEffect(PotionEffect id)
+-    {
++    protected void onNewPotionEffect(PotionEffect id) {
+         super.onNewPotionEffect(id);
+         this.connection.sendPacket(new SPacketEntityEffect(this.getEntityId(), id));
+     }
+ 
+-    protected void onChangedPotionEffect(PotionEffect id, boolean p_70695_2_)
+-    {
++    protected void onChangedPotionEffect(PotionEffect id, boolean p_70695_2_) {
+         super.onChangedPotionEffect(id, p_70695_2_);
+         this.connection.sendPacket(new SPacketEntityEffect(this.getEntityId(), id));
+     }
+ 
+-    protected void onFinishedPotionEffect(PotionEffect effect)
+-    {
++    protected void onFinishedPotionEffect(PotionEffect effect) {
+         super.onFinishedPotionEffect(effect);
+         this.connection.sendPacket(new SPacketRemoveEntityEffect(this.getEntityId(), effect.getPotion()));
+     }
+ 
+-    public void setPositionAndUpdate(double x, double y, double z)
+-    {
++    public void setPositionAndUpdate(double x, double y, double z) {
+         this.connection.setPlayerLocation(x, y, z, this.rotationYaw, this.rotationPitch);
+     }
+ 
+-    public void onCriticalHit(Entity entityHit)
+-    {
++    public void onCriticalHit(Entity entityHit) {
+         this.getServerWorld().getEntityTracker().sendToTrackingAndSelf(this, new SPacketAnimation(entityHit, 4));
+     }
+ 
+-    public void onEnchantmentCritical(Entity entityHit)
+-    {
++    public void onEnchantmentCritical(Entity entityHit) {
+         this.getServerWorld().getEntityTracker().sendToTrackingAndSelf(this, new SPacketAnimation(entityHit, 5));
+     }
+ 
+-    public void sendPlayerAbilities()
+-    {
+-        if (this.connection != null)
+-        {
++    public void sendPlayerAbilities() {
++        if (this.connection != null) {
+             this.connection.sendPacket(new SPacketPlayerAbilities(this.capabilities));
+             this.updatePotionMetadata();
+         }
+     }
+ 
+-    public WorldServer getServerWorld()
+-    {
+-        return (WorldServer)this.worldObj;
++    public WorldServer getServerWorld() {
++        return (WorldServer) this.worldObj;
+     }
+ 
+-    public void setGameType(GameType gameType)
+-    {
++    public void setGameType(GameType gameType) {
+         this.interactionManager.setGameType(gameType);
+-        this.connection.sendPacket(new SPacketChangeGameState(3, (float)gameType.getID()));
++        this.connection.sendPacket(new SPacketChangeGameState(3, (float) gameType.getID()));
+ 
+-        if (gameType == GameType.SPECTATOR)
+-        {
++        if (gameType == GameType.SPECTATOR) {
+             this.dismountRidingEntity();
+-        }
+-        else
+-        {
++        } else {
+             this.setSpectatingEntity(this);
+         }
+ 
+@@ -1077,191 +1025,277 @@
+         this.markPotionsDirty();
+     }
+ 
+-    public boolean isSpectator()
+-    {
++    public boolean isSpectator() {
+         return this.interactionManager.getGameType() == GameType.SPECTATOR;
+     }
+ 
+-    public boolean isCreative()
+-    {
++    public boolean isCreative() {
+         return this.interactionManager.getGameType() == GameType.CREATIVE;
+     }
+ 
+-    public void addChatMessage(ITextComponent component)
+-    {
++    public void addChatMessage(ITextComponent component) {
+         this.connection.sendPacket(new SPacketChat(component));
+     }
+ 
+-    public boolean canCommandSenderUseCommand(int permLevel, String commandName)
+-    {
+-        if ("seed".equals(commandName) && !this.mcServer.isDedicatedServer())
+-        {
++    public boolean canCommandSenderUseCommand(int permLevel, String commandName) {
++        if ("seed".equals(commandName) && !this.mcServer.isDedicatedServer()) {
+             return true;
+-        }
+-        else if (!"tell".equals(commandName) && !"help".equals(commandName) && !"me".equals(commandName) && !"trigger".equals(commandName))
+-        {
+-            if (this.mcServer.getPlayerList().canSendCommands(this.getGameProfile()))
+-            {
+-                UserListOpsEntry userlistopsentry = (UserListOpsEntry)this.mcServer.getPlayerList().getOppedPlayers().getEntry(this.getGameProfile());
+-                return userlistopsentry != null ? userlistopsentry.getPermissionLevel() >= permLevel : this.mcServer.getOpPermissionLevel() >= permLevel;
+-            }
+-            else
+-            {
++        } else if (!"tell".equals(commandName) && !"help".equals(commandName) && !"me".equals(commandName)
++                && !"trigger".equals(commandName)) {
++            if (this.mcServer.getPlayerList().canSendCommands(this.getGameProfile())) {
++                UserListOpsEntry userlistopsentry = (UserListOpsEntry) this.mcServer.getPlayerList().getOppedPlayers()
++                        .getEntry(this.getGameProfile());
++                return userlistopsentry != null ? userlistopsentry.getPermissionLevel() >= permLevel
++                        : this.mcServer.getOpPermissionLevel() >= permLevel;
++            } else {
+                 return false;
+             }
+-        }
+-        else
+-        {
++        } else {
+             return true;
+         }
+     }
+ 
+-    public String getPlayerIP()
+-    {
++    public String getPlayerIP() {
+         String s = this.connection.netManager.getRemoteAddress().toString();
+         s = s.substring(s.indexOf("/") + 1);
+         s = s.substring(0, s.indexOf(":"));
+         return s;
+     }
+ 
+-    public void handleClientSettings(CPacketClientSettings packetIn)
+-    {
++    public void handleClientSettings(CPacketClientSettings packetIn) {
+         this.language = packetIn.getLang();
+         this.chatVisibility = packetIn.getChatVisibility();
+         this.chatColours = packetIn.isColorsEnabled();
+-        this.getDataManager().set(PLAYER_MODEL_FLAG, Byte.valueOf((byte)packetIn.getModelPartFlags()));
+-        this.getDataManager().set(MAIN_HAND, Byte.valueOf((byte)(packetIn.getMainHand() == EnumHandSide.LEFT ? 0 : 1)));
++        this.getDataManager().set(PLAYER_MODEL_FLAG, Byte.valueOf((byte) packetIn.getModelPartFlags()));
++        this.getDataManager().set(MAIN_HAND,
++                Byte.valueOf((byte) (packetIn.getMainHand() == EnumHandSide.LEFT ? 0 : 1)));
+     }
+ 
+-    public EntityPlayer.EnumChatVisibility getChatVisibility()
+-    {
++    public EntityPlayer.EnumChatVisibility getChatVisibility() {
+         return this.chatVisibility;
+     }
+ 
+-    public void loadResourcePack(String url, String hash)
+-    {
++    public void loadResourcePack(String url, String hash) {
+         this.connection.sendPacket(new SPacketResourcePackSend(url, hash));
+     }
+ 
+-    public BlockPos getPosition()
+-    {
++    public BlockPos getPosition() {
+         return new BlockPos(this.posX, this.posY + 0.5D, this.posZ);
+     }
+ 
+-    public void markPlayerActive()
+-    {
++    public void markPlayerActive() {
+         this.playerLastActiveTime = MinecraftServer.getCurrentTimeMillis();
+     }
+ 
+-    public StatisticsManagerServer getStatFile()
+-    {
++    public StatisticsManagerServer getStatFile() {
+         return this.statsFile;
+     }
+ 
+-    public void removeEntity(Entity entityIn)
+-    {
+-        if (entityIn instanceof EntityPlayer)
+-        {
+-            this.connection.sendPacket(new SPacketDestroyEntities(new int[] {entityIn.getEntityId()}));
+-        }
+-        else
+-        {
++    public void removeEntity(Entity entityIn) {
++        if (entityIn instanceof EntityPlayer) {
++            this.connection.sendPacket(new SPacketDestroyEntities(new int[] { entityIn.getEntityId() }));
++        } else {
+             this.entityRemoveQueue.add(Integer.valueOf(entityIn.getEntityId()));
+         }
+     }
+ 
+-    public void addEntity(Entity entityIn)
+-    {
++    public void addEntity(Entity entityIn) {
+         this.entityRemoveQueue.remove(Integer.valueOf(entityIn.getEntityId()));
+     }
+ 
+-    protected void updatePotionMetadata()
+-    {
+-        if (this.isSpectator())
+-        {
++    protected void updatePotionMetadata() {
++        if (this.isSpectator()) {
+             this.resetPotionEffectMetadata();
+             this.setInvisible(true);
+-        }
+-        else
+-        {
++        } else {
+             super.updatePotionMetadata();
+         }
+ 
+         this.getServerWorld().getEntityTracker().updateVisibility(this);
+     }
+ 
+-    public Entity getSpectatingEntity()
+-    {
+-        return (Entity)(this.spectatingEntity == null ? this : this.spectatingEntity);
++    public Entity getSpectatingEntity() {
++        return (Entity) (this.spectatingEntity == null ? this : this.spectatingEntity);
+     }
+ 
+-    public void setSpectatingEntity(Entity entityToSpectate)
+-    {
++    public void setSpectatingEntity(Entity entityToSpectate) {
+         Entity entity = this.getSpectatingEntity();
+-        this.spectatingEntity = (Entity)(entityToSpectate == null ? this : entityToSpectate);
++        this.spectatingEntity = (Entity) (entityToSpectate == null ? this : entityToSpectate);
+ 
+-        if (entity != this.spectatingEntity)
+-        {
++        if (entity != this.spectatingEntity) {
+             this.connection.sendPacket(new SPacketCamera(this.spectatingEntity));
+-            this.setPositionAndUpdate(this.spectatingEntity.posX, this.spectatingEntity.posY, this.spectatingEntity.posZ);
++            this.setPositionAndUpdate(this.spectatingEntity.posX, this.spectatingEntity.posY,
++                    this.spectatingEntity.posZ);
+         }
+     }
+ 
+-    protected void decrementTimeUntilPortal()
+-    {
+-        if (this.timeUntilPortal > 0 && !this.invulnerableDimensionChange)
+-        {
++    protected void decrementTimeUntilPortal() {
++        if (this.timeUntilPortal > 0 && !this.invulnerableDimensionChange) {
+             --this.timeUntilPortal;
+         }
+     }
+ 
+-    public void attackTargetEntityWithCurrentItem(Entity targetEntity)
+-    {
+-        if (this.interactionManager.getGameType() == GameType.SPECTATOR)
+-        {
++    public void attackTargetEntityWithCurrentItem(Entity targetEntity) {
++        if (this.interactionManager.getGameType() == GameType.SPECTATOR) {
+             this.setSpectatingEntity(targetEntity);
+-        }
+-        else
+-        {
++        } else {
+             super.attackTargetEntityWithCurrentItem(targetEntity);
+         }
+     }
+ 
+-    public long getLastActiveTime()
+-    {
++    public long getLastActiveTime() {
+         return this.playerLastActiveTime;
+     }
+ 
+     @Nullable
+-    public ITextComponent getTabListDisplayName()
+-    {
++    public ITextComponent getTabListDisplayName() {
+         return null;
+     }
+ 
+-    public void swingArm(EnumHand hand)
+-    {
++    public void swingArm(EnumHand hand) {
+         super.swingArm(hand);
+         this.resetCooldown();
+     }
+ 
+-    public boolean isInvulnerableDimensionChange()
+-    {
++    public boolean isInvulnerableDimensionChange() {
+         return this.invulnerableDimensionChange;
+     }
+ 
+-    public void clearInvulnerableDimensionChange()
+-    {
++    public void clearInvulnerableDimensionChange() {
+         this.invulnerableDimensionChange = false;
+     }
+ 
+-    public void setElytraFlying()
+-    {
++    public void setElytraFlying() {
+         this.setFlag(7, true);
+     }
+ 
+-    public void clearElytraFlying()
+-    {
++    public void clearElytraFlying() {
          this.setFlag(7, true);
          this.setFlag(7, false);
      }
-+    
++
 +    @Override
 +    public CraftPlayer getBukkitEntity() {
-+    	return (CraftPlayer) super.getBukkitEntity();
++        return (CraftPlayer) super.getBukkitEntity();
 +    }
-+    
++
 +    // CraftBukkit start - Add per-player time and weather.
 +    public long timeOffset = 0;
 +    public boolean relativeTime = true;
-+    
++
 +    public long getPlayerTime() {
-+    	if (this.relativeTime) {
-+    		// Adds timeOffset to the current server time.
-+    		return this.worldObj.getWorldTime() + this.timeOffset;
-+    	} else {
-+    		// Adds timeOffset to the beginning of this day.
-+    		return this.worldObj.getWorldTime() - (this.worldObj.getWorldTime() % 24000) + this.timeOffset;
-+    	}
++        if (this.relativeTime) {
++            // Adds timeOffset to the current server time.
++            return this.worldObj.getWorldTime() + this.timeOffset;
++        } else {
++            // Adds timeOffset to the beginning of this day.
++            return this.worldObj.getWorldTime() - (this.worldObj.getWorldTime() % 24000) + this.timeOffset;
++        }
 +    }
-+    
++
 +    public WeatherType weather = null;
-+    
++
 +    public WeatherType getPlayerWeather() {
-+    	return this.weather;
++        return this.weather;
 +    }
-+    
++
 +    public void setPlayerWeather(WeatherType type, boolean plugin) {
-+    	if (!plugin && this.weather != null) {
-+    		return;
-+    	}
-+    
-+    	if (plugin) {
-+    		this.weather = type;
-+    	}
-+    		
-+    	if (type == WeatherType.DOWNFALL) {
-+    		this.connection.sendPacket(new SPacketChangeGameState(2, 0));
-+    	} else {
-+    		this.connection.sendPacket(new SPacketChangeGameState(1, 0));
-+    	}
++        if (!plugin && this.weather != null) {
++            return;
++        }
++
++        if (plugin) {
++            this.weather = type;
++        }
++
++        if (type == WeatherType.DOWNFALL) {
++            this.connection.sendPacket(new SPacketChangeGameState(2, 0));
++        } else {
++            this.connection.sendPacket(new SPacketChangeGameState(1, 0));
++        }
 +    }
-+    
++
 +    private float pluginRainPosition;
 +    private float pluginRainPositionPrevious;
-+    
++
 +    public void updateWeather(float oldRain, float newRain, float oldThunder, float newThunder) {
-+    	if (this.weather == null) {
-+    		// Vanilla
-+    		if (oldRain != newRain) {
-+    			this.connection.sendPacket(new SPacketChangeGameState(7, newRain));
-+    		}
-+    	} else {
-+    		// Plugin
-+    		if (pluginRainPositionPrevious != pluginRainPosition) {
-+    			this.connection.sendPacket(new SPacketChangeGameState(7, pluginRainPosition));
-+    		}
-+    	}
-+    	
-+    	if (oldThunder != newThunder) {
-+    		if (weather == WeatherType.DOWNFALL || weather == null) {
-+    			this.connection.sendPacket(new SPacketChangeGameState(8, newThunder));
-+    		} else {
-+    			this.connection.sendPacket(new SPacketChangeGameState(8, 0));
-+    		}
-+    	}
++        if (this.weather == null) {
++            // Vanilla
++            if (oldRain != newRain) {
++                this.connection.sendPacket(new SPacketChangeGameState(7, newRain));
++            }
++        } else {
++            // Plugin
++            if (pluginRainPositionPrevious != pluginRainPosition) {
++                this.connection.sendPacket(new SPacketChangeGameState(7, pluginRainPosition));
++            }
++        }
++
++        if (oldThunder != newThunder) {
++            if (weather == WeatherType.DOWNFALL || weather == null) {
++                this.connection.sendPacket(new SPacketChangeGameState(8, newThunder));
++            } else {
++                this.connection.sendPacket(new SPacketChangeGameState(8, 0));
++            }
++        }
 +    }
-+    
++
 +    public void tickWeather() {
-+    	if (this.weather == null) return;
-+    	
-+    	pluginRainPositionPrevious = pluginRainPosition;
-+    	if (weather == WeatherType.DOWNFALL) {
-+    		pluginRainPosition += 0.01;
-+    	} else {
-+    		pluginRainPosition -= 0.01;
-+    	}
-+    	
-+    	pluginRainPosition = MathHelper.clamp_float(pluginRainPosition, 0.0F, 1.0F);
++        if (this.weather == null)
++            return;
++
++        pluginRainPositionPrevious = pluginRainPosition;
++        if (weather == WeatherType.DOWNFALL) {
++            pluginRainPosition += 0.01;
++        } else {
++            pluginRainPosition -= 0.01;
++        }
++
++        pluginRainPosition = MathHelper.clamp_float(pluginRainPosition, 0.0F, 1.0F);
 +    }
-+    
++
 +    public void resetPlayerWeather() {
-+    	this.weather = null;
-+    	this.setPlayerWeather(this.worldObj.getWorldInfo().isRaining() ? WeatherType.DOWNFALL : WeatherType.CLEAR, false);
++        this.weather = null;
++        this.setPlayerWeather(this.worldObj.getWorldInfo().isRaining() ? WeatherType.DOWNFALL : WeatherType.CLEAR,
++                false);
 +    }
-+    
++
 +    @Override
 +    public String toString() {
-+    	return super.toString() + "(" + this.getName() + " at " + this.posX + "," + this.posY + "," + this.posZ + ")";
++        return super.toString() + "(" + this.getName() + " at " + this.posX + "," + this.posY + "," + this.posZ + ")";
 +    }
-+    
++
 +    public void reset() {
-+    	float exp = 0;
-+    	boolean keepInventory = this.worldObj.getGameRules().getBoolean("keepInventory");
-+    
-+    	if (this.keepLevel || keepInventory) {
-+    		exp = this.experience;
-+    		this.newTotalExp = this.experienceTotal;
-+    		this.newLevel = this.experienceLevel;
-+    	}
-+    
-+    	this.setHealth(this.getMaxHealth());
-+    	this.arrowHitTimer = 0;
-+    	this.fallDistance = 0;
-+    	//this.foodStats = new FoodStats(this); TODO!!!
-+    	this.experienceLevel = this.newLevel;
-+    	this.experienceTotal = this.newTotalExp;
-+    	this.experience = 0;
-+    	this.deathTime = 0;
-+    	this.clearActivePotions();
-+    	//this.updateEffects = true; TODO!!!
-+    	this.openContainer = this.inventoryContainer;
-+    	this.attackingPlayer = null;
-+    	//this.lastDamager = null; TODO!!!
-+    	//this.MAIN_HAND = new CombatTracker(this); TODO!!!
-+    	this.lastExperience = -1;
-+    	if (this.keepLevel || keepInventory) {
-+    		this.experience = exp;
-+    	} else {
-+    		this.addExperience(this.newExp);
-+    	}
-+    	this.keepLevel = false;
++        float exp = 0;
++        boolean keepInventory = this.worldObj.getGameRules().getBoolean("keepInventory");
++
++        if (this.keepLevel || keepInventory) {
++            exp = this.experience;
++            this.newTotalExp = this.experienceTotal;
++            this.newLevel = this.experienceLevel;
++        }
++
++        this.setHealth(this.getMaxHealth());
++        this.arrowHitTimer = 0;
++        this.fallDistance = 0;
++        // this.foodStats = new FoodStats(this); TODO!!!
++        this.experienceLevel = this.newLevel;
++        this.experienceTotal = this.newTotalExp;
++        this.experience = 0;
++        this.deathTime = 0;
++        this.clearActivePotions();
++        // this.updateEffects = true; TODO!!!
++        this.openContainer = this.inventoryContainer;
++        this.attackingPlayer = null;
++        // this.lastDamager = null; TODO!!!
++        // this.MAIN_HAND = new CombatTracker(this); TODO!!!
++        this.lastExperience = -1;
++        if (this.keepLevel || keepInventory) {
++            this.experience = exp;
++        } else {
++            this.addExperience(this.newExp);
++        }
++        this.keepLevel = false;
 +    }
 +    // CraftBukkit end
  }
