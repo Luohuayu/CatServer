@@ -142,27 +142,67 @@
          this.initCapabilities();
          return this;
      }
-@@ -193,9 +230,10 @@
+@@ -193,11 +230,15 @@
  
          this.theProfiler.startSection("mobSpawner");
  
+-        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldInfo.getTerrainType() != WorldType.DEBUG_WORLD)
 +        long time = this.worldInfo.getWorldTotalTime();
-         if (this.getGameRules().getBoolean("doMobSpawning") && this.worldInfo.getTerrainType() != WorldType.DEBUG_WORLD)
++        
++        if (this.getGameRules().getBoolean("doMobSpawning") && this.worldInfo.getTerrainType() != WorldType.DEBUG_WORLD && this.playerEntities.size() > 0)
          {
 -            this.entitySpawner.findChunksForSpawning(this, this.spawnHostileMobs, this.spawnPeacefulMobs, this.worldInfo.getWorldTotalTime() % 400L == 0L);
++            this.timings.mobSpawn.startTiming();
 +            this.entitySpawner.findChunksForSpawning(this, this.spawnHostileMobs && (this.ticksPerMonsterSpawns != 0 && time % this.ticksPerMonsterSpawns == 0L), this.spawnPeacefulMobs && (this.ticksPerAnimalSpawns != 0 && time % this.ticksPerAnimalSpawns == 0L), this.worldInfo.getWorldTotalTime() % 400L == 0L);
++            this.timings.mobSpawn.stopTiming();
          }
- 
+-
++        this.timings.doChunkUnload.startTiming();
          this.theProfiler.endStartSection("chunkSource");
-@@ -231,6 +269,7 @@
+         this.chunkProvider.unloadQueuedChunks();
+         int j = this.calculateSkylightSubtracted(1.0F);
+@@ -213,24 +254,39 @@
+         {
+             this.worldInfo.setWorldTime(this.worldInfo.getWorldTime() + 1L);
          }
+-
++        this.timings.doChunkUnload.stopTiming();
+         this.theProfiler.endStartSection("tickPending");
++        this.timings.doTickPending.startTiming();
+         this.tickUpdates(false);
++        this.timings.doTickPending.stopTiming();
+         this.theProfiler.endStartSection("tickBlocks");
++        this.timings.doTickTiles.startTiming();
+         this.updateBlocks();
++        this.timings.doTickTiles.stopTiming();
+         this.theProfiler.endStartSection("chunkMap");
++        this.timings.doChunkMap.startTiming();
+         this.thePlayerManager.tick();
++        this.timings.doChunkMap.stopTiming();
+         this.theProfiler.endStartSection("village");
++        this.timings.doVillages.startTiming();
+         this.villageCollectionObj.tick();
+         this.villageSiege.tick();
++        this.timings.doVillages.stopTiming();
+         this.theProfiler.endStartSection("portalForcer");
++        this.timings.doPortalForcer.startTiming();
+         this.worldTeleporter.removeStalePortalLocations(this.getTotalWorldTime());
+         for (Teleporter tele : customTeleporters)
+         {
+             tele.removeStalePortalLocations(getTotalWorldTime());
+         }
++        this.timings.doPortalForcer.stopTiming();
          this.theProfiler.endSection();
++        this.timings.doSounds.startTiming();
          this.sendQueuedBlockEvents();
++        this.timings.doSounds.stopTiming();
++        this.timings.doChunkGC.startTiming();
 +        this.getWorld().processChunkGC(); // CraftBukkit
++        this.timings.doChunkGC.stopTiming();
      }
  
      @Nullable
-@@ -341,7 +380,7 @@
+@@ -341,7 +397,7 @@
          this.worldInfo.setSpawnZ(j);
      }
  
@@ -171,7 +211,7 @@
      {
          return this.getChunkProvider().chunkExists(x, z);
      }
-@@ -852,7 +891,38 @@
+@@ -852,7 +908,38 @@
      protected IChunkProvider createChunkProvider()
      {
          IChunkLoader ichunkloader = this.saveHandler.getChunkLoader(this.provider);
@@ -211,7 +251,7 @@
      }
  
      public boolean isBlockModifiable(EntityPlayer player, BlockPos pos)
-@@ -998,6 +1068,7 @@
+@@ -998,6 +1085,7 @@
  
          if (chunkproviderserver.canSave())
          {
@@ -219,7 +259,7 @@
              if (progressCallback != null)
              {
                  progressCallback.displaySavingString("Saving level");
-@@ -1012,9 +1083,10 @@
+@@ -1012,9 +1100,10 @@
  
              chunkproviderserver.saveChunks(p_73044_1_);
              net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Save(this));
@@ -233,7 +273,7 @@
                  if (chunk != null && !this.thePlayerManager.contains(chunk.xPosition, chunk.zPosition))
                  {
                      chunkproviderserver.unload(chunk);
-@@ -1033,7 +1105,7 @@
+@@ -1033,7 +1122,7 @@
          }
      }
  
@@ -242,7 +282,7 @@
      {
          this.checkSessionLock();
  
-@@ -1044,7 +1116,10 @@
+@@ -1044,7 +1133,10 @@
                  ((WorldServerMulti)worldserver).saveAdditionalData();
              }
          }
@@ -254,7 +294,7 @@
          this.worldInfo.setBorderSize(this.getWorldBorder().getDiameter());
          this.worldInfo.getBorderCenterX(this.getWorldBorder().getCenterX());
          this.worldInfo.getBorderCenterZ(this.getWorldBorder().getCenterZ());
-@@ -1304,12 +1379,25 @@
+@@ -1304,12 +1396,25 @@
  
      public void spawnParticle(EnumParticleTypes particleType, boolean longDistance, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArguments)
      {
