@@ -466,7 +466,7 @@
                  this.statusResponse.setServerDescription(new TextComponentString(this.motd));
                  this.statusResponse.setVersion(new ServerStatusResponse.Version("1.10.2", 210));
                  this.applyServerIconToResponse(this.statusResponse);
-+                DedicatedServer.allowPlayerLogins = true; // Svarka - server is ready, allow player logins
++                DedicatedServer.allowPlayerLogins = true;
  
 +                Arrays.fill( recentTps, 20 );
 +                long lastTick = System.nanoTime(), catchupTime = 0, curTime, wait, tickSection = lastTick;
@@ -543,7 +543,7 @@
 -    public void tick()
 +    public void tick() throws ExceptionWorldConflict
      {
-+        SpigotTimings.serverTickTimer.startTiming(); // Spigot
++        SpigotTimings.serverTickTimer.startTiming();
          long i = System.nanoTime();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onPreServerTick();
          ++this.tickCounter;
@@ -554,7 +554,7 @@
 -        if (this.tickCounter % 900 == 0)
 +        if ((autosavePeriod > 0) && ((this.tickCounter % autosavePeriod) == 0)) //CatServer
          {
-+            SpigotTimings.worldSaveTimer.startTiming(); // Spigot
++            SpigotTimings.worldSaveTimer.startTiming();
              this.theProfiler.startSection("save");
              this.playerList.saveAllPlayerData();
 -            this.saveAllWorlds(true);
@@ -568,7 +568,15 @@
          }
  
          this.theProfiler.startSection("tallying");
-@@ -661,17 +750,35 @@
+@@ -655,23 +744,55 @@
+         this.theProfiler.endSection();
+         this.theProfiler.endSection();
+         net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostServerTick();
++        SpigotTimings.serverTickTimer.stopTiming();
++        org.spigotmc.CustomTimingsHandler.tick();
+     }
+ 
+     public void updateTimeLightAndEntities()
      {
          this.theProfiler.startSection("jobs");
  
@@ -607,38 +615,145 @@
 +        SpigotTimings.chunkIOTickTimer.stopTiming();
 +        // CraftBukkit end
 +        
++        SpigotTimings.timeUpdateTimer.startTiming();
++        // Send time updates to everyone, it will get the right time from the world the player is in.
++        if (this.tickCounter % 20 == 0)
++        {
++            for (int i = 0; i < this.getPlayerList().playerEntityList.size(); i++)
++            {
++                EntityPlayerMP entityplayer = (EntityPlayerMP) this.getPlayerList().playerEntityList.get(i);
++                entityplayer.connection.sendPacket(new SPacketTimeUpdate(entityplayer.worldObj.getTotalWorldTime(), entityplayer.getPlayerTime(), entityplayer.worldObj.getGameRules().getBoolean("doDaylightCycle"))); // Add support for per player time
++            }
++        }
++        SpigotTimings.timeUpdateTimer.stopTiming();
++        
          Integer[] ids = net.minecraftforge.common.DimensionManager.getIDs(this.tickCounter % 200 == 0);
          for (int x = 0; x < ids.length; x++)
          {
-@@ -727,7 +834,7 @@
+@@ -682,20 +803,22 @@
+             {
+                 WorldServer worldserver = net.minecraftforge.common.DimensionManager.getWorld(id);
+                 this.theProfiler.startSection(worldserver.getWorldInfo().getWorldName());
+-
++                /* Drop global time updates
+                 if (this.tickCounter % 20 == 0)
+                 {
+                     this.theProfiler.startSection("timeSync");
+                     this.playerList.sendPacketToAllPlayersInDimension(new SPacketTimeUpdate(worldserver.getTotalWorldTime(), worldserver.getWorldTime(), worldserver.getGameRules().getBoolean("doDaylightCycle")), worldserver.provider.getDimension());
+                     this.theProfiler.endSection();
+                 }
+-
++                // CraftBukkit end */
+                 this.theProfiler.startSection("tick");
+                 net.minecraftforge.fml.common.FMLCommonHandler.instance().onPreWorldTick(worldserver);
+ 
+                 try
+                 {
++                    worldserver.timings.doTick.startTiming();
+                     worldserver.tick();
++                    worldserver.timings.doTick.stopTiming();
+                 }
+                 catch (Throwable throwable1)
+                 {
+@@ -706,7 +829,9 @@
+ 
+                 try
+                 {
++                    worldserver.timings.tickEntities.startTiming();
+                     worldserver.updateEntities();
++                    worldserver.timings.tickEntities.stopTiming();
+                 }
+                 catch (Throwable throwable)
+                 {
+@@ -718,7 +843,9 @@
+                 net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostWorldTick(worldserver);
+                 this.theProfiler.endSection();
+                 this.theProfiler.startSection("tracker");
++                worldserver.timings.tracker.startTiming();
+                 worldserver.getEntityTracker().updateTrackedEntities();
++                worldserver.timings.tracker.stopTiming();
+                 this.theProfiler.endSection();
+                 this.theProfiler.endSection();
+             }
+@@ -727,17 +854,23 @@
          }
  
          this.theProfiler.endStartSection("dim_unloading");
 -        net.minecraftforge.common.DimensionManager.unloadWorlds(worldTickTimes);
-+        //net.minecraftforge.common.DimensionManager.unloadWorlds(worldTickTimes);
++        //net.minecraftforge.common.DimensionManager.unloadWorlds(worldTickTimes); //CatServer - Disable forge unload worlds
          this.theProfiler.endStartSection("connection");
++        SpigotTimings.connectionTimer.startTiming();
          this.getNetworkSystem().networkTick();
++        SpigotTimings.connectionTimer.stopTiming();
          this.theProfiler.endStartSection("players");
-@@ -831,7 +938,7 @@
++        SpigotTimings.playerListTimer.startTiming();
+         this.playerList.onTick();
++        SpigotTimings.playerListTimer.stopTiming();
+         this.theProfiler.endStartSection("tickables");
+ 
++        SpigotTimings.tickablesTimer.startTiming();
+         for (int k = 0; k < this.tickables.size(); ++k)
+         {
+             ((ITickable)this.tickables.get(k)).update();
+         }
++        SpigotTimings.tickablesTimer.stopTiming();
+ 
+         this.theProfiler.endSection();
+     }
+@@ -831,51 +964,7 @@
  
      public List<String> getTabCompletions(ICommandSender sender, String input, @Nullable BlockPos pos, boolean hasTargetBlock)
      {
 -        List<String> list = Lists.<String>newArrayList();
-+        /*List<String> list = Lists.<String>newArrayList();
-         boolean flag = input.startsWith("/");
- 
-         if (flag)
-@@ -875,7 +982,8 @@
-             }
- 
-             return list;
+-        boolean flag = input.startsWith("/");
+-
+-        if (flag)
+-        {
+-            input = input.substring(1);
 -        }
-+        }*/
+-
+-        if (!flag && !hasTargetBlock)
+-        {
+-            String[] astring = input.split(" ", -1);
+-            String s2 = astring[astring.length - 1];
+-
+-            for (String s1 : this.playerList.getAllUsernames())
+-            {
+-                if (CommandBase.doesStringStartWith(s2, s1))
+-                {
+-                    list.add(s1);
+-                }
+-            }
+-
+-            return list;
+-        }
+-        else
+-        {
+-            boolean flag1 = !input.contains(" ");
+-            List<String> list1 = this.commandManager.getTabCompletionOptions(sender, input, pos);
+-
+-            if (!list1.isEmpty())
+-            {
+-                for (String s : list1)
+-                {
+-                    if (flag1)
+-                    {
+-                        list.add("/" + s);
+-                    }
+-                    else
+-                    {
+-                        list.add(s);
+-                    }
+-                }
+-            }
+-
+-            return list;
+-        }
 +        return server.tabComplete(sender,input);
      }
  
      public boolean isAnvilFileSet()
-@@ -1320,6 +1428,13 @@
+@@ -1320,6 +1409,13 @@
      {
          return this;
      }
@@ -652,7 +767,7 @@
  
      public int getMaxWorldSize()
      {
-@@ -1400,10 +1515,14 @@
+@@ -1400,10 +1496,14 @@
      @SideOnly(Side.SERVER)
      public static void main(String[] p_main_0_)
      {
@@ -667,7 +782,7 @@
              boolean flag = true;
              String s = null;
              String s1 = ".";
-@@ -1466,14 +1585,16 @@
+@@ -1466,14 +1566,16 @@
                  {
                      ++j;
                  }
@@ -687,7 +802,7 @@
              if (s != null)
              {
                  dedicatedserver.setServerOwner(s);
-@@ -1512,6 +1633,24 @@
+@@ -1512,6 +1614,24 @@
                      dedicatedserver.stopServer();
                  }
              });
@@ -712,7 +827,7 @@
          }
          catch (Exception exception)
          {
-@@ -1528,7 +1667,8 @@
+@@ -1528,7 +1648,8 @@
      @SideOnly(Side.SERVER)
      public boolean isDebuggingEnabled()
      {
