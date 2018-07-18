@@ -17,11 +17,14 @@
  import net.minecraft.init.Items;
  import net.minecraft.init.MobEffects;
  import net.minecraft.init.SoundEvents;
-@@ -96,6 +93,12 @@
+@@ -96,6 +93,15 @@
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
  
 +import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.entity.CraftItem;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerDropItemEvent;
 +
 +//CraftBukkit start
 +
@@ -30,7 +33,7 @@
  @SuppressWarnings("incomplete-switch")
  public abstract class EntityPlayer extends EntityLivingBase
  {
-@@ -147,7 +150,17 @@
+@@ -147,7 +153,17 @@
      private ItemStack itemStackMainHand;
      private final CooldownTracker cooldownTracker = this.createCooldownTracker();
      public EntityFishHook fishEntity;
@@ -49,7 +52,7 @@
      protected CooldownTracker createCooldownTracker()
      {
          return new CooldownTracker();
-@@ -437,6 +450,10 @@
+@@ -437,6 +453,10 @@
      {
          return this.getHealth() <= 0.0F || this.isPlayerSleeping();
      }
@@ -60,7 +63,40 @@
  
      public void closeScreen()
      {
-@@ -1078,14 +1095,16 @@
+@@ -771,7 +791,31 @@
+                 entityitem.motionY += (double)((this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F);
+                 entityitem.motionZ += Math.sin((double)f3) * (double)f2;
+             }
+-
++            // CraftBukkit start
++            Player player = (Player)getBukkitEntity();
++            CraftItem drop = new CraftItem(this.worldObj.getServer(), entityitem);
++            
++            PlayerDropItemEvent event = new PlayerDropItemEvent(player, drop);
++            this.worldObj.getServer().getPluginManager().callEvent(event);
++            if (event.isCancelled())
++            {
++              org.bukkit.inventory.ItemStack cur = player.getInventory().getItemInHand();
++              if ((traceItem) && ((cur == null) || (cur.getAmount() == 0)))
++              {
++                player.getInventory().setItemInHand(drop.getItemStack());
++              }
++              else if ((traceItem) && (cur.isSimilar(drop.getItemStack())) && (drop.getItemStack().getAmount() == 1))
++              {
++                cur.setAmount(cur.getAmount() + 1);
++                player.getInventory().setItemInHand(cur);
++              }
++              else
++              {
++                player.getInventory().addItem(new org.bukkit.inventory.ItemStack[] { drop.getItemStack() });
++              }
++              return null;
++            }
++            // CraftBukkit end
+             ItemStack itemstack = this.dropItemAndGetStack(entityitem);
+ 
+             if (traceItem)
+@@ -1078,14 +1122,16 @@
          return (float)i / (float)this.inventory.armorInventory.length;
      }
  
@@ -81,7 +117,7 @@
              damageAmount = this.applyPotionDamageCalculations(damageSrc, damageAmount);
              float f = damageAmount;
              damageAmount = Math.max(damageAmount - this.getAbsorptionAmount(), 0.0F);
-@@ -1104,6 +1123,7 @@
+@@ -1104,6 +1150,7 @@
                  }
              }
          }

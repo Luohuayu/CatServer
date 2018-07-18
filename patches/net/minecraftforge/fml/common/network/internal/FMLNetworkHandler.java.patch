@@ -1,0 +1,59 @@
+--- ../src-base/minecraft/net/minecraftforge/fml/common/network/internal/FMLNetworkHandler.java
++++ ../src-work/minecraft/net/minecraftforge/fml/common/network/internal/FMLNetworkHandler.java
+@@ -35,6 +35,7 @@
+ import net.minecraft.network.NetworkManager;
+ import net.minecraft.network.Packet;
+ import net.minecraft.server.management.PlayerList;
++import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
+ import net.minecraftforge.common.util.FakePlayer;
+ import net.minecraftforge.fml.common.FMLCommonHandler;
+@@ -60,6 +61,16 @@
+ import com.google.gson.JsonArray;
+ import com.google.gson.JsonObject;
+ 
++//Cauldron start
++import net.minecraft.inventory.IInventory;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tileentity.TileEntity;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.inventory.CraftInventory;
++import org.bukkit.craftbukkit.inventory.CraftInventoryView;
++import org.bukkit.event.inventory.InventoryType;
++//Cauldron end
++
+ public class FMLNetworkHandler
+ {
+     public static final int READ_TIMEOUT = Integers.parseInt(System.getProperty("fml.readTimeout","30"),30);
+@@ -87,6 +98,31 @@
+             Container remoteGuiContainer = NetworkRegistry.INSTANCE.getRemoteGuiContainer(mc, entityPlayerMP, modGuiId, world, x, y, z);
+             if (remoteGuiContainer != null)
+             {
++                // Cauldron start - create bukkitView for passed container then fire open event.
++                if (entityPlayer != null)
++                {
++                    if (remoteGuiContainer.getBukkitView() == null)
++                    {
++                        TileEntity te = entityPlayer.worldObj.getTileEntity(new BlockPos(x, y, z));
++                        if (te != null && te instanceof IInventory)
++                        {
++                            IInventory teInv = (IInventory)te;
++                            CraftInventory inventory = new CraftInventory(teInv);
++                            remoteGuiContainer.bukkitView = new CraftInventoryView(entityPlayer.getBukkitEntity(), inventory, remoteGuiContainer);
++                        }
++                        else
++                        {
++                            remoteGuiContainer.bukkitView = new CraftInventoryView(entityPlayer.getBukkitEntity(), MinecraftServer.getServerInst().server.createInventory(entityPlayer.getBukkitEntity(), InventoryType.CHEST), remoteGuiContainer);
++                        }
++
++                        remoteGuiContainer = CraftEventFactory.callInventoryOpenEvent((EntityPlayerMP)entityPlayer, remoteGuiContainer, false);
++                        if (remoteGuiContainer == null)
++                        {
++                            return;
++                        }
++                    }
++                }
++                // Cauldron end
+                 entityPlayerMP.getNextWindowId();
+                 entityPlayerMP.closeContainer();
+                 int windowId = entityPlayerMP.currentWindowId;

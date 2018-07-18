@@ -1,6 +1,13 @@
 --- ../src-base/minecraft/net/minecraft/entity/item/EntityItem.java
 +++ ../src-work/minecraft/net/minecraft/entity/item/EntityItem.java
-@@ -35,7 +35,7 @@
+@@ -29,13 +29,14 @@
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.event.player.PlayerPickupItemEvent;
+ 
+ public class EntityItem extends Entity
+ {
      private static final Logger LOGGER = LogManager.getLogger();
      private static final DataParameter<Optional<ItemStack>> ITEM = EntityDataManager.<Optional<ItemStack>>createKey(EntityItem.class, DataSerializers.OPTIONAL_ITEM_STACK);
      private int age;
@@ -9,7 +16,7 @@
      private int health;
      private String thrower;
      private String owner;
-@@ -226,6 +226,7 @@
+@@ -226,6 +227,7 @@
                      }
                      else
                      {
@@ -17,7 +24,7 @@
                          itemstack1.stackSize += itemstack.stackSize;
                          other.delayBeforeCanPickup = Math.max(other.delayBeforeCanPickup, this.delayBeforeCanPickup);
                          other.age = Math.min(other.age, this.age);
-@@ -291,6 +292,11 @@
+@@ -291,6 +293,11 @@
          }
          else
          {
@@ -29,3 +36,27 @@
              this.setBeenAttacked();
              this.health = (int)((float)this.health - amount);
  
+@@ -366,6 +373,23 @@
+             if (this.delayBeforeCanPickup > 0) return;
+             ItemStack itemstack = this.getEntityItem();
+             int i = itemstack.stackSize;
++            
++            // CraftBukkit start
++            int canHold = entityIn.inventory.canHold(itemstack);
++            int remaining = itemstack.stackSize - canHold;
++            if ((this.delayBeforeCanPickup <= 0) && (canHold > 0))
++            {
++              itemstack.stackSize = canHold;
++              PlayerPickupItemEvent event = new PlayerPickupItemEvent((org.bukkit.entity.Player)entityIn.getBukkitEntity(), (org.bukkit.entity.Item)getBukkitEntity(), remaining);
++              
++              this.worldObj.getServer().getPluginManager().callEvent(event);
++              itemstack.stackSize = (canHold + remaining);
++              if (event.isCancelled()) {
++                return;
++              }
++              this.delayBeforeCanPickup = 0;
++            }
++            // CraftBukkit end
+ 
+             int hook = net.minecraftforge.event.ForgeEventFactory.onItemPickup(this, entityIn, itemstack);
+             if (hook < 0) return;
