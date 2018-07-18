@@ -28,6 +28,7 @@ import net.md_5.specialsource.RemapperProcessor;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.repo.RuntimeRepo;
 import net.md_5.specialsource.transformer.MavenShade;
+import net.minecraft.server.MinecraftServer;
 
 /**
  * A ClassLoader for plugins, to allow shared classes across multiple plugins
@@ -44,6 +45,7 @@ final class PluginClassLoader extends URLClassLoader {
     
     private JarRemapper remapper;
     private RemapperProcessor remapperProcessor;
+    private JarMapping jarMapping;
     private static final String org_bukkit_craftbukkit = new String(new char[] {'o','r','g','/','b','u','k','k','i','t','/','c','r','a','f','t','b','u','k','k','i','t'});
 
     PluginClassLoader(final JavaPluginLoader loader, final ClassLoader parent, final PluginDescriptionFile description, final File dataFolder, final File file) throws InvalidPluginException, MalformedURLException {
@@ -55,7 +57,7 @@ final class PluginClassLoader extends URLClassLoader {
         this.dataFolder = dataFolder;
         this.file = file;
 
-        JarMapping jarMapping = getJarMapping();
+        jarMapping = getJarMapping();
         jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
         jarMapping.setFallbackInheritanceProvider(new ClassLoaderProvider(this));
 
@@ -93,31 +95,38 @@ final class PluginClassLoader extends URLClassLoader {
     }
 
     Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
-        if (name.startsWith("org.bukkit.") || name.startsWith("net.minecraft.")) {
+        if (name.startsWith("net.minecraft.server."+CatServer.getNativeVersion())) {
+            String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
+            Class<?> clazz = ((net.minecraft.launchwrapper.LaunchClassLoader)MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
+            return clazz;
+        }
+
+        if (name.startsWith("org.bukkit.")) {
             throw new ClassNotFoundException(name);
         }
+
         Class<?> result = classes.get(name);
-
-        if (result == null) {
-            if (checkGlobal) {
-                result = loader.getClassByName(name);
-            }
-
+        synchronized (name.intern()) {
             if (result == null) {
-                if (remapper == null) {
-                    result = super.findClass(name);
-                } else {
-                    result = remappedFindClass(name);
+                if (checkGlobal) {
+                    result = loader.getClassByName(name);
                 }
-
-                if (result != null) {
-                    loader.setClass(name, result);
+    
+                if (result == null) {
+                    if (remapper == null) {
+                        result = super.findClass(name);
+                    } else {
+                        result = remappedFindClass(name);
+                    }
+    
+                    if (result != null) {
+                        loader.setClass(name, result);
+                    }
                 }
+    
+                classes.put(name, result);
             }
-
-            classes.put(name, result);
         }
-
         return result;
     }
 
@@ -152,6 +161,7 @@ final class PluginClassLoader extends URLClassLoader {
                 null,
                 null, false);
 
+        jarMapping.classes.put("net/minecraft/server/"+obfVersion+"/MinecraftServer", "net/minecraft/server/MinecraftServer");
         jarMapping.methods.put("net/minecraft/server/"+obfVersion+"/PlayerConnection/getPlayer ()Lorg/bukkit/craftbukkit/"+CatServer.getNativeVersion()+"/entity/CraftPlayer;", "getPlayerB");
     }
 
