@@ -90,11 +90,11 @@ final class PluginClassLoader extends URLClassLoader {
     }
 
     @Override
-    protected Class<?> findClass(String name) throws ClassNotFoundException {
+    public Class<?> findClass(String name) throws ClassNotFoundException {
         return findClass(name, true);
     }
 
-    Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
+    public Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
         if (name.startsWith("net.minecraft.server."+CatServer.getNativeVersion())) {
             String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
             Class<?> clazz = ((net.minecraft.launchwrapper.LaunchClassLoader)MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
