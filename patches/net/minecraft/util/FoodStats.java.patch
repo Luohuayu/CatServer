@@ -1,7 +1,23 @@
 --- ../src-base/minecraft/net/minecraft/util/FoodStats.java
 +++ ../src-work/minecraft/net/minecraft/util/FoodStats.java
-@@ -10,9 +10,9 @@
+@@ -1,20 +1,36 @@
+ package net.minecraft.util;
  
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.item.ItemFood;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.nbt.NBTTagCompound;
++import net.minecraft.network.play.server.SPacketUpdateHealth;
+ import net.minecraft.world.EnumDifficulty;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.FoodLevelChangeEvent;
++// CraftBukkit end
++
  public class FoodStats
  {
 -    private int foodLevel = 20;
@@ -12,4 +28,60 @@
 +    public float foodExhaustionLevel;
      private int foodTimer;
      private int prevFoodLevel = 20;
++    private EntityPlayer entityplayer; // CraftBukkit
++    
++    // CraftBukkit start - added EntityPlayer constructor
++    public FoodStats(EntityPlayer entityplayer)
++    {
++        org.apache.commons.lang.Validate.notNull(entityplayer);
++        this.entityplayer = entityplayer;
++    }
++    // CraftBukkit end
  
+     public void addStats(int foodLevelIn, float foodSaturationModifier)
+     {
+@@ -24,7 +40,15 @@
+ 
+     public void addStats(ItemFood foodItem, ItemStack stack)
+     {
+-        this.addStats(foodItem.getHealAmount(stack), foodItem.getSaturationModifier(stack));
++        // CraftBukkit start
++        int oldFoodLevel = this.foodLevel;
++        
++        FoodLevelChangeEvent event = CraftEventFactory.callFoodLevelChangeEvent(this.entityplayer, foodItem.getHealAmount(stack) + oldFoodLevel);
++        if (!event.isCancelled()) {
++            addStats(event.getFoodLevel() - oldFoodLevel, foodItem.getSaturationModifier(stack));
++        }
++        ((EntityPlayerMP) entityplayer).connection.sendPacket(new SPacketUpdateHealth(((EntityPlayerMP)entityplayer).getBukkitEntity().getScaledHealth(), this.foodLevel, this.foodSaturationLevel));
++        // CraftBukkit end
+     }
+ 
+     public void onUpdate(EntityPlayer player)
+@@ -42,7 +66,16 @@
+             }
+             else if (enumdifficulty != EnumDifficulty.PEACEFUL)
+             {
+-                this.foodLevel = Math.max(this.foodLevel - 1, 0);
++                // CraftBukkit start
++                FoodLevelChangeEvent event = CraftEventFactory.callFoodLevelChangeEvent(entityplayer, Math.max(this.foodLevel - 1, 0));
++
++                if (!event.isCancelled())
++                {
++                    this.foodLevel = event.getFoodLevel();
++                }
++
++                ((EntityPlayerMP) entityplayer).connection.sendPacket(new SPacketUpdateHealth(((EntityPlayerMP) entityplayer).getBukkitEntity().getScaledHealth(), this.foodLevel, this.foodSaturationLevel));
++                // CraftBukkit end
+             }
+         }
+ 
+@@ -66,7 +99,8 @@
+ 
+             if (this.foodTimer >= 80)
+             {
+-                player.heal(1.0F);
++                // CraftBukkit - added RegainReason
++                player.heal(1.0F, org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason.SATIATED);
+                 this.addExhaustion(4.0F);
+                 this.foodTimer = 0;
+             }
