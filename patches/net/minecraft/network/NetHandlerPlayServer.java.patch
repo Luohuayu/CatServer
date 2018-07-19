@@ -657,19 +657,17 @@
      }
  
      public void processPlayerDigging(CPacketPlayerDigging packetIn)
-@@ -670,6 +880,20 @@
+@@ -670,6 +880,18 @@
          EnumFacing enumfacing = packetIn.getDirection();
          this.playerEntity.markPlayerActive();
  
-+        PlayerInteractEvent eventCB = CraftEventFactory.callPlayerInteractEvent(this.playerEntity, Action.RIGHT_CLICK_BLOCK, blockpos, enumfacing, itemstack, enumhand);
-+        if (eventCB.isCancelled()) {
++        PlayerInteractEvent event = CraftEventFactory.callPlayerInteractEvent(this.playerEntity, Action.RIGHT_CLICK_BLOCK, blockpos, enumfacing, itemstack, enumhand);
++        if (event.useItemInHand() == Event.Result.DENY) {
 +            //CatServer start - Notify update
 +            this.playerEntity.connection.sendPacket(new SPacketBlockChange(worldserver, blockpos));
 +            this.playerEntity.connection.sendPacket(new SPacketBlockChange(worldserver, blockpos.offset(enumfacing)));
 +            TileEntity tileEntity = worldserver.getTileEntity(blockpos);
-+            if(tileEntity != null) {
-+                this.playerEntity.connection.sendPacket(tileEntity.getUpdatePacket());
-+            }
++            if(tileEntity != null) this.playerEntity.connection.sendPacket(tileEntity.getUpdatePacket());
 +            this.playerEntity.getBukkitEntity().updateInventory();
 +            //CatServer end
 +            return;
@@ -678,7 +676,7 @@
          if (blockpos.getY() < this.serverController.getBuildLimit() - 1 || enumfacing != EnumFacing.UP && blockpos.getY() < this.serverController.getBuildLimit())
          {
              double dist = playerEntity.interactionManager.getBlockReachDistance() + 3;
-@@ -697,6 +921,25 @@
+@@ -697,6 +919,25 @@
          }
      }
  
@@ -704,19 +702,21 @@
      public void processPlayerBlockPlacement(CPacketPlayerTryUseItem packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
-@@ -705,6 +948,12 @@
-         ItemStack itemstack = this.playerEntity.getHeldItem(enumhand);
-         this.playerEntity.markPlayerActive();
+@@ -707,6 +948,14 @@
  
-+        PlayerInteractEvent eventCB = CraftEventFactory.callPlayerInteractEvent(this.playerEntity, Action.RIGHT_CLICK_AIR, itemstack, enumhand);
-+        if (eventCB.isCancelled()) {
-+            this.playerEntity.getBukkitEntity().updateInventory(); //CatServer - Notify update
-+            return;
-+        }
-+        
          if (itemstack != null)
          {
++        	// CraftBukkit start
++        	PlayerInteractEvent event = CraftEventFactory.callPlayerInteractEvent(this.playerEntity, Action.RIGHT_CLICK_AIR, itemstack, enumhand);
++            if (event.useItemInHand() == Event.Result.DENY) {
++                this.playerEntity.getBukkitEntity().updateInventory();
++                return;
++            }
++            // CraftBukkit end
++
              this.playerEntity.interactionManager.processRightClick(this.playerEntity, worldserver, itemstack, enumhand);
+             itemstack = this.playerEntity.getHeldItem(enumhand);
+ 
 @@ -779,7 +1028,8 @@
      }
  

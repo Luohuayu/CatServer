@@ -1,6 +1,13 @@
 --- ../src-base/minecraft/net/minecraftforge/event/world/BlockEvent.java
 +++ ../src-work/minecraft/net/minecraftforge/event/world/BlockEvent.java
-@@ -25,6 +25,7 @@
+@@ -19,12 +19,14 @@
+ 
+ package net.minecraftforge.event.world;
+ 
++import java.util.ArrayList;
+ import java.util.EnumSet;
+ import java.util.List;
+ 
  import net.minecraft.block.state.IBlockState;
  import net.minecraft.enchantment.EnchantmentHelper;
  import net.minecraft.entity.player.EntityPlayer;
@@ -8,7 +15,7 @@
  import net.minecraft.init.Enchantments;
  import net.minecraft.item.ItemStack;
  import net.minecraft.util.EnumHand;
-@@ -39,6 +40,7 @@
+@@ -39,6 +41,7 @@
  import net.minecraftforge.fml.common.eventhandler.Event.Result;
  
  import com.google.common.collect.ImmutableList;
@@ -16,7 +23,7 @@
  
  import javax.annotation.Nullable;
  
-@@ -123,17 +125,23 @@
+@@ -123,17 +126,23 @@
          {
              super(world, pos, state);
              this.player = player;
@@ -45,17 +52,39 @@
          }
  
          public EntityPlayer getPlayer()
-@@ -191,6 +199,13 @@
+@@ -191,9 +200,10 @@
              this.placedBlock = blockSnapshot.getCurrentBlock();
              this.placedAgainst = placedAgainst;
              this.hand = hand;
-+            // Svarka start - handle event on bukkit side
-+            org.bukkit.craftbukkit.block.CraftBlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(super.world, super.pos.getX(), super.pos.getY(), super.getPos().getZ());
-+            org.bukkit.event.block.BlockPlaceEvent bukkitEvent = CraftEventFactory.callBlockPlaceEvent(super.world, player, hand , blockstate, super.pos.getX(), super.pos.getY(), super.getPos().getZ());
+-            if (DEBUG)
+-            {
+-                System.out.printf("Created PlaceEvent - [PlacedBlock: %s ][PlacedAgainst: %s ][ItemStack: %s ][Player: %s ][Hand: %s]\n", getPlacedBlock(), placedAgainst, getItemInHand(), player, hand);
++            org.bukkit.craftbukkit.block.CraftBlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(super.world, super.pos.getX(), super.pos.getY(), super.pos.getZ());
++            org.bukkit.event.block.BlockPlaceEvent bukkitEvent = CraftEventFactory.callBlockPlaceEvent(super.world, player, hand , blockstate, super.pos.getX(), super.pos.getY(), super.pos.getZ());
++            if (bukkitEvent.isCancelled() || !bukkitEvent.canBuild()) {
++                this.setCanceled(true);
+             }
+         }
+ 
+@@ -228,10 +238,18 @@
+         public MultiPlaceEvent(List<BlockSnapshot> blockSnapshots, IBlockState placedAgainst, EntityPlayer player, @Nullable EnumHand hand) {
+             super(blockSnapshots.get(0), placedAgainst, player, hand);
+             this.blockSnapshots = ImmutableList.copyOf(blockSnapshots);
+-            if (DEBUG)
+-            {
+-                System.out.printf("Created MultiPlaceEvent - [PlacedAgainst: %s ][ItemInHand: %s ][Player: %s ]\n", placedAgainst, this.getItemInHand(), player);
++
++            List<org.bukkit.block.BlockState> blocks = new ArrayList<org.bukkit.block.BlockState>();
++            for (int i=0; i<this.blockSnapshots.size(); i++) {
++            	BlockSnapshot block = this.blockSnapshots.get(i);
++            	org.bukkit.craftbukkit.block.CraftBlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(super.getWorld(), block.getPos().getX(), block.getPos().getY(), block.getPos().getZ());
++            	blocks.add(blockstate);
+             }
++
++            org.bukkit.event.block.BlockPlaceEvent bukkitEvent = CraftEventFactory.callBlockMultiPlaceEvent(super.getWorld(), player, hand , blocks, super.getPos().getX(), super.getPos().getY(), super.getPos().getZ());
 +            if (bukkitEvent.isCancelled() || !bukkitEvent.canBuild()) {
 +                this.setCanceled(true);
 +            }
-+            // Svarka end
-             if (DEBUG)
-             {
-                 System.out.printf("Created PlaceEvent - [PlacedBlock: %s ][PlacedAgainst: %s ][ItemStack: %s ][Player: %s ][Hand: %s]\n", getPlacedBlock(), placedAgainst, getItemInHand(), player, hand);
+         }
+ 
+         /**
