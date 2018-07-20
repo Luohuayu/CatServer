@@ -10,11 +10,15 @@ import org.bukkit.metadata.MetadataValue;
 import net.minecraft.tileentity.TileEntity;
 import org.bukkit.Location;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.nbt.NBTTagCompound;
+
 import org.bukkit.material.Attachable;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import net.minecraft.util.math.BlockPos;
 import org.bukkit.Chunk;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.BlockSnapshot;
+
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.material.MaterialData;
@@ -29,6 +33,7 @@ public class CraftBlockState implements BlockState
     private final int x;
     private final int y;
     private final int z;
+    private final NBTTagCompound nbt; // Cauldron
     protected int type;
     protected MaterialData data;
     protected int flag;
@@ -42,6 +47,16 @@ public class CraftBlockState implements BlockState
         this.chunk = (CraftChunk)block.getChunk();
         this.flag = 3;
         this.createData(block.getData());
+        
+        // Cauldron start - save TE data
+        TileEntity te = world.getHandle().getTileEntity(new BlockPos(this.x, this.y, this.z));
+        if (te != null)
+        {
+            nbt = new NBTTagCompound();
+            te.writeToNBT(nbt);
+        }
+        else nbt = null;
+        // Cauldron end
     }
     
     public CraftBlockState(final Block block, final int flag) {
@@ -57,6 +72,30 @@ public class CraftBlockState implements BlockState
         this.z = (x ? 1 : 0);
         this.y = (x ? 1 : 0);
         this.x = (x ? 1 : 0);
+        this.nbt = null;
+    }
+    
+    public CraftBlockState(BlockSnapshot blocksnapshot)
+    {
+        this.world = blocksnapshot.getWorld().getWorld();
+        this.x = blocksnapshot.getPos().getX();
+        this.y = blocksnapshot.getPos().getY();
+        this.z = blocksnapshot.getPos().getZ();
+        this.type = net.minecraft.block.Block.getIdFromBlock(blocksnapshot.getReplacedBlock().getBlock());
+        this.chunk = (CraftChunk) this.world.getBlockAt(this.x, this.y, this.z).getChunk();
+        this.flag = 3;
+        TileEntity te = this.world.getHandle().getTileEntity(new BlockPos(x, y, z));
+        if (te != null)
+        {
+            this.nbt = new NBTTagCompound();
+            te.writeToNBT(this.nbt);
+        }
+        else
+        {
+            this.nbt = null;
+        }
+
+        this.createData((byte) blocksnapshot.getMeta());
     }
     
     public static CraftBlockState getBlockState(final World world, final int x, final int y, final int z) {
@@ -180,6 +219,16 @@ public class CraftBlockState implements BlockState
         if (applyPhysics && this.getData() instanceof Attachable) {
             this.world.getHandle().notifyNeighborsOfStateChange(pos.offset(CraftBlock.blockFaceToNotch(((Attachable)this.getData()).getAttachedFace())), newBlock.getBlock());
         }
+        // Cauldron start - restore TE data from snapshot
+        if (nbt != null)
+        {
+            TileEntity te = world.getHandle().getTileEntity(new BlockPos(this.x, this.y, this.z));
+            if (te != null)
+            {
+                te.readFromNBT(nbt);
+            }
+        }
+        // Cauldron end
         return true;
     }
     
@@ -246,7 +295,9 @@ public class CraftBlockState implements BlockState
     }
     
     public TileEntity getTileEntity() {
-        return null;
+        if (nbt != null)
+            return TileEntity.create(this.world.getHandle(), nbt);
+        else return null;
     }
     
     @Override

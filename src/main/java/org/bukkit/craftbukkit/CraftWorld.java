@@ -4,6 +4,7 @@
 
 package org.bukkit.craftbukkit;
 
+import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
 import org.bukkit.*;
 import org.bukkit.metadata.MetadataStoreBase;
@@ -674,28 +675,28 @@ public class CraftWorld implements World
     @Override
     public boolean generateTree(final Location loc, final TreeType type, final BlockChangeDelegate delegate) {
         this.world.captureTreeGeneration = true;
-        this.world.captureBlockStates = true;
+        this.world.captureBlockSnapshots = true;
         final boolean grownTree = this.generateTree(loc, type);
-        this.world.captureBlockStates = false;
+        this.world.captureBlockSnapshots = false;
         this.world.captureTreeGeneration = false;
         if (grownTree) {
-            for (final BlockState blockstate : this.world.capturedBlockStates) {
-                final int x = blockstate.getX();
-                final int y = blockstate.getY();
-                final int z = blockstate.getZ();
-                final BlockPos position = new BlockPos(x, y, z);
+            for (BlockSnapshot blocksnapshot : this.world.capturedBlockSnapshots) {
+                final BlockPos position = blocksnapshot.getPos();
+                final int x = position.getX();
+                final int y = position.getY();
+                final int z = position.getZ();
                 final IBlockState oldBlock = this.world.getBlockState(position);
-                final int typeId = blockstate.getTypeId();
-                final int data = blockstate.getRawData();
-                final int flag = ((CraftBlockState)blockstate).getFlag();
+                final int typeId = net.minecraft.block.Block.getIdFromBlock(blocksnapshot.getReplacedBlock().getBlock());
+                final int data = blocksnapshot.getMeta();
+                final int flag = blocksnapshot.getFlag();
                 delegate.setTypeIdAndData(x, y, z, typeId, data);
                 final IBlockState newBlock = this.world.getBlockState(position);
                 this.world.markAndNotifyBlock(position, null, oldBlock, newBlock, flag);
             }
-            this.world.capturedBlockStates.clear();
+            this.world.capturedBlockSnapshots.clear();
             return true;
         }
-        this.world.capturedBlockStates.clear();
+        this.world.capturedBlockSnapshots.clear();
         return false;
     }
     
