@@ -1,19 +1,14 @@
 package luohuayu.CatServer;
 
-import org.spigotmc.RestartCommand;
-
 public class CatServer {
-	private static final String versions = "1.0.8";
+	private static final String version = "1.0.9";
+	private static final String native_verson = "v1_10_R1";
 
-	public static String getVersions(){
-		return versions;
+	public static String getVersion(){
+		return version;
 	}
-
-    public static void restart() {
-		RestartCommand.restart();
-    }
     
     public static String getNativeVersion() {
-        return "v1_10_R1";
+        return native_verson;
     }
 }
