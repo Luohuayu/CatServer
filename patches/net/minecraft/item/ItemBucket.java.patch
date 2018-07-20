@@ -1,0 +1,123 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemBucket.java
++++ ../src-work/minecraft/net/minecraft/item/ItemBucket.java
+@@ -1,6 +1,12 @@
+ package net.minecraft.item;
+ 
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.player.PlayerBucketEmptyEvent;
++import org.bukkit.event.player.PlayerBucketFillEvent;
++
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockLiquid;
+ import net.minecraft.block.material.Material;
+@@ -69,17 +75,33 @@
+ 
+                     if (material == Material.WATER && ((Integer)iblockstate.getValue(BlockLiquid.LEVEL)).intValue() == 0)
+                     {
++                        // CraftBukkit start
++                        PlayerBucketFillEvent cbEvent = CraftEventFactory.callPlayerBucketFillEvent(playerIn, blockpos.getX(), blockpos.getY(), blockpos.getZ(), null, itemStackIn, Items.WATER_BUCKET);
++
++                        if (cbEvent.isCancelled())
++                        {
++                            return new ActionResult(EnumActionResult.FAIL, itemStackIn);
++                        }
++                        // CraftBukkit end
+                         worldIn.setBlockState(blockpos, Blocks.AIR.getDefaultState(), 11);
+                         playerIn.addStat(StatList.getObjectUseStats(this));
+                         playerIn.playSound(SoundEvents.ITEM_BUCKET_FILL, 1.0F, 1.0F);
+-                        return new ActionResult(EnumActionResult.SUCCESS, this.fillBucket(itemStackIn, playerIn, Items.WATER_BUCKET));
++                        return new ActionResult(EnumActionResult.SUCCESS, this.fillBucket(itemStackIn, playerIn, Items.WATER_BUCKET, cbEvent.getItemStack())); // CraftBukkit - added Event stack
+                     }
+                     else if (material == Material.LAVA && ((Integer)iblockstate.getValue(BlockLiquid.LEVEL)).intValue() == 0)
+                     {
++                        // CraftBukkit start
++                        PlayerBucketFillEvent cbEvent = CraftEventFactory.callPlayerBucketFillEvent(playerIn, blockpos.getX(), blockpos.getY(), blockpos.getZ(), null, itemStackIn, Items.LAVA_BUCKET);
++
++                        if (cbEvent.isCancelled())
++                        {
++                            return new ActionResult(EnumActionResult.FAIL, itemStackIn);
++                        }
++                        // CraftBukkit end
+                         playerIn.playSound(SoundEvents.ITEM_BUCKET_FILL_LAVA, 1.0F, 1.0F);
+                         worldIn.setBlockState(blockpos, Blocks.AIR.getDefaultState(), 11);
+                         playerIn.addStat(StatList.getObjectUseStats(this));
+-                        return new ActionResult(EnumActionResult.SUCCESS, this.fillBucket(itemStackIn, playerIn, Items.LAVA_BUCKET));
++                        return new ActionResult(EnumActionResult.SUCCESS, this.fillBucket(itemStackIn, playerIn, Items.LAVA_BUCKET, cbEvent.getItemStack()));
+                     }
+                     else
+                     {
+@@ -96,8 +118,8 @@
+                 {
+                     return new ActionResult(EnumActionResult.FAIL, itemStackIn);
+                 }
+-                else if (this.tryPlaceContainedLiquid(playerIn, worldIn, blockpos1))
+-                {
++                //else if (this.tryPlaceContainedLiquid(playerIn, worldIn, blockpos1))
++                else if (this.tryPlaceContainedLiquid(playerIn, worldIn, blockpos1, blockpos, itemStackIn)) { // CraftBukkit
+                     playerIn.addStat(StatList.getObjectUseStats(this));
+                     return !playerIn.capabilities.isCreativeMode ? new ActionResult(EnumActionResult.SUCCESS, new ItemStack(Items.BUCKET)) : new ActionResult(EnumActionResult.SUCCESS, itemStackIn);
+                 }
+@@ -109,35 +131,57 @@
+         }
+     }
+ 
++    // Cauldron start - vanilla compatibility
+     private ItemStack fillBucket(ItemStack emptyBuckets, EntityPlayer player, Item fullBucket)
+     {
++        return this.fillBucket(emptyBuckets, player, fullBucket, null);
++    }
++    // Cauldron end
++
++    // CraftBukkit - added ob.ItemStack result - TODO: Is this... the right way to handle this?
++    private ItemStack fillBucket(ItemStack emptyBuckets, EntityPlayer player, Item fullBucket, org.bukkit.inventory.ItemStack result) {
+         if (player.capabilities.isCreativeMode)
+         {
+             return emptyBuckets;
+         }
+         else if (--emptyBuckets.stackSize <= 0)
+         {
+-            return new ItemStack(fullBucket);
++            return CraftItemStack.asNMSCopy(result); // CraftBukkit
+         }
+         else
+         {
+-            if (!player.inventory.addItemStackToInventory(new ItemStack(fullBucket)))
++            if (!player.inventory.addItemStackToInventory(CraftItemStack.asNMSCopy(result))) // CraftBukkit
+             {
+-                player.dropItem(new ItemStack(fullBucket), false);
++                player.dropItem(CraftItemStack.asNMSCopy(result), false); // CraftBukkit
+             }
+ 
+             return emptyBuckets;
+         }
+     }
+ 
++    // CraftBukkit start
+     public boolean tryPlaceContainedLiquid(@Nullable EntityPlayer player, World worldIn, BlockPos posIn)
+     {
++        return tryPlaceContainedLiquid(player, worldIn, posIn, null, null);
++    }
++
++    public boolean tryPlaceContainedLiquid(@Nullable EntityPlayer player, World worldIn, BlockPos posIn, BlockPos clicked, ItemStack itemstack) {
++    // CraftBukkit end
+         if (this.containedBlock == Blocks.AIR)
+         {
+             return false;
+         }
+         else
+         {
++            // CraftBukkit start
++            if (player != null&&clicked != null&&itemstack!=null) {
++                PlayerBucketEmptyEvent cbEvent = CraftEventFactory.callPlayerBucketEmptyEvent(player, clicked.getX(), clicked.getY(), clicked.getZ(), null, itemstack);
++                if (cbEvent.isCancelled()) {
++                    // TODO: inventory not updated
++                    return false;
++                }
++            }
++            // CraftBukkit end
+             IBlockState iblockstate = worldIn.getBlockState(posIn);
+             Material material = iblockstate.getMaterial();
+             boolean flag = !material.isSolid();
