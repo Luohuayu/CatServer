@@ -36,32 +36,13 @@
  import net.minecraft.world.GameType;
  import net.minecraft.world.World;
  import net.minecraft.world.WorldServer;
-@@ -62,9 +70,52 @@
+@@ -62,9 +70,33 @@
  import net.minecraft.world.storage.WorldInfo;
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
 +
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-+import org.bukkit.Bukkit;
-+import org.bukkit.Location;
-+import org.bukkit.TravelAgent;
-+import org.bukkit.WeatherType;
-+import org.bukkit.craftbukkit.CraftServer;
-+import org.bukkit.craftbukkit.CraftTravelAgent;
-+import org.bukkit.craftbukkit.CraftWorld;
-+import org.bukkit.craftbukkit.chunkio.ChunkIOExecutor;
-+import org.bukkit.craftbukkit.event.CraftEventFactory;
-+import org.bukkit.craftbukkit.util.CraftChatMessage;
-+import org.bukkit.entity.Player;
-+import org.bukkit.event.player.PlayerChangedWorldEvent;
-+import org.bukkit.event.player.PlayerJoinEvent;
-+import org.bukkit.event.player.PlayerLoginEvent;
-+import org.bukkit.event.player.PlayerPortalEvent;
-+import org.bukkit.event.player.PlayerQuitEvent;
-+import org.bukkit.event.player.PlayerRespawnEvent;
-+import org.bukkit.event.player.PlayerTeleportEvent;
-+import org.bukkit.util.Vector;
  
 +// CraftBukkit start
 +import org.bukkit.craftbukkit.CraftServer;
@@ -89,7 +70,7 @@
  public abstract class PlayerList
  {
      public static final File FILE_PLAYERBANS = new File("banned-players.json");
-@@ -74,23 +125,31 @@
+@@ -74,23 +106,31 @@
      private static final Logger LOG = LogManager.getLogger();
      private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd \'at\' HH:mm:ss z");
      private final MinecraftServer mcServer;
@@ -123,7 +104,7 @@
          this.bannedPlayers = new UserListBans(FILE_PLAYERBANS);
          this.bannedIPs = new UserListIPBans(FILE_IPBANS);
          this.ops = new UserListOps(FILE_OPS);
-@@ -130,13 +189,15 @@
+@@ -130,13 +170,15 @@
              s1 = netManager.getRemoteAddress().toString();
          }
  
@@ -140,7 +121,7 @@
          nethandlerplayserver.sendPacket(new SPacketCustomPayload("MC|Brand", (new PacketBuffer(Unpooled.buffer())).writeString(this.getServerInstance().getServerModName())));
          nethandlerplayserver.sendPacket(new SPacketServerDifficulty(worldinfo.getDifficulty(), worldinfo.isDifficultyLocked()));
          nethandlerplayserver.sendPacket(new SPacketSpawnPosition(blockpos));
-@@ -147,20 +208,25 @@
+@@ -147,20 +189,25 @@
          playerIn.getStatFile().sendAchievements(playerIn);
          this.sendScoreboard((ServerScoreboard)worldserver.getScoreboard(), playerIn);
          this.mcServer.refreshStatusNextTick();
@@ -173,7 +154,7 @@
          nethandlerplayserver.setPlayerLocation(playerIn.posX, playerIn.posY, playerIn.posZ, playerIn.rotationYaw, playerIn.rotationPitch);
          this.updateTimeAndWeatherForPlayer(playerIn, worldserver);
  
-@@ -226,9 +292,11 @@
+@@ -226,9 +273,11 @@
  
          playerIn.addSelfToInternalCraftingInventory();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().firePlayerLoggedIn(playerIn);
@@ -186,7 +167,7 @@
      {
          Set<ScoreObjective> set = Sets.<ScoreObjective>newHashSet();
  
-@@ -352,21 +420,47 @@
+@@ -352,21 +401,47 @@
          }
      }
  
@@ -241,7 +222,7 @@
      }
  
      public void serverUpdateMountedMovingPlayer(EntityPlayerMP playerIn)
-@@ -374,11 +468,22 @@
+@@ -374,11 +449,22 @@
          playerIn.getServerWorld().getPlayerChunkMap().updateMountedMovingPlayer(playerIn);
      }
  
@@ -265,7 +246,7 @@
          this.writePlayerData(playerIn);
  
          if (playerIn.isRiding())
-@@ -412,13 +517,50 @@
+@@ -412,13 +498,50 @@
              this.playerStatFiles.remove(uuid);
          }
          net.minecraftforge.common.chunkio.ChunkIOExecutor.adjustPoolSize(this.getCurrentPlayerCount());
@@ -315,12 +296,12 @@
 +        final SocketAddress socketaddress = loginlistener.networkManager.getRemoteAddress();
 +        final EntityPlayerMP entity = new EntityPlayerMP(this.mcServer, this.mcServer.worldServers[0], profile, new PlayerInteractionManager(this.mcServer.worldServers[0]));
 +        final Player player = entity.getBukkitEntity();
-+        final PlayerLoginEvent event = new PlayerLoginEvent(player, hostname, ((java.net.InetSocketAddress)socketaddress).getAddress());
++        final PlayerLoginEvent event = new PlayerLoginEvent(player, hostname, ((java.net.InetSocketAddress) socketaddress).getAddress(), ((java.net.InetSocketAddress) loginlistener.networkManager.getRawAddress()).getAddress());
 +        if (/*this.bannedPlayers.isBanned(profile)*/getBannedPlayers().isBanned(profile) && !getBannedPlayers().getEntry(profile).hasBanExpired())
          {
              UserListBansEntry userlistbansentry = (UserListBansEntry)this.bannedPlayers.getEntry(profile);
              String s1 = "You are banned from this server!\nReason: " + userlistbansentry.getBanReason();
-@@ -428,15 +570,16 @@
+@@ -428,15 +551,16 @@
                  s1 = s1 + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistbansentry.getBanEndDate());
              }
  
@@ -341,7 +322,7 @@
              String s = "Your IP address is banned from this server!\nReason: " + userlistipbansentry.getBanReason();
  
              if (userlistipbansentry.getBanEndDate() != null)
-@@ -444,17 +587,27 @@
+@@ -444,17 +568,27 @@
                  s = s + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistipbansentry.getBanEndDate());
              }
  
@@ -373,7 +354,7 @@
          List<EntityPlayerMP> list = Lists.<EntityPlayerMP>newArrayList();
  
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -490,11 +643,16 @@
+@@ -490,11 +624,16 @@
              playerinteractionmanager = new PlayerInteractionManager(this.mcServer.worldServerForDimension(0));
          }
  
@@ -391,7 +372,7 @@
          World world = mcServer.worldServerForDimension(dimension);
          if (world == null)
          {
-@@ -502,82 +660,186 @@
+@@ -502,82 +641,186 @@
          }
          else if (!world.provider.canRespawnHere())
          {
@@ -471,11 +452,6 @@
 -            {
 -                entityplayermp.setLocationAndAngles((double)((float)blockpos1.getX() + 0.5F), (double)((float)blockpos1.getY() + 0.1F), (double)((float)blockpos1.getZ() + 0.5F), 0.0F, 0.0F);
 -                entityplayermp.setSpawnPoint(blockpos, flag);
--            }
--            else
--            {
--                entityplayermp.connection.sendPacket(new SPacketChangeGameState(0, 0.0F));
--            }
 +            boolean isBedSpawn = false;
 +            CraftWorld cworld = (CraftWorld) this.mcServer.server.getWorld(player.spawnWorld);
 +            if (cworld != null && blockpos != null) {
@@ -492,12 +468,15 @@
 +                    player.setSpawnPoint(blockpos, flag);
 +                    player.connection.sendPacket(new SPacketChangeGameState(0, 0.0F));
 +                }
-+            }
+             }
+-            else
+-            {
+-                entityplayermp.connection.sendPacket(new SPacketChangeGameState(0, 0.0F));
 +            if (loc == null) {
 +                cworld = this.mcServer.worldServers[0].getWorld();
 +                blockpos = cworld.getHandle().getSpawnPoint();
 +                loc = new Location(cworld, blockpos.getX() + 0.5f, blockpos.getY() + 0.1f, blockpos.getZ() + 0.5f);
-+            }
+             }
 +            final Player respawnPlayer = this.cserver.getPlayer(player);
 +            final PlayerRespawnEvent respawnEvent = new PlayerRespawnEvent(respawnPlayer, loc, isBedSpawn);
 +            this.cserver.getPluginManager().callEvent(respawnEvent);
@@ -632,7 +611,7 @@
  
      public void updatePermissionLevel(EntityPlayerMP player)
      {
-@@ -620,8 +882,75 @@
+@@ -620,8 +863,75 @@
  
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn)
      {
@@ -709,7 +688,7 @@
  
      @SuppressWarnings("unused")
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn, net.minecraft.world.Teleporter teleporter)
-@@ -720,7 +1049,22 @@
+@@ -720,7 +1030,22 @@
              ((EntityPlayerMP)this.playerEntityList.get(i)).connection.sendPacket(packetIn);
          }
      }
@@ -733,7 +712,7 @@
      public void sendPacketToAllPlayersInDimension(Packet<?> packetIn, int dimension)
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -836,12 +1180,24 @@
+@@ -836,12 +1161,24 @@
          int i = this.mcServer.getOpPermissionLevel();
          this.ops.addEntry(new UserListOpsEntry(profile, this.mcServer.getOpPermissionLevel(), this.ops.bypassesPlayerLimit(profile)));
          this.sendPlayerPermissionLevel(this.getPlayerByUUID(profile.getId()), i);
@@ -758,7 +737,7 @@
      }
  
      private void sendPlayerPermissionLevel(EntityPlayerMP player, int permLevel)
-@@ -896,7 +1252,11 @@
+@@ -896,7 +1233,11 @@
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {
              EntityPlayerMP entityplayermp = (EntityPlayerMP)this.playerEntityList.get(i);
@@ -771,7 +750,7 @@
              if (entityplayermp != except && entityplayermp.dimension == dimension)
              {
                  double d0 = x - entityplayermp.posX;
-@@ -961,16 +1321,21 @@
+@@ -961,16 +1302,21 @@
  
          if (worldIn.isRaining())
          {
@@ -797,7 +776,7 @@
          playerIn.connection.sendPacket(new SPacketHeldItemChange(playerIn.inventory.currentItem));
      }
  
-@@ -1054,15 +1419,21 @@
+@@ -1054,15 +1400,21 @@
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {
