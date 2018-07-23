@@ -334,8 +334,6 @@ public final class CraftServer implements Server
         this.chunkGCPeriod = this.configuration.getInt("chunk-gc.period-in-ticks");
         this.chunkGCLoadThresh = this.configuration.getInt("chunk-gc.load-threshold");
         this.loadIcon();
-        this.loadPlugins();
-        this.enablePlugins(PluginLoadOrder.STARTUP);
     }
     
     public boolean getCommandBlockOverride(final String command) {
