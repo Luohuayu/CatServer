@@ -1,7 +1,7 @@
 package luohuayu.CatServer;
 
 public class CatServer {
-	private static final String version = "1.1.1";
+	private static final String version = "1.1.2";
 	private static final String native_verson = "v1_10_R1";
 
 	public static String getVersion(){

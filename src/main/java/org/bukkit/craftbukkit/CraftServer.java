@@ -896,8 +896,7 @@ public final class CraftServer implements Server
     @Override
     public World createWorld(final WorldCreator creator) {
         Validate.notNull(creator, "Creator may not be null");
-        return getWorld(creator.name());
-        /* TODO
+
         String name = creator.name();
         ChunkGenerator generator = creator.generator();
         File folder = new File(getWorldContainer(), name);
@@ -947,7 +946,6 @@ public final class CraftServer implements Server
 
         pluginManager.callEvent(new WorldLoadEvent(worldserver.getWorld()));
         return worldserver.getWorld();
-        */
     }
     
     @Override
