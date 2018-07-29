@@ -408,17 +408,20 @@ public class CraftEventFactory
     public static EntityDeathEvent callEntityDeathEvent(final EntityLivingBase victim, final List<ItemStack> drops) {
         final CraftLivingEntity entity = (CraftLivingEntity)victim.getBukkitEntity();
         final EntityDeathEvent event = new EntityDeathEvent(entity, drops, victim.getExpReward());
-        final CraftWorld world = (CraftWorld)entity.getWorld();
+        //final CraftWorld world = (CraftWorld)entity.getWorld();
         Bukkit.getServer().getPluginManager().callEvent(event);
         victim.expToDrop = event.getDroppedExp();
-        for (final ItemStack stack : event.getDrops()) {
-            if (stack != null && stack.getType() != Material.AIR) {
-                if (stack.getAmount() == 0) {
-                    continue;
-                }
-                world.dropItemNaturally(entity.getLocation(), stack);
+        // Cauldron start - handle any drop changes from plugins
+        victim.capturedDrops.clear();
+        for (org.bukkit.inventory.ItemStack stack : event.getDrops())
+        {
+            net.minecraft.entity.item.EntityItem entityitem = new net.minecraft.entity.item.EntityItem(victim.worldObj, entity.getLocation().getX(), entity.getLocation().getY(), entity.getLocation().getZ(), CraftItemStack.asNMSCopy(stack));
+            if (entityitem != null)
+            {
+                victim.capturedDrops.add((EntityItem)entityitem);
             }
         }
+        // Cauldron end
         return event;
     }
     
@@ -436,12 +439,23 @@ public class CraftEventFactory
         if (event.getKeepInventory()) {
             return event;
         }
+        victim.capturedDrops.clear(); // Cauldron - we must clear pre-capture to avoid duplicates
         for (final ItemStack stack : event.getDrops()) {
             if (stack != null) {
                 if (stack.getType() == Material.AIR) {
                     continue;
                 }
-                world.dropItemNaturally(entity.getLocation(), stack);
+                // Cauldron start - add support for Forge's PlayerDropsEvent
+                //world.dropItemNaturally(entity.getLocation(), stack); // handle world drop in EntityPlayerMP
+                if (victim.captureDrops)
+                {
+                    net.minecraft.entity.item.EntityItem entityitem = new net.minecraft.entity.item.EntityItem(victim.worldObj, entity.getLocation().getX(), entity.getLocation().getY(), entity.getLocation().getZ(), CraftItemStack.asNMSCopy(stack));
+                    if (entityitem != null)
+                    {
+                        victim.capturedDrops.add((EntityItem)entityitem);
+                    }
+                }
+                // Cauldron end
             }
         }
         return event;
