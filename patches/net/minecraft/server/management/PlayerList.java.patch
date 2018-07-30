@@ -36,11 +36,15 @@
  import net.minecraft.world.GameType;
  import net.minecraft.world.World;
  import net.minecraft.world.WorldServer;
-@@ -60,11 +68,36 @@
+@@ -60,11 +68,40 @@
  import net.minecraft.world.demo.DemoWorldManager;
  import net.minecraft.world.storage.IPlayerFileData;
  import net.minecraft.world.storage.WorldInfo;
 +import net.minecraftforge.common.DimensionManager;
++import net.minecraftforge.common.network.ForgeMessage;
++import net.minecraftforge.common.network.ForgeNetworkHandler;
++import net.minecraftforge.fml.common.network.FMLEmbeddedChannel;
++import net.minecraftforge.fml.common.network.FMLOutboundHandler;
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
 +
@@ -73,7 +77,7 @@
  public abstract class PlayerList
  {
      public static final File FILE_PLAYERBANS = new File("banned-players.json");
-@@ -74,23 +107,31 @@
+@@ -74,23 +111,31 @@
      private static final Logger LOG = LogManager.getLogger();
      private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd \'at\' HH:mm:ss z");
      private final MinecraftServer mcServer;
@@ -107,7 +111,7 @@
          this.bannedPlayers = new UserListBans(FILE_PLAYERBANS);
          this.bannedIPs = new UserListIPBans(FILE_IPBANS);
          this.ops = new UserListOps(FILE_OPS);
-@@ -130,13 +171,15 @@
+@@ -130,13 +175,24 @@
              s1 = netManager.getRemoteAddress().toString();
          }
  
@@ -119,12 +123,21 @@
          BlockPos blockpos = worldserver.getSpawnPoint();
          this.setPlayerGameTypeBasedOnOther(playerIn, (EntityPlayerMP)null, worldserver);
          playerIn.connection = nethandlerplayserver;
++        // Cauldron start - send DimensionRegisterMessage to client before attempting to login to a Bukkit dimension
++        if (DimensionManager.isBukkitDimension(playerIn.dimension))
++        {
++            FMLEmbeddedChannel serverChannel = ForgeNetworkHandler.getServerChannel();
++            serverChannel.attr(FMLOutboundHandler.FML_MESSAGETARGET).set(FMLOutboundHandler.OutboundTarget.PLAYER);
++            serverChannel.attr(FMLOutboundHandler.FML_MESSAGETARGETARGS).set(playerIn);
++            serverChannel.writeOutbound(new ForgeMessage.DimensionRegisterMessage(playerIn.dimension, DimensionManager.getProviderType(playerIn.dimension).name()));
++        }
++        // Cauldron end
          nethandlerplayserver.sendPacket(new SPacketJoinGame(playerIn.getEntityId(), playerIn.interactionManager.getGameType(), worldinfo.isHardcoreModeEnabled(), worldserver.provider.getDimension(), worldserver.getDifficulty(), this.getMaxPlayers(), worldinfo.getTerrainType(), worldserver.getGameRules().getBoolean("reducedDebugInfo")));
 +        playerIn.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
          nethandlerplayserver.sendPacket(new SPacketCustomPayload("MC|Brand", (new PacketBuffer(Unpooled.buffer())).writeString(this.getServerInstance().getServerModName())));
          nethandlerplayserver.sendPacket(new SPacketServerDifficulty(worldinfo.getDifficulty(), worldinfo.isDifficultyLocked()));
          nethandlerplayserver.sendPacket(new SPacketSpawnPosition(blockpos));
-@@ -147,20 +190,28 @@
+@@ -147,20 +203,26 @@
          playerIn.getStatFile().sendAchievements(playerIn);
          this.sendScoreboard((ServerScoreboard)worldserver.getScoreboard(), playerIn);
          this.mcServer.refreshStatusNextTick();
@@ -153,14 +166,12 @@
 +        //this.sendChatMsg(textcomponenttranslation);
 +        this.playerLoggedIn(playerIn, joinMessage);
 +
-+        if (DimensionManager.isBukkitDimension(playerIn.dimension)) recreatePlayerEntity(playerIn, 0, true); //CatServer - TODO: [BUG] Can't login to a Bukkit dimension
-+
 +        worldserver = this.mcServer.worldServerForDimension((playerIn.dimension));
 +        // CraftBukkit end
          nethandlerplayserver.setPlayerLocation(playerIn.posX, playerIn.posY, playerIn.posZ, playerIn.rotationYaw, playerIn.rotationPitch);
          this.updateTimeAndWeatherForPlayer(playerIn, worldserver);
  
-@@ -226,9 +277,11 @@
+@@ -226,9 +288,11 @@
  
          playerIn.addSelfToInternalCraftingInventory();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().firePlayerLoggedIn(playerIn);
@@ -173,7 +184,7 @@
      {
          Set<ScoreObjective> set = Sets.<ScoreObjective>newHashSet();
  
-@@ -352,21 +405,47 @@
+@@ -352,21 +416,47 @@
          }
      }
  
@@ -228,7 +239,7 @@
      }
  
      public void serverUpdateMountedMovingPlayer(EntityPlayerMP playerIn)
-@@ -374,11 +453,22 @@
+@@ -374,11 +464,22 @@
          playerIn.getServerWorld().getPlayerChunkMap().updateMountedMovingPlayer(playerIn);
      }
  
@@ -252,7 +263,7 @@
          this.writePlayerData(playerIn);
  
          if (playerIn.isRiding())
-@@ -412,13 +502,50 @@
+@@ -412,13 +513,50 @@
              this.playerStatFiles.remove(uuid);
          }
          net.minecraftforge.common.chunkio.ChunkIOExecutor.adjustPoolSize(this.getCurrentPlayerCount());
@@ -307,7 +318,7 @@
          {
              UserListBansEntry userlistbansentry = (UserListBansEntry)this.bannedPlayers.getEntry(profile);
              String s1 = "You are banned from this server!\nReason: " + userlistbansentry.getBanReason();
-@@ -428,15 +555,16 @@
+@@ -428,15 +566,16 @@
                  s1 = s1 + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistbansentry.getBanEndDate());
              }
  
@@ -328,7 +339,7 @@
              String s = "Your IP address is banned from this server!\nReason: " + userlistipbansentry.getBanReason();
  
              if (userlistipbansentry.getBanEndDate() != null)
-@@ -444,17 +572,27 @@
+@@ -444,17 +583,27 @@
                  s = s + "\nYour ban will be removed on " + DATE_FORMAT.format(userlistipbansentry.getBanEndDate());
              }
  
@@ -360,7 +371,7 @@
          List<EntityPlayerMP> list = Lists.<EntityPlayerMP>newArrayList();
  
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -490,94 +628,196 @@
+@@ -490,94 +639,196 @@
              playerinteractionmanager = new PlayerInteractionManager(this.mcServer.worldServerForDimension(0));
          }
  
@@ -611,7 +622,7 @@
  
      public void updatePermissionLevel(EntityPlayerMP player)
      {
-@@ -620,8 +860,75 @@
+@@ -620,8 +871,75 @@
  
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn)
      {
@@ -688,7 +699,7 @@
  
      @SuppressWarnings("unused")
      public void transferEntityToWorld(Entity entityIn, int lastDimension, WorldServer oldWorldIn, WorldServer toWorldIn, net.minecraft.world.Teleporter teleporter)
-@@ -720,7 +1027,22 @@
+@@ -720,7 +1038,22 @@
              ((EntityPlayerMP)this.playerEntityList.get(i)).connection.sendPacket(packetIn);
          }
      }
@@ -712,7 +723,7 @@
      public void sendPacketToAllPlayersInDimension(Packet<?> packetIn, int dimension)
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
-@@ -836,12 +1158,24 @@
+@@ -836,12 +1169,24 @@
          int i = this.mcServer.getOpPermissionLevel();
          this.ops.addEntry(new UserListOpsEntry(profile, this.mcServer.getOpPermissionLevel(), this.ops.bypassesPlayerLimit(profile)));
          this.sendPlayerPermissionLevel(this.getPlayerByUUID(profile.getId()), i);
@@ -737,7 +748,7 @@
      }
  
      private void sendPlayerPermissionLevel(EntityPlayerMP player, int permLevel)
-@@ -896,7 +1230,11 @@
+@@ -896,7 +1241,11 @@
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {
              EntityPlayerMP entityplayermp = (EntityPlayerMP)this.playerEntityList.get(i);
@@ -750,7 +761,7 @@
              if (entityplayermp != except && entityplayermp.dimension == dimension)
              {
                  double d0 = x - entityplayermp.posX;
-@@ -961,16 +1299,21 @@
+@@ -961,16 +1310,21 @@
  
          if (worldIn.isRaining())
          {
@@ -776,7 +787,7 @@
          playerIn.connection.sendPacket(new SPacketHeldItemChange(playerIn.inventory.currentItem));
      }
  
-@@ -1054,15 +1397,21 @@
+@@ -1054,15 +1408,21 @@
      {
          for (int i = 0; i < this.playerEntityList.size(); ++i)
          {
