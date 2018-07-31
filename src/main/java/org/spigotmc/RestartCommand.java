@@ -1,6 +1,7 @@
 package org.spigotmc;
 
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import org.bukkit.Bukkit;
@@ -60,7 +61,7 @@ public class RestartCommand extends Command
                 WatchdogThread.doStop();
 
                 // Kick all players
-                for ( EntityPlayerMP p : (List<EntityPlayerMP>) FMLCommonHandler.instance().getMinecraftServerInstance().getServer().getPlayerList() )
+                for ( EntityPlayerMP p : FMLCommonHandler.instance().getMinecraftServerInstance().getServer().getPlayerList().playerEntityList )
                 {
                     p.connection.kickPlayerFromServer(SpigotConfig.restartMessage);
                     p.connection.netManager.isChannelOpen();
@@ -86,7 +87,7 @@ public class RestartCommand extends Command
                 // Actually shutdown
                 try
                 {
-                    Bukkit.shutdown();
+                    MinecraftServer.getServerInst().stopServer();
                 } catch ( Throwable t )
                 {
                 }
@@ -122,6 +123,11 @@ public class RestartCommand extends Command
             } else
             {
                 System.out.println( "Startup script '" + SpigotConfig.restartScript + "' does not exist! Stopping server." );
+                try
+                {
+                    MinecraftServer.getServerInst().stopServer();
+                }
+                catch ( Throwable localThrowable2 ) {}
             }
             FMLCommonHandler.instance().exitJava(0,false);
         } catch ( Exception ex )
