@@ -504,7 +504,7 @@ public enum Material {
 
     private final int id;
     private final Constructor<? extends MaterialData> ctor;
-    private static Material[] byId = new Material[383];
+    private static Material[] byId = new Material[32768]; // CatServer
     private final static Map<String, Material> BY_NAME = Maps.newHashMap();
     private final int maxStack;
     private final short durability;
@@ -722,29 +722,32 @@ public enum Material {
 
     static {
         for (Material material : values()) {
-            /*if (byId.length > material.id) {
-                byId[material.id] = material;
-            } else {
-                byId = Arrays.copyOfRange(byId, 0, material.id + 2);
-                byId[material.id] = material;
-            }
-            BY_NAME.put(material.name(), material);*/
-        	addMaterial(material); // Svarka
+        	addMaterial(material);
         }
     }
+    
+    // use a normalize() function to ensure it is accessible after a round-trip
+    public static String normalizeName(String name) {
+        return name.toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
+    }
+
     public static void addMaterial(Material material) {
-    	if (byId.length > material.id) {
-        } else {
-            byId = Arrays.copyOfRange(byId, 0, material.id + 2);
+        if(byId[material.id] == null) {
+            byId[material.id] = material;
+            BY_NAME.put(material.name(), material);
         }
-    	if(byId[material.id] != null) {return;}; // Svarka - already here
-    	
-    	byId[material.id] = material;
-        BY_NAME.put(material.name(), material);
     }
-    public static void addEnum(String name, int id) {
-    	Material mat = EnumHelper.addEnum(Material.class, name, new Class<?>[] {int.class}, id);
-    	addMaterial(mat);
+
+    public static Material addMaterial(int id, String name) {
+        if (byId[id] == null) {
+            String materialName = normalizeName(name);
+            Material material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE}, new Object[]{Integer.valueOf(id)});
+            byId[id] = material;
+            BY_NAME.put(materialName, material);
+            BY_NAME.put("X" + String.valueOf(id), material);
+            return material;
+        }
+        return null;
     }
 
     /**

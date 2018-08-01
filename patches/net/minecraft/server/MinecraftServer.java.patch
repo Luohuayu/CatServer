@@ -30,7 +30,7 @@
  import net.minecraft.server.management.PlayerList;
  import net.minecraft.server.management.PlayerProfileCache;
  import net.minecraft.util.IProgressUpdate;
-@@ -66,33 +62,51 @@
+@@ -66,33 +62,52 @@
  import net.minecraft.util.math.Vec3d;
  import net.minecraft.util.text.ITextComponent;
  import net.minecraft.util.text.TextComponentString;
@@ -53,6 +53,7 @@
 +import net.minecraftforge.common.DimensionManager;
 +import net.minecraftforge.fml.common.Loader;
 +import net.minecraftforge.fml.common.LoaderState;
++import net.minecraftforge.fml.common.registry.GameData;
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
  import org.apache.commons.lang3.Validate;
@@ -94,7 +95,7 @@
      private final List<ITickable> tickables = Lists.<ITickable>newArrayList();
      public final ICommandManager commandManager;
      public final Profiler theProfiler = new Profiler();
-@@ -146,21 +160,65 @@
+@@ -146,21 +161,65 @@
      private long currentTime = getCurrentTimeMillis();
      @SideOnly(Side.CLIENT)
      private boolean worldIconSet;
@@ -163,7 +164,7 @@
      public ServerCommandManager createNewCommandManager()
      {
          return new ServerCommandManager(this);
-@@ -217,43 +275,48 @@
+@@ -217,43 +276,56 @@
  
      public void loadAllWorlds(String saveName, String worldNameIn, long seed, WorldType type, String generatorOptions)
      {
@@ -197,6 +198,19 @@
 -
 -            worldinfo = new WorldInfo(worldsettings, worldNameIn);
 +        ISaveHandler iSaveHandler = new AnvilSaveHandler(server.getWorldContainer(),worldNameIn,true, this.dataFixer);
++        // CatServer start
++        if (!GameData.initializedBukkit) { // CatServer - inject bukkit materials before plugins load
++            GameData.injectBlockBukkitMaterials();
++            GameData.injectItemBukkitMaterials();
++            GameData.initializedBukkit = true;
+         }
+-        else
+-        {
+-            worldinfo.setWorldName(worldNameIn);
+-            worldsettings = new WorldSettings(worldinfo);
++        server.loadPlugins();
++        server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
++        // CatServer end
 +        this.setResourcePackFromWorld(this.getFolderName(), iSaveHandler);
 +        WorldInfo worldinfo = iSaveHandler.loadWorldInfo();
 +        WorldSettings worldsettings = new WorldSettings(seed,this.getGameType(),this.canStructuresSpawn(),this.isHardcore(),type);
@@ -204,16 +218,10 @@
 +        if(worldinfo == null){
 +            worldinfo = new WorldInfo(worldsettings,worldNameIn);
          }
--        else
--        {
--            worldinfo.setWorldName(worldNameIn);
--            worldsettings = new WorldSettings(worldinfo);
--        }
 -
 -        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, isavehandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, isavehandler, worldinfo, 0, theProfiler).init());
 -        overWorld.initialize(worldsettings);
 +        worldinfo.checkName(worldNameIn);
-+        //worldinfo.setWorldName(worldNameIn);
 +        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, iSaveHandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, iSaveHandler, worldinfo, 0, theProfiler, org.bukkit.World.Environment.getEnvironment(0), this.server.getGenerator(worldNameIn)).init());
          for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
          {
@@ -244,7 +252,7 @@
              world.addEventListener(new ServerWorldEventHandler(this, world));
  
              if (!this.isSinglePlayer())
-@@ -261,44 +324,52 @@
+@@ -261,44 +333,52 @@
                  world.getWorldInfo().setGameType(this.getGameType());
              }
              net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(world));
@@ -321,7 +329,7 @@
          this.clearCurrentTask();
      }
  
-@@ -337,81 +408,98 @@
+@@ -337,81 +417,98 @@
      {
          this.currentTask = null;
          this.percentDone = 0;
@@ -464,7 +472,7 @@
      }
  
      public boolean isServerRunning()
-@@ -436,43 +524,34 @@
+@@ -436,43 +533,34 @@
                  this.statusResponse.setServerDescription(new TextComponentString(this.motd));
                  this.statusResponse.setVersion(new ServerStatusResponse.Version("1.10.2", 210));
                  this.applyServerIconToResponse(this.statusResponse);
@@ -527,7 +535,7 @@
                      this.serverIsRunning = true;
                  }
                  net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerStopping();
-@@ -537,6 +616,10 @@
+@@ -537,6 +625,10 @@
          }
      }
  
@@ -538,7 +546,7 @@
      public void applyServerIconToResponse(ServerStatusResponse response)
      {
          File file1 = this.getFile("server-icon.png");
-@@ -596,8 +679,9 @@
+@@ -596,8 +688,9 @@
      {
      }
  
@@ -549,7 +557,7 @@
          long i = System.nanoTime();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onPreServerTick();
          ++this.tickCounter;
-@@ -629,12 +713,18 @@
+@@ -629,12 +722,18 @@
              this.statusResponse.invalidateJson();
          }
  
@@ -570,7 +578,7 @@
          }
  
          this.theProfiler.startSection("tallying");
-@@ -655,23 +745,55 @@
+@@ -655,23 +754,55 @@
          this.theProfiler.endSection();
          this.theProfiler.endSection();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostServerTick();
@@ -632,7 +640,7 @@
          Integer[] ids = net.minecraftforge.common.DimensionManager.getIDs(this.tickCounter % 200 == 0);
          for (int x = 0; x < ids.length; x++)
          {
-@@ -682,20 +804,22 @@
+@@ -682,20 +813,22 @@
              {
                  WorldServer worldserver = net.minecraftforge.common.DimensionManager.getWorld(id);
                  this.theProfiler.startSection(worldserver.getWorldInfo().getWorldName());
@@ -657,7 +665,7 @@
                  }
                  catch (Throwable throwable1)
                  {
-@@ -706,7 +830,9 @@
+@@ -706,7 +839,9 @@
  
                  try
                  {
@@ -667,7 +675,7 @@
                  }
                  catch (Throwable throwable)
                  {
-@@ -718,7 +844,9 @@
+@@ -718,7 +853,9 @@
                  net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostWorldTick(worldserver);
                  this.theProfiler.endSection();
                  this.theProfiler.startSection("tracker");
@@ -677,7 +685,7 @@
                  this.theProfiler.endSection();
                  this.theProfiler.endSection();
              }
-@@ -727,17 +855,23 @@
+@@ -727,17 +864,23 @@
          }
  
          this.theProfiler.endStartSection("dim_unloading");
@@ -702,7 +710,7 @@
  
          this.theProfiler.endSection();
      }
-@@ -831,51 +965,7 @@
+@@ -831,51 +974,7 @@
  
      public List<String> getTabCompletions(ICommandSender sender, String input, @Nullable BlockPos pos, boolean hasTargetBlock)
      {
@@ -755,7 +763,7 @@
      }
  
      public boolean isAnvilFileSet()
-@@ -1320,6 +1410,13 @@
+@@ -1320,6 +1419,13 @@
      {
          return this;
      }
@@ -769,7 +777,7 @@
  
      public int getMaxWorldSize()
      {
-@@ -1400,10 +1497,14 @@
+@@ -1400,10 +1506,14 @@
      @SideOnly(Side.SERVER)
      public static void main(String[] p_main_0_)
      {
@@ -784,7 +792,7 @@
              boolean flag = true;
              String s = null;
              String s1 = ".";
-@@ -1466,14 +1567,16 @@
+@@ -1466,14 +1576,16 @@
                  {
                      ++j;
                  }
@@ -804,7 +812,7 @@
              if (s != null)
              {
                  dedicatedserver.setServerOwner(s);
-@@ -1512,6 +1615,24 @@
+@@ -1512,6 +1624,24 @@
                      dedicatedserver.stopServer();
                  }
              });
@@ -829,7 +837,7 @@
          }
          catch (Exception exception)
          {
-@@ -1528,7 +1649,8 @@
+@@ -1528,7 +1658,8 @@
      @SideOnly(Side.SERVER)
      public boolean isDebuggingEnabled()
      {
