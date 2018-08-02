@@ -21,7 +21,8 @@ import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
 
 import luohuayu.CatServer.CatServer;
-import luohuayu.CatServer.CatServerRemapper;
+import luohuayu.CatServer.remapper.CatServerRemapper;
+import luohuayu.CatServer.remapper.Transformer;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
 import net.md_5.specialsource.RemapperProcessor;
@@ -60,6 +61,8 @@ final class PluginClassLoader extends URLClassLoader {
         jarMapping = getJarMapping();
         jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
         jarMapping.setFallbackInheritanceProvider(new ClassLoaderProvider(this));
+
+        Transformer.init(jarMapping);
 
         remapper = new CatServerRemapper(jarMapping);
         remapperProcessor = new RemapperProcessor(loader.getGlobalInheritanceMap(), jarMapping);
@@ -199,7 +202,7 @@ final class PluginClassLoader extends URLClassLoader {
                     }
 
                     // Remap the classes
-                    byte[] remappedBytecode = remapper.remapClassFile(bytecode, RuntimeRepo.getInstance());
+                    byte[] remappedBytecode = Transformer.transformSS(remapper, bytecode);
 
                     // Define (create) the class using the modified byte code
                     // The top-child class loader is used for this to prevent access violations
