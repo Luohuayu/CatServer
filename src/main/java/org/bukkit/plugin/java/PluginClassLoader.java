@@ -62,12 +62,12 @@ final class PluginClassLoader extends URLClassLoader {
         jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
         jarMapping.setFallbackInheritanceProvider(new ClassLoaderProvider(this));
 
-        Transformer.init(jarMapping);
-
         remapper = new CatServerRemapper(jarMapping);
         remapperProcessor = new RemapperProcessor(loader.getGlobalInheritanceMap(), jarMapping);
         remapperProcessor.setRemapReflectField(true);
         remapperProcessor.setRemapReflectClass(true);
+
+        Transformer.init(jarMapping, remapper);
 
         try {
             Class<?> jarClass;
@@ -158,14 +158,6 @@ final class PluginClassLoader extends URLClassLoader {
                 new BufferedReader(new InputStreamReader(loader.getClass().getClassLoader().getResourceAsStream("mappings/"+obfVersion+"/cb2numpkg.srg"))),
                 new MavenShade(relocations),
                 null, false);
-        
-        jarMapping.loadMappings(
-                new BufferedReader(new InputStreamReader(loader.getClass().getClassLoader().getResourceAsStream("mappings/"+obfVersion+"/obf2numpkg.srg"))),
-                null,
-                null, false);
-
-        jarMapping.classes.put("net/minecraft/server/"+obfVersion+"/MinecraftServer", "net/minecraft/server/MinecraftServer");
-        jarMapping.methods.put("net/minecraft/server/"+obfVersion+"/PlayerConnection/getPlayer ()Lorg/bukkit/craftbukkit/"+CatServer.getNativeVersion()+"/entity/CraftPlayer;", "getPlayerB");
     }
 
     private JarMapping getJarMapping() {
