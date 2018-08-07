@@ -1549,19 +1549,18 @@ public final class CraftServer implements Server
     }
     
     public List<String> tabCompleteCommand(final Player player, final String message) {
-        List<String> completions = null;
+        List<String> completions = new ArrayList<String>();
         try {
-            completions = this.getCommandMap().tabComplete(player, message.substring(1));
-            // CatServer start
+            List<String> bukkitCompletions = this.getCommandMap().tabComplete(player, message.substring(1));
             List<String> vanillaCompletions = this.getCraftCommandMap().tabComplete(player, message.substring(1));
-            if(completions != null && vanillaCompletions != null) completions.addAll(vanillaCompletions);
-            // CatServer end
+            if(bukkitCompletions != null) completions.addAll(bukkitCompletions);
+            if(vanillaCompletions != null) completions.addAll(vanillaCompletions);
         }
         catch (CommandException ex) {
             player.sendMessage(ChatColor.RED + "An internal error occurred while attempting to tab-complete this command");
             this.getLogger().log(Level.SEVERE, "Exception when " + player.getName() + " attempted to tab complete " + message, ex);
         }
-        return (List<String>)((completions == null) ? ImmutableList.of() : completions);
+        return completions;
     }
     
     public List<String> tabCompleteChat(final Player player, final String message) {
