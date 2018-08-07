@@ -1552,6 +1552,10 @@ public final class CraftServer implements Server
         List<String> completions = null;
         try {
             completions = this.getCommandMap().tabComplete(player, message.substring(1));
+            // CatServer start
+            List<String> vanillaCompletions = this.getCraftCommandMap().tabComplete(player, message.substring(1));
+            if(completions != null && vanillaCompletions != null) completions.addAll(vanillaCompletions);
+            // CatServer end
         }
         catch (CommandException ex) {
             player.sendMessage(ChatColor.RED + "An internal error occurred while attempting to tab-complete this command");
