@@ -1,0 +1,58 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockFarmland.java
++++ ../src-work/minecraft/net/minecraft/block/BlockFarmland.java
+@@ -2,6 +2,10 @@
+ 
+ import java.util.Random;
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityInteractEvent;
++
+ import net.minecraft.block.material.Material;
+ import net.minecraft.block.properties.IProperty;
+ import net.minecraft.block.properties.PropertyInteger;
+@@ -61,6 +65,12 @@
+             }
+             else if (!this.hasCrops(worldIn, pos))
+             {
++                // CraftBukkit start
++                org.bukkit.block.Block block = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++                if (CraftEventFactory.callBlockFadeEvent(block, Blocks.DIRT).isCancelled()) {
++                    return;
++                }
++                // CraftBukkit end
+                 worldIn.setBlockState(pos, Blocks.DIRT.getDefaultState());
+             }
+         }
+@@ -72,12 +82,30 @@
+ 
+     public void onFallenUpon(World worldIn, BlockPos pos, Entity entityIn, float fallDistance)
+     {
++        super.onFallenUpon(worldIn, pos, entityIn, fallDistance); // CraftBukkit - moved here as game rules / events shouldn't affect fall damage.
+         if (!worldIn.isRemote && worldIn.rand.nextFloat() < fallDistance - 0.5F && entityIn instanceof EntityLivingBase && (entityIn instanceof EntityPlayer || worldIn.getGameRules().getBoolean("mobGriefing")) && entityIn.width * entityIn.width * entityIn.height > 0.512F)
+         {
++            // CraftBukkit start - Interact soil
++            org.bukkit.event.Cancellable cancellable;
++            if (entityIn instanceof EntityPlayer) {
++                cancellable = CraftEventFactory.callPlayerInteractEvent((EntityPlayer) entityIn, org.bukkit.event.block.Action.PHYSICAL, pos, null, null, null);
++            } else {
++                cancellable = new EntityInteractEvent(entityIn.getBukkitEntity(), worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++                worldIn.getServer().getPluginManager().callEvent((EntityInteractEvent) cancellable);
++            }
++
++            if (cancellable.isCancelled()) {
++                return;
++            }
++
++            if (CraftEventFactory.callEntityChangeBlockEvent(entityIn, pos, Blocks.DIRT, 0).isCancelled()) {
++                return;
++            }
++            // CraftBukkit end
+             worldIn.setBlockState(pos, Blocks.DIRT.getDefaultState());
+         }
+ 
+-        super.onFallenUpon(worldIn, pos, entityIn, fallDistance);
++        //super.onFallenUpon(worldIn, pos, entityIn, fallDistance); // CraftBukkit - moved up
+     }
+ 
+     private boolean hasCrops(World worldIn, BlockPos pos)
