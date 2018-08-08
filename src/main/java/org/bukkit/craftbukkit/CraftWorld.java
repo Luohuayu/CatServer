@@ -165,6 +165,7 @@ import org.bukkit.entity.Boat;
 import net.minecraft.entity.item.EntityFallingBlock;
 import org.bukkit.entity.FallingBlock;
 import net.minecraft.network.play.server.SPacketEffect;
+import net.minecraft.network.play.server.SPacketParticles;
 import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.MinecraftException;
 import net.minecraft.util.IProgressUpdate;
@@ -1797,9 +1798,11 @@ public class CraftWorld implements World
             cps.unload(chunk);
         }
     }
-    private final Server.Spigot spigot = new Server.Spigot()
+
+    // Spigot start
+    private final Spigot spigot = new Spigot()
     {
-        /*@Override
+        @Override
         public void playEffect( Location location, Effect effect, int id, int data, float offsetX, float offsetY, float offsetZ, float speed, int particleCount, int radius )
         {
             Validate.notNull( location, "Location cannot be null" );
@@ -1809,22 +1812,22 @@ public class CraftWorld implements World
             if ( effect.getType() != Effect.Type.PARTICLE )
             {
                 int packetData = effect.getId();
-                packet = new PacketPlayOutWorldEvent( packetData, new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ() ), id, false );
+                packet = new SPacketEffect( packetData, new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ() ), id, false );
             } else
             {
-                net.minecraft.server.EnumParticle particle = null;
+                net.minecraft.util.EnumParticleTypes particle = null;
                 int[] extra = null;
-                for ( net.minecraft.server.EnumParticle p : net.minecraft.server.EnumParticle.values() )
+                for ( net.minecraft.util.EnumParticleTypes p : net.minecraft.util.EnumParticleTypes.values() )
                 {
-                    if ( effect.getName().startsWith( p.b().replace("_", "") ) )
+                    if ( effect.getName().startsWith( p.getParticleName().replace("_", "") ) )
                     {
                         particle = p;
-                        if ( effect.getData() != null )
+                        if ( effect.getData() != null ) 
                         {
                             if ( effect.getData().equals( org.bukkit.Material.class ) )
                             {
                                 extra = new int[]{ id };
-                            } else
+                            } else 
                             {
                                 extra = new int[]{ (data << 12) | (id & 0xFFF) };
                             }
@@ -1836,13 +1839,13 @@ public class CraftWorld implements World
                 {
                     extra = new int[0];
                 }
-                packet = new PacketPlayOutWorldParticles( particle, true, (float) location.getX(), (float) location.getY(), (float) location.getZ(), offsetX, offsetY, offsetZ, speed, particleCount, extra );
+                packet = new SPacketParticles( particle, true, (float) location.getX(), (float) location.getY(), (float) location.getZ(), offsetX, offsetY, offsetZ, speed, particleCount, extra );
             }
             int distance;
             radius *= radius;
             for ( Player player : getPlayers() )
             {
-                if ( ( (CraftPlayer) player ).getHandle().playerConnection == null )
+                if ( ( (CraftPlayer) player ).getHandle().connection == null )
                 {
                     continue;
                 }
@@ -1853,7 +1856,7 @@ public class CraftWorld implements World
                 distance = (int) player.getLocation().distanceSquared( location );
                 if ( distance <= radius )
                 {
-                    ( (CraftPlayer) player ).getHandle().playerConnection.sendPacket( packet );
+                    ( (CraftPlayer) player ).getHandle().connection.sendPacket( packet );
                 }
             }
         }
@@ -1867,22 +1870,23 @@ public class CraftWorld implements World
         @Override
         public LightningStrike strikeLightning(Location loc, boolean isSilent)
         {
-            EntityLightningBolt lightning = new EntityLightningBolt( world, loc.getX(), loc.getY(), loc.getZ(), false, isSilent );
-            world.strikeLightning( lightning );
+            EntityLightningBolt lightning = new EntityLightningBolt( world, loc.getX(), loc.getY(), loc.getZ(), false, isSilent);
+            world.addWeatherEffect( lightning );
             return new CraftLightningStrike( server, lightning );
         }
 
         @Override
         public LightningStrike strikeLightningEffect(Location loc, boolean isSilent)
         {
-            EntityLightning lightning = new EntityLightning( world, loc.getX(), loc.getY(), loc.getZ(), true, isSilent );
-            world.strikeLightning( lightning );
+            EntityLightningBolt lightning = new EntityLightningBolt( world, loc.getX(), loc.getY(), loc.getZ(), true, isSilent);
+            world.addWeatherEffect( lightning );
             return new CraftLightningStrike( server, lightning );
-        }*/
+        }
     };
 
-    public Server.Spigot spigot()
+    public Spigot spigot()
     {
         return spigot;
     }
+    // Spigot end
 }

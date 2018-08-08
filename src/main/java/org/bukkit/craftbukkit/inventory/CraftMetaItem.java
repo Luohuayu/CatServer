@@ -751,4 +751,29 @@ class CraftMetaItem implements ItemMeta, Repairable
             return null;
         }
     }
+
+    // Spigot start
+    private final Spigot spigot = new Spigot()
+    {
+        private boolean unbreakable;
+
+        @Override
+        public void setUnbreakable(boolean setUnbreakable)
+        {
+            unbreakable = setUnbreakable;
+        }
+
+        @Override
+        public boolean isUnbreakable()
+        {
+            return unbreakable;
+        }
+    };
+
+    @Override
+    public Spigot spigot()
+    {
+        return spigot;
+    }
+    // Spigot end
 }

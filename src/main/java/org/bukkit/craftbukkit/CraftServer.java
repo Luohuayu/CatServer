@@ -129,6 +129,7 @@ import org.bukkit.command.Command;
 import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
 import net.minecraft.util.text.translation.I18n;
 import net.minecraft.command.ICommandSender;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommand;
 import net.minecraft.command.ServerCommandManager;
@@ -1663,7 +1664,6 @@ public final class CraftServer implements Server
 
     private final Spigot spigot = new Spigot()
     {
-
         @Override
         public YamlConfiguration getConfig()
         {
@@ -1675,8 +1675,7 @@ public final class CraftServer implements Server
             org.spigotmc.RestartCommand.restart();
         }
 
-        //TODO BUNDGE.API
-        /*@Override
+        @Override
         public void broadcast(BaseComponent component) {
             for (Player player : getOnlinePlayers()) {
                 player.spigot().sendMessage(component);
@@ -1688,12 +1687,12 @@ public final class CraftServer implements Server
             for (Player player : getOnlinePlayers()) {
                 player.spigot().sendMessage(components);
             }
-        }*/
+        }
     };
 
     public Spigot spigot()
     {
-        return this.spigot;
+        return spigot;
     }
 
     private static final class BooleanWrapper

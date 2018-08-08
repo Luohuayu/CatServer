@@ -919,4 +919,20 @@ public abstract class CraftEntity implements Entity
         }
         return CraftEntity.perm;
     }
+
+    // Spigot start
+    private final Spigot spigot = new Spigot()
+    {
+        @Override
+        public boolean isInvulnerable()
+        {
+            return getHandle().isEntityInvulnerable(net.minecraft.util.DamageSource.generic);
+        }
+    };
+
+    public Spigot spigot()
+    {
+        return spigot;
+    }
+    // Spigot end
 }

@@ -5,6 +5,7 @@ import java.util.Map;
 import com.google.common.collect.Maps;
 
 import org.bukkit.block.BlockFace;
+import org.bukkit.material.MaterialData;
 import org.bukkit.potion.Potion;
 
 /**
@@ -196,32 +197,274 @@ public enum Effect {
      * The sound of an enderdragon growling
      */
     ENDERDRAGON_GROWL(3001, Type.SOUND),
+    /**
+     * The spark that comes off a fireworks
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    FIREWORKS_SPARK("fireworksSpark", Type.PARTICLE),
+    /**
+     * Critical hit particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    CRIT("crit", Type.PARTICLE),
+    /**
+     * Blue critical hit particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    MAGIC_CRIT("magicCrit", Type.PARTICLE),
+    /**
+     * Multicolored potion effect particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    POTION_SWIRL("mobSpell", Type.PARTICLE),
+    /**
+     * Multicolored potion effect particles that are slightly transparent
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    POTION_SWIRL_TRANSPARENT("mobSpellAmbient", Type.PARTICLE),
+    /**
+     * A puff of white potion swirls
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SPELL("spell", Type.PARTICLE),
+    /**
+     * A puff of white stars
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    INSTANT_SPELL("instantSpell", Type.PARTICLE),
+    /**
+     * A puff of purple particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    WITCH_MAGIC("witchMagic", Type.PARTICLE),
+    /**
+     * The note that appears above note blocks
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    NOTE("note", Type.PARTICLE),
+    /**
+     * The particles shown at nether portals
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    PORTAL("portal", Type.PARTICLE),
+    /**
+     * The symbols that fly towards the enchantment table
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    FLYING_GLYPH("enchantmenttable", Type.PARTICLE),
+    /**
+     * Fire particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    FLAME("flame", Type.PARTICLE),
+    /**
+     * The particles that pop out of lava
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    LAVA_POP("lava", Type.PARTICLE),
+    /**
+     * A small gray square
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    FOOTSTEP("footstep", Type.PARTICLE),
+    /**
+     * Water particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SPLASH("splash", Type.PARTICLE),
+    /**
+     * Smoke particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    PARTICLE_SMOKE("smoke", Type.PARTICLE),
+    /**
+     * The biggest explosion particle effect
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    EXPLOSION_HUGE("hugeexplosion", Type.PARTICLE),
+    /**
+     * A larger version of the explode particle
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    EXPLOSION_LARGE("largeexplode", Type.PARTICLE),
+    /**
+     * Explosion particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    EXPLOSION("explode", Type.PARTICLE),
+    /**
+     * Small gray particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    VOID_FOG("depthsuspend", Type.PARTICLE),
+    /**
+     * Small gray particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SMALL_SMOKE("townaura", Type.PARTICLE),
+    /**
+     * A puff of white smoke
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    CLOUD("cloud", Type.PARTICLE),
+    /**
+     * Multicolored dust particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    COLOURED_DUST("reddust", Type.PARTICLE),
+    /**
+     * Snowball breaking
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SNOWBALL_BREAK("snowballpoof", Type.PARTICLE),
+    /**
+     * The water drip particle that appears on blocks under water
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    WATERDRIP("dripWater", Type.PARTICLE),
+    /**
+     * The lava drip particle that appears on blocks under lava
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    LAVADRIP("dripLava", Type.PARTICLE),
+    /**
+     * White particles
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SNOW_SHOVEL("snowshovel", Type.PARTICLE),
+    /**
+     * The particle shown when a slime jumps
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    SLIME("slime", Type.PARTICLE),
+    /**
+     * The particle that appears when breading animals
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    HEART("heart", Type.PARTICLE),
+    /**
+     * The particle that appears when hitting a villager
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    VILLAGER_THUNDERCLOUD("angryVillager", Type.PARTICLE),
+    /**
+     * The particle that appears when trading with a villager
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    HAPPY_VILLAGER("happyVillager", Type.PARTICLE),
+    /**
+     * The smoke particles that appears on blazes, minecarts
+     * with furnaces and fire
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    LARGE_SMOKE("largesmoke", Type.PARTICLE),
+    /**
+     * The particles generated when a tool breaks.
+     * This particle requires a Material so that the client can select the correct texture.
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    ITEM_BREAK("iconcrack", Type.PARTICLE, Material.class),
+    /**
+     * The particles generated while breaking a block.
+     * This particle requires a Material and data value so that the client can select the correct texture.
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    TILE_BREAK("blockcrack", Type.PARTICLE, MaterialData.class),
+    /**
+     * The particles generated while sprinting a block
+     * This particle requires a Material and data value so that the client can select the correct texture.
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    TILE_DUST("blockdust", Type.PARTICLE, MaterialData.class)
     ;
 
     private final int id;
     private final Type type;
     private final Class<?> data;
     private static final Map<Integer, Effect> BY_ID = Maps.newHashMap();
+    private static final Map<String, Effect> BY_NAME = Maps.newHashMap();
+    private final String particleName;
 
-    Effect(int id, Type type) {
+    private Effect(int id, Type type) {
         this(id,type,null);
     }
 
-    Effect(int id, Type type, Class<?> data) {
+    private Effect(int id, Type type, Class<?> data) {
         this.id = id;
         this.type = type;
         this.data = data;
+        particleName = null;
+    }
+
+    private Effect(String particleName, Type type, Class<?> data) {
+        this.particleName = particleName;
+        this.type = type;
+        id = 0;
+        this.data = data;
+    }
+
+    private Effect(String particleName, Type type) {
+        this.particleName = particleName;
+        this.type = type;
+        id = 0;
+        this.data = null;
     }
 
     /**
      * Gets the ID for this effect.
      *
-     * @return ID of this effect
+     * @return if this Effect isn't of type PARTICLE it returns ID of this effect
      * @deprecated Magic value
      */
     @Deprecated
     public int getId() {
         return this.id;
+    }
+
+    /**
+     * Returns the effect's name. This returns null if the effect is not a particle
+     *
+     * @return The effect's name
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    public String getName() {
+        return particleName;
     }
 
     /**
@@ -232,8 +475,7 @@ public enum Effect {
     }
 
     /**
-     * @return The class which represents data for this effect, or null if
-     *     none
+     * @return if this Effect isn't of type PARTICLE it returns the class which represents data for this effect, or null if none
      */
     public Class<?> getData() {
         return this.data;
@@ -253,12 +495,34 @@ public enum Effect {
 
     static {
         for (Effect effect : values()) {
-            BY_ID.put(effect.id, effect);
+            if (effect.type != Type.PARTICLE) {
+                BY_ID.put(effect.id, effect);
+            }
+        }
+    }
+
+    /**
+     * Gets the Effect associated with the given name.
+     *
+     * @param name name of the Effect to return
+     * @return Effect with the given name
+     * @deprecated Spigot specific API, use {@link Particle}.
+     */
+    @Deprecated
+    public static Effect getByName(String name) {
+        return BY_NAME.get(name);
+    }
+
+    static {
+        for (Effect effect : values()) {
+            if (effect.type == Type.PARTICLE) {
+                BY_NAME.put(effect.particleName, effect);
+            }
         }
     }
 
     /**
      * Represents the type of an effect.
      */
-    public enum Type {SOUND, VISUAL}
+    public enum Type {SOUND, VISUAL, PARTICLE}
 }

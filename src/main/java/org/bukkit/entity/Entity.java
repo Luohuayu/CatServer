@@ -403,4 +403,22 @@ public interface Entity extends Metadatable, CommandSender {
      * @param gravity whether gravity should apply
      */
     void setGravity(boolean gravity);
+
+    // Spigot Start
+    public class Spigot
+    {
+
+        /**
+         * Returns whether this entity is invulnerable.
+         *         
+        * @return True if the entity is invulnerable.
+         */
+        public boolean isInvulnerable()
+        {
+            throw new UnsupportedOperationException( "Not supported yet." );
+        }
+    }
+
+    Spigot spigot();
+    // Spigot End
 }

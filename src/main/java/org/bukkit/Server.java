@@ -43,6 +43,9 @@ import org.bukkit.util.CachedServerIcon;
 
 import com.avaje.ebean.config.ServerConfig;
 import com.google.common.collect.ImmutableList;
+
+import net.md_5.bungee.api.chat.BaseComponent;
+
 import org.bukkit.generator.ChunkGenerator;
 
 import org.bukkit.inventory.ItemFactory;
@@ -949,24 +952,40 @@ public interface Server extends PluginMessageRecipient {
      */
     @Deprecated
     UnsafeValues getUnsafe();
-    Spigot spigot();
 
-    public static class Spigot
+    public class Spigot
     {
-        public YamlConfiguration getConfig() {
+
+        public org.bukkit.configuration.file.YamlConfiguration getConfig()
+        {
+            throw new UnsupportedOperationException( "Not supported yet." );
+        }
+
+        /**
+         * Sends the component to the player
+         *
+         * @param component the components to send
+         */
+        public void broadcast(net.md_5.bungee.api.chat.BaseComponent component) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-       /* public void broadcast(final BaseComponent component) {
+        /**
+         * Sends an array of components as a single message to the player
+         *
+         * @param components the components to send
+         */
+        public void broadcast(net.md_5.bungee.api.chat.BaseComponent... components) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        public void broadcast(final BaseComponent... components) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }*/
-
+        /**
+         * Restart the server. If the server administrator has not configured restarting, the server will stop.
+         */
         public void restart() {
             throw new UnsupportedOperationException("Not supported yet.");
         }
     }
+
+    Spigot spigot();
 }

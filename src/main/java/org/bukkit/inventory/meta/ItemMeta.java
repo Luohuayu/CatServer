@@ -157,4 +157,32 @@ public interface ItemMeta extends Cloneable, ConfigurationSerializable {
 
     @SuppressWarnings("javadoc")
     ItemMeta clone();
+
+    // Spigot start
+    public class Spigot
+    {
+
+        /**
+         * Sets the unbreakable tag
+         *
+         * @param unbreakable true if set unbreakable
+         */
+        public void setUnbreakable(boolean unbreakable)
+        {
+            throw new UnsupportedOperationException( "Not supported yet." );
+        }
+
+        /**
+         * Return if the unbreakable tag is true
+         *
+         * @return true if the unbreakable tag is true
+         */
+        public boolean isUnbreakable()
+        {
+            throw new UnsupportedOperationException( "Not supported yet." );
+        }
+    }
+
+    Spigot spigot();
+    // Spigot end
 }

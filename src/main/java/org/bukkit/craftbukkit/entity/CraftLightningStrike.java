@@ -34,4 +34,20 @@ public class CraftLightningStrike extends CraftEntity implements LightningStrike
     public EntityType getType() {
         return EntityType.LIGHTNING;
     }
+
+    // Spigot start
+    private final LightningStrike.Spigot spigot = new LightningStrike.Spigot() {
+        
+        @Override
+        public boolean isSilent()
+        {
+            return getHandle().isSilent;
+        }
+    };
+    
+    @Override
+    public LightningStrike.Spigot spigot() {
+        return spigot;
+    }
+    // Spigot end
 }
