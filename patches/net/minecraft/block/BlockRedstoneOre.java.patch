@@ -1,0 +1,70 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockRedstoneOre.java
++++ ../src-work/minecraft/net/minecraft/block/BlockRedstoneOre.java
+@@ -2,6 +2,10 @@
+ 
+ import java.util.Random;
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityInteractEvent;
++
+ import net.minecraft.block.material.Material;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.Entity;
+@@ -47,8 +51,24 @@
+ 
+     public void onEntityWalk(World worldIn, BlockPos pos, Entity entityIn)
+     {
+-        this.activate(worldIn, pos);
+-        super.onEntityWalk(worldIn, pos, entityIn);
++        // CraftBukkit start
++        //this.activate(worldIn, pos);
++        //super.onEntityWalk(worldIn, pos, entityIn);
++        if (entityIn instanceof EntityPlayer) {
++            org.bukkit.event.player.PlayerInteractEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerInteractEvent((EntityPlayer) entityIn, org.bukkit.event.block.Action.PHYSICAL, pos, null, null, null);
++            if (!event.isCancelled()) {
++                this.activate(worldIn, pos, entityIn); // add entity
++                super.onEntityWalk(worldIn, pos, entityIn);
++            }
++        } else {
++            EntityInteractEvent event = new EntityInteractEvent(entityIn.getBukkitEntity(), worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++            worldIn.getServer().getPluginManager().callEvent(event);
++            if (!event.isCancelled()) {
++                this.activate(worldIn, pos, entityIn); // add entity
++                super.onEntityWalk(worldIn, pos, entityIn);
++            }
++        }
++        // CraftBukkit end
+     }
+ 
+     public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumHand hand, @Nullable ItemStack heldItem, EnumFacing side, float hitX, float hitY, float hitZ)
+@@ -67,10 +87,29 @@
+         }
+     }
+ 
++    private void activate(World worldIn, BlockPos pos, Entity entityIn) { // CraftBukkit - add Entity
++        this.spawnParticles(worldIn, pos);
++
++        if (this == Blocks.REDSTONE_ORE)
++        {
++            // CraftBukkit start
++            if (CraftEventFactory.callEntityChangeBlockEvent(entityIn, pos, Blocks.LIT_REDSTONE_ORE, 0).isCancelled()) {
++                return;
++            }
++            // CraftBukkit end
++            worldIn.setBlockState(pos, Blocks.LIT_REDSTONE_ORE.getDefaultState());
++        }
++    }
++
+     public void updateTick(World worldIn, BlockPos pos, IBlockState state, Random rand)
+     {
+         if (this == Blocks.LIT_REDSTONE_ORE)
+         {
++            // CraftBukkit start
++            if (CraftEventFactory.callBlockFadeEvent(worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), Blocks.REDSTONE_ORE).isCancelled()) {
++                return;
++            }
++            // CraftBukkit end
+             worldIn.setBlockState(pos, Blocks.REDSTONE_ORE.getDefaultState());
+         }
+     }

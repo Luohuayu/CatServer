@@ -1,0 +1,44 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockPressurePlateWeighted.java
++++ ../src-work/minecraft/net/minecraft/block/BlockPressurePlateWeighted.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.block;
+ 
++import org.bukkit.event.entity.EntityInteractEvent;
++
+ import net.minecraft.block.material.MapColor;
+ import net.minecraft.block.material.Material;
+ import net.minecraft.block.properties.IProperty;
+@@ -33,8 +35,32 @@
+ 
+     protected int computeRedstoneStrength(World worldIn, BlockPos pos)
+     {
+-        int i = Math.min(worldIn.getEntitiesWithinAABB(Entity.class, PRESSURE_AABB.offset(pos)).size(), this.maxWeight);
++        // CraftBukkit start
++        // int i = Math.min(worldIn.getEntitiesWithinAABB(Entity.class, PRESSURE_AABB.offset(pos)).size(), this.maxWeight);
++        int i = 0;
++        java.util.Iterator iterator = worldIn.getEntitiesWithinAABB(Entity.class, PRESSURE_AABB.offset(pos)).iterator();
+ 
++        while (iterator.hasNext()) {
++            Entity entity = (Entity) iterator.next();
++
++            org.bukkit.event.Cancellable cancellable;
++
++            if (entity instanceof EntityPlayer) {
++                cancellable = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerInteractEvent((EntityPlayer) entity, org.bukkit.event.block.Action.PHYSICAL, pos, null, null, null);
++            } else {
++                cancellable = new EntityInteractEvent(entity.getBukkitEntity(), worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++                worldIn.getServer().getPluginManager().callEvent((EntityInteractEvent) cancellable);
++            }
++
++            // We only want to block turning the plate on if all events are cancelled
++            if (!cancellable.isCancelled()) {
++                i++;
++            }
++        }
++
++        i = Math.min(i, this.maxWeight);
++        // CraftBukkit end
++
+         if (i > 0)
+         {
+             float f = (float)Math.min(this.maxWeight, i) / (float)this.maxWeight;
