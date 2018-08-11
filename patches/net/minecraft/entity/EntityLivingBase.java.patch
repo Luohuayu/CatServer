@@ -555,7 +555,7 @@
  
              if (damage <= 0.0F)
              {
-@@ -1282,27 +1440,110 @@
+@@ -1282,27 +1440,117 @@
              }
          }
      }
@@ -572,22 +572,22 @@
 -            float f = damageAmount;
 -            damageAmount = Math.max(damageAmount - this.getAbsorptionAmount(), 0.0F);
 -            this.setAbsorptionAmount(this.getAbsorptionAmount() - (f - damageAmount));
--
--            if (damageAmount != 0.0F)
--            {
--                float f1 = this.getHealth();
--                this.setHealth(f1 - damageAmount);
--                this.getCombatTracker().trackDamage(damageSrc, f1, damageAmount);
--                this.setAbsorptionAmount(this.getAbsorptionAmount() - damageAmount);
 +        this.damageEntity0(damageSrc, damageAmount);
 +    }
 +    protected boolean damageEntity0(final DamageSource damagesource, float f) {
 +        if (!this.isEntityInvulnerable(damagesource)) {
 +            final boolean human = this instanceof EntityPlayer;
++            // Cauldron start - apply forge damage hook
++            f = net.minecraftforge.common.ForgeHooks.onLivingHurt(this, damagesource, f);
++            if (f < 0) return true;
++            // Cauldron end
++            // CatServer start - apply forge armor
++            if (human) {
++                f = net.minecraftforge.common.ISpecialArmor.ArmorProperties.applyArmor(this, ((EntityPlayer)this).inventory.armorInventory, damagesource, f);
++                if (f <= 0) return false;
++            }
++            // CatServer end
 +            float originalDamage = f;
-+            if (originalDamage <= 0) {
-+                originalDamage = 0;
-             }
 +            Function<Double, Double> hardHat = (Function<Double, Double>)new Function<Double, Double>() {
 +                public Double apply(final Double f) {
 +                    if ((damagesource == DamageSource.anvil || damagesource == DamageSource.fallingBlock) && EntityLivingBase.this.getItemStackFromSlot(EntityEquipmentSlot.HEAD) != null) {
@@ -638,12 +638,18 @@
 +                }
 +            };
 +            float absorptionModifier = absorption.apply((double)f).floatValue();
-+            CraftEventFactory.entityDamage = this;
-+            EntityDamageEvent event = CraftEventFactory.handleLivingEntityDamageEvent((EntityLivingBase)this, damagesource, originalDamage, hardHatModifier, blockingModifier, armorModifier, resistanceModifier, magicModifier, absorptionModifier, hardHat, blocking, armor, resistance, magic, absorption);
-+            CraftEventFactory.entityDamage = null;
+ 
+-            if (damageAmount != 0.0F)
+-            {
+-                float f1 = this.getHealth();
+-                this.setHealth(f1 - damageAmount);
+-                this.getCombatTracker().trackDamage(damageSrc, f1, damageAmount);
+-                this.setAbsorptionAmount(this.getAbsorptionAmount() - damageAmount);
++            EntityDamageEvent event = CraftEventFactory.handleLivingEntityDamageEvent(this, damagesource, originalDamage, hardHatModifier, blockingModifier, armorModifier, resistanceModifier, magicModifier, absorptionModifier, hardHat, blocking, armor, resistance, magic, absorption);
 +            if (event.isCancelled()) {
 +                return false;
-+            }
+             }
++
 +            f = (float)event.getFinalDamage();
 +            if ((damagesource == DamageSource.anvil || damagesource == DamageSource.fallingBlock) && this.getItemStackFromSlot(EntityEquipmentSlot.HEAD) != null) {
 +                this.getItemStackFromSlot(EntityEquipmentSlot.HEAD).damageItem((int)(event.getDamage() * 4.0 + this.rand.nextFloat() * event.getDamage() * 2.0), this);
@@ -683,7 +689,7 @@
      }
  
      public CombatTracker getCombatTracker()
-@@ -1449,6 +1690,7 @@
+@@ -1449,6 +1697,7 @@
          if (this.attributeMap == null)
          {
              this.attributeMap = new AttributeMap();
@@ -691,7 +697,7 @@
          }
  
          return this.attributeMap;
-@@ -1739,6 +1981,7 @@
+@@ -1739,6 +1988,7 @@
  
                          if (this.onGround && !this.worldObj.isRemote)
                          {
@@ -699,7 +705,7 @@
                              this.setFlag(7, false);
                          }
                      }
-@@ -2250,6 +2493,7 @@
+@@ -2250,6 +2500,7 @@
  
          if (!this.worldObj.isRemote)
          {
@@ -707,7 +713,7 @@
              this.setFlag(7, flag);
          }
      }
-@@ -2379,12 +2623,12 @@
+@@ -2379,12 +2630,12 @@
  
      public boolean canBeCollidedWith()
      {
@@ -722,7 +728,7 @@
      }
  
      protected void setBeenAttacked()
-@@ -2486,7 +2730,6 @@
+@@ -2486,7 +2737,6 @@
          if (this.isHandActive())
          {
              ItemStack itemstack = this.getHeldItem(this.getActiveHand());
@@ -730,7 +736,7 @@
              if (itemstack == this.activeItemStack)
              {
                  if (this.activeItemStack != null)
-@@ -2603,7 +2846,20 @@
+@@ -2603,7 +2853,20 @@
          if (this.activeItemStack != null && this.isHandActive())
          {
              this.updateItemUse(this.activeItemStack, 16);
@@ -752,7 +758,7 @@
  
              itemstack = net.minecraftforge.event.ForgeEventFactory.onItemUseFinish(this, activeItemStack, getItemInUseCount(), itemstack);
  
-@@ -2714,12 +2970,23 @@
+@@ -2714,12 +2977,23 @@
  
              if (flag1)
              {

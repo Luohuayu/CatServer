@@ -468,7 +468,6 @@ public class CraftEventFactory
     }
     
     private static EntityDamageEvent handleEntityDamageEvent(final Entity entity, final DamageSource source, final Map<EntityDamageEvent.DamageModifier, Double> modifiers, final Map<EntityDamageEvent.DamageModifier, Function<? super Double, Double>> modifierFunctions) {
-        //System.out.println("Func handleEntityDamageEvent: " + entity.toString() + " DAMAGER: " + source.getSourceOfDamage().toString());
         if (source.isExplosion()) {
             final Entity damager = CraftEventFactory.entityDamage;
             CraftEventFactory.entityDamage = null;
