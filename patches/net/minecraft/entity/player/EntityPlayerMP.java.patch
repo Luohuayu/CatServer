@@ -882,7 +882,7 @@
                  blockpos = blockpos1;
                  iblockstate = iblockstate1;
              }
-@@ -732,92 +720,95 @@
+@@ -732,92 +720,127 @@
          super.updateFallState(y, onGroundIn, iblockstate, blockpos);
      }
  
@@ -913,17 +913,23 @@
 +    }
 +
 +    public void displayGui(IInteractionObject guiOwner) {
-+
 +        if (guiOwner instanceof ILootContainer && ((ILootContainer) guiOwner).getLootTable() != null
 +                && this.isSpectator()) {
 +            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0]))
 +                    .setStyle((new Style()).setColor(TextFormatting.RED)));
 +        } else {
++            // CraftBukkit start - Inventory open hook
++            Container container = CraftEventFactory.callInventoryOpenEvent(this, guiOwner.createContainer(this.inventory, this));
++            if (container == null) {
++                return;
++            }
              this.getNextWindowId();
 -            this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, guiOwner.getGuiID(), guiOwner.getDisplayName()));
+-            this.openContainer = guiOwner.createContainer(this.inventory, this);
 +            this.connection.sendPacket(
 +                    new SPacketOpenWindow(this.currentWindowId, guiOwner.getGuiID(), guiOwner.getDisplayName()));
-             this.openContainer = guiOwner.createContainer(this.inventory, this);
++            this.openContainer = container;
++            // CraftBukkit end
              this.openContainer.windowId = this.currentWindowId;
              this.openContainer.addListener(this);
 -            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
@@ -937,12 +943,31 @@
 -        if (chestInventory instanceof ILootContainer && ((ILootContainer)chestInventory).getLootTable() != null && this.isSpectator())
 -        {
 -            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0])).setStyle((new Style()).setColor(TextFormatting.RED)));
--        }
++    public void displayGUIChest(IInventory chestInventory) {
++        // CraftBukkit start - Inventory open hook
++        // Copied from below
++        boolean cancelled = false;
++        if (chestInventory instanceof ILockableContainer) {
++            ILockableContainer itileinventory = (ILockableContainer) chestInventory;
++            cancelled = itileinventory.isLocked() && !this.canOpen(itileinventory.getLockCode()) && !this.isSpectator(); // PAIL: rename
+         }
 -        else
 -        {
 -            if (this.openContainer != this.inventoryContainer)
 -            {
-+    public void displayGUIChest(IInventory chestInventory) {
++
++        Container container;
++        if (chestInventory instanceof IInteractionObject) {
++            container = ((IInteractionObject) chestInventory).createContainer(this.inventory, this);
++        } else {
++            container = new ContainerChest(this.inventory, chestInventory, this);
++        }
++        container = CraftEventFactory.callInventoryOpenEvent(this, container, cancelled);
++        if (container == null && !cancelled) { // Let pre-cancelled events fall through
++            chestInventory.closeInventory(this);
++            return;
++        }
++        // CraftBukkit end
 +        if (chestInventory instanceof ILootContainer && ((ILootContainer) chestInventory).getLootTable() != null
 +                && this.isSpectator()) {
 +            this.addChatMessage((new TextComponentTranslation("container.spectatorCantOpen", new Object[0]))
@@ -968,6 +993,7 @@
 +                            new Object[] { chestInventory.getDisplayName() }), (byte) 2));
 +                    this.connection.sendPacket(new SPacketSoundEffect(SoundEvents.BLOCK_CHEST_LOCKED,
 +                            SoundCategory.BLOCKS, this.posX, this.posY, this.posZ, 1.0F, 1.0F));
++                    chestInventory.closeInventory(this); // CraftBukkit
                      return;
                  }
              }
@@ -978,20 +1004,21 @@
 -            {
 -                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, ((IInteractionObject)chestInventory).getGuiID(), chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
 -                this.openContainer = ((IInteractionObject)chestInventory).createContainer(this.inventory, this);
--            }
--            else
--            {
--                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:container", chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
 +            if (chestInventory instanceof IInteractionObject) {
 +                this.connection.sendPacket(
 +                        new SPacketOpenWindow(this.currentWindowId, ((IInteractionObject) chestInventory).getGuiID(),
 +                                chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
-+                this.openContainer = ((IInteractionObject) chestInventory).createContainer(this.inventory, this);
++                this.openContainer = container; // CraftBukkit
 +            } else {
 +                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:container",
 +                        chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
-                 this.openContainer = new ContainerChest(this.inventory, chestInventory, this);
++                this.openContainer = container; // CraftBukkit
              }
+-            else
+-            {
+-                this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "minecraft:container", chestInventory.getDisplayName(), chestInventory.getSizeInventory()));
+-                this.openContainer = new ContainerChest(this.inventory, chestInventory, this);
+-            }
  
              this.openContainer.windowId = this.currentWindowId;
              this.openContainer.addListener(this);
@@ -1004,8 +1031,15 @@
 -    public void displayVillagerTradeGui(IMerchant villager)
 -    {
 +    public void displayVillagerTradeGui(IMerchant villager) {
++        // CraftBukkit start - Inventory open hook
++        Container container = CraftEventFactory.callInventoryOpenEvent(this, new ContainerMerchant(this.inventory, villager, this.worldObj));
++        if (container == null) {
++            return;
++        }
++        // CraftBukkit end
          this.getNextWindowId();
-         this.openContainer = new ContainerMerchant(this.inventory, villager, this.worldObj);
+-        this.openContainer = new ContainerMerchant(this.inventory, villager, this.worldObj);
++        this.openContainer = container; // CraftBukkit
          this.openContainer.windowId = this.currentWindowId;
          this.openContainer.addListener(this);
 -        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.openContainer));
@@ -1025,7 +1059,7 @@
              PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
              packetbuffer.writeInt(this.currentWindowId);
              merchantrecipelist.writeToBuf(packetbuffer);
-@@ -825,105 +816,86 @@
+@@ -825,105 +848,93 @@
          }
      }
  
@@ -1034,15 +1068,23 @@
 -        if (this.openContainer != this.inventoryContainer)
 -        {
 +    public void openGuiHorseInventory(EntityHorse horse, IInventory inventoryIn) {
++        // CraftBukkit start - Inventory open hook
++        Container container = CraftEventFactory.callInventoryOpenEvent(this, new ContainerHorseInventory(this.inventory, inventoryIn, horse, this));
++        if (container == null) {
++            inventoryIn.closeInventory(this);
++            return;
++        }
++        // CraftBukkit end
 +        if (this.openContainer != this.inventoryContainer) {
              this.closeScreen();
          }
  
          this.getNextWindowId();
 -        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "EntityHorse", inventoryIn.getDisplayName(), inventoryIn.getSizeInventory(), horse.getEntityId()));
+-        this.openContainer = new ContainerHorseInventory(this.inventory, inventoryIn, horse, this);
 +        this.connection.sendPacket(new SPacketOpenWindow(this.currentWindowId, "EntityHorse",
 +                inventoryIn.getDisplayName(), inventoryIn.getSizeInventory(), horse.getEntityId()));
-         this.openContainer = new ContainerHorseInventory(this.inventory, inventoryIn, horse, this);
++        this.openContainer = container; // CraftBukkit
          this.openContainer.windowId = this.currentWindowId;
          this.openContainer.addListener(this);
      }
@@ -1156,7 +1198,7 @@
                  this.moveForward = forward;
              }
  
-@@ -932,144 +904,127 @@
+@@ -932,144 +943,127 @@
          }
      }
  
@@ -1346,7 +1388,7 @@
              this.setSpectatingEntity(this);
          }
  
-@@ -1077,191 +1032,308 @@
+@@ -1077,191 +1071,308 @@
          this.markPotionsDirty();
      }
  
