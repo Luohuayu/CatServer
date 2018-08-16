@@ -9,6 +9,9 @@ import org.bukkit.event.inventory.InventoryType.SlotType;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitScheduler;
+
+import luohuayu.CatServer.coreplugin.IC2GuiFix;
+
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -65,6 +68,7 @@ public class InventoryClickEvent extends InventoryInteractEvent {
         this.whichSlot = view.convertSlot(slot);
         this.click = click;
         this.action = action;
+        IC2GuiFix.onClick(this); // CatServer - Fix IC2 gui crash
     }
 
     public InventoryClickEvent(InventoryView view, SlotType type, int slot, ClickType click, InventoryAction action, int key) {
