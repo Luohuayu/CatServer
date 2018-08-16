@@ -17,23 +17,25 @@
  import net.minecraft.init.Items;
  import net.minecraft.init.MobEffects;
  import net.minecraft.init.SoundEvents;
-@@ -96,6 +93,15 @@
+@@ -96,6 +93,17 @@
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
  
 +// CraftBukkit start
 +import org.bukkit.craftbukkit.entity.CraftHumanEntity;
 +import org.bukkit.craftbukkit.entity.CraftItem;
-+import org.bukkit.craftbukkit.event.CraftEventFactory;
 +import org.bukkit.entity.Player;
-+import org.bukkit.event.entity.EntityDamageEvent;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.player.PlayerBedEnterEvent;
++import org.bukkit.event.player.PlayerBedLeaveEvent;
 +import org.bukkit.event.player.PlayerDropItemEvent;
++import org.bukkit.event.player.PlayerVelocityEvent;
 +// CraftBukkit end
 +
  @SuppressWarnings("incomplete-switch")
  public abstract class EntityPlayer extends EntityLivingBase
  {
-@@ -112,7 +118,7 @@
+@@ -112,7 +120,7 @@
      private InventoryEnderChest theInventoryEnderChest = new InventoryEnderChest();
      public Container inventoryContainer;
      public Container openContainer;
@@ -42,7 +44,7 @@
      protected int flyToggleTimer;
      public float prevCameraYaw;
      public float cameraYaw;
-@@ -147,7 +153,17 @@
+@@ -147,7 +155,17 @@
      private ItemStack itemStackMainHand;
      private final CooldownTracker cooldownTracker = this.createCooldownTracker();
      public EntityFishHook fishEntity;
@@ -61,7 +63,7 @@
      protected CooldownTracker createCooldownTracker()
      {
          return new CooldownTracker();
-@@ -164,6 +180,9 @@
+@@ -164,6 +182,9 @@
          this.setLocationAndAngles((double)blockpos.getX() + 0.5D, (double)(blockpos.getY() + 1), (double)blockpos.getZ() + 0.5D, 0.0F, 0.0F);
          this.unused180 = 180.0F;
          this.fireResistance = 20;
@@ -71,7 +73,7 @@
      }
  
      protected void applyEntityAttributes()
-@@ -437,6 +456,10 @@
+@@ -437,6 +458,10 @@
      {
          return this.getHealth() <= 0.0F || this.isPlayerSleeping();
      }
@@ -82,7 +84,7 @@
  
      public void closeScreen()
      {
-@@ -771,7 +794,31 @@
+@@ -771,7 +796,31 @@
                  entityitem.motionY += (double)((this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F);
                  entityitem.motionZ += Math.sin((double)f3) * (double)f2;
              }
@@ -115,7 +117,7 @@
              ItemStack itemstack = this.dropItemAndGetStack(entityitem);
  
              if (traceItem)
-@@ -1078,14 +1125,17 @@
+@@ -1078,14 +1127,17 @@
          return (float)i / (float)this.inventory.armorInventory.length;
      }
  
@@ -137,7 +139,7 @@
              damageAmount = this.applyPotionDamageCalculations(damageSrc, damageAmount);
              float f = damageAmount;
              damageAmount = Math.max(damageAmount - this.getAbsorptionAmount(), 0.0F);
-@@ -1104,6 +1154,7 @@
+@@ -1104,6 +1156,7 @@
                  }
              }
          }
@@ -145,3 +147,161 @@
      }
  
      public void openEditSign(TileEntitySign signTile)
+@@ -1282,8 +1335,15 @@
+ 
+                         if (j > 0 && !targetEntity.isBurning())
+                         {
+-                            flag4 = true;
+-                            targetEntity.setFire(1);
++                            // CraftBukkit start - Call a combust event when somebody hits with a fire enchanted item
++                            EntityCombustByEntityEvent combustEvent = new EntityCombustByEntityEvent(this.getBukkitEntity(), targetEntity.getBukkitEntity(), 1);
++                            org.bukkit.Bukkit.getPluginManager().callEvent(combustEvent);
++
++                            if (!combustEvent.isCancelled()) {
++                                flag4 = true;
++                                targetEntity.setFire(combustEvent.getDuration());
++                            }
++                            // CraftBukkit end
+                         }
+                     }
+ 
+@@ -1316,8 +1376,11 @@
+                             {
+                                 if (entitylivingbase != this && entitylivingbase != targetEntity && !this.isOnSameTeam(entitylivingbase) && this.getDistanceSqToEntity(entitylivingbase) < 9.0D)
+                                 {
++                                    // CraftBukkit start - Only apply knockback if the damage hits
++                                    if (entitylivingbase.attackEntityFrom(DamageSource.causePlayerDamage(this), 1.0F)) {
+                                     entitylivingbase.knockBack(this, 0.4F, (double)MathHelper.sin(this.rotationYaw * 0.017453292F), (double)(-MathHelper.cos(this.rotationYaw * 0.017453292F)));
+-                                    entitylivingbase.attackEntityFrom(DamageSource.causePlayerDamage(this), 1.0F);
++                                    }
++                                    // CraftBukkit end
+                                 }
+                             }
+ 
+@@ -1327,11 +1390,28 @@
+ 
+                         if (targetEntity instanceof EntityPlayerMP && targetEntity.velocityChanged)
+                         {
++                            // CraftBukkit start - Add Velocity Event
++                            boolean cancelled = false;
++                            Player player = (Player) targetEntity.getBukkitEntity();
++                            org.bukkit.util.Vector velocity = new org.bukkit.util.Vector( d1, d2, d3 );
++
++                            PlayerVelocityEvent event = new PlayerVelocityEvent(player, velocity.clone());
++                            worldObj.getServer().getPluginManager().callEvent(event);
++
++                            if (event.isCancelled()) {
++                                cancelled = true;
++                            } else if (!velocity.equals(event.getVelocity())) {
++                                player.setVelocity(event.getVelocity());
++                            }
++
++                            if (!cancelled) {
+                             ((EntityPlayerMP)targetEntity).connection.sendPacket(new SPacketEntityVelocity(targetEntity));
+                             targetEntity.velocityChanged = false;
+                             targetEntity.motionX = d1;
+                             targetEntity.motionY = d2;
+                             targetEntity.motionZ = d3;
++                            }
++                            // CraftBukkit end
+                         }
+ 
+                         if (flag2)
+@@ -1424,7 +1504,14 @@
+ 
+                             if (j > 0)
+                             {
+-                                targetEntity.setFire(j * 4);
++                                // CraftBukkit start - Call a combust event when somebody hits with a fire enchanted item
++                                EntityCombustByEntityEvent combustEvent = new EntityCombustByEntityEvent(this.getBukkitEntity(), entity.getBukkitEntity(), j * 4);
++                                org.bukkit.Bukkit.getPluginManager().callEvent(combustEvent);
++
++                                if (!combustEvent.isCancelled()) {
++                                    targetEntity.setFire(combustEvent.getDuration());
++                                }
++                                // CraftBukkit end
+                             }
+ 
+                             if (this.worldObj instanceof WorldServer && f5 > 2.0F)
+@@ -1434,7 +1521,7 @@
+                             }
+                         }
+ 
+-                        this.addExhaustion(0.3F);
++                        this.addExhaustion(worldObj.spigotConfig.combatExhaustion); // Spigot - Change to use configurable value
+                     }
+                     else
+                     {
+@@ -1541,6 +1628,20 @@
+             this.dismountRidingEntity();
+         }
+ 
++        // CraftBukkit start - fire PlayerBedEnterEvent
++        if (this.getBukkitEntity() instanceof Player) {
++            Player player = (Player) this.getBukkitEntity();
++            org.bukkit.block.Block bed = this.worldObj.getWorld().getBlockAt(bedLocation.getX(), bedLocation.getY(), bedLocation.getZ());
++
++            PlayerBedEnterEvent event = new PlayerBedEnterEvent(player, bed);
++            this.worldObj.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return SleepResult.OTHER_PROBLEM;
++            }
++        }
++        // CraftBukkit end
++
+         this.setSize(0.2F, 0.2F);
+ 
+         IBlockState state = null;
+@@ -1639,6 +1740,23 @@
+             this.worldObj.updateAllPlayersSleepingFlag();
+         }
+ 
++        // CraftBukkit start - fire PlayerBedLeaveEvent
++        if (this.getBukkitEntity() instanceof Player) {
++            Player player = (Player) this.getBukkitEntity();
++
++            org.bukkit.block.Block bed;
++            BlockPos blockpos = this.bedLocation;
++            if (blockpos != null) {
++                bed = this.worldObj.getWorld().getBlockAt(blockpos.getX(), blockpos.getY(), blockpos.getZ());
++            } else {
++                bed = this.worldObj.getWorld().getBlockAt(player.getLocation());
++            }
++
++            PlayerBedLeaveEvent event = new PlayerBedLeaveEvent(player, bed);
++            this.worldObj.getServer().getPluginManager().callEvent(event);
++        }
++        // CraftBukkit end
++
+         this.sleepTimer = immediately ? 0 : 100;
+ 
+         if (setSpawn)
+@@ -1745,11 +1863,13 @@
+         {
+             this.spawnChunk = pos;
+             this.spawnForced = forced;
++            this.spawnWorld = this.worldObj.worldInfo.getWorldName(); // CraftBukkit
+         }
+         else
+         {
+             this.spawnChunk = null;
+             this.spawnForced = false;
++            this.spawnWorld = "";
+         }
+     }
+ 
+@@ -1778,11 +1898,11 @@
+ 
+         if (this.isSprinting())
+         {
+-            this.addExhaustion(0.8F);
++            this.addExhaustion(worldObj.spigotConfig.sprintExhaustion); // Spigot - Change to use configurable value
+         }
+         else
+         {
+-            this.addExhaustion(0.2F);
++            this.addExhaustion(worldObj.spigotConfig.walkExhaustion); // Spigot - Change to use configurable value
+         }
+     }
+ 

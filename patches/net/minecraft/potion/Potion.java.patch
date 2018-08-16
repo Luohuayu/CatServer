@@ -1,6 +1,26 @@
 --- ../src-base/minecraft/net/minecraft/potion/Potion.java
 +++ ../src-work/minecraft/net/minecraft/potion/Potion.java
-@@ -30,7 +30,7 @@
+@@ -5,6 +5,9 @@
+ import java.util.UUID;
+ import java.util.Map.Entry;
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.SharedMonsterAttributes;
+@@ -13,7 +16,9 @@
+ import net.minecraft.entity.ai.attributes.IAttribute;
+ import net.minecraft.entity.ai.attributes.IAttributeInstance;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.MobEffects;
++import net.minecraft.network.play.server.SPacketUpdateHealth;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.ResourceLocation;
+ import net.minecraft.util.StringUtils;
+@@ -30,7 +35,7 @@
      private final int liquidColor;
      private String name = "";
      private int statusIconIndex = -1;
@@ -9,7 +29,27 @@
      private boolean beneficial;
  
      @Nullable
-@@ -363,5 +363,10 @@
+@@ -100,7 +105,18 @@
+         {
+             if (!entityLivingBaseIn.worldObj.isRemote)
+             {
+-                ((EntityPlayer)entityLivingBaseIn).getFoodStats().addStats(p_76394_2_ + 1, 1.0F);
++                // CraftBukkit start
++                EntityPlayer entityhuman = (EntityPlayer) entityLivingBaseIn;
++                int oldFoodLevel = entityhuman.getFoodStats().foodLevel;
++
++                org.bukkit.event.entity.FoodLevelChangeEvent event = CraftEventFactory.callFoodLevelChangeEvent(entityhuman, p_76394_2_ + 1 + oldFoodLevel);
++
++                if (!event.isCancelled()) {
++                    entityhuman.getFoodStats().addStats(event.getFoodLevel() - oldFoodLevel, 1.0F);
++                }
++
++                ((EntityPlayerMP) entityhuman).connection.sendPacket(new SPacketUpdateHealth(((EntityPlayerMP) entityhuman).getBukkitEntity().getScaledHealth(), entityhuman.getFoodStats().foodLevel, entityhuman.getFoodStats().foodSaturationLevel));
++                // CraftBukkit end
+             }
+         }
+         else if ((this != MobEffects.INSTANT_HEALTH || entityLivingBaseIn.isEntityUndead()) && (this != MobEffects.INSTANT_DAMAGE || !entityLivingBaseIn.isEntityUndead()))
+@@ -363,5 +379,10 @@
          REGISTRY.register(25, new ResourceLocation("levitation"), (new Potion(true, 13565951)).setPotionName("effect.levitation").setIconIndex(3, 2));
          REGISTRY.register(26, new ResourceLocation("luck"), (new Potion(false, 3381504)).setPotionName("effect.luck").setIconIndex(5, 2).setBeneficial().registerPotionAttributeModifier(SharedMonsterAttributes.LUCK, "03C3C89D-7037-4B42-869F-B146BCB64D2E", 1.0D, 0));
          REGISTRY.register(27, new ResourceLocation("unluck"), (new Potion(true, 12624973)).setPotionName("effect.unluck").setIconIndex(6, 2).registerPotionAttributeModifier(SharedMonsterAttributes.LUCK, "CC5AF142-2BD2-4215-B636-2605AED11727", -1.0D, 0));
