@@ -751,7 +751,23 @@
              this.playerEntity.interactionManager.processRightClick(this.playerEntity, worldserver, itemstack, enumhand);
              itemstack = this.playerEntity.getHeldItem(enumhand);
  
-@@ -779,7 +1043,8 @@
+@@ -745,6 +1009,7 @@
+                 this.playerEntity.setSpectatingEntity(this.playerEntity);
+                 this.playerEntity.dismountRidingEntity();
+ 
++                /* CraftBukkit start - replace with bukkit handling for multi-world
+                 if (entity.worldObj == this.playerEntity.worldObj)
+                 {
+                     this.playerEntity.setPositionAndUpdate(entity.posX, entity.posY, entity.posZ);
+@@ -774,12 +1039,16 @@
+                     this.serverController.getPlayerList().updateTimeAndWeatherForPlayer(this.playerEntity, worldserver2);
+                     this.serverController.getPlayerList().syncPlayerInventory(this.playerEntity);
+                 }
++                */
++                this.playerEntity.getBukkitEntity().teleport(entity.getBukkitEntity(), PlayerTeleportEvent.TeleportCause.SPECTATE);
++                // CraftBukkit end
+             }
+         }
      }
  
      public void handleResourcePackStatus(CPacketResourcePackStatus packetIn)
@@ -761,7 +777,7 @@
      }
  
      public void processSteerBoat(CPacketSteerBoat packetIn)
-@@ -795,14 +1060,26 @@
+@@ -795,14 +1064,26 @@
  
      public void onDisconnect(ITextComponent reason)
      {
@@ -791,7 +807,7 @@
          if (this.serverController.isSinglePlayer() && this.playerEntity.getName().equals(this.serverController.getServerOwner()))
          {
              LOGGER.info("Stopping singleplayer server as player logged out");
-@@ -850,23 +1127,37 @@
+@@ -850,23 +1131,37 @@
      public void processHeldItemChange(CPacketHeldItemChange packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -832,7 +848,7 @@
          {
              TextComponentTranslation textcomponenttranslation = new TextComponentTranslation("chat.cannotSend", new Object[0]);
              textcomponenttranslation.getStyle().setColor(TextFormatting.RED);
-@@ -882,47 +1173,270 @@
+@@ -882,47 +1177,270 @@
              {
                  if (!ChatAllowedCharacters.isAllowedCharacter(s.charAt(i)))
                  {
@@ -1115,15 +1131,24 @@
          this.playerEntity.markPlayerActive();
  
          switch (packetIn.getAction())
-@@ -999,6 +1513,7 @@
+@@ -999,8 +1517,16 @@
      public void processUseEntity(CPacketUseEntity packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
 +        if (this.playerEntity.isDead) return; // CraftBukkit
          WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
          Entity entity = packetIn.getEntityFromWorld(worldserver);
++        // Spigot Start
++        if ( entity == playerEntity && !playerEntity.isSpectator() )
++        {
++            kickPlayerFromServer("Cannot interact with self!");
++            return;
++        }
++        // Spigot End
          this.playerEntity.markPlayerActive();
-@@ -1012,7 +1527,31 @@
+ 
+         if (entity != null)
+@@ -1012,7 +1538,31 @@
              {
                  d0 = 9.0D;
              }
@@ -1156,7 +1181,7 @@
              if (this.playerEntity.getDistanceSqToEntity(entity) < d0)
              {
                  if (packetIn.getAction() == CPacketUseEntity.Action.INTERACT)
-@@ -1020,6 +1559,11 @@
+@@ -1020,6 +1570,11 @@
                      EnumHand enumhand = packetIn.getHand();
                      ItemStack itemstack = this.playerEntity.getHeldItem(enumhand);
                      this.playerEntity.interact(entity, itemstack, enumhand);
@@ -1168,7 +1193,7 @@
                  }
                  else if (packetIn.getAction() == CPacketUseEntity.Action.INTERACT_AT)
                  {
-@@ -1027,10 +1571,15 @@
+@@ -1027,10 +1582,15 @@
                      ItemStack itemstack1 = this.playerEntity.getHeldItem(enumhand1);
                      if(net.minecraftforge.common.ForgeHooks.onInteractEntityAt(playerEntity, entity, packetIn.getHitVec(), itemstack1, enumhand1)) return;
                      entity.applyPlayerInteraction(this.playerEntity, packetIn.getHitVec(), itemstack1, enumhand1);
@@ -1185,7 +1210,7 @@
                      {
                          this.kickPlayerFromServer("Attempting to attack an invalid entity");
                          this.serverController.logWarning("Player " + this.playerEntity.getName() + " tried to attack an invalid entity");
-@@ -1038,6 +1587,11 @@
+@@ -1038,6 +1598,11 @@
                      }
  
                      this.playerEntity.attackTargetEntityWithCurrentItem(entity);
@@ -1197,7 +1222,7 @@
                  }
              }
          }
-@@ -1056,7 +1610,8 @@
+@@ -1056,7 +1621,8 @@
                  if (this.playerEntity.playerConqueredTheEnd)
                  {
                      this.playerEntity.playerConqueredTheEnd = false;
@@ -1207,7 +1232,7 @@
                  }
                  else
                  {
-@@ -1086,18 +1641,43 @@
+@@ -1086,18 +1652,43 @@
      public void processCloseWindow(CPacketCloseWindow packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -1252,7 +1277,7 @@
                  List<ItemStack> list = Lists.<ItemStack>newArrayList();
  
                  for (int i = 0; i < this.playerEntity.openContainer.inventorySlots.size(); ++i)
-@@ -1109,9 +1689,321 @@
+@@ -1109,9 +1700,321 @@
              }
              else
              {
@@ -1576,7 +1601,7 @@
                  {
                      this.playerEntity.connection.sendPacket(new SPacketConfirmTransaction(packetIn.getWindowId(), packetIn.getActionNumber(), true));
                      this.playerEntity.isChangingQuantityOnly = true;
-@@ -1128,8 +2020,8 @@
+@@ -1128,8 +2031,8 @@
  
                      for (int j = 0; j < this.playerEntity.openContainer.inventorySlots.size(); ++j)
                      {
@@ -1587,7 +1612,7 @@
                          list1.add(itemstack1);
                      }
  
-@@ -1142,6 +2034,7 @@
+@@ -1142,6 +2045,7 @@
      public void processEnchantItem(CPacketEnchantItem packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -1595,7 +1620,7 @@
          this.playerEntity.markPlayerActive();
  
          if (this.playerEntity.openContainer.windowId == packetIn.getWindowId() && this.playerEntity.openContainer.getCanCraft(this.playerEntity) && !this.playerEntity.isSpectator())
-@@ -1181,9 +2074,45 @@
+@@ -1181,9 +2085,45 @@
              }
  
              boolean flag1 = packetIn.getSlotId() >= 1 && packetIn.getSlotId() <= 45;
@@ -1643,7 +1668,7 @@
              if (flag1 && flag2 && flag3)
              {
                  if (itemstack == null)
-@@ -1213,6 +2142,7 @@
+@@ -1213,6 +2153,7 @@
      public void processConfirmTransaction(CPacketConfirmTransaction packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -1651,7 +1676,7 @@
          Short oshort = (Short)this.pendingTransactions.lookup(this.playerEntity.openContainer.windowId);
  
          if (oshort != null && packetIn.getUid() == oshort.shortValue() && this.playerEntity.openContainer.windowId == packetIn.getWindowId() && !this.playerEntity.openContainer.getCanCraft(this.playerEntity) && !this.playerEntity.isSpectator())
-@@ -1224,6 +2154,7 @@
+@@ -1224,6 +2165,7 @@
      public void processUpdateSign(CPacketUpdateSign packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -1659,7 +1684,7 @@
          this.playerEntity.markPlayerActive();
          WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
          BlockPos blockpos = packetIn.getPosition();
-@@ -1243,16 +2174,32 @@
+@@ -1243,16 +2185,32 @@
              if (!tileentitysign.getIsEditable() || tileentitysign.getPlayer() != this.playerEntity)
              {
                  this.serverController.logWarning("Player " + this.playerEntity.getName() + " just tried to change non-editable sign");
@@ -1696,7 +1721,7 @@
              tileentitysign.markDirty();
              worldserver.notifyBlockUpdate(blockpos, iblockstate, iblockstate, 3);
          }
-@@ -1275,12 +2222,30 @@
+@@ -1275,12 +2233,30 @@
      public void processPlayerAbilities(CPacketPlayerAbilities packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.playerEntity.getServerWorld());
@@ -1728,7 +1753,7 @@
          List<String> list = Lists.<String>newArrayList();
  
          for (String s : this.serverController.getTabCompletions(this.playerEntity, packetIn.getMessage(), packetIn.getTargetBlock(), packetIn.hasTargetBlock()))
-@@ -1329,12 +2294,15 @@
+@@ -1329,12 +2305,15 @@
  
                  if (itemstack.getItem() == Items.WRITABLE_BOOK && itemstack.getItem() == itemstack1.getItem())
                  {
@@ -1744,7 +1769,7 @@
              }
          }
          else if ("MC|BSign".equals(s))
-@@ -1364,6 +2332,7 @@
+@@ -1364,6 +2343,7 @@
  
                  if (itemstack2.getItem() == Items.WRITABLE_BOOK && itemstack3.getItem() == Items.WRITABLE_BOOK)
                  {
@@ -1752,7 +1777,7 @@
                      itemstack3.setTagInfo("author", new NBTTagString(this.playerEntity.getName()));
                      itemstack3.setTagInfo("title", new NBTTagString(itemstack2.getTagCompound().getString("title")));
                      NBTTagList nbttaglist = itemstack2.getTagCompound().getTagList("pages", 8);
-@@ -1378,11 +2347,13 @@
+@@ -1378,11 +2358,13 @@
  
                      itemstack3.setTagInfo("pages", nbttaglist);
                      itemstack3.setItem(Items.WRITTEN_BOOK);
@@ -1766,7 +1791,7 @@
              }
          }
          else if ("MC|TrSel".equals(s))
-@@ -1400,6 +2371,7 @@
+@@ -1400,6 +2382,7 @@
              catch (Exception exception5)
              {
                  LOGGER.error((String)"Couldn\'t select trade", (Throwable)exception5);
@@ -1774,7 +1799,7 @@
              }
          }
          else if ("MC|AdvCmd".equals(s))
-@@ -1462,6 +2434,7 @@
+@@ -1462,6 +2445,7 @@
              catch (Exception exception4)
              {
                  LOGGER.error((String)"Couldn\'t set command block", (Throwable)exception4);
@@ -1782,7 +1807,7 @@
              }
          }
          else if ("MC|AutoCmd".equals(s))
-@@ -1540,6 +2513,7 @@
+@@ -1540,6 +2524,7 @@
              catch (Exception exception3)
              {
                  LOGGER.error((String)"Couldn\'t set command block", (Throwable)exception3);
@@ -1790,7 +1815,7 @@
              }
          }
          else if ("MC|Beacon".equals(s))
-@@ -1566,6 +2540,7 @@
+@@ -1566,6 +2551,7 @@
                  catch (Exception exception2)
                  {
                      LOGGER.error((String)"Couldn\'t set beacon", (Throwable)exception2);
@@ -1798,7 +1823,7 @@
                  }
              }
          }
-@@ -1589,6 +2564,10 @@
+@@ -1589,6 +2575,10 @@
                      containerrepair.updateItemName("");
                  }
              }
@@ -1809,7 +1834,7 @@
          }
          else if ("MC|Struct".equals(s))
          {
-@@ -1677,6 +2656,7 @@
+@@ -1677,6 +2667,7 @@
              catch (Exception exception1)
              {
                  LOGGER.error((String)"Couldn\'t set structure block", (Throwable)exception1);
@@ -1817,7 +1842,7 @@
              }
          }
          else if ("MC|PickItem".equals(s))
-@@ -1694,7 +2674,36 @@
+@@ -1694,7 +2685,36 @@
              catch (Exception exception)
              {
                  LOGGER.error((String)"Couldn\'t pick item", (Throwable)exception);
