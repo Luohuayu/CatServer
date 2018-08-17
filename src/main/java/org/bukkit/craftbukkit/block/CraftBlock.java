@@ -14,6 +14,7 @@ import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTUtil;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntitySkull;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,16 +30,21 @@ import net.minecraft.util.EnumFacing;
 import org.bukkit.block.BlockFace;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.init.Blocks;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.block.BlockContainer;
 import org.bukkit.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import org.bukkit.Chunk;
 import org.bukkit.util.BlockVector;
+
+import luohuayu.CatServer.block.CraftCustomContainer;
+
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.craftbukkit.CraftChunk;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.block.Block;
 
 public class CraftBlock implements Block
@@ -306,6 +312,19 @@ public class CraftBlock implements Block
     @Override
     public BlockState getState() {
         final Material material = this.getType();
+        // Cauldron start - if null, check for TE that implements IInventory
+        if (material == null) {
+            TileEntity te = ((CraftWorld)this.getWorld()).getHandle().getTileEntity(new BlockPos(this.getX(), this.getY(), this.getZ()));
+            if (te != null && te instanceof IInventory)
+            {
+                // In order to allow plugins to properly grab the container location, we must pass a class that extends CraftBlockState and implements InventoryHolder.
+                // Note: This will be returned when TileEntity.getOwner() is called
+                return new CraftCustomContainer(this);
+            }
+            // pass default state
+            return new CraftBlockState(this);
+        }
+        // Cauldron end
         switch (material) {
             case SIGN_POST:
             case WALL_SIGN:
