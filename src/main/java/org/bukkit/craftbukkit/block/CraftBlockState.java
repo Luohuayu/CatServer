@@ -279,7 +279,7 @@ public class CraftBlockState implements BlockState
             return false;
         }
         final CraftBlockState other = (CraftBlockState)obj;
-        return (this.world == other.world || (this.world != null && this.world.equals(other.world))) && this.x == other.x && this.y == other.y && this.z == other.z && this.type == other.type && (this.data == other.data || (this.data != null && this.data.equals(other.data)));
+        return (this.world == other.world || (this.world != null && this.world.equals(other.world))) && this.x == other.x && this.y == other.y && this.z == other.z && this.type == other.type && (this.data == other.data || (this.data != null && this.data.equals(other.data)) && (this.nbt == other.nbt || (this.nbt != null && this.nbt.equals(other.nbt)))); // CatServer
     }
     
     @Override
@@ -291,6 +291,7 @@ public class CraftBlockState implements BlockState
         hash = 73 * hash + this.z;
         hash = 73 * hash + this.type;
         hash = 73 * hash + ((this.data != null) ? this.data.hashCode() : 0);
+        hash = 73 * hash + (this.nbt != null ? this.nbt.hashCode() : 0);
         return hash;
     }
     
