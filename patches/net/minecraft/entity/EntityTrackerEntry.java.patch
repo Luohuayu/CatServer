@@ -1,14 +1,108 @@
 --- ../src-base/minecraft/net/minecraft/entity/EntityTrackerEntry.java
 +++ ../src-work/minecraft/net/minecraft/entity/EntityTrackerEntry.java
-@@ -64,6 +64,7 @@
+@@ -64,6 +64,8 @@
  import net.minecraft.world.storage.MapData;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
++import org.bukkit.event.player.PlayerVelocityEvent;
 +import org.spigotmc.AsyncCatcher;
  
  public class EntityTrackerEntry
  {
-@@ -361,6 +362,7 @@
+@@ -203,6 +205,21 @@
+                 boolean flag = j * j + k * k + l * l >= 128L || this.updateCounter % 60 == 0;
+                 boolean flag1 = Math.abs(k2 - this.encodedRotationYaw) >= 1 || Math.abs(i - this.encodedRotationPitch) >= 1;
+ 
++                // CraftBukkit start - Code moved from below
++                if (flag)
++                {
++                    this.encodedPosX = i1;
++                    this.encodedPosY = i2;
++                    this.encodedPosZ = j2;
++                }
++
++                if (flag1)
++                {
++                    this.encodedRotationYaw = k2;
++                    this.encodedRotationPitch = i;
++                }
++                // CraftBukkit end
++
+                 if (this.updateCounter > 0 || this.trackedEntity instanceof EntityArrow)
+                 {
+                     if (j >= -32768L && j < 32768L && k >= -32768L && k < 32768L && l >= -32768L && l < 32768L && this.ticksSinceLastForcedTeleport <= 400 && !this.ridingEntity && this.onGround == this.trackedEntity.onGround)
+@@ -227,6 +244,11 @@
+                     {
+                         this.onGround = this.trackedEntity.onGround;
+                         this.ticksSinceLastForcedTeleport = 0;
++                        // CraftBukkit start - Refresh list of who can see a player before sending teleport packet
++                        if (this.trackedEntity instanceof EntityPlayer) {
++                            this.updatePlayerEntities(new java.util.ArrayList(this.trackingPlayers));
++                        }
++                        // CraftBukkit end
+                         this.resetPlayerVisibility();
+                         packet1 = new SPacketEntityTeleport(this.trackedEntity);
+                     }
+@@ -262,7 +284,7 @@
+                 }
+ 
+                 this.sendMetadataToAllAssociatedPlayers();
+-
++                /*  CraftBukkit start - Code moved up
+                 if (flag)
+                 {
+                     this.encodedPosX = i1;
+@@ -275,7 +297,7 @@
+                     this.encodedRotationYaw = k2;
+                     this.encodedRotationPitch = i;
+                 }
+-
++                // CraftBukkit end */
+                 this.ridingEntity = false;
+             }
+ 
+@@ -294,7 +316,27 @@
+ 
+         if (this.trackedEntity.velocityChanged)
+         {
+-            this.sendToTrackingAndSelf(new SPacketEntityVelocity(this.trackedEntity));
++            // CraftBukkit start - Create PlayerVelocity event
++            boolean cancelled = false;
++
++            if (this.trackedEntity instanceof EntityPlayer) {
++                org.bukkit.entity.Player player = (org.bukkit.entity.Player) this.trackedEntity.getBukkitEntity();
++                org.bukkit.util.Vector velocity = player.getVelocity();
++
++                PlayerVelocityEvent event = new PlayerVelocityEvent(player, velocity.clone());
++                this.trackedEntity.worldObj.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    cancelled = true;
++                } else if (!velocity.equals(event.getVelocity())) {
++                    player.setVelocity(event.getVelocity());
++                }
++            }
++
++            if (!cancelled) {
++                this.sendToTrackingAndSelf(new SPacketEntityVelocity(this.trackedEntity));
++            }
++            // CraftBukkit end
+             this.trackedEntity.velocityChanged = false;
+         }
+     }
+@@ -315,6 +357,11 @@
+ 
+             if (!set.isEmpty())
+             {
++                // CraftBukkit start - Send scaled max health
++                if (this.trackedEntity instanceof EntityPlayerMP) {
++                    ((EntityPlayerMP) this.trackedEntity).getBukkitEntity().injectScaledMaxHealth(set, false);
++                }
++                // CraftBukkit end
+                 this.sendToTrackingAndSelf(new SPacketEntityProperties(this.trackedEntity.getEntityId(), set));
+             }
+ 
+@@ -361,12 +408,23 @@
  
      public void updatePlayerEntity(EntityPlayerMP playerMP)
      {
@@ -16,7 +110,23 @@
          if (playerMP != this.trackedEntity)
          {
              if (this.isVisibleTo(playerMP))
-@@ -635,6 +637,7 @@
+             {
+                 if (!this.trackingPlayers.contains(playerMP) && (this.isPlayerWatchingThisChunk(playerMP) || this.trackedEntity.forceSpawn))
+                 {
++                    // CraftBukkit start - respect vanish API
++                    if (this.trackedEntity instanceof EntityPlayer) {
++                        org.bukkit.entity.Player player = ((EntityPlayerMP) this.trackedEntity).getBukkitEntity();
++                        if (!playerMP.getBukkitEntity().canSee(player)) {
++                            return;
++                        }
++                    }
++
++                    playerMP.entityRemoveQueue.remove(Integer.valueOf(this.trackedEntity.getEntityId()));
++                    // CraftBukkit end
+                     this.trackingPlayers.add(playerMP);
+                     Packet<?> packet = this.createSpawnPacket();
+                     playerMP.connection.sendPacket(packet);
+@@ -635,6 +693,7 @@
  
      public void removeTrackedPlayerSymmetric(EntityPlayerMP playerMP)
      {
