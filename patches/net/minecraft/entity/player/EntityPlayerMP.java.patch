@@ -1,15 +1,16 @@
 --- ../src-base/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
 +++ ../src-work/minecraft/net/minecraft/entity/player/EntityPlayerMP.java
-@@ -4,6 +4,8 @@
+@@ -4,6 +4,9 @@
  import com.google.common.collect.Sets;
  import com.mojang.authlib.GameProfile;
  import io.netty.buffer.Unpooled;
 +
 +import java.util.ArrayList;
++import java.util.Arrays;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Set;
-@@ -12,7 +14,6 @@
+@@ -12,7 +15,6 @@
  import net.minecraft.block.BlockFence;
  import net.minecraft.block.BlockFenceGate;
  import net.minecraft.block.BlockWall;
@@ -17,7 +18,7 @@
  import net.minecraft.block.state.IBlockState;
  import net.minecraft.crash.CrashReport;
  import net.minecraft.crash.CrashReportCategory;
-@@ -79,12 +80,14 @@
+@@ -79,12 +81,14 @@
  import net.minecraft.tileentity.TileEntity;
  import net.minecraft.tileentity.TileEntityCommandBlock;
  import net.minecraft.tileentity.TileEntitySign;
@@ -32,7 +33,7 @@
  import net.minecraft.util.JsonSerializableSet;
  import net.minecraft.util.ReportedException;
  import net.minecraft.util.SoundCategory;
-@@ -98,22 +101,35 @@
+@@ -98,22 +102,35 @@
  import net.minecraft.world.GameType;
  import net.minecraft.world.IInteractionObject;
  import net.minecraft.world.ILockableContainer;
@@ -72,7 +73,7 @@
      private final StatisticsManagerServer statsFile;
      private float lastHealthScore = Float.MIN_VALUE;
      private int lastFoodScore = Integer.MIN_VALUE;
-@@ -124,42 +140,52 @@
+@@ -124,42 +141,52 @@
      private float lastHealth = -1.0E8F;
      private int lastFoodLevel = -99999999;
      private boolean wasHungry = true;
@@ -138,7 +139,7 @@
          }
  
          this.mcServer = server;
-@@ -167,37 +193,37 @@
+@@ -167,37 +194,37 @@
          this.stepHeight = 0.0F;
          this.moveToBlockPosAndAngles(blockpos, 0.0F, 0.0F);
  
@@ -191,7 +192,7 @@
              NBTTagCompound nbttagcompound = new NBTTagCompound();
              NBTTagCompound nbttagcompound1 = new NBTTagCompound();
              entity.writeToNBTOptional(nbttagcompound1);
-@@ -205,70 +231,63 @@
+@@ -205,70 +232,63 @@
              nbttagcompound.setTag("Entity", nbttagcompound1);
              compound.setTag("RootVehicle", nbttagcompound);
          }
@@ -280,7 +281,7 @@
                  iterator.remove();
              }
  
-@@ -277,103 +296,96 @@
+@@ -277,103 +297,96 @@
  
          Entity entity = this.getSpectatingEntity();
  
@@ -426,7 +427,7 @@
              CrashReport crashreport = CrashReport.makeCrashReport(throwable, "Ticking player");
              CrashReportCategory crashreportcategory = crashreport.makeCategory("Player being ticked");
              this.addEntityCrashInfo(crashreportcategory);
-@@ -381,118 +393,137 @@
+@@ -381,118 +394,128 @@
          }
      }
  
@@ -509,16 +510,6 @@
 +            return;
          boolean flag = this.worldObj.getGameRules().getBoolean("showDeathMessages");
 -        this.connection.sendPacket(new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
--
--        if (flag)
--        {
--            Team team = this.getTeam();
--
--            if (team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS)
--            {
--                if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OTHER_TEAMS)
--                {
--                    this.mcServer.getPlayerList().sendMessageToAllTeamMembers(this, this.getCombatTracker().getDeathMessage());
 +        this.connection.sendPacket(
 +                new SPacketCombatEvent(this.getCombatTracker(), SPacketCombatEvent.Event.ENTITY_DIED, flag));
 +        List<org.bukkit.inventory.ItemStack> loot = new ArrayList();
@@ -527,41 +518,38 @@
 +            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
 +                if (this.inventory.mainInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.mainInventory[i]));
-                 }
--                else if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OWN_TEAM)
--                {
--                    this.mcServer.getPlayerList().sendMessageToTeamOrAllPlayers(this, this.getCombatTracker().getDeathMessage());
++                }
 +            }
 +            for (int i = 0; i < this.inventory.armorInventory.length; i++) {
 +                if (this.inventory.armorInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.armorInventory[i]));
-                 }
-             }
--            else
--            {
++                }
++            }
 +            for (int i = 0; i < this.inventory.offHandInventory.length; i++) {
 +                if (this.inventory.offHandInventory[i] != null) {
 +                    loot.add(CraftItemStack.asCraftMirror(this.inventory.offHandInventory[i]));
 +                }
 +            }
 +        }
+ 
+-        if (flag)
+-        {
++        // CatServer start - handle drop items in Bukkit
++        captureDrops = true;
 +        PlayerDeathEvent eventd = CraftEventFactory.callPlayerDeathEvent(this, loot,
 +                this.getCombatTracker().getDeathMessage().getFormattedText(),
 +                this.worldObj.getGameRules().getBoolean("keepInventory"));
-+        if (!eventd.getKeepInventory()) {
-+            for (int i = 0; i < this.inventory.mainInventory.length; i++) {
-+                this.inventory.mainInventory[i] = null;
-+            }
-+            for (int i = 0; i < this.inventory.armorInventory.length; i++) {
-+                this.inventory.armorInventory[i] = null;
-+            }
-+            for (int i = 0; i < this.inventory.offHandInventory.length; i++) {
-+                this.inventory.offHandInventory[i] = null;
-+            }
-+        }
++        captureDrops = false;
++        // CatServer end
++        
 +        if (flag) {
-+            Team team = this.getTeam();
-+
+             Team team = this.getTeam();
+ 
+-            if (team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS)
+-            {
+-                if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OTHER_TEAMS)
+-                {
+-                    this.mcServer.getPlayerList().sendMessageToAllTeamMembers(this, this.getCombatTracker().getDeathMessage());
 +            if (team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS) {
 +                if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OTHER_TEAMS) {
 +                    this.mcServer.getPlayerList().sendMessageToAllTeamMembers(this,
@@ -569,7 +557,14 @@
 +                } else if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OWN_TEAM) {
 +                    this.mcServer.getPlayerList().sendMessageToTeamOrAllPlayers(this,
 +                            this.getCombatTracker().getDeathMessage());
-+                }
+                 }
+-                else if (team.getDeathMessageVisibility() == Team.EnumVisible.HIDE_FOR_OWN_TEAM)
+-                {
+-                    this.mcServer.getPlayerList().sendMessageToTeamOrAllPlayers(this, this.getCombatTracker().getDeathMessage());
+-                }
+-            }
+-            else
+-            {
 +            } else {
                  this.mcServer.getPlayerList().sendChatMsg(this.getCombatTracker().getDeathMessage());
              }
@@ -577,13 +572,14 @@
  
 -        if (!this.worldObj.getGameRules().getBoolean("keepInventory") && !this.isSpectator())
 -        {
-+        if (!this.worldObj.getGameRules().getBoolean("keepInventory") && !this.isSpectator()) {
-             captureDrops = true;
-             capturedDrops.clear();
+-            captureDrops = true;
+-            capturedDrops.clear();
++        if (!eventd.getKeepInventory() && !this.isSpectator()) {
++            this.inventory.clear(); // CatServer - clear inventory
  
-             this.inventory.dropAllItems();
- 
-             captureDrops = false;
+-            this.inventory.dropAllItems();
+-
+-            captureDrops = false;
 -            net.minecraftforge.event.entity.player.PlayerDropsEvent event = new net.minecraftforge.event.entity.player.PlayerDropsEvent(this, cause, capturedDrops, recentlyHit > 0);
 -            if (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event))
 -            {
@@ -621,7 +617,7 @@
                  this.addStat(entitylist$entityegginfo.entityKilledByStat);
              }
  
-@@ -504,37 +535,28 @@
+@@ -504,37 +527,28 @@
          this.getCombatTracker().reset();
      }
  
@@ -672,7 +668,7 @@
                              return false;
                          }
                      }
-@@ -545,52 +567,40 @@
+@@ -545,52 +559,40 @@
          }
      }
  
@@ -737,7 +733,7 @@
                  this.addStat(AchievementList.PORTAL);
              }
  
-@@ -603,36 +613,30 @@
+@@ -603,36 +605,30 @@
          }
      }
  
@@ -783,7 +779,7 @@
              this.addStat(StatList.SLEEP_IN_BED);
              Packet<?> packet = new SPacketUseBed(this, bedLocation);
              this.getServerWorld().getEntityTracker().sendToAllTrackingEntity(this, packet);
-@@ -643,87 +647,71 @@
+@@ -643,87 +639,71 @@
          return entityplayer$sleepresult;
      }
  
@@ -889,7 +885,7 @@
                  blockpos = blockpos1;
                  iblockstate = iblockstate1;
              }
-@@ -732,92 +720,127 @@
+@@ -732,92 +712,127 @@
          super.updateFallState(y, onGroundIn, iblockstate, blockpos);
      }
  
@@ -1066,7 +1062,7 @@
              PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
              packetbuffer.writeInt(this.currentWindowId);
              merchantrecipelist.writeToBuf(packetbuffer);
-@@ -825,105 +848,94 @@
+@@ -825,105 +840,94 @@
          }
      }
  
@@ -1206,7 +1202,7 @@
                  this.moveForward = forward;
              }
  
-@@ -932,144 +944,127 @@
+@@ -932,144 +936,127 @@
          }
      }
  
@@ -1396,7 +1392,7 @@
              this.setSpectatingEntity(this);
          }
  
-@@ -1077,191 +1072,308 @@
+@@ -1077,191 +1064,308 @@
          this.markPotionsDirty();
      }
  
