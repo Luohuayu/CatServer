@@ -76,7 +76,8 @@ public final class CraftMagicNumbers implements UnsafeValues
         return material;
     }
     
-    public static net.minecraft.block.Block getBlock(final Material material) {
+    public static net.minecraft.block.Block getBlock(Material material) {
+        material = material == null ? Material.AIR : material; // Cauldron - this should not happen but just in case it does
         if (material == null) {
             return null;
         }
