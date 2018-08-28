@@ -23,6 +23,7 @@ import java.util.ListIterator;
 import java.util.HashMap;
 import org.apache.commons.lang.Validate;
 import org.bukkit.Material;
+import org.bukkit.block.BlockState;
 import org.bukkit.inventory.ItemStack;
 import net.minecraft.inventory.IInventory;
 import org.bukkit.inventory.Inventory;
@@ -68,7 +69,14 @@ public class CraftInventory implements Inventory
     @Override
     public ItemStack[] getContents() {
         final ItemStack[] items = new ItemStack[this.getSize()];
-        final net.minecraft.item.ItemStack[] mcItems = this.getInventory().getContents();
+        // CatServer start - fix AbstractMethodError
+        net.minecraft.item.ItemStack[] mcItems = null;
+        try {
+            mcItems = this.getInventory().getContents();
+        } catch (AbstractMethodError e) {
+            return new ItemStack[0]; // return empty list
+        }
+        // CatServer end
         for (int size = Math.min(items.length, mcItems.length), i = 0; i < size; ++i) {
             items[i] = ((mcItems[i] == null) ? null : CraftItemStack.asCraftMirror(mcItems[i]));
         }
@@ -433,7 +441,11 @@ public class CraftInventory implements Inventory
     
     @Override
     public List<HumanEntity> getViewers() {
-        return this.inventory.getViewers();
+        try {
+            return this.inventory.getViewers();
+        } catch (AbstractMethodError e) {
+            return new java.util.ArrayList<HumanEntity>();
+        }
     }
     
     @Override
@@ -487,7 +499,19 @@ public class CraftInventory implements Inventory
     
     @Override
     public InventoryHolder getHolder() {
-        return this.inventory.getOwner();
+        // CatServer start - fix AbstractMethodError
+        try {
+            return this.inventory.getOwner();
+        } catch (AbstractMethodError e) {
+            if (inventory instanceof net.minecraft.tileentity.TileEntity) {
+                net.minecraft.tileentity.TileEntity tileentity = (net.minecraft.tileentity.TileEntity) inventory;
+                BlockState state = tileentity.getWorld().getWorld().getBlockAt(tileentity.getPos().getX(), tileentity.getPos().getY(), tileentity.getPos().getZ()).getState();
+                return (state instanceof InventoryHolder ? (InventoryHolder) state : null);
+            }else{
+                return null;
+            }
+        }
+        // CatServer end
     }
     
     @Override

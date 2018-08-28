@@ -798,7 +798,11 @@ public class CraftEventFactory
         }
         final CraftServer server = player.worldObj.getServer();
         final CraftPlayer craftPlayer = player.getBukkitEntity();
-        player.openContainer.transferTo(container, craftPlayer);
+        try {
+            player.openContainer.transferTo(container, craftPlayer);
+        } catch (AbstractMethodError e) {
+            // do nothing
+        }
         final InventoryOpenEvent event = new InventoryOpenEvent(container.getBukkitView());
         event.setCancelled(cancelled);
         server.getPluginManager().callEvent(event);
