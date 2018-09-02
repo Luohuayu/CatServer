@@ -22,12 +22,13 @@ import org.bukkit.plugin.PluginDescriptionFile;
 
 import luohuayu.CatServer.CatServer;
 import luohuayu.CatServer.remapper.CatServerRemapper;
+import luohuayu.CatServer.remapper.ClassInheritanceProvider;
 import luohuayu.CatServer.remapper.Transformer;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
 import net.md_5.specialsource.RemapperProcessor;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
-import net.md_5.specialsource.repo.RuntimeRepo;
+import net.md_5.specialsource.provider.JointProvider;
 import net.md_5.specialsource.transformer.MavenShade;
 import net.minecraft.server.MinecraftServer;
 
@@ -60,7 +61,11 @@ final class PluginClassLoader extends URLClassLoader {
 
         jarMapping = getJarMapping();
         jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
-        jarMapping.setFallbackInheritanceProvider(new ClassLoaderProvider(this));
+
+        JointProvider provider = new JointProvider();
+        provider.add(new ClassInheritanceProvider());
+        provider.add(new ClassLoaderProvider(this));
+        jarMapping.setFallbackInheritanceProvider(provider);
 
         remapper = new CatServerRemapper(jarMapping);
         remapperProcessor = new RemapperProcessor(loader.getGlobalInheritanceMap(), jarMapping);
