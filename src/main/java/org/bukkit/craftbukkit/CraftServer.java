@@ -1533,6 +1533,11 @@ public final class CraftServer implements Server
     }
     
     public List<String> tabComplete(final ICommandSender sender, final String message) {
+        // Spigot Start
+        if ((org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains(" ")) {
+            return ImmutableList.of();
+        }
+        // Spigot End
         if (!(sender instanceof EntityPlayerMP)) {
             return /*(List<String>)*/ImmutableList.of();
         }
