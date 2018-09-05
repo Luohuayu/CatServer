@@ -12,12 +12,12 @@ public class CatServerLogger {
     public static Logger getLogger(String name) {
         Logger logger=Logger.getLogger(name);
         logger.setUseParentHandlers(false);
-        
+
         ConsoleHandler handler = new ConsoleHandler();
         handler.setLevel(Level.ALL);
         handler.setFormatter(new LoggerHander());
         logger.addHandler(handler);
-        
+
         return logger;
     }
 }
@@ -29,7 +29,7 @@ class LoggerHander extends Formatter {
 
     public String format(LogRecord record) {
         try {
-            MinecraftServer.LOG.log(org.apache.logging.log4j.Level.toLevel(record.getLevel().toString()), record.getMessage());
+            MinecraftServer.LOG.log(record.getLevel() == Level.WARNING ? org.apache.logging.log4j.Level.WARN : org.apache.logging.log4j.Level.INFO, record.getMessage());
         }catch (Exception e){
             System.out.println(record.getMessage());
         }
