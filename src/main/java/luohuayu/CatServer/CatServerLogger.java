@@ -29,8 +29,13 @@ class LoggerHander extends Formatter {
 
     public String format(LogRecord record) {
         try {
-            MinecraftServer.LOG.log(record.getLevel() == Level.WARNING ? org.apache.logging.log4j.Level.WARN : org.apache.logging.log4j.Level.INFO, record.getMessage());
+            String message = record.getMessage();
+            for (int i = 0; i < (record.getParameters() != null ? record.getParameters().length : 0); i++) {
+                message = message.replace("{" + String.valueOf(i) + "}", record.getParameters()[i].toString());
+            }
+            MinecraftServer.LOG.log(record.getLevel() == Level.WARNING ? org.apache.logging.log4j.Level.WARN : org.apache.logging.log4j.Level.INFO, message, record.getThrown());
         }catch (Exception e){
+            e.printStackTrace();
             System.out.println(record.getMessage());
         }
         return "";
