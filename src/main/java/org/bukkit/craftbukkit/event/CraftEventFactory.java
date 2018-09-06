@@ -805,7 +805,7 @@ public class CraftEventFactory
         }
         final InventoryOpenEvent event = new InventoryOpenEvent(container.getBukkitView());
         event.setCancelled(cancelled);
-        server.getPluginManager().callEvent(event);
+        if (container.getBukkitView() != null) server.getPluginManager().callEvent(event); // CatServer - mods bypass
         if (event.isCancelled()) {
             ((Container) container).transferTo(player.openContainer, craftPlayer);
             return null;
@@ -931,7 +931,7 @@ public class CraftEventFactory
     		return;
     	}
         final InventoryCloseEvent event = new InventoryCloseEvent(((Container) human.openContainer).getBukkitView()); //TODO NULL
-        if(human.openContainer.getBukkitView() != null) human.worldObj.getServer().getPluginManager().callEvent(event);
+        if(human.openContainer.getBukkitView() != null) human.worldObj.getServer().getPluginManager().callEvent(event); // CatServer - mods bypass
         human.openContainer.transferTo(human.inventoryContainer, human.getBukkitEntity());
     }
     

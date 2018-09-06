@@ -1,0 +1,88 @@
+--- ../src-base/minecraft/net/minecraft/inventory/ContainerWorkbench.java
++++ ../src-work/minecraft/net/minecraft/inventory/ContainerWorkbench.java
+@@ -1,23 +1,49 @@
+ package net.minecraft.inventory;
+ 
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
++import org.bukkit.craftbukkit.inventory.CraftInventoryView;
++
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.entity.player.InventoryPlayer;
+ import net.minecraft.init.Blocks;
++import net.minecraft.init.Items;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.item.crafting.CraftingManager;
++import net.minecraft.network.play.server.SPacketSetSlot;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
+ 
+ public class ContainerWorkbench extends Container
+ {
+-    public InventoryCrafting craftMatrix = new InventoryCrafting(this, 3, 3);
+-    public IInventory craftResult = new InventoryCraftResult();
++    public InventoryCrafting craftMatrix; // CraftBukkit - move initialization into constructor
++    public IInventory craftResult; // CraftBukkit - move initialization into constructor
+     private final World worldObj;
+     private final BlockPos pos;
++    // CraftBukkit start
++    private CraftInventoryView bukkitEntity = null;
++    private InventoryPlayer player;
+ 
++    public CraftInventoryView getBukkitView() {
++        if (bukkitEntity != null) {
++            return bukkitEntity;
++        }
++
++        CraftInventoryCrafting inventory = new CraftInventoryCrafting(this.craftMatrix, this.craftResult);
++        bukkitEntity = new CraftInventoryView(this.player.player.getBukkitEntity(), inventory, this);
++        return bukkitEntity;
++    }
++    // CraftBukkit end
+     public ContainerWorkbench(InventoryPlayer playerInventory, World worldIn, BlockPos posIn)
+     {
++        // CraftBukkit start - Switched order of IInventory construction and stored player
++        craftMatrix = new InventoryCrafting(this, 3, 3, playerInventory.player);
++        craftResult = new InventoryCraftResult();
++        this.craftMatrix.resultInventory = this.craftResult;
++        this.player = playerInventory;
++        // CraftBukkit end
+         this.worldObj = worldIn;
+         this.pos = posIn;
+         this.addSlotToContainer(new SlotCrafting(playerInventory.player, this.craftMatrix, this.craftResult, 0, 124, 35));
+@@ -48,7 +74,24 @@
+ 
+     public void onCraftMatrixChanged(IInventory inventoryIn)
+     {
+-        this.craftResult.setInventorySlotContents(0, CraftingManager.getInstance().findMatchingRecipe(this.craftMatrix, this.worldObj));
++        // CraftBukkit start
++        CraftingManager.getInstance().lastCraftView = getBukkitView();
++        ItemStack craftResult = CraftingManager.getInstance().findMatchingRecipe(this.craftMatrix, this.worldObj);
++        this.craftResult.setInventorySlotContents(0, craftResult);
++
++        if (super.listeners.size() < 1)
++        {
++            return;
++        }
++
++        // See CraftBukkit PR #39
++        if (craftResult != null && craftResult.getItem() == Items.FILLED_MAP) {
++            return;
++        }
++
++        EntityPlayerMP player = (EntityPlayerMP) super.listeners.get(0); // TODO: Is this _always_ correct? Seems like it.
++        player.connection.sendPacket(new SPacketSetSlot(player.openContainer.windowId, 0, craftResult));
++        // CraftBukkit end
+     }
+ 
+     public void onContainerClosed(EntityPlayer playerIn)
+@@ -71,6 +114,7 @@
+ 
+     public boolean canInteractWith(EntityPlayer playerIn)
+     {
++        if (!this.checkReachable) return true; // CraftBukkit
+         return this.worldObj.getBlockState(this.pos).getBlock() != Blocks.CRAFTING_TABLE ? false : playerIn.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
+     }
+ 
