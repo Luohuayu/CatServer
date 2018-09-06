@@ -157,7 +157,7 @@
      public ServerCommandManager createNewCommandManager()
      {
          return new ServerCommandManager(this);
-@@ -217,43 +263,56 @@
+@@ -217,43 +263,58 @@
  
      public void loadAllWorlds(String saveName, String worldNameIn, long seed, WorldType type, String generatorOptions)
      {
@@ -211,11 +211,12 @@
 +        if(worldinfo == null){
 +            worldinfo = new WorldInfo(worldsettings,worldNameIn);
          }
--
--        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, isavehandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, isavehandler, worldinfo, 0, theProfiler).init());
--        overWorld.initialize(worldsettings);
 +        worldinfo.checkName(worldNameIn);
 +        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, iSaveHandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, iSaveHandler, worldinfo, 0, theProfiler, org.bukkit.World.Environment.getEnvironment(0), this.server.getGenerator(worldNameIn)).init());
++        this.server.scoreboardManager = new CraftScoreboardManager(this, overWorld.getScoreboard());
+ 
+-        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, isavehandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, isavehandler, worldinfo, 0, theProfiler).init());
+-        overWorld.initialize(worldsettings);
          for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
          {
 -            WorldServer world = (dim == 0 ? overWorld : (WorldServer)new WorldServerMulti(this, isavehandler, dim, overWorld, theProfiler).init());
@@ -240,12 +241,12 @@
 +            worldinfo.checkName(name);
 +            world = (dim == 0 ? overWorld: new WorldServerMulti(this, worldServerMulti, dim, overWorld, this.theProfiler, worldinfo, env, gen));
 +            world.initialize(worldsettings);
-+            this.server.scoreboardManager = new CraftScoreboardManager(this, world.getScoreboard());
++
 +            this.server.getPluginManager().callEvent(new WorldInitEvent(world.getWorld()));
              world.addEventListener(new ServerWorldEventHandler(this, world));
  
              if (!this.isSinglePlayer())
-@@ -261,44 +320,52 @@
+@@ -261,44 +322,52 @@
                  world.getWorldInfo().setGameType(this.getGameType());
              }
              net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(world));
@@ -322,7 +323,7 @@
          this.clearCurrentTask();
      }
  
-@@ -337,81 +404,104 @@
+@@ -337,81 +406,104 @@
      {
          this.currentTask = null;
          this.percentDone = 0;
@@ -470,7 +471,7 @@
      }
  
      public boolean isServerRunning()
-@@ -436,43 +526,34 @@
+@@ -436,43 +528,34 @@
                  this.statusResponse.setServerDescription(new TextComponentString(this.motd));
                  this.statusResponse.setVersion(new ServerStatusResponse.Version("1.10.2", 210));
                  this.applyServerIconToResponse(this.statusResponse);
@@ -533,7 +534,7 @@
                      this.serverIsRunning = true;
                  }
                  net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerStopping();
-@@ -521,6 +602,7 @@
+@@ -521,6 +604,7 @@
          {
              try
              {
@@ -541,7 +542,7 @@
                  this.stopServer();
                  this.serverStopped = true;
              }
-@@ -537,6 +619,10 @@
+@@ -537,6 +621,10 @@
          }
      }
  
@@ -552,7 +553,7 @@
      public void applyServerIconToResponse(ServerStatusResponse response)
      {
          File file1 = this.getFile("server-icon.png");
-@@ -596,8 +682,9 @@
+@@ -596,8 +684,9 @@
      {
      }
  
@@ -563,7 +564,7 @@
          long i = System.nanoTime();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onPreServerTick();
          ++this.tickCounter;
-@@ -629,12 +716,18 @@
+@@ -629,12 +718,18 @@
              this.statusResponse.invalidateJson();
          }
  
@@ -584,7 +585,7 @@
          }
  
          this.theProfiler.startSection("tallying");
-@@ -655,23 +748,55 @@
+@@ -655,23 +750,55 @@
          this.theProfiler.endSection();
          this.theProfiler.endSection();
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostServerTick();
@@ -646,7 +647,7 @@
          Integer[] ids = net.minecraftforge.common.DimensionManager.getIDs(this.tickCounter % 200 == 0);
          for (int x = 0; x < ids.length; x++)
          {
-@@ -682,20 +807,22 @@
+@@ -682,20 +809,22 @@
              {
                  WorldServer worldserver = net.minecraftforge.common.DimensionManager.getWorld(id);
                  this.theProfiler.startSection(worldserver.getWorldInfo().getWorldName());
@@ -671,7 +672,7 @@
                  }
                  catch (Throwable throwable1)
                  {
-@@ -706,7 +833,9 @@
+@@ -706,7 +835,9 @@
  
                  try
                  {
@@ -681,7 +682,7 @@
                  }
                  catch (Throwable throwable)
                  {
-@@ -718,7 +847,9 @@
+@@ -718,7 +849,9 @@
                  net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostWorldTick(worldserver);
                  this.theProfiler.endSection();
                  this.theProfiler.startSection("tracker");
@@ -691,7 +692,7 @@
                  this.theProfiler.endSection();
                  this.theProfiler.endSection();
              }
-@@ -729,15 +860,21 @@
+@@ -729,15 +862,21 @@
          this.theProfiler.endStartSection("dim_unloading");
          net.minecraftforge.common.DimensionManager.unloadWorlds(worldTickTimes);
          this.theProfiler.endStartSection("connection");
@@ -713,7 +714,7 @@
  
          this.theProfiler.endSection();
      }
-@@ -831,51 +968,7 @@
+@@ -831,51 +970,7 @@
  
      public List<String> getTabCompletions(ICommandSender sender, String input, @Nullable BlockPos pos, boolean hasTargetBlock)
      {
@@ -766,7 +767,7 @@
      }
  
      public boolean isAnvilFileSet()
-@@ -1320,6 +1413,13 @@
+@@ -1320,6 +1415,13 @@
      {
          return this;
      }
@@ -780,7 +781,7 @@
  
      public int getMaxWorldSize()
      {
-@@ -1334,11 +1434,10 @@
+@@ -1334,11 +1436,10 @@
          {
              ListenableFutureTask<V> listenablefuturetask = ListenableFutureTask.<V>create(callable);
  
@@ -796,7 +797,7 @@
          }
          else
          {
-@@ -1400,10 +1499,14 @@
+@@ -1400,10 +1501,14 @@
      @SideOnly(Side.SERVER)
      public static void main(String[] p_main_0_)
      {
@@ -811,7 +812,7 @@
              boolean flag = true;
              String s = null;
              String s1 = ".";
-@@ -1466,14 +1569,16 @@
+@@ -1466,14 +1571,16 @@
                  {
                      ++j;
                  }
@@ -831,7 +832,7 @@
              if (s != null)
              {
                  dedicatedserver.setServerOwner(s);
-@@ -1512,6 +1617,24 @@
+@@ -1512,6 +1619,24 @@
                      dedicatedserver.stopServer();
                  }
              });
@@ -856,7 +857,7 @@
          }
          catch (Exception exception)
          {
-@@ -1528,7 +1651,8 @@
+@@ -1528,7 +1653,8 @@
      @SideOnly(Side.SERVER)
      public boolean isDebuggingEnabled()
      {

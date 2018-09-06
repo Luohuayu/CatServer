@@ -84,7 +84,65 @@
  
      public void closeScreen()
      {
-@@ -771,7 +796,31 @@
+@@ -498,7 +523,8 @@
+         {
+             if (this.getHealth() < this.getMaxHealth() && this.ticksExisted % 20 == 0)
+             {
+-                this.heal(1.0F);
++             // CraftBukkit - added regain reason of "REGEN" for filtering purposes.
++                this.heal(1.0F, org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason.REGEN);
+             }
+ 
+             if (this.foodStats.needFood() && this.ticksExisted % 10 == 0)
+@@ -649,12 +675,13 @@
+         if (entityIn != this)
+         {
+             this.addScore(amount);
+-            Collection<ScoreObjective> collection = this.getWorldScoreboard().getObjectivesFromCriteria(IScoreCriteria.TOTAL_KILL_COUNT);
++            // CraftBukkit - Get our scores instead
++            Collection<Score> collection = this.worldObj.getServer().getScoreboardManager().getScoreboardScores(IScoreCriteria.TOTAL_KILL_COUNT, this.getName(), new java.util.ArrayList<Score>());;
+ 
+             if (entityIn instanceof EntityPlayer)
+             {
+                 this.addStat(StatList.PLAYER_KILLS);
+-                collection.addAll(this.getWorldScoreboard().getObjectivesFromCriteria(IScoreCriteria.PLAYER_KILL_COUNT));
++                this.worldObj.getServer().getScoreboardManager().getScoreboardScores(IScoreCriteria.PLAYER_KILL_COUNT, this.getName(), collection);
+             }
+             else
+             {
+@@ -663,14 +690,14 @@
+ 
+             collection.addAll(this.giveTeamKillScores(entityIn));
+ 
+-            for (ScoreObjective scoreobjective : collection)
++            for (Score score : collection)
+             {
+-                this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective).incrementScore();
++                score.incrementScore();
+             }
+         }
+     }
+ 
+-    private Collection<ScoreObjective> giveTeamKillScores(Entity p_175137_1_)
++    private Collection<Score> giveTeamKillScores(Entity p_175137_1_)
+     {
+         String s = p_175137_1_ instanceof EntityPlayer ? p_175137_1_.getName() : p_175137_1_.getCachedUniqueIdString();
+         ScorePlayerTeam scoreplayerteam = this.getWorldScoreboard().getPlayersTeam(this.getName());
+@@ -697,11 +724,11 @@
+ 
+             if (j >= 0 && j < IScoreCriteria.TEAM_KILL.length)
+             {
+-                return this.getWorldScoreboard().getObjectivesFromCriteria(IScoreCriteria.TEAM_KILL[j]);
++                return this.worldObj.getServer().getScoreboardManager().getScoreboardScores(IScoreCriteria.TEAM_KILL[j], this.getName(), new java.util.ArrayList<Score>());
+             }
+         }
+ 
+-        return Lists.<ScoreObjective>newArrayList();
++        return Lists.<Score>newArrayList();
+     }
+ 
+     @Nullable
+@@ -771,7 +798,31 @@
                  entityitem.motionY += (double)((this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F);
                  entityitem.motionZ += Math.sin((double)f3) * (double)f2;
              }
@@ -117,7 +175,29 @@
              ItemStack itemstack = this.dropItemAndGetStack(entityitem);
  
              if (traceItem)
-@@ -1078,14 +1127,17 @@
+@@ -905,6 +956,13 @@
+             this.wakeUpPlayer(true, true, false);
+         }
+ 
++        // CraftBukkit start
++        this.spawnWorld = compound.getString("SpawnWorld");
++        if ("".equals(spawnWorld)) {
++            this.spawnWorld = this.worldObj.getServer().getWorlds().get(0).getName();
++        }
++        // CraftBukkit end
++
+         if (compound.hasKey("SpawnX", 99) && compound.hasKey("SpawnY", 99) && compound.hasKey("SpawnZ", 99))
+         {
+             this.spawnChunk = new BlockPos(compound.getInteger("SpawnX"), compound.getInteger("SpawnY"), compound.getInteger("SpawnZ"));
+@@ -973,6 +1031,7 @@
+         this.foodStats.writeNBT(compound);
+         this.capabilities.writeCapabilitiesToNBT(compound);
+         compound.setTag("EnderItems", this.theInventoryEnderChest.saveInventoryToNBT());
++        compound.setString("SpawnWorld", spawnWorld); // CraftBukkit - fixes bed spawns for multiworld worlds
+     }
+ 
+     public boolean attackEntityFrom(DamageSource source, float amount)
+@@ -1078,14 +1137,17 @@
          return (float)i / (float)this.inventory.armorInventory.length;
      }
  
@@ -139,7 +219,7 @@
              damageAmount = this.applyPotionDamageCalculations(damageSrc, damageAmount);
              float f = damageAmount;
              damageAmount = Math.max(damageAmount - this.getAbsorptionAmount(), 0.0F);
-@@ -1104,6 +1156,7 @@
+@@ -1104,6 +1166,7 @@
                  }
              }
          }
@@ -147,7 +227,7 @@
      }
  
      public void openEditSign(TileEntitySign signTile)
-@@ -1282,8 +1335,15 @@
+@@ -1282,8 +1345,15 @@
  
                          if (j > 0 && !targetEntity.isBurning())
                          {
@@ -165,7 +245,7 @@
                          }
                      }
  
-@@ -1316,8 +1376,11 @@
+@@ -1316,8 +1386,11 @@
                              {
                                  if (entitylivingbase != this && entitylivingbase != targetEntity && !this.isOnSameTeam(entitylivingbase) && this.getDistanceSqToEntity(entitylivingbase) < 9.0D)
                                  {
@@ -178,7 +258,7 @@
                                  }
                              }
  
-@@ -1327,11 +1390,28 @@
+@@ -1327,11 +1400,28 @@
  
                          if (targetEntity instanceof EntityPlayerMP && targetEntity.velocityChanged)
                          {
@@ -207,7 +287,7 @@
                          }
  
                          if (flag2)
-@@ -1424,7 +1504,14 @@
+@@ -1424,7 +1514,14 @@
  
                              if (j > 0)
                              {
@@ -223,7 +303,7 @@
                              }
  
                              if (this.worldObj instanceof WorldServer && f5 > 2.0F)
-@@ -1434,7 +1521,7 @@
+@@ -1434,7 +1531,7 @@
                              }
                          }
  
@@ -232,7 +312,7 @@
                      }
                      else
                      {
-@@ -1541,6 +1628,20 @@
+@@ -1541,6 +1638,20 @@
              this.dismountRidingEntity();
          }
  
@@ -253,7 +333,7 @@
          this.setSize(0.2F, 0.2F);
  
          IBlockState state = null;
-@@ -1639,6 +1740,23 @@
+@@ -1639,6 +1750,23 @@
              this.worldObj.updateAllPlayersSleepingFlag();
          }
  
@@ -277,7 +357,7 @@
          this.sleepTimer = immediately ? 0 : 100;
  
          if (setSpawn)
-@@ -1745,11 +1863,13 @@
+@@ -1745,11 +1873,13 @@
          {
              this.spawnChunk = pos;
              this.spawnForced = forced;
@@ -291,7 +371,7 @@
          }
      }
  
-@@ -1778,11 +1898,11 @@
+@@ -1778,11 +1908,11 @@
  
          if (this.isSprinting())
          {

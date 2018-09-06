@@ -281,7 +281,7 @@
                  iterator.remove();
              }
  
-@@ -277,103 +297,96 @@
+@@ -277,103 +297,113 @@
  
          Entity entity = this.getSpectatingEntity();
  
@@ -382,6 +382,12 @@
  
 -            if (this.getTotalArmorValue() != this.lastArmorScore)
 -            {
++            // CraftBukkit start - Force max health updates
++            if (this.maxHealthCache != this.getMaxHealth()) {
++                this.getBukkitEntity().updateScaledHealth();
++            }
++            // CraftBukkit end
++
 +            if (this.getTotalArmorValue() != this.lastArmorScore) {
                  this.lastArmorScore = this.getTotalArmorValue();
 -                this.updateScorePoints(IScoreCriteria.ARMOR, MathHelper.ceiling_float_int((float)this.lastArmorScore));
@@ -423,11 +429,22 @@
 -        }
 -        catch (Throwable throwable)
 -        {
++
++            // CraftBukkit start - initialize oldLevel and fire PlayerLevelChangeEvent
++            if (this.oldLevel == -1) {
++                this.oldLevel = this.experienceLevel;
++            }
++
++            if (this.oldLevel != this.experienceLevel) {
++                CraftEventFactory.callPlayerLevelChangeEvent(this.worldObj.getServer().getPlayer(this), this.oldLevel, this.experienceLevel);
++                this.oldLevel = this.experienceLevel;
++            }
++            // CraftBukkit end
 +        } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.makeCrashReport(throwable, "Ticking player");
              CrashReportCategory crashreportcategory = crashreport.makeCategory("Player being ticked");
              this.addEntityCrashInfo(crashreportcategory);
-@@ -381,118 +394,128 @@
+@@ -381,118 +411,126 @@
          }
      }
  
@@ -435,9 +452,9 @@
 -    {
 -        for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(criteria))
 -        {
-+    private void updateScorePoints(IScoreCriteria criteria, int points) {
-+        for (ScoreObjective scoreobjective : this.getWorldScoreboard().getObjectivesFromCriteria(criteria)) {
-             Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
+-            Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
++    private void updateScorePoints(IScoreCriteria criteria, int points) { // CraftBukkit - Use our scores instead
++        for (Score score : this.worldObj.getServer().getScoreboardManager().getScoreboardScores(criteria, this.getName(), new java.util.ArrayList<Score>())) {
              score.setScorePoints(points);
          }
      }
@@ -596,9 +613,9 @@
  
 -        for (ScoreObjective scoreobjective : this.worldObj.getScoreboard().getObjectivesFromCriteria(IScoreCriteria.DEATH_COUNT))
 -        {
-+        for (ScoreObjective scoreobjective : this.worldObj.getScoreboard()
-+                .getObjectivesFromCriteria(IScoreCriteria.DEATH_COUNT)) {
-             Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
+-            Score score = this.getWorldScoreboard().getOrCreateScore(this.getName(), scoreobjective);
++        // CraftBukkit - Use our scores instead
++        for (Score score : this.worldObj.getServer().getScoreboardManager().getScoreboardScores(IScoreCriteria.DEATH_COUNT, this.getName(), new java.util.ArrayList<Score>())) {
              score.incrementScore();
          }
  
@@ -617,7 +634,7 @@
                  this.addStat(entitylist$entityegginfo.entityKilledByStat);
              }
  
-@@ -504,37 +527,28 @@
+@@ -504,37 +542,28 @@
          this.getCombatTracker().reset();
      }
  
@@ -668,7 +685,7 @@
                              return false;
                          }
                      }
-@@ -545,52 +559,40 @@
+@@ -545,52 +574,40 @@
          }
      }
  
@@ -680,8 +697,9 @@
  
 -    private boolean canPlayersAttack()
 -    {
+-        return this.mcServer.isPVPEnabled();
 +    private boolean canPlayersAttack() {
-         return this.mcServer.isPVPEnabled();
++        return this.worldObj.pvpMode; // CraftBukkit - this.server.getPvP() -> this.world.pvpMode
      }
  
      @Nullable
@@ -733,7 +751,7 @@
                  this.addStat(AchievementList.PORTAL);
              }
  
-@@ -603,36 +605,30 @@
+@@ -603,36 +620,30 @@
          }
      }
  
@@ -779,7 +797,7 @@
              this.addStat(StatList.SLEEP_IN_BED);
              Packet<?> packet = new SPacketUseBed(this, bedLocation);
              this.getServerWorld().getEntityTracker().sendToAllTrackingEntity(this, packet);
-@@ -643,87 +639,71 @@
+@@ -643,87 +654,72 @@
          return entityplayer$sleepresult;
      }
  
@@ -788,6 +806,7 @@
 -        if (this.isPlayerSleeping())
 -        {
 +    public void wakeUpPlayer(boolean immediately, boolean updateWorldFlag, boolean setSpawn) {
++        if (!this.sleeping) return; // CraftBukkit - Can't leave bed if not in one!
 +        if (this.isPlayerSleeping()) {
              this.getServerWorld().getEntityTracker().sendToTrackingAndSelf(this, new SPacketAnimation(this, 2));
          }
@@ -885,7 +904,7 @@
                  blockpos = blockpos1;
                  iblockstate = iblockstate1;
              }
-@@ -732,92 +712,127 @@
+@@ -732,92 +728,127 @@
          super.updateFallState(y, onGroundIn, iblockstate, blockpos);
      }
  
@@ -1062,7 +1081,7 @@
              PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
              packetbuffer.writeInt(this.currentWindowId);
              merchantrecipelist.writeToBuf(packetbuffer);
-@@ -825,105 +840,94 @@
+@@ -825,105 +856,94 @@
          }
      }
  
@@ -1202,7 +1221,7 @@
                  this.moveForward = forward;
              }
  
-@@ -932,144 +936,127 @@
+@@ -932,336 +952,452 @@
          }
      }
  
@@ -1279,6 +1298,7 @@
 -    {
 +    public void setPlayerHealthUpdated() {
          this.lastHealth = -1.0E8F;
++        this.lastExperience = -1; // CraftBukkit - Added to reset
      }
  
 -    public void addChatComponentMessage(ITextComponent chatComponent)
@@ -1377,6 +1397,8 @@
 -    public void setGameType(GameType gameType)
 -    {
 +    public void setGameType(GameType gameType) {
++        getBukkitEntity().setGameMode(org.bukkit.GameMode.getByValue(gameType.getID()));
++        /* CraftBukkit start - defer to our setGameMode
          this.interactionManager.setGameType(gameType);
 -        this.connection.sendPacket(new SPacketChangeGameState(3, (float)gameType.getID()));
 +        this.connection.sendPacket(new SPacketChangeGameState(3, (float) gameType.getID()));
@@ -1392,8 +1414,9 @@
              this.setSpectatingEntity(this);
          }
  
-@@ -1077,191 +1064,308 @@
+         this.sendPlayerAbilities();
          this.markPotionsDirty();
++        // CraftBukkit end */
      }
  
 -    public boolean isSpectator()
@@ -1419,6 +1442,7 @@
 -        if ("seed".equals(commandName) && !this.mcServer.isDedicatedServer())
 -        {
 +    public boolean canCommandSenderUseCommand(int permLevel, String commandName) {
++        /* CraftBukkit start
 +        if ("seed".equals(commandName) && !this.mcServer.isDedicatedServer()) {
              return true;
 -        }
@@ -1447,6 +1471,15 @@
 +        } else {
              return true;
          }
++        */
++        if ("@".equals(commandName)) {
++            return getBukkitEntity().hasPermission("minecraft.command.selector");
++        }
++        if ("".equals(commandName)) {
++            return getBukkitEntity().isOp();
++        }
++        return getBukkitEntity().hasPermission("minecraft.command." + commandName);
++        // CraftBukkit end
      }
  
 -    public String getPlayerIP()
@@ -1631,12 +1664,14 @@
 -    public void setElytraFlying()
 -    {
 +    public void setElytraFlying() {
++        if (CraftEventFactory.callToggleGlideEvent(this, true).isCancelled()) return; // CraftBukkit
          this.setFlag(7, true);
      }
  
 -    public void clearElytraFlying()
 -    {
 +    public void clearElytraFlying() {
++        if (CraftEventFactory.callToggleGlideEvent(this, false).isCancelled()) return; // CraftBukkit
          this.setFlag(7, true);
          this.setFlag(7, false);
      }
