@@ -48,7 +48,9 @@ class ChunkIOProvider implements AsynchronousExecutor.CallBackProvider<QueuedChu
         queuedChunk.provider.id2ChunkMap.put(ChunkPos.asLong(queuedChunk.x, queuedChunk.z), /*(Object)*/chunk);
         chunk.onChunkLoad();
         if (queuedChunk.provider.chunkGenerator != null) {
+            queuedChunk.provider.worldObj.timings.syncChunkLoadStructuresTimer.startTiming(); // Spigot
             queuedChunk.provider.chunkGenerator.recreateStructures(chunk, queuedChunk.x, queuedChunk.z);
+            queuedChunk.provider.worldObj.timings.syncChunkLoadStructuresTimer.stopTiming(); // Spigot
         }
         chunk.loadNearby(queuedChunk.provider, queuedChunk.provider.chunkGenerator, false);
     }

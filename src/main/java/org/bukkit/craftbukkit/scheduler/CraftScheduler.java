@@ -350,7 +350,9 @@ public class CraftScheduler implements BukkitScheduler
             else {
                 if (task.isSync()) {
                     try {
+                        task.timings.startTiming(); // Spigot
                         task.run();
+                        task.timings.stopTiming(); // Spigot
                     }
                     catch (Throwable throwable) {
                         task.getOwner().getLogger().log(Level.WARNING, String.format("Task #%s for %s generated an exception", task.getTaskId(), task.getOwner().getDescription().getFullName()), throwable);
