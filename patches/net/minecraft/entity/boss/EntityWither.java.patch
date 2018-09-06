@@ -1,0 +1,67 @@
+--- ../src-base/minecraft/net/minecraft/entity/boss/EntityWither.java
++++ ../src-work/minecraft/net/minecraft/entity/boss/EntityWither.java
+@@ -4,6 +4,10 @@
+ import com.google.common.base.Predicates;
+ import java.util.List;
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
++
+ import net.minecraft.block.Block;
+ import net.minecraft.block.material.Material;
+ import net.minecraft.block.state.IBlockState;
+@@ -34,6 +38,7 @@
+ import net.minecraft.network.datasync.DataParameter;
+ import net.minecraft.network.datasync.DataSerializers;
+ import net.minecraft.network.datasync.EntityDataManager;
++import net.minecraft.network.play.server.SPacketEffect;
+ import net.minecraft.pathfinding.PathNavigateGround;
+ import net.minecraft.potion.PotionEffect;
+ import net.minecraft.stats.AchievementList;
+@@ -245,8 +250,31 @@
+ 
+             if (j1 <= 0)
+             {
+-                this.worldObj.newExplosion(this, this.posX, this.posY + (double)this.getEyeHeight(), this.posZ, 7.0F, false, this.worldObj.getGameRules().getBoolean("mobGriefing"));
+-                this.worldObj.playBroadcastSound(1023, new BlockPos(this), 0);
++                // CraftBukkit start
++                ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), 7.0F, false);
++                this.worldObj.getServer().getPluginManager().callEvent(event);
++                if (!event.isCancelled()) {
++                    this.worldObj.newExplosion(this, this.posX, this.posY + (double)this.getEyeHeight(), this.posZ, event.getRadius(), event.getFire(), this.worldObj.getGameRules().getBoolean("mobGriefing"));
++                }
++                // CraftBukkit end
++
++                // CraftBukkit start - Use relative location for far away sounds
++                int viewDistance = this.worldObj.getServer().getViewDistance() * 16;
++                for (EntityPlayerMP player : worldObj.getMinecraftServer().getServer().getPlayerList().playerEntityList) {
++                    double deltaX = this.posX - player.posX;
++                    double deltaZ = this.posZ - player.posZ;
++                    double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++                    if (worldObj.spigotConfig.witherSpawnSoundRadius > 0 && distanceSquared > worldObj.spigotConfig.witherSpawnSoundRadius * worldObj.spigotConfig.witherSpawnSoundRadius) continue; // Spigot
++                    if (distanceSquared > viewDistance * viewDistance) {
++                        double deltaLength = Math.sqrt(distanceSquared);
++                        double relativeX = player.posX + (deltaX / deltaLength) * viewDistance;
++                        double relativeZ = player.posZ + (deltaZ / deltaLength) * viewDistance;
++                        player.connection.sendPacket(new SPacketEffect(1013, new BlockPos((int) relativeX, (int) this.posY, (int) relativeZ), 0, true));
++                    } else {
++                        player.connection.sendPacket(new SPacketEffect(1013, new BlockPos((int) this.posX, (int) this.posY, (int) this.posZ), 0, true));
++                    }
++                }
++                // CraftBukkit end
+             }
+ 
+             this.setInvulTime(j1);
+@@ -374,6 +402,11 @@
+ 
+                                 if (!block.isAir(iblockstate, this.worldObj, blockpos) && block.canEntityDestroy(iblockstate, worldObj, blockpos, this))
+                                 {
++                                    // CraftBukkit start
++                                    if (CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, Blocks.AIR, 0).isCancelled()) {
++                                        continue;
++                                    }
++                                    // CraftBukkit end
+                                     flag = this.worldObj.destroyBlock(blockpos, true) || flag;
+                                 }
+                             }
