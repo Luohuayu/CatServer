@@ -4,8 +4,8 @@
 
 package org.bukkit.craftbukkit.util;
 
-import net.minecraft.server.ExceptionWorldConflict;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.MinecraftException;
 
 public class ServerShutdownThread extends Thread
 {
@@ -20,7 +20,7 @@ public class ServerShutdownThread extends Thread
         //try {
         try {
             this.server.stopServer();
-        } catch (ExceptionWorldConflict exceptionWorldConflict) {
+        } catch (MinecraftException exceptionWorldConflict) {
             exceptionWorldConflict.printStackTrace();
         }
         //}
