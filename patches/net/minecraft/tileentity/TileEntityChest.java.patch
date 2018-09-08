@@ -1,6 +1,6 @@
 --- ../src-base/minecraft/net/minecraft/tileentity/TileEntityChest.java
 +++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityChest.java
-@@ -1,6 +1,12 @@
+@@ -1,10 +1,17 @@
  package net.minecraft.tileentity;
  
 +import java.util.List;
@@ -13,7 +13,12 @@
  import net.minecraft.block.Block;
  import net.minecraft.block.BlockChest;
  import net.minecraft.entity.player.EntityPlayer;
-@@ -22,8 +28,9 @@
+ import net.minecraft.entity.player.InventoryPlayer;
++import net.minecraft.init.Blocks;
+ import net.minecraft.init.SoundEvents;
+ import net.minecraft.inventory.Container;
+ import net.minecraft.inventory.ContainerChest;
+@@ -22,8 +29,9 @@
  import net.minecraft.util.datafix.walkers.ItemStackDataLists;
  import net.minecraft.util.math.AxisAlignedBB;
  import net.minecraft.util.math.BlockPos;
@@ -24,7 +29,7 @@
  {
      private ItemStack[] chestContents = new ItemStack[27];
      public boolean adjacentChestChecked;
-@@ -37,7 +44,30 @@
+@@ -37,7 +45,30 @@
      private int ticksSinceSync;
      private BlockChest.Type cachedChestType;
      private String customName;
@@ -56,3 +61,69 @@
      public TileEntityChest()
      {
      }
+@@ -172,11 +203,12 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return 64;
++        return maxStack; // CraftBukkit
+     }
+ 
+     public boolean isUseableByPlayer(EntityPlayer player)
+     {
++        if (this.worldObj == null) return true; // CraftBukkit
+         return this.worldObj.getTileEntity(this.pos) != this ? false : player.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
+     }
+ 
+@@ -392,8 +424,20 @@
+                 this.numPlayersUsing = 0;
+             }
+ 
++            int oldPower = Math.max(0, Math.min(15, this.numPlayersUsing)); // CraftBukkit - Get power before new viewer is added
++
+             ++this.numPlayersUsing;
++            if (this.worldObj == null) return; // CraftBukkit
+             this.worldObj.addBlockEvent(this.pos, this.getBlockType(), 1, this.numPlayersUsing);
++            // CraftBukkit start - Call redstone event
++            if (this.getBlockType() == Blocks.TRAPPED_CHEST) {
++                int newPower = Math.max(0, Math.min(15, this.numPlayersUsing));
++
++                if (oldPower != newPower) {
++                    org.bukkit.craftbukkit.event.CraftEventFactory.callRedstoneChange(worldObj, pos.getX(), pos.getY(), pos.getZ(), oldPower, newPower);
++                }
++            }
++            // CraftBukkit end
+             this.worldObj.notifyNeighborsOfStateChange(this.pos, this.getBlockType());
+             this.worldObj.notifyNeighborsOfStateChange(this.pos.down(), this.getBlockType());
+         }
+@@ -403,8 +447,19 @@
+     {
+         if (!player.isSpectator() && this.getBlockType() instanceof BlockChest)
+         {
++            int oldPower = Math.max(0, Math.min(15, this.numPlayersUsing)); // CraftBukkit - Get power before new viewer is added
+             --this.numPlayersUsing;
++            if (this.worldObj == null) return; // CraftBukkit
+             this.worldObj.addBlockEvent(this.pos, this.getBlockType(), 1, this.numPlayersUsing);
++            // CraftBukkit start - Call redstone event
++            if (this.getBlockType() == Blocks.TRAPPED_CHEST) {
++                int newPower = Math.max(0, Math.min(15, this.numPlayersUsing));
++
++                if (oldPower != newPower) {
++                    org.bukkit.craftbukkit.event.CraftEventFactory.callRedstoneChange(worldObj, pos.getX(), pos.getY(), pos.getZ(), oldPower, newPower);
++                }
++            }
++            // CraftBukkit end
+             this.worldObj.notifyNeighborsOfStateChange(this.pos, this.getBlockType());
+             this.worldObj.notifyNeighborsOfStateChange(this.pos.down(), this.getBlockType());
+         }
+@@ -493,4 +548,10 @@
+         return super.getCapability(net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+     }
+ 
++    // CraftBukkit start
++    @Override
++    public boolean onlyOpsCanSetNbt() {
++        return true;
++    }
++    // CraftBukkit end
+ }

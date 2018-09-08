@@ -1,6 +1,16 @@
 --- ../src-base/minecraft/net/minecraft/entity/item/EntityFallingBlock.java
 +++ ../src-work/minecraft/net/minecraft/entity/item/EntityFallingBlock.java
-@@ -35,7 +35,7 @@
+@@ -3,6 +3,9 @@
+ import com.google.common.collect.Lists;
+ import java.util.List;
+ import javax.annotation.Nullable;
++
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockAnvil;
+ import net.minecraft.block.BlockFalling;
+@@ -35,7 +38,7 @@
      public int fallTime;
      public boolean shouldDropItem = true;
      private boolean canSetAsBlock;
@@ -9,3 +19,47 @@
      private int fallHurtMax = 40;
      private float fallHurtAmount = 2.0F;
      public NBTTagCompound tileEntityData;
+@@ -106,7 +109,7 @@
+             {
+                 BlockPos blockpos = new BlockPos(this);
+ 
+-                if (this.worldObj.getBlockState(blockpos).getBlock() == block)
++                if (this.worldObj.getBlockState(blockpos).getBlock() == block && !CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, Blocks.AIR, 0).isCancelled())
+                 {
+                     this.worldObj.setBlockToAir(blockpos);
+                 }
+@@ -139,7 +142,7 @@
+                     if (BlockFalling.canFallThrough(this.worldObj.getBlockState(new BlockPos(this.posX, this.posY - 0.009999999776482582D, this.posZ))))
+                     {
+                         this.onGround = false;
+-                        return;
++                        //return; // CraftBukkit
+                     }
+ 
+                     this.motionX *= 0.699999988079071D;
+@@ -152,8 +155,14 @@
+ 
+                         if (!this.canSetAsBlock)
+                         {
+-                            if (this.worldObj.canBlockBePlaced(block, blockpos1, true, EnumFacing.UP, (Entity)null, (ItemStack)null) && !BlockFalling.canFallThrough(this.worldObj.getBlockState(blockpos1.down())) && this.worldObj.setBlockState(blockpos1, this.fallTile, 3))
++                            // CraftBukkit start
++                            if (this.worldObj.canBlockBePlaced(block, blockpos1, true, EnumFacing.UP, (Entity)null, (ItemStack)null) && !BlockFalling.canFallThrough(this.worldObj.getBlockState(blockpos1.down())))
+                             {
++                                if (CraftEventFactory.callEntityChangeBlockEvent(this, blockpos1, this.fallTile.getBlock(), this.fallTile.getBlock().getMetaFromState(this.fallTile)).isCancelled()) {
++                                    return;
++                                }
++                                this.worldObj.setBlockState(blockpos1, this.fallTile, 3);
++                                // CraftBukkit end
+                                 if (block instanceof BlockFalling)
+                                 {
+                                     ((BlockFalling)block).onEndFalling(this.worldObj, blockpos1);
+@@ -218,7 +227,9 @@
+ 
+                 for (Entity entity : list)
+                 {
++                    CraftEventFactory.entityDamage = this; // CraftBukkit
+                     entity.attackEntityFrom(damagesource, (float)Math.min(MathHelper.floor_float((float)i * this.fallHurtAmount), this.fallHurtMax));
++                    CraftEventFactory.entityDamage = null; // CraftBukkit
+                 }
+ 
+                 if (flag && (double)this.rand.nextFloat() < 0.05000000074505806D + (double)i * 0.05D)
