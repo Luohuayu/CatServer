@@ -48,7 +48,7 @@ public class RemapUtils {
                 int i = 0;
                 boolean failed = false;
                 for (Type type : Type.getArgumentTypes(str[1])) {
-                    if (!type.getClassName().equals(reverseMapExternal(parameterTypes[i]))) {
+                    if (!type.getClassName().equals(reverseMapExternal(parameterTypes[i++]))) {
                         failed = true;
                         break;
                     }
