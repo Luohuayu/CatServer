@@ -1,29 +1,18 @@
 --- ../src-base/minecraft/net/minecraft/world/WorldServer.java
 +++ ../src-work/minecraft/net/minecraft/world/WorldServer.java
-@@ -74,19 +74,34 @@
+@@ -74,19 +74,23 @@
  import net.minecraft.world.storage.MapStorage;
  import net.minecraft.world.storage.WorldInfo;
  import net.minecraft.world.storage.loot.LootTableManager;
-+import net.minecraftforge.common.DimensionManager;
 +import net.minecraftforge.common.WorldSpecificSaveHandler;
  import net.minecraftforge.fml.relauncher.Side;
  import net.minecraftforge.fml.relauncher.SideOnly;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-+//CraftBukkit start
-+import java.util.logging.Level;
- 
-+import org.bukkit.WeatherType;
 +import org.bukkit.block.BlockState;
-+import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
-+import org.bukkit.craftbukkit.generator.InternalChunkGenerator;
-+import org.bukkit.craftbukkit.util.HashTreeSet;
-+
 +import org.bukkit.event.block.BlockFormEvent;
 +import org.bukkit.event.weather.LightningStrikeEvent;
-+import org.spigotmc.SpigotConfig;
-+// CraftBukkit end
-+
+ 
  public class WorldServer extends World implements IThreadListener
  {
      private static final Logger LOGGER = LogManager.getLogger();
@@ -37,7 +26,7 @@
      private final Map<UUID, Entity> entitiesByUuid = Maps.<UUID, Entity>newHashMap();
      public boolean disableLevelSaving;
      private boolean allPlayersSleeping;
-@@ -101,30 +116,31 @@
+@@ -101,30 +105,31 @@
      /** Stores the recently processed (lighting) chunks */
      protected Set<ChunkPos> doneChunks = new java.util.HashSet<ChunkPos>();
      public List<Teleporter> customTeleporters = new ArrayList<Teleporter>();
@@ -79,7 +68,7 @@
          VillageCollection villagecollection = (VillageCollection)this.perWorldStorage.getOrLoadData(VillageCollection.class, s);
  
          if (villagecollection == null)
-@@ -138,7 +154,20 @@
+@@ -138,7 +143,20 @@
              this.villageCollectionObj.setWorldsForAll(this);
          }
  
@@ -101,7 +90,7 @@
          ScoreboardSaveData scoreboardsavedata = (ScoreboardSaveData)this.mapStorage.getOrLoadData(ScoreboardSaveData.class, "scoreboard");
  
          if (scoreboardsavedata == null)
-@@ -146,16 +175,11 @@
+@@ -146,16 +164,11 @@
              scoreboardsavedata = new ScoreboardSaveData();
              this.mapStorage.setData("scoreboard", scoreboardsavedata);
          }
@@ -122,7 +111,7 @@
          if (this.worldInfo.getBorderLerpTime() > 0L)
          {
              this.getWorldBorder().setTransition(this.worldInfo.getBorderSize(), this.worldInfo.getBorderLerpTarget(), this.worldInfo.getBorderLerpTime());
-@@ -165,6 +189,19 @@
+@@ -165,6 +178,19 @@
              this.getWorldBorder().setTransition(this.worldInfo.getBorderSize());
          }
  
@@ -142,7 +131,7 @@
          this.initCapabilities();
          return this;
      }
-@@ -193,11 +230,15 @@
+@@ -193,11 +219,15 @@
  
          this.theProfiler.startSection("mobSpawner");
  
@@ -161,7 +150,7 @@
          this.theProfiler.endStartSection("chunkSource");
          this.chunkProvider.unloadQueuedChunks();
          int j = this.calculateSkylightSubtracted(1.0F);
-@@ -213,24 +254,39 @@
+@@ -213,24 +243,39 @@
          {
              this.worldInfo.setWorldTime(this.worldInfo.getWorldTime() + 1L);
          }
@@ -202,7 +191,7 @@
      }
  
      @Nullable
-@@ -341,7 +397,7 @@
+@@ -341,7 +386,7 @@
          this.worldInfo.setSpawnZ(j);
      }
  
@@ -211,7 +200,7 @@
      {
          return this.getChunkProvider().chunkExists(x, z);
      }
-@@ -393,6 +449,7 @@
+@@ -393,6 +438,7 @@
                  chunk.enqueueRelightChecks();
                  this.theProfiler.endStartSection("tickChunk");
                  chunk.onTick(false);
@@ -219,7 +208,39 @@
                  this.theProfiler.endStartSection("thunder");
  
                  if (this.provider.canDoLightning(chunk) && flag && flag1 && this.rand.nextInt(100000) == 0)
-@@ -618,6 +675,7 @@
+@@ -433,11 +479,30 @@
+ 
+                     if (this.canBlockFreezeNoWater(blockpos2))
+                     {
+-                        this.setBlockState(blockpos2, Blocks.ICE.getDefaultState());
++                        // CraftBukkit start
++                        BlockState blockState = this.getWorld().getBlockAt(blockpos2.getX(), blockpos2.getY(), blockpos2.getZ()).getState();
++                        blockState.setTypeId(Block.getIdFromBlock(Blocks.ICE));
++
++                        BlockFormEvent iceBlockForm = new BlockFormEvent(blockState.getBlock(), blockState);
++                        this.getServer().getPluginManager().callEvent(iceBlockForm);
++                        if (!iceBlockForm.isCancelled()) {
++                            blockState.update(true);
++                        }
++                        // CraftBukkit end
+                     }
+ 
+                     if (flag && this.canSnowAt(blockpos1, true))
+                     {
++                        // CraftBukkit start
++                        BlockState blockState = this.getWorld().getBlockAt(blockpos1.getX(), blockpos1.getY(), blockpos1.getZ()).getState();
++                        blockState.setTypeId(Block.getIdFromBlock(Blocks.SNOW_LAYER));
++
++                        BlockFormEvent snow = new BlockFormEvent(blockState.getBlock(), blockState);
++                        this.getServer().getPluginManager().callEvent(snow);
++                        if (!snow.isCancelled()) {
++                            blockState.update(true);
++                        }
++                        // CraftBukkit end
+                         this.setBlockState(blockpos1, Blocks.SNOW_LAYER.getDefaultState());
+                     }
+ 
+@@ -618,6 +683,7 @@
  
          this.provider.onWorldUpdateEntities();
          super.updateEntities();
@@ -227,7 +248,7 @@
      }
  
      protected void tickPlayers()
-@@ -852,7 +910,38 @@
+@@ -852,7 +918,38 @@
      protected IChunkProvider createChunkProvider()
      {
          IChunkLoader ichunkloader = this.saveHandler.getChunkLoader(this.provider);
@@ -267,7 +288,7 @@
      }
  
      public boolean isBlockModifiable(EntityPlayer player, BlockPos pos)
-@@ -998,6 +1087,7 @@
+@@ -998,6 +1095,7 @@
  
          if (chunkproviderserver.canSave())
          {
@@ -275,7 +296,7 @@
              if (progressCallback != null)
              {
                  progressCallback.displaySavingString("Saving level");
-@@ -1012,9 +1102,10 @@
+@@ -1012,9 +1110,10 @@
  
              chunkproviderserver.saveChunks(p_73044_1_);
              net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Save(this));
@@ -289,7 +310,7 @@
                  if (chunk != null && !this.thePlayerManager.contains(chunk.xPosition, chunk.zPosition))
                  {
                      chunkproviderserver.unload(chunk);
-@@ -1033,7 +1124,7 @@
+@@ -1033,7 +1132,7 @@
          }
      }
  
@@ -298,7 +319,7 @@
      {
          this.checkSessionLock();
  
-@@ -1044,7 +1135,10 @@
+@@ -1044,7 +1143,10 @@
                  ((WorldServerMulti)worldserver).saveAdditionalData();
              }
          }
@@ -310,7 +331,26 @@
          this.worldInfo.setBorderSize(this.getWorldBorder().getDiameter());
          this.worldInfo.getBorderCenterX(this.getWorldBorder().getCenterX());
          this.worldInfo.getBorderCenterZ(this.getWorldBorder().getCenterZ());
-@@ -1180,6 +1274,10 @@
+@@ -1147,9 +1249,17 @@
+ 
+     public boolean addWeatherEffect(Entity entityIn)
+     {
++        // CraftBukkit start
++        LightningStrikeEvent lightning = new LightningStrikeEvent(this.getWorld(), (org.bukkit.entity.LightningStrike) entityIn.getBukkitEntity());
++        this.getServer().getPluginManager().callEvent(lightning);
++
++        if (lightning.isCancelled()) {
++            return false;
++        }
++        // CraftBukkit end
+         if (super.addWeatherEffect(entityIn))
+         {
+-            this.mcServer.getPlayerList().sendToAllNearExcept((EntityPlayer)null, entityIn.posX, entityIn.posY, entityIn.posZ, 512.0D, this.provider.getDimension(), new SPacketSpawnGlobalEntity(entityIn));
++            this.mcServer.getPlayerList().sendToAllNearExcept((EntityPlayer)null, entityIn.posX, entityIn.posY, entityIn.posZ, 512.0D, this.dimension, new SPacketSpawnGlobalEntity(entityIn));  // CraftBukkit - Use dimension
+             return true;
+         }
+         else
+@@ -1180,6 +1290,10 @@
              explosion.clearAffectedBlockPositions();
          }
  
@@ -321,7 +361,7 @@
          for (EntityPlayer entityplayer : this.playerEntities)
          {
              if (entityplayer.getDistanceSq(x, y, z) < 4096.0D)
-@@ -1304,12 +1402,25 @@
+@@ -1304,12 +1418,25 @@
  
      public void spawnParticle(EnumParticleTypes particleType, boolean longDistance, double xCoord, double yCoord, double zCoord, int numberOfParticles, double xOffset, double yOffset, double zOffset, double particleSpeed, int... particleArguments)
      {
