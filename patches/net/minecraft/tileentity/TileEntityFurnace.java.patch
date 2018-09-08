@@ -58,7 +58,96 @@
      private static final int[] SLOTS_TOP = new int[] {0};
      private static final int[] SLOTS_BOTTOM = new int[] {2, 1};
      private static final int[] SLOTS_SIDES = new int[] {1};
-@@ -276,14 +316,33 @@
+@@ -180,25 +220,53 @@
+ 
+     public void update()
+     {
+-        boolean flag = this.isBurning();
++        boolean flag = (this.getBlockType() == Blocks.LIT_FURNACE); // CraftBukkit - SPIGOT-844 - Check if furnace block is lit using the block instead of burn time
+         boolean flag1 = false;
+ 
++        // CraftBukkit start - Use wall time instead of ticks for cooking
++        int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++        this.lastTick = MinecraftServer.currentTick;
++
++        // CraftBukkit - moved from below - edited for wall time
++        if (this.isBurning() && this.canSmelt()) {
++            this.cookTime += elapsedTicks;
++            if (this.cookTime >= this.totalCookTime) {
++                this.cookTime = 0;
++                this.totalCookTime = this.getCookTime(this.furnaceItemStacks[0]);
++                this.smeltItem();
++                flag1 = true;
++            }
++        } else {
++            this.cookTime = 0;
++        }
++        // CraftBukkit end
++
+         if (this.isBurning())
+         {
+-            --this.furnaceBurnTime;
++            this.furnaceBurnTime -= elapsedTicks; // CraftBukkit - use elapsedTicks in place of constant
+         }
+ 
+         if (!this.worldObj.isRemote)
+         {
+             if (this.isBurning() || this.furnaceItemStacks[1] != null && this.furnaceItemStacks[0] != null)
+             {
+-                if (!this.isBurning() && this.canSmelt())
++                // CraftBukkit start - Handle multiple elapsed ticks
++                if (this.furnaceBurnTime <= 0 && this.canSmelt())  // CraftBukkit - == to <=
+                 {
+-                    this.furnaceBurnTime = getItemBurnTime(this.furnaceItemStacks[1]);
+-                    this.currentItemBurnTime = this.furnaceBurnTime;
++                    CraftItemStack fuel = CraftItemStack.asCraftMirror(this.furnaceItemStacks[1]);
+ 
+-                    if (this.isBurning())
+-                    {
++                    FurnaceBurnEvent furnaceBurnEvent = new FurnaceBurnEvent(this.worldObj.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), fuel, getItemBurnTime(this.furnaceItemStacks[1]));
++                    this.worldObj.getServer().getPluginManager().callEvent(furnaceBurnEvent);
++
++                    if (furnaceBurnEvent.isCancelled()) {
++                        return;
++                    }
++
++                    this.currentItemBurnTime = furnaceBurnEvent.getBurnTime();
++                    this.furnaceBurnTime += this.currentItemBurnTime;
++
++                    if (this.furnaceBurnTime > 0 && furnaceBurnEvent.isBurning()) {
++                        // CraftBukkit end
+                         flag1 = true;
+ 
+                         if (this.furnaceItemStacks[1] != null)
+@@ -213,6 +281,7 @@
+                     }
+                 }
+ 
++                /* CraftBukkit start - Moved up
+                 if (this.isBurning() && this.canSmelt())
+                 {
+                     ++this.cookTime;
+@@ -229,16 +298,19 @@
+                 {
+                     this.cookTime = 0;
+                 }
++                */
+             }
+             else if (!this.isBurning() && this.cookTime > 0)
+             {
+                 this.cookTime = MathHelper.clamp_int(this.cookTime - 2, 0, this.totalCookTime);
+             }
++            
+ 
+             if (flag != this.isBurning())
+             {
+                 flag1 = true;
+                 BlockFurnace.setState(this.isBurning(), this.worldObj, this.pos);
++                this.updateContainingBlockInfo(); // CraftBukkit - Invalidate tile entity's cached block type
+             }
+         }
+ 
+@@ -276,14 +348,33 @@
          {
              ItemStack itemstack = FurnaceRecipes.instance().getSmeltingResult(this.furnaceItemStacks[0]);
  

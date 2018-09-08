@@ -1,0 +1,58 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemBow.java
++++ ../src-work/minecraft/net/minecraft/item/ItemBow.java
+@@ -1,10 +1,14 @@
+ package net.minecraft.item;
+ 
+ import javax.annotation.Nullable;
++
++import org.bukkit.event.entity.EntityCombustEvent;
++
+ import net.minecraft.creativetab.CreativeTabs;
+ import net.minecraft.enchantment.EnchantmentHelper;
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.entity.projectile.EntityArrow;
+ import net.minecraft.init.Enchantments;
+ import net.minecraft.init.Items;
+@@ -135,9 +139,21 @@
+ 
+                         if (EnchantmentHelper.getEnchantmentLevel(Enchantments.FLAME, stack) > 0)
+                         {
+-                            entityarrow.setFire(100);
+-                        }
++                            // CraftBukkit start - call EntityCombustEvent
++                            EntityCombustEvent event = new EntityCombustEvent(entityarrow.getBukkitEntity(), 100);
++                            entityarrow.worldObj.getServer().getPluginManager().callEvent(event);
+ 
++                            if (!event.isCancelled()) {
++                                entityarrow.setFire(event.getDuration());
++                            }
++                            // CraftBukkit end
++                        }
++                        // CraftBukkit start
++                        org.bukkit.event.entity.EntityShootBowEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityShootBowEvent(entityplayer, itemstack, entityarrow, f);
++                        if (event.isCancelled()) {
++                            event.getProjectile().remove();
++                            return;
++                        }
+                         stack.damageItem(1, entityplayer);
+ 
+                         if (flag1)
+@@ -145,7 +161,15 @@
+                             entityarrow.pickupStatus = EntityArrow.PickupStatus.CREATIVE_ONLY;
+                         }
+ 
+-                        worldIn.spawnEntityInWorld(entityarrow);
++                        if (event.getProjectile() == entityarrow.getBukkitEntity()) {
++                            if (!worldIn.spawnEntityInWorld(entityarrow)) {
++                                if (entityplayer instanceof EntityPlayerMP) {
++                                    ((EntityPlayerMP) entityplayer).getBukkitEntity().updateInventory();
++                                }
++                                return;
++                            }
++                        }
++                        // CraftBukkit end
+                     }
+ 
+                     worldIn.playSound((EntityPlayer)null, entityplayer.posX, entityplayer.posY, entityplayer.posZ, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL, 1.0F, 1.0F / (itemRand.nextFloat() * 0.4F + 1.2F) + f * 0.5F);

@@ -1,0 +1,56 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemMinecart.java
++++ ../src-work/minecraft/net/minecraft/item/ItemMinecart.java
+@@ -1,5 +1,8 @@
+ package net.minecraft.item;
+ 
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
++
+ import net.minecraft.block.BlockDispenser;
+ import net.minecraft.block.BlockRailBase;
+ import net.minecraft.block.material.Material;
+@@ -64,15 +67,42 @@
+                 }
+             }
+ 
+-            EntityMinecart entityminecart = EntityMinecart.create(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
++            // CraftBukkit start
++            //EntityMinecart entityminecart = EntityMinecart.create(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
++            ItemStack itemstack1 = stack.splitStack(1);
++            org.bukkit.block.Block block2 = world.getWorld().getBlockAt(source.getBlockPos().getX(), source.getBlockPos().getY(), source.getBlockPos().getZ());
++            CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack1);
+ 
++            BlockDispenseEvent event = new BlockDispenseEvent(block2, craftItem.clone(), new org.bukkit.util.Vector(d0, d1 + d3, d2));
++            world.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                stack.stackSize++;
++                return stack;
++            }
++
++            if (!event.getItem().equals(craftItem)) {
++                stack.stackSize++;
++                // Chain to handler for new item
++                ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++                IBehaviorDispenseItem idispensebehavior = BlockDispenser.DISPENSE_BEHAVIOR_REGISTRY.getObject(eventStack.getItem());
++                if (idispensebehavior != IBehaviorDispenseItem.DEFAULT_BEHAVIOR && idispensebehavior != this) {
++                    idispensebehavior.dispense(source, eventStack);
++                    return stack;
++                }
++            }
++
++            itemstack1 = CraftItemStack.asNMSCopy(event.getItem());
++            EntityMinecart entityminecart = EntityMinecart.create(world, event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), ((ItemMinecart) itemstack1.getItem()).minecartType);
++
+             if (stack.hasDisplayName())
+             {
+                 entityminecart.setCustomNameTag(stack.getDisplayName());
+             }
+ 
+             world.spawnEntityInWorld(entityminecart);
+-            stack.splitStack(1);
++            // stack.splitStack(1); // CraftBukkit - handled during event processing
++            // CraftBukkit end
+             return stack;
+         }
+         protected void playDispenseSound(IBlockSource source)
