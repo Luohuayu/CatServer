@@ -1,6 +1,80 @@
 --- ../src-base/minecraft/net/minecraft/entity/monster/EntityZombie.java
 +++ ../src-work/minecraft/net/minecraft/entity/monster/EntityZombie.java
-@@ -687,7 +687,7 @@
+@@ -4,6 +4,12 @@
+ import java.util.List;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityCombustEvent;
++import org.bukkit.event.entity.EntityTargetEvent;
++
+ import net.minecraft.block.Block;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityLiving;
+@@ -271,7 +277,14 @@
+ 
+                 if (flag)
+                 {
+-                    this.setFire(8);
++                    // CraftBukkit start
++                    EntityCombustEvent event = new EntityCombustEvent(this.getBukkitEntity(), 8);
++                    this.worldObj.getServer().getPluginManager().callEvent(event);
++
++                    if (!event.isCancelled()) {
++                        this.setFire(event.getDuration());
++                    }
++                    // CraftBukkit end
+                 }
+             }
+         }
+@@ -321,8 +334,8 @@
+ 
+                         if (!this.worldObj.isAnyPlayerWithinRangeAt((double)i1, (double)j1, (double)k1, 7.0D) && this.worldObj.checkNoEntityCollision(entityzombie.getEntityBoundingBox(), entityzombie) && this.worldObj.getCollisionBoxes(entityzombie, entityzombie.getEntityBoundingBox()).isEmpty() && !this.worldObj.containsAnyLiquid(entityzombie.getEntityBoundingBox()))
+                         {
+-                            this.worldObj.spawnEntityInWorld(entityzombie);
+-                            if (entitylivingbase != null) entityzombie.setAttackTarget(entitylivingbase);
++                            this.worldObj.addEntity(entityzombie, CreatureSpawnEvent.SpawnReason.REINFORCEMENTS); // CraftBukkit
++                            if (entitylivingbase != null) entityzombie.setGoalTarget(entitylivingbase, EntityTargetEvent.TargetReason.REINFORCEMENT_TARGET, true);
+                             entityzombie.onInitialSpawn(this.worldObj.getDifficultyForLocation(new BlockPos(entityzombie)), (IEntityLivingData)null);
+                             this.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).applyModifier(new AttributeModifier("Zombie reinforcement caller charge", -0.05000000074505806D, 0));
+                             entityzombie.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).applyModifier(new AttributeModifier("Zombie reinforcement callee charge", -0.05000000074505806D, 0));
+@@ -368,7 +381,14 @@
+             {
+                 if (this.isBurning() && this.rand.nextFloat() < f * 0.3F)
+                 {
+-                    entityIn.setFire(2 * (int)f);
++                    // CraftBukkit start
++                    EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), entityIn.getBukkitEntity(), 2 * (int) f); // PAIL: fixme
++                    this.worldObj.getServer().getPluginManager().callEvent(event);
++
++                    if (!event.isCancelled()) {
++                        entityIn.setFire(event.getDuration());
++                    }
++                    // CraftBukkit end
+                 }
+ 
+                 if (this.getZombieType() == ZombieType.HUSK && entityIn instanceof EntityLivingBase)
+@@ -529,7 +549,7 @@
+                 entityzombie.setAlwaysRenderNameTag(entityvillager.getAlwaysRenderNameTag());
+             }
+ 
+-            this.worldObj.spawnEntityInWorld(entityzombie);
++            this.worldObj.addEntity(entityzombie, CreatureSpawnEvent.SpawnReason.INFECTION); // CraftBukkit - add SpawnReason
+             this.worldObj.playEvent((EntityPlayer)null, 1026, new BlockPos((int)this.posX, (int)this.posY, (int)this.posZ), 0);
+         }
+     }
+@@ -601,7 +621,7 @@
+                     entitychicken1.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
+                     entitychicken1.onInitialSpawn(difficulty, (IEntityLivingData)null);
+                     entitychicken1.setChickenJockey(true);
+-                    this.worldObj.spawnEntityInWorld(entitychicken1);
++                    this.worldObj.addEntity(entitychicken1, CreatureSpawnEvent.SpawnReason.MOUNT); // CraftBukkit
+                     this.startRiding(entitychicken1);
+                 }
+             }
+@@ -687,7 +707,7 @@
          }
      }
  
@@ -9,7 +83,16 @@
      {
          return !this.isConverting();
      }
-@@ -766,7 +766,7 @@
+@@ -722,7 +742,7 @@
+             entityvillager.setAlwaysRenderNameTag(this.getAlwaysRenderNameTag());
+         }
+ 
+-        this.worldObj.spawnEntityInWorld(entityvillager);
++        this.worldObj.addEntity(entityvillager, CreatureSpawnEvent.SpawnReason.CURED); // CraftBukkit - add SpawnReason
+         entityvillager.addPotionEffect(new PotionEffect(MobEffects.NAUSEA, 200, 0));
+         this.worldObj.playEvent((EntityPlayer)null, 1027, new BlockPos((int)this.posX, (int)this.posY, (int)this.posZ), 0);
+     }
+@@ -766,7 +786,7 @@
          this.multiplySize(isChild ? 0.5F : 1.0F);
      }
  
@@ -18,3 +101,19 @@
      {
          boolean flag = this.zombieWidth > 0.0F && this.zombieHeight > 0.0F;
          this.zombieWidth = width;
+@@ -790,13 +810,14 @@
+ 
+     public void onDeath(DamageSource cause)
+     {
+-        super.onDeath(cause);
++        //super.onDeath(cause); // CraftBukkit
+ 
+         if (cause.getEntity() instanceof EntityCreeper && !(this instanceof EntityPigZombie) && ((EntityCreeper)cause.getEntity()).getPowered() && ((EntityCreeper)cause.getEntity()).isAIEnabled())
+         {
+             ((EntityCreeper)cause.getEntity()).incrementDroppedSkulls();
+             this.entityDropItem(new ItemStack(Items.SKULL, 1, 2), 0.0F);
+         }
++        super.onDeath(cause); // CraftBukkit - moved from above
+     }
+ 
+     public String getName()

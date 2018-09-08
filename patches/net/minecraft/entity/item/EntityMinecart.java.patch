@@ -35,7 +35,170 @@
  
      public EntityMinecart(World worldIn)
      {
-@@ -1269,7 +1289,27 @@
+@@ -161,6 +181,18 @@
+             }
+             else
+             {
++                // CraftBukkit start - fire VehicleDamageEvent
++                Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++                org.bukkit.entity.Entity passenger = (source.getEntity() == null) ? null : source.getEntity().getBukkitEntity();
++
++                VehicleDamageEvent event = new VehicleDamageEvent(vehicle, passenger, amount);
++                this.worldObj.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    return true;
++                }
++                amount = (float) event.getDamage();
++                // CraftBukkit end
+                 this.setRollingDirection(-this.getRollingDirection());
+                 this.setRollingAmplitude(10);
+                 this.setBeenAttacked();
+@@ -169,6 +201,15 @@
+ 
+                 if (flag || this.getDamage() > 40.0F)
+                 {
++                    // CraftBukkit start
++                    VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, passenger);
++                    this.worldObj.getServer().getPluginManager().callEvent(destroyEvent);
++
++                    if (destroyEvent.isCancelled()) {
++                        this.setDamage(40); // Maximize damage so this doesn't get triggered again right away
++                        return true;
++                    }
++                    // CraftBukkit end
+                     this.removePassengers();
+ 
+                     if (flag && !this.hasCustomName())
+@@ -232,6 +273,13 @@
+ 
+     public void onUpdate()
+     {
++        // CraftBukkit start
++        double prevX = this.posX;
++        double prevY = this.posY;
++        double prevZ = this.posZ;
++        float prevYaw = this.rotationYaw;
++        float prevPitch = this.rotationPitch;
++        // CraftBukkit end
+         if (this.getRollingAmplitude() > 0)
+         {
+             this.setRollingAmplitude(this.getRollingAmplitude() - 1);
+@@ -255,7 +303,7 @@
+ 
+             if (this.inPortal)
+             {
+-                if (minecraftserver.getAllowNether())
++                if (true || minecraftserver.getAllowNether()) // CraftBukkit - multi-world should still allow teleport even if default vanilla nether disabled
+                 {
+                     if (!this.isRiding() && this.portalCounter++ >= i)
+                     {
+@@ -384,7 +432,18 @@
+             AxisAlignedBB box;
+             if (getCollisionHandler() != null) box = getCollisionHandler().getMinecartCollisionBox(this);
+             else                               box = this.getEntityBoundingBox().expand(0.20000000298023224D, 0.0D, 0.20000000298023224D);
++            // CraftBukkit start
++            org.bukkit.World bworld = this.worldObj.getWorld();
++            Location from = new Location(bworld, prevX, prevY, prevZ, prevYaw, prevPitch);
++            Location to = new Location(bworld, this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
++            Vehicle vehicle = (Vehicle) this.getBukkitEntity();
+ 
++            this.worldObj.getServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleUpdateEvent(vehicle));
++
++            if (!from.equals(to)) {
++                this.worldObj.getServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleMoveEvent(vehicle, from, to));
++            }
++            // CraftBukkit end
+             if (canBeRidden() && this.motionX * this.motionX + this.motionZ * this.motionZ > 0.01D)
+             {
+                 List<Entity> list = this.worldObj.getEntitiesInAABBexcluding(this, box, EntitySelectors.<Entity>getTeamCollisionPredicate(this));
+@@ -397,10 +456,27 @@
+ 
+                         if (!(entity1 instanceof EntityPlayer) && !(entity1 instanceof EntityIronGolem) && !(entity1 instanceof EntityMinecart) && !this.isBeingRidden() && !entity1.isRiding())
+                         {
++                            // CraftBukkit start
++                            VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity1.getBukkitEntity());
++                            this.worldObj.getServer().getPluginManager().callEvent(collisionEvent);
++
++                            if (collisionEvent.isCancelled()) {
++                                continue;
++                            }
++                            // CraftBukkit end
+                             entity1.startRiding(this);
+                         }
+                         else
+                         {
++                            // CraftBukkit start
++                            VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity1.getBukkitEntity());
++                            this.worldObj.getServer().getPluginManager().callEvent(collisionEvent);
++
++                            if (collisionEvent.isCancelled()) {
++                                continue;
++                            }
++                            // CraftBukkit end
++                            entity1.startRiding(this);
+                             entity1.applyEntityCollision(this);
+                         }
+                     }
+@@ -412,6 +488,14 @@
+                 {
+                     if (!this.isPassenger(entity) && entity.canBePushed() && entity instanceof EntityMinecart)
+                     {
++                        // CraftBukkit start
++                        VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity.getBukkitEntity());
++                        this.worldObj.getServer().getPluginManager().callEvent(collisionEvent);
++
++                        if (collisionEvent.isCancelled()) {
++                            continue;
++                        }
++                        // CraftBukkit end
+                         entity.applyEntityCollision(this);
+                     }
+                 }
+@@ -424,7 +508,7 @@
+ 
+     protected double getMaximumSpeed()
+     {
+-        return 0.4D;
++        return this.maxSpeed; // CraftBukkit
+     }
+ 
+     public void onActivatorRailPass(int x, int y, int z, boolean receivingPower)
+@@ -450,15 +534,21 @@
+ 
+         if (this.onGround)
+         {
+-            this.motionX *= 0.5D;
+-            this.motionY *= 0.5D;
+-            this.motionZ *= 0.5D;
++            // CraftBukkit start - replace magic numbers with our variables
++            // this.motionX *= 0.5D;
++            // this.motionY *= 0.5D;
++            // this.motionZ *= 0.5D;
++            this.motionX *= this.derailedX;
++            this.motionY *= this.derailedY;
++            this.motionZ *= this.derailedZ;
++            // CraftBukkit end
+         }
+ 
+         this.moveEntity(this.motionX, moveY, this.motionZ);
+ 
+         if (!this.onGround)
+         {
++            // CatServer - use Forge changed
+             this.motionX *= getDragAir();
+             this.motionY *= getDragAir();
+             this.motionZ *= getDragAir();
+@@ -672,7 +762,7 @@
+ 
+     protected void applyDrag()
+     {
+-        if (this.isBeingRidden())
++        if (this.isBeingRidden() || !this.slowWhenEmpty) // CraftBukkit - add !this.slowWhenEmpty
+         {
+             this.motionX *= 0.996999979019165D;
+             this.motionY *= 0.0D;
+@@ -1269,7 +1359,27 @@
      {
          return -1;
      }
