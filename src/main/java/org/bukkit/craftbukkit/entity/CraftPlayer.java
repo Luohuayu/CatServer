@@ -358,9 +358,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player
         if (this.getHandle().connection == null) {
             return;
         }
-        final int packetData = effect.getId();
-        final SPacketEffect packet = new SPacketEffect(packetData, new BlockPos(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), data, false);
-        this.getHandle().connection.sendPacket(packet);
+        spigot().playEffect(loc, effect, data, 0, 0, 0, 0, 1, 1, 64); // Spigot
     }
     
     @Override

@@ -1096,31 +1096,20 @@ public class CraftWorld implements World
         else {
             Validate.isTrue(effect.getData() == null, "Wrong kind of data for this effect!");
         }
-        final int datavalue = (data == null) ? 0 : CraftEffect.getDataValue(effect, data);
-        this.playEffect(loc, effect, datavalue, radius);
+        if (data != null && data.getClass().equals( org.bukkit.material.MaterialData.class )) {
+            org.bukkit.material.MaterialData materialData = (org.bukkit.material.MaterialData) data;
+            Validate.isTrue( materialData.getItemType().isBlock(), "Material must be block" );
+            spigot().playEffect( loc, effect, materialData.getItemType().getId(), materialData.getData(), 0, 0, 0, 1, 1, radius );
+        } else {
+            int dataValue = data == null ? 0 : CraftEffect.getDataValue( effect, data );
+            playEffect( loc, effect, dataValue, radius );
+        }
+        
     }
     
     @Override
     public void playEffect(final Location location, final Effect effect, final int data, int radius) {
-        Validate.notNull((Object)location, "Location cannot be null");
-        Validate.notNull((Object)effect, "Effect cannot be null");
-        Validate.notNull((Object)location.getWorld(), "World cannot be null");
-        final int packetData = effect.getId();
-        final SPacketEffect packet = new SPacketEffect(packetData, new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ()), data, false);
-        radius *= radius;
-        for (final Player player : this.getPlayers()) {
-            if (((CraftPlayer)player).getHandle().connection == null) {
-                continue;
-            }
-            if (!location.getWorld().equals(player.getWorld())) {
-                continue;
-            }
-            final int distance = (int)player.getLocation().distanceSquared(location);
-            if (distance > radius) {
-                continue;
-            }
-            ((CraftPlayer)player).getHandle().connection.sendPacket(packet);
-        }
+        spigot().playEffect( location, effect, data, 0, 0, 0, 0, 1, 1, radius );
     }
     
     @Override

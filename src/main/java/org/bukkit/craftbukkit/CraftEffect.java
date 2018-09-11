@@ -78,6 +78,10 @@ public class CraftEffect
                     datavalue = ((Material)data).getId();
                     break;
                 }
+                case ITEM_BREAK: { // Spigot
+                    datavalue = ((Material) data).getId();
+                    break;
+                }
                 default: {
                     datavalue = 0;
                     break;

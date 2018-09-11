@@ -51,6 +51,17 @@ public interface Score {
      */
     void setScore(int score) throws IllegalStateException;
 
+    // Spigot start
+    /**
+     * Shows if this score has been set at any point in time.
+     * 
+     * @return if this score has been set before
+     * @throws IllegalStateException if the associated objective has been
+     *     unregistered
+     */
+    boolean isScoreSet() throws IllegalStateException;
+    // Spigot end
+
     /**
      * Gets the scoreboard for the associated objective.
      *

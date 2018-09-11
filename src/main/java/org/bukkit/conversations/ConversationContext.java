@@ -46,6 +46,14 @@ public class ConversationContext {
     }
 
     /**
+    * Gets the entire sessionData map.
+    * @return The full sessionData map.
+    */
+    public Map<Object, Object> getAllSessionData() {
+        return sessionData;
+    }
+
+     /**
      * Gets session data shared between all {@link Prompt} invocations. Use
      * this as a way to pass data through each Prompt as the conversation
      * develops.
