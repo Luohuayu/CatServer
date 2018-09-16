@@ -733,6 +733,7 @@ public final class CraftServer implements Server
 
     @Override
     public void reload() {
+        if (true) return; // CatServer - disable reload
         ++this.reloadCount;
         this.configuration = YamlConfiguration.loadConfiguration(this.getConfigFile());
         this.commandsConfiguration = YamlConfiguration.loadConfiguration(this.getCommandsConfigFile());
