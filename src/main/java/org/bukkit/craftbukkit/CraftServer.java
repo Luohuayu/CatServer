@@ -404,8 +404,11 @@ public final class CraftServer implements Server
             }
         }
         if (type == PluginLoadOrder.POSTWORLD) {
+            // Spigot start - Allow vanilla commands to be forced to be the main command
+            setVanillaCommands(true);
             this.commandMap.setFallbackCommands();
-            this.setVanillaCommands();
+            this.setVanillaCommands(false);
+            // Spigot end
             this.commandMap.registerServerAliases();
             this.loadCustomPermissions();
             DefaultPermissions.registerCorePermissions();
@@ -418,11 +421,19 @@ public final class CraftServer implements Server
         this.pluginManager.disablePlugins();
     }
     
-    private void setVanillaCommands() {
-        final Map<String, ICommand> commands = new ServerCommandManager(this.console).getCommands();
+    private void setVanillaCommands(boolean first) { // Spigot
+        final Map<String, ICommand> commands = this.console.getCommandManager().getCommands(); // CatServer
         for (final ICommand cmd : commands.values()) {
-            //TODO SPIGOT
-            this.commandMap.register("minecraft", new VanillaCommandWrapper((CommandBase)cmd, I18n.translateToLocal(cmd.getCommandUsage(null))));
+            // Spigot start
+            VanillaCommandWrapper wrapper = new VanillaCommandWrapper((CommandBase)cmd, I18n.translateToLocal(cmd.getCommandUsage(null)));
+            if (org.spigotmc.SpigotConfig.replaceCommands.contains( wrapper.getName() ) ) {
+                if (first) {
+                    commandMap.register("minecraft", wrapper);
+                }
+            } else if (!first) {
+                commandMap.register("minecraft", wrapper);
+            }
+            // Spigot end
         }
     }
     
