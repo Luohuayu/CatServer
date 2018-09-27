@@ -1,6 +1,16 @@
 --- ../src-base/minecraft/net/minecraft/server/dedicated/DedicatedServer.java
 +++ ../src-work/minecraft/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -39,11 +39,30 @@
+@@ -4,6 +4,9 @@
+ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
++
++import jline.console.ConsoleReader;
++
+ import java.io.BufferedReader;
+ import java.io.File;
+ import java.io.IOException;
+@@ -39,11 +42,30 @@
  import net.minecraft.world.World;
  import net.minecraft.world.WorldSettings;
  import net.minecraft.world.WorldType;
@@ -31,7 +41,7 @@
  @SideOnly(Side.SERVER)
  public class DedicatedServer extends MinecraftServer implements IServer
  {
-@@ -51,18 +70,18 @@
+@@ -51,18 +73,18 @@
      private static final Pattern RESOURCE_PACK_SHA1_PATTERN = Pattern.compile("^[a-fA-F0-9]{40}$");
      public final List<PendingCommand> pendingCommandList = Collections.<PendingCommand>synchronizedList(Lists.<PendingCommand>newArrayList());
      private RConThreadQuery theRConThreadQuery;
@@ -54,19 +64,53 @@
          Thread thread = new Thread("Server Infinisleeper")
          {
              {
-@@ -92,6 +111,11 @@
+@@ -92,8 +114,12 @@
          {
              public void run()
              {
+-                if (net.minecraftforge.server.console.TerminalHandler.handleCommands(DedicatedServer.this)) return;
+-                BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in));
 +                // CraftBukkit start
 +                if (!org.bukkit.craftbukkit.Main.useConsole) {
 +                    return;
 +                }
 +                // CraftBukkit end
-                 if (net.minecraftforge.server.console.TerminalHandler.handleCommands(DedicatedServer.this)) return;
-                 BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in));
++                ConsoleReader bufferedreader = DedicatedServer.this.reader;
                  String s4;
-@@ -121,7 +145,8 @@
+ 
+                 try
+@@ -111,6 +137,30 @@
+         };
+         thread.setDaemon(true);
+         thread.start();
++        // CraftBukkit start - TODO: handle command-line logging arguments
++        java.util.logging.Logger global = java.util.logging.Logger.getLogger("");
++        global.setUseParentHandlers(false);
++
++        for (java.util.logging.Handler handler : global.getHandlers())
++        {
++            global.removeHandler(handler);
++        }
++
++        global.addHandler(new org.bukkit.craftbukkit.util.ForwardLogHandler());
++        final org.apache.logging.log4j.core.Logger logger = ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger());
++
++        for (org.apache.logging.log4j.core.Appender appender : logger.getAppenders().values())
++        {
++            if (appender instanceof org.apache.logging.log4j.core.appender.ConsoleAppender)
++            {
++                logger.removeAppender(appender);
++            }
++        }
++
++        new Thread(new org.bukkit.craftbukkit.util.TerminalConsoleWriterThread(System.out, this.reader)).start();
++        System.setOut(new PrintStream(new LoggerOutputStream(logger, Level.INFO), true));
++        System.setErr(new PrintStream(new LoggerOutputStream(logger, Level.WARN), true));
++        // CraftBukkit end 
+         LOGGER.info("Starting minecraft server version 1.10.2");
+ 
+         if (Runtime.getRuntime().maxMemory() / 1024L / 1024L < 512L)
+@@ -121,7 +171,8 @@
          net.minecraftforge.fml.common.FMLCommonHandler.instance().onServerStart(this);
  
          LOGGER.info("Loading properties");
@@ -76,7 +120,7 @@
          this.eula = new ServerEula(new File("eula.txt"));
  
          if (!this.eula.hasAcceptedEULA())
-@@ -176,27 +201,37 @@
+@@ -176,27 +227,37 @@
                  this.setServerPort(this.settings.getIntProperty("server-port", 25565));
              }
  
@@ -126,7 +170,7 @@
                  LOGGER.warn("To change this, set \"online-mode\" to \"true\" in the server.properties file.");
              }
  
-@@ -212,7 +247,8 @@
+@@ -212,7 +273,8 @@
              else
              {
                  net.minecraftforge.fml.common.FMLCommonHandler.instance().onServerStarted();
@@ -136,7 +180,7 @@
                  long j = System.nanoTime();
  
                  if (this.getFolderName() == null)
-@@ -254,16 +290,16 @@
+@@ -254,16 +316,16 @@
                  this.getOpPermissionLevel();
                  this.isSnooperEnabled();
                  this.getNetworkCompressionThreshold();
@@ -156,7 +200,7 @@
                  long i1 = System.nanoTime() - j;
                  String s3 = String.format("%.3fs", new Object[] {Double.valueOf((double)i1 / 1.0E9D)});
                  LOGGER.info("Done ({})! For help, type \"help\" or \"?\"", new Object[] {s3});
-@@ -280,9 +316,30 @@
+@@ -280,9 +342,30 @@
                      LOGGER.info("Starting remote control listener");
                      this.theRConThreadMain = new RConThreadMain(this);
                      this.theRConThreadMain.startThread();
@@ -188,7 +232,7 @@
                  {
                      Thread thread1 = new Thread(new ServerHangWatchdog(this));
                      thread1.setName("Server Watchdog");
-@@ -417,11 +474,20 @@
+@@ -417,11 +500,20 @@
  
      public void executePendingCommands()
      {
@@ -210,7 +254,7 @@
      }
  
      public boolean isDedicatedServer()
-@@ -674,18 +740,70 @@
+@@ -674,18 +766,70 @@
  
      public long getMaxTickTime()
      {
