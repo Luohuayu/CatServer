@@ -12,6 +12,7 @@ import net.minecraft.item.crafting.IRecipe;
 import org.bukkit.inventory.Recipe;
 
 import luohuayu.CatServer.crafting.ICBRecipe;
+import luohuayu.CatServer.inventory.CustomModRecipe;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -46,7 +47,14 @@ public class RecipeIterator implements Iterator<Recipe>
     public Recipe next() {
         if (this.recipes.hasNext()) {
             this.removeFrom = this.recipes;
-            return this.recipes.next().toBukkitRecipe();
+            // CatServer - handle custom recipe classes without Bukkit API equivalents
+            IRecipe recipe = recipes.next();
+            try {
+                return recipe.toBukkitRecipe();
+            } catch (AbstractMethodError ex) {
+                // No Bukkit wrapper provided
+                return new CustomModRecipe(recipe);
+            }
         }
         ItemStack item;
         if (this.smeltingCustom.hasNext()) {
