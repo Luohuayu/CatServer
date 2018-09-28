@@ -629,10 +629,14 @@ public class CraftEventFactory
         else if (source == DamageSource.flyIntoWall) {
             cause2 = EntityDamageEvent.DamageCause.FLY_INTO_WALL;
         }
-        else if (source != DamageSource.generic){
+        else if (source == DamageSource.generic) {
+            cause2 = EntityDamageEvent.DamageCause.CUSTOM;
+        }
+        if (cause2 != null) {
+            return callEntityDamageEvent(null, entity, cause2, modifiers, modifierFunctions);
+        } else {
             return new EntityDamageEvent(entity.getBukkitEntity(), EntityDamageEvent.DamageCause.CUSTOM, modifiers, modifierFunctions); // use custom
         }
-        return callEntityDamageEvent(null, entity, cause2, modifiers, modifierFunctions);
     }
     
     private static EntityDamageEvent callEntityDamageEvent(final Entity damager, final Entity damagee, final EntityDamageEvent.DamageCause cause, final Map<EntityDamageEvent.DamageModifier, Double> modifiers, final Map<EntityDamageEvent.DamageModifier, Function<? super Double, Double>> modifierFunctions) {
