@@ -1511,7 +1511,7 @@ public final class CraftServer implements Server
         return this.warningState;
     }
     
-    public List<String> tabComplete(final ICommandSender sender, final String message) {
+    public List<String> tabComplete(final ICommandSender sender, final String message, BlockPos pos) {
         // Spigot Start
         if ((org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains(" ")) {
             return ImmutableList.of();
@@ -1523,7 +1523,7 @@ public final class CraftServer implements Server
         final Player player = ((EntityPlayerMP)sender).getBukkitEntity();
         List<String> offers;
         if (message.startsWith("/")) {
-            offers = this.tabCompleteCommand(player, message);
+            offers = this.tabCompleteCommand(player, message, pos);
         }
         else {
             offers = this.tabCompleteChat(player, message);
@@ -1533,8 +1533,8 @@ public final class CraftServer implements Server
         return tabEvent.isCancelled() ? Collections.EMPTY_LIST : tabEvent.getCompletions();
     }
     
-    public List<String> tabCompleteCommand(final Player player, final String message) {
-        List<String> completions = new ArrayList<String>();
+    public List<String> tabCompleteCommand(final Player player, final String message, BlockPos pos) {
+        Set<String> completions = new HashSet<String>();
         try {
             List<String> bukkitCompletions = this.getCommandMap().tabComplete(player, message.substring(1));
             List<String> vanillaCompletions = this.getCraftCommandMap().tabComplete(player, message.substring(1));
@@ -1545,7 +1545,7 @@ public final class CraftServer implements Server
             player.sendMessage(ChatColor.RED + "An internal error occurred while attempting to tab-complete this command");
             this.getLogger().log(Level.SEVERE, "Exception when " + player.getName() + " attempted to tab complete " + message, ex);
         }
-        return completions;
+        return new ArrayList<String>(completions);
     }
     
     public List<String> tabCompleteChat(final Player player, final String message) {
