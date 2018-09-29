@@ -2,7 +2,6 @@ package org.bukkit.plugin.java;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -26,9 +25,9 @@ import luohuayu.CatServer.remapper.ClassInheritanceProvider;
 import luohuayu.CatServer.remapper.Transformer;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
-import net.md_5.specialsource.RemapperProcessor;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
+import net.md_5.specialsource.repo.RuntimeRepo;
 import net.md_5.specialsource.transformer.MavenShade;
 import net.minecraft.server.MinecraftServer;
 
@@ -46,7 +45,6 @@ final class PluginClassLoader extends URLClassLoader {
     private IllegalStateException pluginState;
     
     private JarRemapper remapper;
-    private RemapperProcessor remapperProcessor;
     private JarMapping jarMapping;
     private static final String org_bukkit_craftbukkit = new String(new char[] {'o','r','g','/','b','u','k','k','i','t','/','c','r','a','f','t','b','u','k','k','i','t'});
 
@@ -60,7 +58,6 @@ final class PluginClassLoader extends URLClassLoader {
         this.file = file;
 
         jarMapping = getJarMapping();
-        jarMapping.setInheritanceMap(loader.getGlobalInheritanceMap());
 
         JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());
@@ -68,9 +65,6 @@ final class PluginClassLoader extends URLClassLoader {
         jarMapping.setFallbackInheritanceProvider(provider);
 
         remapper = new CatServerRemapper(jarMapping);
-        remapperProcessor = new RemapperProcessor(loader.getGlobalInheritanceMap(), jarMapping);
-        remapperProcessor.setRemapReflectField(true);
-        remapperProcessor.setRemapReflectClass(true);
 
         Transformer.init(jarMapping, remapper);
 
@@ -191,15 +185,9 @@ final class PluginClassLoader extends URLClassLoader {
                 if (stream != null) {
                     byte[] bytecode = null;
 
-                    // Reflection remap and inheritance extract
-                    if (remapperProcessor != null) {
-                        // add to inheritance map
-                        bytecode = remapperProcessor.process(stream);
-                        if (bytecode == null) stream = url.openStream();
-                    }
-
                     // Remap the classes
-                    byte[] remappedBytecode = Transformer.transformSS(remapper, bytecode);
+                    bytecode = remapper.remapClassFile(stream, RuntimeRepo.getInstance());
+                    byte[] remappedBytecode = Transformer.transform(bytecode);
 
                     // Define (create) the class using the modified byte code
                     // The top-child class loader is used for this to prevent access violations

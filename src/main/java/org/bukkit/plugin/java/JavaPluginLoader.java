@@ -1,11 +1,9 @@
 package org.bukkit.plugin.java;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -43,14 +41,6 @@ import org.bukkit.plugin.TimedRegisteredListener;
 import org.bukkit.plugin.UnknownDependencyException;
 import org.spigotmc.CustomTimingsHandler;
 import org.yaml.snakeyaml.error.YAMLException;
-
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-
-import luohuayu.CatServer.CatServer;
-import net.md_5.specialsource.InheritanceMap;
-import net.md_5.specialsource.JarMapping;
-import net.md_5.specialsource.transformer.MavenShade;
 
 /**
  * Represents a Java plugin loader, allowing plugins in the form of .jar
@@ -385,35 +375,4 @@ public final class JavaPluginLoader implements PluginLoader {
             }
         }
     }
-    
-    //Cauldron start
-    private InheritanceMap globalInheritanceMap = null;
-    
-    public InheritanceMap getGlobalInheritanceMap() {
-        if (globalInheritanceMap == null) {
-            Map<String, String> relocationsCurrent = new HashMap<String, String>();
-            relocationsCurrent.put("net.minecraft.server", "net.minecraft.server."+CatServer.getNativeVersion());
-            JarMapping currentMappings = new JarMapping();
-            try {
-                currentMappings.loadMappings(
-                        new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("mappings/"+CatServer.getNativeVersion()+"/cb2numpkg.srg"))),
-                        new MavenShade(relocationsCurrent),
-                        null, false);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                throw new RuntimeException(ex);
-            }
-            BiMap<String, String> inverseClassMap = HashBiMap.create(currentMappings.classes).inverse();
-            globalInheritanceMap = new InheritanceMap();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("mappings/"+CatServer.getNativeVersion()+"/nms.inheritmap")));
-            try {
-                globalInheritanceMap.load(reader, inverseClassMap);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                throw new RuntimeException(ex);
-            }
-        }
-        return globalInheritanceMap;
-    }
-    // Cauldron end
 }
