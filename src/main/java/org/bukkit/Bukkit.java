@@ -155,6 +155,12 @@ public final class Bukkit {
         return server.getOnlinePlayers();
     }
 
+    // CatServer start
+    public static Player[] getOnlinePlayers_Arr() {
+        return server.getOnlinePlayers().toArray(new Player[0]);
+    }
+    // CatServer end
+
     /**
      * Get the maximum amount of players which can login to this server.
      *

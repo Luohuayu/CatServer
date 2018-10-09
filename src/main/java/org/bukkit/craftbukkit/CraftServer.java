@@ -447,6 +447,12 @@ public final class CraftServer implements Server
     public List<CraftPlayer> getOnlinePlayers() {
         return this.playerView;
     }
+
+    // CatServer start
+    public Player[] getOnlinePlayers_Arr() {
+        return this.getOnlinePlayers().toArray(new Player[0]);
+    }
+    // CatServer end
     
     @Deprecated
     @Override

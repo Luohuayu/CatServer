@@ -166,6 +166,11 @@ final class PluginClassLoader extends URLClassLoader {
 
             loadNmsMappings(jarMapping, CatServer.getNativeVersion());
 
+            // CarServer start
+            jarMapping.methods.put("org/bukkit/Bukkit/getOnlinePlayers ()[Lorg/bukkit/entity/Player;", "getOnlinePlayers_Arr");
+            jarMapping.methods.put("org.bukkit.Server/getOnlinePlayers ()[Lorg/bukkit/entity/Player;", "getOnlinePlayers_Arr");
+            // CatServer end
+
             return jarMapping;
         } catch (IOException ex) {
             ex.printStackTrace();
