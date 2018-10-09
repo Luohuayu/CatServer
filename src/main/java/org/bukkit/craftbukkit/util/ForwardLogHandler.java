@@ -9,6 +9,9 @@ import java.util.logging.LogRecord;
 import org.apache.logging.log4j.LogManager;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.Logger;
+
+import net.minecraft.server.MinecraftServer;
+
 import java.util.Map;
 import java.util.logging.ConsoleHandler;
 
@@ -31,7 +34,7 @@ public class ForwardLogHandler extends ConsoleHandler
     
     @Override
     public void publish(final LogRecord record) {
-        final Logger logger = this.getLogger(String.valueOf(record.getLoggerName()));
+        final Logger logger = MinecraftServer.LOG; // CatServer
         final Throwable exception = record.getThrown();
         final Level level = record.getLevel();
         final String message = this.getFormatter().formatMessage(record);
