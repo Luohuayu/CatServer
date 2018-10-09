@@ -136,10 +136,12 @@
          NBTTagCompound nbt = null;
          if (itemstack.getTagCompound() != null)
          {
-@@ -775,11 +788,52 @@
+@@ -774,79 +787,57 @@
+ 
          if (!(itemstack.getItem() instanceof ItemBucket)) // if not bucket
          {
-             world.captureBlockSnapshots = true;
+-            world.captureBlockSnapshots = true;
++            world.mCapture.startCapture(player,itemstack,side,hand);
 +            // CraftBukkit start
 +            if(itemstack.getItem() instanceof ItemDye && itemstack.getMetadata() == 15){
 +                Block block = world.getBlockState(pos).getBlock();
@@ -151,16 +153,36 @@
          }
  
          EnumActionResult ret = itemstack.getItem().onItemUse(itemstack, player, world, pos, hand, side, hitX, hitY, hitZ);
-         world.captureBlockSnapshots = false;
+-        world.captureBlockSnapshots = false;
++        world.mCapture.endCapture();
  
-+        List<BlockState> blocks = new ArrayList();
-+        for (net.minecraftforge.common.util.BlockSnapshot snapshot : (List<net.minecraftforge.common.util.BlockSnapshot>) world.capturedBlockSnapshots.clone()) {
-+            blocks.add(new CraftBlockState(snapshot));
-+        }
-+
+-        if (ret == EnumActionResult.SUCCESS)
+-        {
+-            // save new item data
+-            int newMeta = itemstack.getItemDamage();
+-            int newSize = itemstack.stackSize;
+-            NBTTagCompound newNBT = null;
+-            if (itemstack.getTagCompound() != null)
+-            {
+-                newNBT = (NBTTagCompound)itemstack.getTagCompound().copy();
 +        // CraftBukkit start
 +        int newCount = itemstack.stackSize;
 +        if (ret == EnumActionResult.SUCCESS && world.captureTreeGeneration && world.capturedBlockSnapshots.size() > 0) {
++            List<BlockState> blocks = new ArrayList();
++            for (net.minecraftforge.common.util.BlockSnapshot snapshot : (List<net.minecraftforge.common.util.BlockSnapshot>) world.capturedBlockSnapshots.clone()) {
++                blocks.add(new CraftBlockState(snapshot));
+             }
+-            net.minecraftforge.event.world.BlockEvent.PlaceEvent placeEvent = null;
+-            @SuppressWarnings("unchecked")
+-            List<net.minecraftforge.common.util.BlockSnapshot> blockSnapshots = (List<BlockSnapshot>)world.capturedBlockSnapshots.clone();
+-            world.capturedBlockSnapshots.clear();
+ 
+-            // make sure to set pre-placement item data for event
+-            itemstack.setItemDamage(meta);
+-            itemstack.stackSize = size;
+-            if (nbt != null)
+-            {
+-                itemstack.setTagCompound(nbt);
 +            world.captureTreeGeneration = false;
 +            Location location = new Location(world.getWorld(), pos.getX(), pos.getY(), pos.getZ());
 +            TreeType treeType = BlockSapling.treeType;
@@ -171,47 +193,70 @@
 +                boolean isBonemeal = itemstack.getItem() == Items.DYE && data == 15;
 +                event = new StructureGrowEvent(location, treeType, isBonemeal, (Player) player.getBukkitEntity(), blocks);
 +                org.bukkit.Bukkit.getPluginManager().callEvent(event);
-+            }
+             }
+-            if (blockSnapshots.size() > 1)
+-            {
+-                placeEvent = ForgeEventFactory.onPlayerMultiBlockPlace(player, blockSnapshots, side, hand);
+-            }
+-            else if (blockSnapshots.size() == 1)
+-            {
+-                placeEvent = ForgeEventFactory.onPlayerBlockPlace(player, blockSnapshots.get(0), side, hand);
+-            }
+-
+-            if (placeEvent != null && (placeEvent.isCanceled()))
+-            {
+-                ret = EnumActionResult.FAIL; // cancel placement
+-                // revert back all captured blocks
+-                for (net.minecraftforge.common.util.BlockSnapshot blocksnapshot : blockSnapshots)
+-                {
+-                    world.restoringBlockSnapshots = true;
+-                    blocksnapshot.restore(true, false);
+-                    world.restoringBlockSnapshots = false;
 +            if (event == null || !event.isCancelled()) {
 +                // Change the stack to its new contents if it hasn't been tampered with.
 +                if (itemstack.stackSize == size && itemstack.getMetadata() == data) {
 +                    itemstack.stackSize = newCount;
-+                }
+                 }
+-            }
+-            else
+-            {
+-                // Change the stack to its new content
+-                itemstack.setItemDamage(newMeta);
+-                itemstack.stackSize = newSize;
+-                if (nbt != null)
+-                {
+-                    itemstack.setTagCompound(newNBT);
 +                for (BlockState blockstate : blocks) {
 +                    blockstate.update(true);
-+                }
-+            }
+                 }
+-
+-                for (BlockSnapshot snap : blockSnapshots)
+-                {
+-                    int updateFlag = snap.getFlag();
+-                    IBlockState oldBlock = snap.getReplacedBlock();
+-                    IBlockState newBlock = world.getBlockState(snap.getPos());
+-                    if (newBlock != null && !(newBlock.getBlock().hasTileEntity(newBlock))) // Containers get placed automatically
+-                    {
+-                        newBlock.getBlock().onBlockAdded(world, snap.getPos(), newBlock);
+-                    }
+-
+-                    world.markAndNotifyBlock(snap.getPos(), null, oldBlock, newBlock, updateFlag);
+-                }
+-                player.addStat(StatList.getObjectUseStats(itemstack.getItem()));
+             }
 +            return ret;
-+        }
+         }
 +        world.captureTreeGeneration = false;
 +        // CraftBukkit end
 +
-         if (ret == EnumActionResult.SUCCESS)
-         {
-             // save new item data
-@@ -815,8 +869,9 @@
-             {
-                 ret = EnumActionResult.FAIL; // cancel placement
-                 // revert back all captured blocks
--                for (net.minecraftforge.common.util.BlockSnapshot blocksnapshot : blockSnapshots)
--                {
-+                //for (BlockSnapshot blocksnapshot : blockSnapshots) {
-+                for (int i = blockSnapshots.size() - 1; i >= 0 ; i--) {
-+                    BlockSnapshot blocksnapshot = blockSnapshots.get(i);
-                     world.restoringBlockSnapshots = true;
-                     blocksnapshot.restore(true, false);
-                     world.restoringBlockSnapshots = false;
-@@ -832,8 +887,7 @@
-                     itemstack.setTagCompound(newNBT);
-                 }
++        if (ret == EnumActionResult.SUCCESS)
++        {
++            return world.mCapture.handleCapture(itemstack);
++        }
+         world.capturedBlockSnapshots.clear();
  
--                for (BlockSnapshot snap : blockSnapshots)
--                {
-+                for (BlockSnapshot snap : blockSnapshots){
-                     int updateFlag = snap.getFlag();
-                     IBlockState oldBlock = snap.getReplacedBlock();
-                     IBlockState newBlock = world.getBlockState(snap.getPos());
-@@ -884,7 +938,7 @@
+         return ret;
+@@ -884,7 +875,7 @@
      }
  
      /**

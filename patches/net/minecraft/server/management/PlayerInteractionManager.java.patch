@@ -21,7 +21,7 @@
  import net.minecraft.item.ItemBlock;
  import net.minecraft.item.ItemStack;
  import net.minecraft.item.ItemSword;
-@@ -26,6 +27,18 @@
+@@ -26,7 +27,21 @@
  import net.minecraft.world.ILockableContainer;
  import net.minecraft.world.World;
  import net.minecraft.world.WorldServer;
@@ -38,9 +38,12 @@
 +import org.bukkit.event.player.PlayerInteractEvent;
 +// CraftBukkit end
  
++import luohuayu.CatServer.capture.WorldCapture;
++
  public class PlayerInteractionManager
  {
-@@ -42,6 +55,10 @@
+     /** Forge reach distance */
+@@ -42,6 +57,10 @@
      private BlockPos delayedDestroyPos = BlockPos.ORIGIN;
      private int initialBlockDamage;
      private int durabilityRemainingOnBlock = -1;
@@ -51,7 +54,7 @@
  
      public PlayerInteractionManager(World worldIn)
      {
-@@ -142,91 +159,117 @@
+@@ -142,91 +161,117 @@
  
      public void onBlockClicked(BlockPos pos, EnumFacing side)
      {
@@ -229,7 +232,7 @@
          }
      }
  
-@@ -255,6 +298,10 @@
+@@ -255,6 +300,10 @@
                      this.initialBlockDamage = this.initialDamage;
                  }
              }
@@ -240,7 +243,7 @@
          }
      }
  
-@@ -283,7 +330,50 @@
+@@ -283,7 +332,50 @@
      }
  
      public boolean tryHarvestBlock(BlockPos pos)
@@ -292,7 +295,7 @@
          int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(theWorld, gameType, thisPlayerMP, pos);
          if (exp == -1)
          {
-@@ -338,15 +428,16 @@
+@@ -338,15 +430,16 @@
                  }
  
                  // Drop experience
@@ -311,7 +314,7 @@
      public EnumActionResult processRightClick(EntityPlayer player, World worldIn, ItemStack stack, EnumHand hand)
      {
          if (this.gameType == GameType.SPECTATOR)
-@@ -385,8 +476,8 @@
+@@ -385,8 +478,8 @@
  
                  if (itemstack.stackSize == 0)
                  {
@@ -321,7 +324,7 @@
                  }
  
                  if (!player.isHandActive())
-@@ -399,102 +490,133 @@
+@@ -399,102 +492,146 @@
          }
      }
  
@@ -444,9 +447,16 @@
 -                    if (block instanceof BlockCommandBlock || block instanceof BlockStructure)
 -                    {
 -                        return EnumActionResult.FAIL;
--                    }
 +                net.minecraft.item.Item item = stack == null ? null : stack.getItem();
-+                EnumActionResult ret = item == null ? EnumActionResult.PASS : item.onItemUseFirst(stack, player, worldIn, pos, facing, hitX, hitY, hitZ, hand);
++                EnumActionResult ret;
++                if (item == null) ret = EnumActionResult.PASS;
++                else {
++                    WorldCapture tCapture=player.worldObj.mCapture;
++                    tCapture.startCapture(player,stack);
++                    ret = item.onItemUseFirst(stack, player, worldIn, pos, facing, hitX, hitY, hitZ, hand);
++                    tCapture.endCapture();
++                    if(ret == EnumActionResult.SUCCESS) ret = tCapture.handleCapture(stack);
++                }
 +                if (ret != EnumActionResult.PASS) return ret;
 +
 +                boolean bypass = true;
@@ -457,11 +467,16 @@
 +                if (!player.isSneaking() || bypass || event.getUseBlock() == net.minecraftforge.fml.common.eventhandler.Event.Result.ALLOW)
 +                {
 +                    IBlockState iblockstate = worldIn.getBlockState(pos);
-+                    if(event.getUseBlock() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY)
++                    if(event.getUseBlock() != net.minecraftforge.fml.common.eventhandler.Event.Result.DENY){
++                        WorldCapture tCapture=player.worldObj.mCapture;
++                        tCapture.startCapture(player,stack);
 +                        if (iblockstate.getBlock().onBlockActivated(worldIn, pos, iblockstate, player, hand, stack, facing, hitX, hitY, hitZ))
 +                        {
 +                            result = EnumActionResult.SUCCESS;
 +                        }
++                        tCapture.endCapture();
++                        if(result==EnumActionResult.SUCCESS) result=tCapture.handleCapture(stack);
+                     }
                  }
  
 -                if (this.isCreative())
