@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,13 +23,11 @@ import org.bukkit.Warning.WarningState;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.event.Event;
-import org.bukkit.event.EventException;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.AuthorNagException;
-import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.InvalidDescriptionException;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.Plugin;
@@ -41,6 +38,11 @@ import org.bukkit.plugin.TimedRegisteredListener;
 import org.bukkit.plugin.UnknownDependencyException;
 import org.spigotmc.CustomTimingsHandler;
 import org.yaml.snakeyaml.error.YAMLException;
+
+import luohuayu.CatServer.eventexecutor.ASMEventExecutorGenerate;
+import luohuayu.CatServer.eventexecutor.EventExecutorImp;
+import luohuayu.CatServer.eventexecutor.MethodHandleEventExecutor;
+import luohuayu.CatServer.eventexecutor.ReflectEventExecutor;
 
 /**
  * Represents a Java plugin loader, allowing plugins in the form of .jar
@@ -296,20 +298,19 @@ public final class JavaPluginLoader implements PluginLoader {
                 }
             }
 
-            EventExecutor executor = new EventExecutor() {
-                public void execute(Listener listener, Event event) throws EventException {
-                    try {
-                        if (!eventClass.isAssignableFrom(event.getClass())) {
-                            return;
-                        }
-                        method.invoke(listener, event);
-                    } catch (InvocationTargetException ex) {
-                        throw new EventException(ex.getCause());
-                    } catch (Throwable t) {
-                        throw new EventException(t);
-                    }
+            EventExecutorImp executor = ASMEventExecutorGenerate.createWrapperInstance(plugin,listener,method);
+            if(executor==null){
+                try{
+                    executor=new MethodHandleEventExecutor(listener,method);
+                }catch(Throwable exp){
+                    if(!(exp instanceof IllegalStateException)) exp.printStackTrace();
                 }
-            };
+            }
+            if(executor==null){
+                executor=new ReflectEventExecutor(method);
+            }
+            executor.initExecute(eventClass);
+
             if (useTimings) {
                 eventSet.add(new TimedRegisteredListener(listener, executor, eh.priority(), plugin, eh.ignoreCancelled()));
             } else {

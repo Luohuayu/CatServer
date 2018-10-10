@@ -58,7 +58,7 @@ public class CatServerRemapper extends JarRemapper{
         String tKey=reader.getClassName();
         this.mCache.put(tKey,node);
         reader.accept(mapper,readerFlags);
-        this.mCache.remove(tKey,node);
+        this.mCache.remove(tKey);
 
         ClassWriter wr=new ClassWriter(writerFlags);
         node.accept(wr);
