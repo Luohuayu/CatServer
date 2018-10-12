@@ -1396,6 +1396,12 @@ public final class CraftServer implements Server
     
     @Override
     public File getWorldContainer() {
+        // Cauldron start - return the proper container
+        if (DimensionManager.getWorld(0) != null)
+        {
+            return ((SaveHandler)DimensionManager.getWorld(0).getSaveHandler()).getWorldDirectory();
+        }
+        // Cauldron end
         if (this.getServer().anvilFile != null) {
             return this.getServer().anvilFile;
         }

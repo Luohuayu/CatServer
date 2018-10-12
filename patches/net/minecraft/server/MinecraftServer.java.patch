@@ -173,25 +173,6 @@
 -        this.setResourcePackFromWorld(this.getFolderName(), isavehandler);
 -        WorldInfo worldinfo = isavehandler.loadWorldInfo();
 -        WorldSettings worldsettings;
--
--        if (worldinfo == null)
--        {
--            if (this.isDemo())
--            {
--                worldsettings = DemoWorldServer.DEMO_WORLD_SETTINGS;
--            }
--            else
--            {
--                worldsettings = new WorldSettings(seed, this.getGameType(), this.canStructuresSpawn(), this.isHardcore(), type);
--                worldsettings.setGeneratorOptions(generatorOptions);
--
--                if (this.enableBonusChest)
--                {
--                    worldsettings.enableBonusChest();
--                }
--            }
--
--            worldinfo = new WorldInfo(worldsettings, worldNameIn);
 +        ISaveHandler iSaveHandler = new AnvilSaveHandler(server.getWorldContainer(),worldNameIn,true, this.dataFixer);
 +        this.setResourcePackFromWorld(this.getFolderName(), iSaveHandler);
 +        WorldInfo worldinfo = iSaveHandler.loadWorldInfo();
@@ -200,11 +181,7 @@
 +            GameData.injectBlockBukkitMaterials();
 +            GameData.injectItemBukkitMaterials();
 +            GameData.initializedBukkit = true;
-         }
--        else
--        {
--            worldinfo.setWorldName(worldNameIn);
--            worldsettings = new WorldSettings(worldinfo);
++        }
 +        server.loadPlugins();
 +        server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
 +        // CatServer end
@@ -212,20 +189,29 @@
 +        worldsettings.setGeneratorOptions(generatorOptions);
 +        if(worldinfo == null){
 +            worldinfo = new WorldInfo(worldsettings,worldNameIn);
-         }
++        }
 +        worldinfo.checkName(worldNameIn);
 +        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, iSaveHandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, iSaveHandler, worldinfo, 0, theProfiler, org.bukkit.World.Environment.getEnvironment(0), this.server.getGenerator(worldNameIn)).init());
 +        this.server.scoreboardManager = new CraftScoreboardManager(this, overWorld.getScoreboard());
  
--        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, isavehandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, isavehandler, worldinfo, 0, theProfiler).init());
--        overWorld.initialize(worldsettings);
-         for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
+-        if (worldinfo == null)
++        for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
          {
--            WorldServer world = (dim == 0 ? overWorld : (WorldServer)new WorldServerMulti(this, isavehandler, dim, overWorld, theProfiler).init());
+-            if (this.isDemo())
+-            {
+-                worldsettings = DemoWorldServer.DEMO_WORLD_SETTINGS;
+-            }
+-            else
+-            {
+-                worldsettings = new WorldSettings(seed, this.getGameType(), this.canStructuresSpawn(), this.isHardcore(), type);
+-                worldsettings.setGeneratorOptions(generatorOptions);
 +            String worldType = "";
 +            String name = "";
-+
-+            WorldServer world;
+ 
+-                if (this.enableBonusChest)
+-                {
+-                    worldsettings.enableBonusChest();
++            WorldServer world = overWorld;
 +            org.bukkit.generator.ChunkGenerator gen = null;
 +            org.bukkit.World.Environment env = org.bukkit.World.Environment.getEnvironment(dim);
 +            if(dim != 0) {
@@ -234,16 +220,29 @@
 +                name = "DIM" + dim;
 +                gen = this.server.getGenerator(name);
 +                this.setUserMessage(name);
-+            }
-+            ISaveHandler worldServerMulti = new AnvilSaveHandler(server.getWorldContainer(), name, true, dataFixer);
-+            worldinfo = worldServerMulti.loadWorldInfo();
-+            if(worldinfo == null){
-+                worldinfo = new WorldInfo(worldsettings,name);
-+            }
-+            worldinfo.checkName(name);
-+            world = (dim == 0 ? overWorld: new WorldServerMulti(this, worldServerMulti, dim, overWorld, this.theProfiler, worldinfo, env, gen));
++                ISaveHandler worldServerMulti = new AnvilSaveHandler(server.getWorldContainer(), name, true, dataFixer);
++                worldinfo = worldServerMulti.loadWorldInfo();
++                if(worldinfo == null){
++                    worldinfo = new WorldInfo(worldsettings,name);
+                 }
++                worldinfo.checkName(name);
++                world=new WorldServerMulti(this, worldServerMulti, dim, overWorld, this.theProfiler, worldinfo, env, gen);
+             }
 +            world.initialize(worldsettings);
-+
+ 
+-            worldinfo = new WorldInfo(worldsettings, worldNameIn);
+-        }
+-        else
+-        {
+-            worldinfo.setWorldName(worldNameIn);
+-            worldsettings = new WorldSettings(worldinfo);
+-        }
+-
+-        WorldServer overWorld = (WorldServer)(isDemo() ? new DemoWorldServer(this, isavehandler, worldinfo, 0, theProfiler).init() : new WorldServer(this, isavehandler, worldinfo, 0, theProfiler).init());
+-        overWorld.initialize(worldsettings);
+-        for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
+-        {
+-            WorldServer world = (dim == 0 ? overWorld : (WorldServer)new WorldServerMulti(this, isavehandler, dim, overWorld, theProfiler).init());
 +            this.server.getPluginManager().callEvent(new WorldInitEvent(world.getWorld()));
              world.addEventListener(new ServerWorldEventHandler(this, world));
  
