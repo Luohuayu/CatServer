@@ -113,6 +113,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitWorker;
 import org.bukkit.util.StringUtil;
 import org.bukkit.util.permissions.DefaultPermissions;
+import org.spigotmc.SpigotConfig;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.BaseConstructor;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -136,6 +137,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
 import jline.console.ConsoleReader;
 import luohuayu.CatServer.command.CraftSimpleCommandMap;
+import luohuayu.CatServer.util.CfgTools;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommand;
@@ -309,11 +311,11 @@ public final class CraftServer implements Server
     }
     
     private File getConfigFile() {
-        return (File)this.console.options.valueOf("bukkit-settings");
+        return CfgTools.mergeFile(MinecraftServer.serverConfigDir,(File)this.console.options.valueOf("bukkit-settings"));
     }
     
     private File getCommandsConfigFile() {
-        return (File)this.console.options.valueOf("commands-settings");
+        return CfgTools.mergeFile(MinecraftServer.serverConfigDir,(File)(File)this.console.options.valueOf("commands-settings"));
     }
     
     private void saveConfig() {
@@ -753,7 +755,7 @@ public final class CraftServer implements Server
         catch (IOException ex) {
             this.logger.log(Level.WARNING, "Failed to load banned-players.json, " + ex.getMessage());
         }
-        org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
+        org.spigotmc.SpigotConfig.init(SpigotConfig.getCfgFile(console.options)); // Spigot
         for (final WorldServer world : /*this.console.worlds*/this.console.worldServers) {
             world.worldInfo.setDifficulty(difficulty);
             world.setAllowedSpawnTypes(monsters, animals);
@@ -807,7 +809,7 @@ public final class CraftServer implements Server
     }
     
     private void loadCustomPermissions() {
-        final File file = new File(this.configuration.getString("settings.permissions-file"));
+        final File file = new File(MinecraftServer.serverConfigDir,this.configuration.getString("settings.permissions-file"));
         FileInputStream stream;
         try {
             stream = new FileInputStream(file);

@@ -16,6 +16,9 @@ import org.bukkit.configuration.Configuration;
 import java.io.Reader;
 import java.io.InputStreamReader;
 import com.google.common.base.Charsets;
+
+import net.minecraft.server.MinecraftServer;
+
 import java.io.File;
 import org.bukkit.Server;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -28,7 +31,7 @@ public class HelpYamlReader
     
     public HelpYamlReader(final Server server) {
         this.server = server;
-        final File helpYamlFile = new File("help.yml");
+        final File helpYamlFile = new File(MinecraftServer.serverConfigDir,"help.yml");
         final YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("configurations/help.yml"), Charsets.UTF_8));
         try {
             this.helpYaml = YamlConfiguration.loadConfiguration(helpYamlFile);

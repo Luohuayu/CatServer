@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import gnu.trove.map.hash.TObjectIntHashMap;
+import joptsimple.OptionSet;
+import luohuayu.CatServer.util.CfgTools;
 import net.minecraft.entity.ai.attributes.RangedAttribute;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.server.MinecraftServer;
@@ -50,6 +52,10 @@ public class SpigotConfig
     /*========================================================================*/
     private static Metrics metrics;
 
+    public static File getCfgFile(OptionSet pOption){
+        return CfgTools.mergeFile(MinecraftServer.serverConfigDir,(File) pOption.valueOf("spigot-settings"));
+    }
+    
     public static void init(File configFile)
     {
         CONFIG_FILE = configFile;
