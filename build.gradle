@@ -184,7 +184,8 @@ build.dependsOn signUniversal
 installer.dependsOn signUniversal
 
 outputJar {
-    classifier = 'universal'
+    classifier = "release"
+    archiveName = "${baseName}-${version}-${project.getGitLastCommitId()}-server.${extension}"
 
     manifest.attributes([
             "Implementation-Title": "CraftBukkit",
@@ -193,6 +194,29 @@ outputJar {
             "TweakClass": "net.minecraftforge.fml.common.launcher.FMLTweaker",
             "Class-Path": getServerClasspath(file("jsons/1.10.2-catserver-rel.json"))
     ])
+    
+    // 设置排除重复的资源文件
+    HashSet<String> tExclude=new HashSet<>();
+    doFirst{
+        def tCatServerResDir=minecraft.projects.catserver.getResourcesDir()
+        def tCatServerRes=project.fileTree(tCatServerResDir)
+        def tForgeResDirStr=minecraft.projects.forge.getResourcesDir().getPath();
+        project.fileTree(minecraft.projects.forge.getResourcesDir()).each{ file->
+            def tFileSuffix=file.getPath().replace(tForgeResDirStr,"");
+            if(file.isFile()&&tCatServerRes.contains(new File(tCatServerResDir,tFileSuffix))){
+                tExclude.add(file.getAbsolutePath());
+            }
+        }
+        
+        eachFile { file->
+            File tFile=file.getFile()
+            
+            if(tFile.isFile()&&tExclude.contains(tFile.getAbsolutePath())){
+                file.exclude();
+                println "Excluded duplicate forge resource file: "+tFile.getPath()
+            }
+        }
+    }
 }
 
 processJson {
@@ -219,39 +243,9 @@ genGradleProjects {
     
     doLast {
         File tBuildF=new File(getWorkspaceDir(), "build.gradle")
-        String tContent=com.google.common.io.Files.toString(tBuildF,net.minecraftforge.gradle.common.Constants.CHARSET)
+        String tContent=tBuildF.getText("UTF-8");
         tContent=tContent.replace("sourceCompatibility = targetCompatibility = \""+tJavaLevel+"\" //","sourceCompatibility = targetCompatibility = \"1.6\" //")
-        com.google.common.io.Files.write(tContent,tBuildF,net.minecraftforge.gradle.common.Constants.CHARSET)
-    }
-}
-
-outputJar{
-//      setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
-//    outputJar.from(Project.files("src/main/resources/"))
-//    eachFile { file->
-//        println file
-//    }
-    HashSet<String> tExclude=new HashSet<>();
-    doFirst{
-        def tCatServerResDir=minecraft.projects.catserver.getResourcesDir()
-        def tCatServerRes=project.fileTree(tCatServerResDir)
-        def tForgeResDirStr=minecraft.projects.forge.getResourcesDir().getPath();
-        project.fileTree(minecraft.projects.forge.getResourcesDir()).each{ file->
-            def tFileSuffix=file.getPath().replace(tForgeResDirStr,"");
-            if(file.isFile()&&tCatServerRes.contains(new File(tCatServerResDir,tFileSuffix))){
-                tExclude.add(file.getAbsolutePath());
-            }
-        }
-        
-        eachFile { file->
-           // println file.getFile()
-            File tFile=file.getFile()
-            
-            if(tFile.isFile()&&tExclude.contains(tFile.getAbsolutePath())){
-                file.exclude();
-                println "Excluded duplicate forge resource file: "+file
-            }
-        }
+        tBuildF.setText(tContent,"UTF-8");
     }
 }
 
@@ -275,3 +269,19 @@ String getServerClasspath(File file) {
     out += libdir+"net/minecraft/server/${minecraft.version}/server-${minecraft.version}.jar"
     return out.toString();
 }
+
+def String getGitLastCommitId(){
+    try {
+        def tFile = new File(".git/HEAD")
+        if(tFile.exists()) {
+            String[] tContnet = tFile.getText('UTF-8').split(" ");
+            if(tContnet.size()>1){
+                return new File((".git/"+tContnet[1]).replace("\n","")).getText().substring(0, 7)
+            }
+        }
+    } catch (Exception e) {
+        e.printStackTrace()
+    }
+    return "nogit"
+}
+
