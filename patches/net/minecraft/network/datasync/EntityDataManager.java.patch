@@ -1,0 +1,235 @@
+--- ../src-base/minecraft/net/minecraft/network/datasync/EntityDataManager.java
++++ ../src-work/minecraft/net/minecraft/network/datasync/EntityDataManager.java
+@@ -10,6 +10,8 @@
+ import java.util.concurrent.locks.ReadWriteLock;
+ import java.util.concurrent.locks.ReentrantReadWriteLock;
+ import javax.annotation.Nullable;
++
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+ import net.minecraft.crash.CrashReport;
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.entity.Entity;
+@@ -26,7 +28,7 @@
+     private static final Logger LOGGER = LogManager.getLogger();
+     private static final Map < Class <? extends Entity > , Integer > NEXT_ID_MAP = Maps. < Class <? extends Entity > , Integer > newHashMap();
+     private final Entity entity;
+-    private final Map < Integer, EntityDataManager.DataEntry<? >> entries = Maps. < Integer, EntityDataManager.DataEntry<? >> newHashMap();
++    private final Map < Integer, DataEntry<? >> entries = new Int2ObjectOpenHashMap<>(); // Paper
+     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+     private boolean empty = true;
+     private boolean dirty;
+@@ -38,7 +40,7 @@
+ 
+     public static <T> DataParameter<T> createKey(Class <? extends Entity > clazz, DataSerializer<T> serializer)
+     {
+-        if (LOGGER.isDebugEnabled())
++        if (true || LOGGER.isDebugEnabled()) //Forge: This is very useful for mods that register keys on classes that are not their own
+         {
+             try
+             {
+@@ -46,7 +48,9 @@
+ 
+                 if (!oclass.equals(clazz))
+                 {
+-                    LOGGER.debug("defineId called for: {} from {}", clazz, oclass, new RuntimeException());
++                    //Forge: log at warn, mods should not add to classes that they don't own, and only add stacktrace when in debug is enabled as it is mostly not needed and consumes time
++                    if (LOGGER.isDebugEnabled()) LOGGER.warn("defineId called for: {} from {}", clazz, oclass, new RuntimeException());
++                    else LOGGER.warn("defineId called for: {} from {}", clazz, oclass);
+                 }
+             }
+             catch (ClassNotFoundException var5)
+@@ -115,21 +119,21 @@
+ 
+     private <T> void setEntry(DataParameter<T> key, T value)
+     {
+-        EntityDataManager.DataEntry<T> dataentry = new EntityDataManager.DataEntry<T>(key, value);
++        DataEntry<T> dataentry = new DataEntry<T>(key, value);
+         this.lock.writeLock().lock();
+         this.entries.put(Integer.valueOf(key.getId()), dataentry);
+         this.empty = false;
+         this.lock.writeLock().unlock();
+     }
+ 
+-    private <T> EntityDataManager.DataEntry<T> getEntry(DataParameter<T> key)
++    private <T> DataEntry<T> getEntry(DataParameter<T> key)
+     {
+         this.lock.readLock().lock();
+-        EntityDataManager.DataEntry<T> dataentry;
++        DataEntry<T> dataentry;
+ 
+         try
+         {
+-            dataentry = (EntityDataManager.DataEntry)this.entries.get(Integer.valueOf(key.getId()));
++            dataentry = (DataEntry)this.entries.get(Integer.valueOf(key.getId()));
+         }
+         catch (Throwable throwable)
+         {
+@@ -150,7 +154,7 @@
+ 
+     public <T> void set(DataParameter<T> key, T value)
+     {
+-        EntityDataManager.DataEntry<T> dataentry = this.<T>getEntry(key);
++        DataEntry<T> dataentry = this.<T>getEntry(key);
+ 
+         if (ObjectUtils.notEqual(value, dataentry.getValue()))
+         {
+@@ -172,7 +176,7 @@
+         return this.dirty;
+     }
+ 
+-    public static void writeEntries(List < EntityDataManager.DataEntry<? >> entriesIn, PacketBuffer buf) throws IOException
++    public static void writeEntries(List < DataEntry<? >> entriesIn, PacketBuffer buf) throws IOException
+     {
+         if (entriesIn != null)
+         {
+@@ -180,7 +184,7 @@
+ 
+             for (int j = entriesIn.size(); i < j; ++i)
+             {
+-                EntityDataManager.DataEntry<?> dataentry = (EntityDataManager.DataEntry)entriesIn.get(i);
++                DataEntry<?> dataentry = (DataEntry)entriesIn.get(i);
+                 writeEntry(buf, dataentry);
+             }
+         }
+@@ -189,15 +193,15 @@
+     }
+ 
+     @Nullable
+-    public List < EntityDataManager.DataEntry<? >> getDirty()
++    public List < DataEntry<? >> getDirty()
+     {
+-        List < EntityDataManager.DataEntry<? >> list = null;
++        List < DataEntry<? >> list = null;
+ 
+         if (this.dirty)
+         {
+             this.lock.readLock().lock();
+ 
+-            for (EntityDataManager.DataEntry<?> dataentry : this.entries.values())
++            for (DataEntry<?> dataentry : this.entries.values())
+             {
+                 if (dataentry.isDirty())
+                 {
+@@ -205,7 +209,7 @@
+ 
+                     if (list == null)
+                     {
+-                        list = Lists. < EntityDataManager.DataEntry<? >> newArrayList();
++                        list = Lists. < DataEntry<? >> newArrayList();
+                     }
+ 
+                     list.add(dataentry.copy());
+@@ -223,7 +227,7 @@
+     {
+         this.lock.readLock().lock();
+ 
+-        for (EntityDataManager.DataEntry<?> dataentry : this.entries.values())
++        for (DataEntry<?> dataentry : this.entries.values())
+         {
+             writeEntry(buf, dataentry);
+         }
+@@ -233,16 +237,16 @@
+     }
+ 
+     @Nullable
+-    public List < EntityDataManager.DataEntry<? >> getAll()
++    public List < DataEntry<? >> getAll()
+     {
+-        List < EntityDataManager.DataEntry<? >> list = null;
++        List < DataEntry<? >> list = null;
+         this.lock.readLock().lock();
+ 
+-        for (EntityDataManager.DataEntry<?> dataentry : this.entries.values())
++        for (DataEntry<?> dataentry : this.entries.values())
+         {
+             if (list == null)
+             {
+-                list = Lists. < EntityDataManager.DataEntry<? >> newArrayList();
++                list = Lists. < DataEntry<? >> newArrayList();
+             }
+ 
+             list.add(dataentry.copy());
+@@ -252,7 +256,7 @@
+         return list;
+     }
+ 
+-    private static <T> void writeEntry(PacketBuffer buf, EntityDataManager.DataEntry<T> entry) throws IOException
++    private static <T> void writeEntry(PacketBuffer buf, DataEntry<T> entry) throws IOException
+     {
+         DataParameter<T> dataparameter = entry.getKey();
+         int i = DataSerializers.getSerializerId(dataparameter.getSerializer());
+@@ -270,16 +274,16 @@
+     }
+ 
+     @Nullable
+-    public static List < EntityDataManager.DataEntry<? >> readEntries(PacketBuffer buf) throws IOException
++    public static List < DataEntry<? >> readEntries(PacketBuffer buf) throws IOException
+     {
+-        List < EntityDataManager.DataEntry<? >> list = null;
++        List < DataEntry<? >> list = null;
+         int i;
+ 
+         while ((i = buf.readUnsignedByte()) != 255)
+         {
+             if (list == null)
+             {
+-                list = Lists. < EntityDataManager.DataEntry<? >> newArrayList();
++                list = Lists. < DataEntry<? >> newArrayList();
+             }
+ 
+             int j = buf.readVarInt();
+@@ -290,20 +294,20 @@
+                 throw new DecoderException("Unknown serializer type " + j);
+             }
+ 
+-            list.add(new EntityDataManager.DataEntry(dataserializer.createKey(i), dataserializer.read(buf)));
++            list.add(new DataEntry(dataserializer.createKey(i), dataserializer.read(buf)));
+         }
+ 
+         return list;
+     }
+ 
+     @SideOnly(Side.CLIENT)
+-    public void setEntryValues(List < EntityDataManager.DataEntry<? >> entriesIn)
++    public void setEntryValues(List < DataEntry<? >> entriesIn)
+     {
+         this.lock.writeLock().lock();
+ 
+-        for (EntityDataManager.DataEntry<?> dataentry : entriesIn)
++        for (DataEntry<?> dataentry : entriesIn)
+         {
+-            EntityDataManager.DataEntry<?> dataentry1 = (EntityDataManager.DataEntry)this.entries.get(Integer.valueOf(dataentry.getKey().getId()));
++            DataEntry<?> dataentry1 = (DataEntry)this.entries.get(Integer.valueOf(dataentry.getKey().getId()));
+ 
+             if (dataentry1 != null)
+             {
+@@ -317,7 +321,7 @@
+     }
+ 
+     @SideOnly(Side.CLIENT)
+-    protected <T> void setEntryValue(EntityDataManager.DataEntry<T> target, EntityDataManager.DataEntry<?> source)
++    protected <T> void setEntryValue(DataEntry<T> target, DataEntry<?> source)
+     {
+         target.setValue((T)source.getValue());
+     }
+@@ -332,7 +336,7 @@
+         this.dirty = false;
+         this.lock.readLock().lock();
+ 
+-        for (EntityDataManager.DataEntry<?> dataentry : this.entries.values())
++        for (DataEntry<?> dataentry : this.entries.values())
+         {
+             dataentry.setDirty(false);
+         }
+@@ -378,9 +382,9 @@
+                 this.dirty = dirtyIn;
+             }
+ 
+-            public EntityDataManager.DataEntry<T> copy()
++            public DataEntry<T> copy()
+             {
+-                return new EntityDataManager.DataEntry<T>(this.key, this.key.getSerializer().copyValue(this.value));
++                return new DataEntry<T>(this.key, this.key.getSerializer().copyValue(this.value));
+             }
+         }
+ }

@@ -1,0 +1,92 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/BufferBuilder.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/BufferBuilder.java
+@@ -123,9 +123,11 @@
+ 
+             bitset.set(i1);
+         }
++        this.rawIntBuffer.limit(this.rawIntBuffer.capacity());
++        this.rawIntBuffer.position(this.getBufferSize());
+     }
+ 
+-    public BufferBuilder.State getVertexState()
++    public State getVertexState()
+     {
+         this.rawIntBuffer.rewind();
+         int i = this.getBufferSize();
+@@ -134,7 +136,7 @@
+         this.rawIntBuffer.get(aint);
+         this.rawIntBuffer.limit(this.rawIntBuffer.capacity());
+         this.rawIntBuffer.position(i);
+-        return new BufferBuilder.State(aint, new VertexFormat(this.vertexFormat));
++        return new State(aint, new VertexFormat(this.vertexFormat));
+     }
+ 
+     private int getBufferSize()
+@@ -162,7 +164,7 @@
+         return f12 * f12 + f13 * f13 + f14 * f14;
+     }
+ 
+-    public void setVertexState(BufferBuilder.State state)
++    public void setVertexState(State state)
+     {
+         this.rawIntBuffer.clear();
+         this.growBuffer(state.getRawBuffer().length * 4);
+@@ -415,7 +417,7 @@
+ 
+     public void addVertexData(int[] vertexData)
+     {
+-        this.growBuffer(vertexData.length * 4);
++        this.growBuffer(vertexData.length * 4 + this.vertexFormat.getNextOffset());//Forge, fix MC-122110
+         this.rawIntBuffer.position(this.getBufferSize());
+         this.rawIntBuffer.put(vertexData);
+         this.vertexCount += vertexData.length / this.vertexFormat.getIntegerSize();
+@@ -506,15 +508,15 @@
+                 break;
+             case USHORT:
+             case SHORT:
+-                this.byteBuffer.putShort(i, (short)((int)x * 32767 & 65535));
+-                this.byteBuffer.putShort(i + 2, (short)((int)y * 32767 & 65535));
+-                this.byteBuffer.putShort(i + 4, (short)((int)z * 32767 & 65535));
++                this.byteBuffer.putShort(i, (short)((int)(x * 32767) & 65535));
++                this.byteBuffer.putShort(i + 2, (short)((int)(y * 32767) & 65535));
++                this.byteBuffer.putShort(i + 4, (short)((int)(z * 32767) & 65535));
+                 break;
+             case UBYTE:
+             case BYTE:
+-                this.byteBuffer.put(i, (byte)((int)x * 127 & 255));
+-                this.byteBuffer.put(i + 1, (byte)((int)y * 127 & 255));
+-                this.byteBuffer.put(i + 2, (byte)((int)z * 127 & 255));
++                this.byteBuffer.put(i, (byte)((int)(x * 127) & 255));
++                this.byteBuffer.put(i + 1, (byte)((int)(y * 127) & 255));
++                this.byteBuffer.put(i + 2, (byte)((int)(z * 127) & 255));
+         }
+ 
+         this.nextVertexFormatIndex();
+@@ -605,4 +607,27 @@
+             return this.stateVertexFormat;
+         }
+     }
++
++
++    //For some unknown reason Mojang changed the vanilla function to hardcode alpha as 255.... So lets re-add the parameter -.-
++    public void putColorRGBA(int index, int red, int green, int blue, int alpha)
++    {
++        if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN)
++            this.rawIntBuffer.put(index, alpha << 24 | blue << 16 | green << 8 | red);
++        else
++            this.rawIntBuffer.put(index, red << 24 | green << 16 | blue << 8 | alpha);
++    }
++
++    public boolean isColorDisabled()
++    {
++        return this.noColor;
++    }
++
++    public void putBulkData(ByteBuffer buffer)
++    {
++        growBuffer(buffer.limit() + this.vertexFormat.getNextOffset());
++        this.byteBuffer.position(this.vertexCount * this.vertexFormat.getNextOffset());
++        this.byteBuffer.put(buffer);
++        this.vertexCount += buffer.limit() / this.vertexFormat.getNextOffset();
++    }
+ }

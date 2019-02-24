@@ -1,0 +1,212 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/TileEntityHopper.java
++++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityHopper.java
+@@ -7,12 +7,14 @@
+ import net.minecraft.block.BlockHopper;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.item.EntityItem;
++import net.minecraft.entity.item.EntityMinecartHopper;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.InventoryPlayer;
+ import net.minecraft.inventory.Container;
+ import net.minecraft.inventory.ContainerHopper;
+ import net.minecraft.inventory.IInventory;
+ import net.minecraft.inventory.ISidedInventory;
++import net.minecraft.inventory.InventoryLargeChest;
+ import net.minecraft.inventory.ItemStackHelper;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.nbt.NBTTagCompound;
+@@ -28,12 +30,44 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.World;
+ 
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.inventory.InventoryMoveItemEvent;
++import org.bukkit.event.inventory.InventoryPickupItemEvent;
++import org.bukkit.inventory.Inventory;
++
++import catserver.server.inventory.CatCustomInventory;
++
+ public class TileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable
+ {
+     private NonNullList<ItemStack> inventory = NonNullList.<ItemStack>withSize(5, ItemStack.EMPTY);
+     private int transferCooldown = -1;
+     private long tickedGameTime;
+-
++    // CraftBukkit start - add fields and methods
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    private int maxStack = MAX_STACK;
++    
++    public List<ItemStack> getContents() {
++        return this.inventory;
++    }
++        
++    public void onOpen(CraftHumanEntity who) {
++        transaction.add(who);
++    }
++    
++    public void onClose(CraftHumanEntity who) {
++        transaction.remove(who);
++    }
++        
++    public List<HumanEntity> getViewers() {
++        return transaction;
++    }
++        
++    public void setMaxStackSize(int size) {
++        maxStack = size;
++    }
++    // CraftBukkit end
+     public static void registerFixesHopper(DataFixer fixer)
+     {
+         fixer.registerWalker(FixTypes.BLOCK_ENTITY, new ItemStackDataLists(TileEntityHopper.class, new String[] {"Items"}));
+@@ -106,7 +140,7 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return 64;
++        return maxStack;
+     }
+ 
+     public void update()
+@@ -144,7 +178,7 @@
+ 
+                 if (flag)
+                 {
+-                    this.setTransferCooldown(8);
++                    this.setTransferCooldown(world.spigotConfig.hopperTransfer); // Spigot
+                     this.markDirty();
+                     return true;
+                 }
+@@ -191,6 +225,7 @@
+ 
+     private boolean transferItemsOut()
+     {
++        if (net.minecraftforge.items.VanillaInventoryCodeHooks.insertHook(this)) { return true; }
+         IInventory iinventory = this.getInventoryForHopperTransfer();
+ 
+         if (iinventory == null)
+@@ -297,6 +332,8 @@
+ 
+     public static boolean pullItems(IHopper hopper)
+     {
++        Boolean ret = net.minecraftforge.items.VanillaInventoryCodeHooks.extractHook(hopper);
++        if (ret != null) return ret;
+         IInventory iinventory = getSourceInventory(hopper);
+ 
+         if (iinventory != null)
+@@ -348,6 +385,7 @@
+         return false;
+     }
+ 
++    // CatServer - TODO: move into Forge, support handle Forge container
+     private static boolean pullItemFromSlot(IHopper hopper, IInventory inventoryIn, int index, EnumFacing direction)
+     {
+         ItemStack itemstack = inventoryIn.getStackInSlot(index);
+@@ -355,14 +393,47 @@
+         if (!itemstack.isEmpty() && canExtractItemFromSlot(inventoryIn, itemstack, index, direction))
+         {
+             ItemStack itemstack1 = itemstack.copy();
+-            ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, inventoryIn.decrStackSize(index, 1), (EnumFacing)null);
++            // ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, inventoryIn.decrStackSize(index, 1), (EnumFacing)null);
++            // CraftBukkit start - Call event on collection of items from inventories into the hopper
++            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(inventoryIn.decrStackSize(index, hopper.getWorld().spigotConfig.hopperAmount)); // Spigot
+ 
++            Inventory sourceInventory;
++            // Have to special case large chests as they work oddly
++            if (inventoryIn instanceof InventoryLargeChest) {
++                sourceInventory = new org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest((InventoryLargeChest) inventoryIn);
++            } else {
++                sourceInventory = inventoryIn.getOwner() != null ? inventoryIn.getOwner().getInventory() : new CatCustomInventory(inventoryIn).getInventory(); // CatServer
++            }
++
++            InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, oitemstack.clone(), hopper.getOwner().getInventory(), false);
++
++            if (sourceInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); // CatServer
++            if (event.isCancelled()) {
++                inventoryIn.setInventorySlotContents(index, itemstack1);
++
++                if (hopper instanceof TileEntityHopper) {
++                    ((TileEntityHopper) hopper).setTransferCooldown(hopper.getWorld().spigotConfig.hopperTransfer); // Spigot
++                } else if (hopper instanceof EntityMinecartHopper) {
++                    ((EntityMinecartHopper) hopper).setTransferTicker(hopper.getWorld().spigotConfig.hopperTransfer / 2); // Spigot
++                }
++
++                return false;
++            }
++            int origCount = event.getItem().getAmount(); // Spigot
++            ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, CraftItemStack.asNMSCopy(event.getItem()), null);
++
+             if (itemstack2.isEmpty())
+             {
+-                inventoryIn.markDirty();
++                // inventoryIn.markDirty();
++                if (event.getItem().equals(oitemstack)) {
++                    inventoryIn.markDirty();
++                } else {
++                    inventoryIn.setInventorySlotContents(index, itemstack1);
++                }
++                // CraftBukkit end
+                 return true;
+             }
+-
++            itemstack1.shrink(origCount - itemstack2.getCount()); // Spigot
+             inventoryIn.setInventorySlotContents(index, itemstack1);
+         }
+ 
+@@ -379,6 +450,11 @@
+         }
+         else
+         {
++            InventoryPickupItemEvent event = new InventoryPickupItemEvent(destination.getOwner().getInventory(), (org.bukkit.entity.Item) entity.getBukkitEntity());
++            entity.world.getServer().getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++                return false;
++            }
+             ItemStack itemstack = entity.getItem().copy();
+             ItemStack itemstack1 = putStackInInventoryAllSlots(source, destination, itemstack, (EnumFacing)null);
+ 
+@@ -396,6 +472,12 @@
+         }
+     }
+ 
++
++    protected net.minecraftforge.items.IItemHandler createUnSidedHandler()
++    {
++        return new net.minecraftforge.items.VanillaHopperItemHandler(this);
++    }
++
+     public static ItemStack putStackInInventoryAllSlots(IInventory source, IInventory destination, ItemStack stack, @Nullable EnumFacing direction)
+     {
+         if (destination instanceof ISidedInventory && direction != null)
+@@ -482,7 +564,7 @@
+                             }
+                         }
+ 
+-                        tileentityhopper1.setTransferCooldown(8 - k);
++                        tileentityhopper1.setTransferCooldown(tileentityhopper1.world.spigotConfig.hopperTransfer - k); // Spigot
+                     }
+                 }
+ 
+@@ -516,9 +598,11 @@
+         int j = MathHelper.floor(y);
+         int k = MathHelper.floor(z);
+         BlockPos blockpos = new BlockPos(i, j, k);
+-        Block block = worldIn.getBlockState(blockpos).getBlock();
++        if (!worldIn.isBlockLoaded(blockpos)) return null; // Spigot
++        net.minecraft.block.state.IBlockState state = worldIn.getBlockState(blockpos);
++        Block block = state.getBlock();
+ 
+-        if (block.hasTileEntity())
++        if (block.hasTileEntity(state))
+         {
+             TileEntity tileentity = worldIn.getTileEntity(blockpos);
+ 
+@@ -611,4 +695,6 @@
+     {
+         return this.inventory;
+     }
++
++    public long getLastUpdateTime() { return tickedGameTime; } // Forge
+ }

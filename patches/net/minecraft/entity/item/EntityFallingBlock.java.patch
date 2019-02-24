@@ -1,0 +1,80 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityFallingBlock.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityFallingBlock.java
+@@ -6,7 +6,6 @@
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockAnvil;
+ import net.minecraft.block.BlockFalling;
+-import net.minecraft.block.ITileEntityProvider;
+ import net.minecraft.block.material.Material;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.crash.CrashReportCategory;
+@@ -31,6 +30,7 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+ public class EntityFallingBlock extends Entity
+ {
+@@ -38,7 +38,7 @@
+     public int fallTime;
+     public boolean shouldDropItem = true;
+     private boolean dontSetBlock;
+-    private boolean hurtEntities;
++    public boolean hurtEntities;
+     private int fallHurtMax = 40;
+     private float fallHurtAmount = 2.0F;
+     public NBTTagCompound tileEntityData;
+@@ -114,7 +114,7 @@
+             {
+                 BlockPos blockpos = new BlockPos(this);
+ 
+-                if (this.world.getBlockState(blockpos).getBlock() == block)
++                if (this.world.getBlockState(blockpos).getBlock() == block && !CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, Blocks.AIR, 0).isCancelled())
+                 {
+                     this.world.setBlockToAir(blockpos);
+                 }
+@@ -166,10 +166,11 @@
+                 {
+                     IBlockState iblockstate = this.world.getBlockState(blockpos1);
+ 
++                    if (this.world.isAirBlock(new BlockPos(this.posX, this.posY - 0.009999999776482582D, this.posZ))) //Forge: Don't indent below.
+                     if (!flag1 && BlockFalling.canFallThrough(this.world.getBlockState(new BlockPos(this.posX, this.posY - 0.009999999776482582D, this.posZ))))
+                     {
+                         this.onGround = false;
+-                        return;
++                        // return; // CraftBukkit
+                     }
+ 
+                     this.motionX *= 0.699999988079071D;
+@@ -182,14 +183,18 @@
+ 
+                         if (!this.dontSetBlock)
+                         {
+-                            if (this.world.mayPlace(block, blockpos1, true, EnumFacing.UP, (Entity)null) && (flag1 || !BlockFalling.canFallThrough(this.world.getBlockState(blockpos1.down()))) && this.world.setBlockState(blockpos1, this.fallTile, 3))
++                            if (this.world.mayPlace(block, blockpos1, true, EnumFacing.UP, (Entity)null) && (flag1 || !BlockFalling.canFallThrough(this.world.getBlockState(blockpos1.down())))/* && this.world.setBlockState(blockpos1, this.fallTile, 3)*/)
+                             {
++                                if (CraftEventFactory.callEntityChangeBlockEvent(this, blockpos1, this.fallTile.getBlock(), this.fallTile.getBlock().getMetaFromState(this.fallTile)).isCancelled()) {
++                                    return;
++                                }
++                                this.world.setBlockState(blockpos1, this.fallTile, 3);
+                                 if (block instanceof BlockFalling)
+                                 {
+                                     ((BlockFalling)block).onEndFalling(this.world, blockpos1, this.fallTile, iblockstate);
+                                 }
+ 
+-                                if (this.tileEntityData != null && block instanceof ITileEntityProvider)
++                                if (this.tileEntityData != null && block.hasTileEntity(this.fallTile))
+                                 {
+                                     TileEntity tileentity = this.world.getTileEntity(blockpos1);
+ 
+@@ -247,7 +252,9 @@
+ 
+                 for (Entity entity : list)
+                 {
++                    CraftEventFactory.entityDamage = this;
+                     entity.attackEntityFrom(damagesource, (float)Math.min(MathHelper.floor((float)i * this.fallHurtAmount), this.fallHurtMax));
++                    CraftEventFactory.entityDamage = null;
+                 }
+ 
+                 if (flag && (double)this.rand.nextFloat() < 0.05000000074505806D + (double)i * 0.05D)

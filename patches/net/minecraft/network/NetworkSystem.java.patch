@@ -1,0 +1,68 @@
+--- ../src-base/minecraft/net/minecraft/network/NetworkSystem.java
++++ ../src-work/minecraft/net/minecraft/network/NetworkSystem.java
+@@ -49,21 +49,21 @@
+     {
+         protected NioEventLoopGroup load()
+         {
+-            return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).build());
++            return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).setThreadFactory(net.minecraftforge.fml.common.thread.SidedThreadGroups.SERVER).build());
+         }
+     };
+     public static final LazyLoadBase<EpollEventLoopGroup> SERVER_EPOLL_EVENTLOOP = new LazyLoadBase<EpollEventLoopGroup>()
+     {
+         protected EpollEventLoopGroup load()
+         {
+-            return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).build());
++            return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).setThreadFactory(net.minecraftforge.fml.common.thread.SidedThreadGroups.SERVER).build());
+         }
+     };
+     public static final LazyLoadBase<LocalEventLoopGroup> SERVER_LOCAL_EVENTLOOP = new LazyLoadBase<LocalEventLoopGroup>()
+     {
+         protected LocalEventLoopGroup load()
+         {
+-            return new LocalEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Local Server IO #%d").setDaemon(true).build());
++            return new LocalEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Local Server IO #%d").setDaemon(true).setThreadFactory(net.minecraftforge.fml.common.thread.SidedThreadGroups.CLIENT).build());
+         }
+     };
+     private final MinecraftServer mcServer;
+@@ -79,6 +79,7 @@
+ 
+     public void addLanEndpoint(InetAddress address, int port) throws IOException
+     {
++        if (address instanceof java.net.Inet6Address) System.setProperty("java.net.preferIPv4Stack", "false");
+         synchronized (this.endpoints)
+         {
+             Class <? extends ServerSocketChannel > oclass;
+@@ -110,7 +111,7 @@
+                         ;
+                     }
+ 
+-                    p_initChannel_1_.pipeline().addLast("timeout", new ReadTimeoutHandler(30)).addLast("legacy_query", new LegacyPingHandler(NetworkSystem.this)).addLast("splitter", new NettyVarint21FrameDecoder()).addLast("decoder", new NettyPacketDecoder(EnumPacketDirection.SERVERBOUND)).addLast("prepender", new NettyVarint21FrameEncoder()).addLast("encoder", new NettyPacketEncoder(EnumPacketDirection.CLIENTBOUND));
++                    p_initChannel_1_.pipeline().addLast("timeout", new ReadTimeoutHandler(net.minecraftforge.fml.common.network.internal.FMLNetworkHandler.READ_TIMEOUT)).addLast("legacy_query", new LegacyPingHandler(NetworkSystem.this)).addLast("splitter", new NettyVarint21FrameDecoder()).addLast("decoder", new NettyPacketDecoder(EnumPacketDirection.SERVERBOUND)).addLast("prepender", new NettyVarint21FrameEncoder()).addLast("encoder", new NettyPacketEncoder(EnumPacketDirection.CLIENTBOUND));
+                     NetworkManager networkmanager = new NetworkManager(EnumPacketDirection.SERVERBOUND);
+                     NetworkSystem.this.networkManagers.add(networkmanager);
+                     p_initChannel_1_.pipeline().addLast("packet_handler", networkmanager);
+@@ -164,6 +165,13 @@
+     {
+         synchronized (this.networkManagers)
+         {
++            // Spigot Start
++            // This prevents players from 'gaming' the server, and strategically relogging to increase their position in the tick order
++            if (org.spigotmc.SpigotConfig.playerShuffle > 0 && MinecraftServer.currentTick % org.spigotmc.SpigotConfig.playerShuffle == 0)
++            {
++                Collections.shuffle(this.networkManagers);
++            }
++            // Spigot End
+             Iterator<NetworkManager> iterator = this.networkManagers.iterator();
+ 
+             while (iterator.hasNext())
+@@ -208,6 +216,9 @@
+                     }
+                     else
+                     {
++                        // Spigot Start - Fix a race condition where a NetworkManager could be unregistered just before connection.
++                        if (networkmanager.preparing) continue;
++                        // Spigot End
+                         iterator.remove();
+                         networkmanager.checkDisconnected();
+                     }

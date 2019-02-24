@@ -1,0 +1,74 @@
+--- ../src-base/minecraft/net/minecraft/inventory/InventoryLargeChest.java
++++ ../src-work/minecraft/net/minecraft/inventory/InventoryLargeChest.java
+@@ -8,13 +8,59 @@
+ import net.minecraft.util.text.TextComponentTranslation;
+ import net.minecraft.world.ILockableContainer;
+ import net.minecraft.world.LockCode;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
+ 
++import java.util.ArrayList;
++import java.util.List;
++
+ public class InventoryLargeChest implements ILockableContainer
+ {
+     private final String name;
+-    private final ILockableContainer upperChest;
+-    private final ILockableContainer lowerChest;
++    public final ILockableContainer upperChest;
++    public final ILockableContainer lowerChest;
+ 
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++
++    public List<ItemStack> getContents() {
++        List<ItemStack> result = new ArrayList<ItemStack>(this.getSizeInventory());
++        for (int i = 0; i < this.getSizeInventory(); i++) {
++            result.add(this.getStackInSlot(i));
++        }
++        return result;
++    }
++
++    public void onOpen(CraftHumanEntity who) {
++        this.upperChest.onOpen(who);
++        this.lowerChest.onOpen(who);
++        transaction.add(who);
++    }
++
++    public void onClose(CraftHumanEntity who) {
++        this.upperChest.onClose(who);
++        this.lowerChest.onClose(who);
++        transaction.remove(who);
++    }
++
++    public List<HumanEntity> getViewers() {
++        return transaction;
++    }
++
++    public org.bukkit.inventory.InventoryHolder getOwner() {
++        return null; // This method won't be called since CraftInventoryDoubleChest doesn't defer to here
++    }
++
++    public void setMaxStackSize(int size) {
++        this.upperChest.setMaxStackSize(size);
++        this.lowerChest.setMaxStackSize(size);
++    }
++
++    @Override
++    public Location getLocation() {
++        return upperChest.getLocation(); // TODO: right?
++    }
++
+     public InventoryLargeChest(String nameIn, ILockableContainer upperChestIn, ILockableContainer lowerChestIn)
+     {
+         this.name = nameIn;
+@@ -108,7 +154,8 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return this.upperChest.getInventoryStackLimit();
++        // return this.upperChest.getInventoryStackLimit();
++        return Math.min(this.upperChest.getInventoryStackLimit(), this.lowerChest.getInventoryStackLimit()); // CraftBukkit - check both sides
+     }
+ 
+     public void markDirty()

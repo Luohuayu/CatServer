@@ -1,0 +1,129 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityMinecartContainer.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityMinecartContainer.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.entity.item;
+ 
++import java.util.List;
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ import net.minecraft.entity.Entity;
+@@ -23,13 +24,52 @@
+ import net.minecraft.world.storage.loot.ILootContainer;
+ import net.minecraft.world.storage.loot.LootContext;
+ import net.minecraft.world.storage.loot.LootTable;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.inventory.InventoryHolder;
+ 
+ public abstract class EntityMinecartContainer extends EntityMinecart implements ILockableContainer, ILootContainer
+ {
+-    private NonNullList<ItemStack> minecartContainerItems = NonNullList.<ItemStack>withSize(36, ItemStack.EMPTY);
++    private NonNullList<ItemStack> minecartContainerItems = NonNullList.<ItemStack>withSize(this.getSizeInventory(), ItemStack.EMPTY); // CraftBukkit - SPIGOT-3513
+     public boolean dropContentsWhenDead = true;
+     private ResourceLocation lootTable;
+     private long lootTableSeed;
++    // CraftBukkit start
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    private int maxStack = MAX_STACK;
++    
++    public List<ItemStack> getContents() {
++        return this.minecartContainerItems;
++    }
++    
++    public void onOpen(CraftHumanEntity who) {
++        transaction.add(who);
++    }
++    
++    public void onClose(CraftHumanEntity who) {
++        transaction.remove(who);
++    }
++    
++    public List<HumanEntity> getViewers() {
++        return transaction;
++    }
++    
++    public InventoryHolder getOwner() {
++        org.bukkit.entity.Entity cart = getBukkitEntity();
++        if(cart instanceof InventoryHolder) return (InventoryHolder) cart;
++        return null;
++    }
++    
++    public void setMaxStackSize(int size) {
++        maxStack = size;
++    }
++    
++    @Override
++    public Location getLocation() {
++        return getBukkitEntity().getLocation();
++    }
++    // CraftBukkit end
+ 
+     public EntityMinecartContainer(World worldIn)
+     {
+@@ -134,14 +174,14 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return 64;
++        return maxStack;
+     }
+ 
+     @Nullable
+-    public Entity changeDimension(int dimensionIn)
++    public Entity changeDimension(int dimensionIn, net.minecraftforge.common.util.ITeleporter teleporter)
+     {
+         this.dropContentsWhenDead = false;
+-        return super.changeDimension(dimensionIn);
++        return super.changeDimension(dimensionIn, teleporter);
+     }
+ 
+     public void setDead()
+@@ -202,6 +242,7 @@
+ 
+     public boolean processInitialInteract(EntityPlayer player, EnumHand hand)
+     {
++        if (super.processInitialInteract(player, hand)) return true;
+         if (!this.world.isRemote)
+         {
+             player.displayGUIChest(this);
+@@ -270,17 +311,37 @@
+                 random = new Random(this.lootTableSeed);
+             }
+ 
+-            LootContext.Builder lootcontext$builder = new LootContext.Builder((WorldServer)this.world);
++            LootContext.Builder lootcontext$builder = new LootContext.Builder((WorldServer)this.world).withLootedEntity(this); // Forge: add looted entity to LootContext
+ 
+             if (player != null)
+             {
+-                lootcontext$builder.withLuck(player.getLuck());
++                lootcontext$builder.withLuck(player.getLuck()).withPlayer(player); // Forge: add player to LootContext
+             }
+ 
+             loottable.fillInventory(this, random, lootcontext$builder.build());
+         }
+     }
+ 
++    public net.minecraftforge.items.IItemHandler itemHandler = new net.minecraftforge.items.wrapper.InvWrapper(this);
++
++    @SuppressWarnings("unchecked")
++    @Override
++    @Nullable
++    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable net.minecraft.util.EnumFacing facing)
++    {
++        if (capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)
++        {
++            return (T) itemHandler;
++        }
++        return super.getCapability(capability, facing);
++    }
++
++    @Override
++    public boolean hasCapability(net.minecraftforge.common.capabilities.Capability<?> capability, @Nullable net.minecraft.util.EnumFacing facing)
++    {
++        return capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY || super.hasCapability(capability, facing);
++    }
++
+     public void clear()
+     {
+         this.addLoot((EntityPlayer)null);

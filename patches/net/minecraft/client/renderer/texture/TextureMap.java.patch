@@ -1,0 +1,246 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/texture/TextureMap.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/texture/TextureMap.java
+@@ -45,6 +45,16 @@
+ 
+     public TextureMap(String basePathIn, @Nullable ITextureMapPopulator iconCreatorIn)
+     {
++        this(basePathIn, iconCreatorIn, false);
++    }
++
++    public TextureMap(String basePathIn, boolean skipFirst)
++    {
++        this(basePathIn, null, skipFirst);
++    }
++
++    public TextureMap(String basePathIn, @Nullable ITextureMapPopulator iconCreatorIn, boolean skipFirst)
++    {
+         this.listAnimatedSprites = Lists.<TextureAtlasSprite>newArrayList();
+         this.mapRegisteredSprites = Maps.<String, TextureAtlasSprite>newHashMap();
+         this.mapUploadedSprites = Maps.<String, TextureAtlasSprite>newHashMap();
+@@ -74,6 +84,7 @@
+     public void loadSprites(IResourceManager resourceManager, ITextureMapPopulator iconCreatorIn)
+     {
+         this.mapRegisteredSprites.clear();
++        net.minecraftforge.client.ForgeHooksClient.onTextureStitchedPre(this);
+         iconCreatorIn.registerSprites(this);
+         this.initMissingImage();
+         this.deleteGlTexture();
+@@ -88,13 +99,55 @@
+         this.listAnimatedSprites.clear();
+         int j = Integer.MAX_VALUE;
+         int k = 1 << this.mipmapLevels;
++        net.minecraftforge.fml.common.FMLLog.log.info("Max texture size: {}", i);
++        net.minecraftforge.fml.common.ProgressManager.ProgressBar bar = net.minecraftforge.fml.common.ProgressManager.push("Texture stitching", this.mapRegisteredSprites.size());
++        loadedSprites.clear();
+ 
+-        for (Entry<String, TextureAtlasSprite> entry : this.mapRegisteredSprites.entrySet())
++        for (Entry<String, TextureAtlasSprite> entry : Maps.newHashMap(this.mapRegisteredSprites).entrySet())
+         {
+-            TextureAtlasSprite textureatlassprite = entry.getValue();
+-            ResourceLocation resourcelocation = this.getResourceLocation(textureatlassprite);
+-            IResource iresource = null;
++            final ResourceLocation location = new ResourceLocation(entry.getKey());
++            bar.step(location.toString());
++            j = loadTexture(stitcher, resourceManager, location, entry.getValue(), bar, j, k);
++        }
++        finishLoading(stitcher, bar, j, k);
++    }
+ 
++    private int loadTexture(Stitcher stitcher, IResourceManager resourceManager, ResourceLocation location, TextureAtlasSprite textureatlassprite, net.minecraftforge.fml.common.ProgressManager.ProgressBar bar, int j, int k)
++    {
++        if (loadedSprites.contains(location)) {
++            return j;
++        }
++        ResourceLocation resourcelocation = this.getResourceLocation(textureatlassprite);
++        IResource iresource = null;
++
++        for(ResourceLocation loading : loadingSprites)
++        {
++            if(location.equals(loading))
++            {
++                final String error = "circular model dependencies, stack: [" + com.google.common.base.Joiner.on(", ").join(loadingSprites) + "]";
++                net.minecraftforge.fml.client.FMLClientHandler.instance().trackBrokenTexture(resourcelocation, error);
++            }
++        }
++        loadingSprites.addLast(location);
++        try
++        {
++            for (ResourceLocation dependency : textureatlassprite.getDependencies())
++            {
++                if (!mapRegisteredSprites.containsKey(dependency.toString()))
++                {
++                    registerSprite(dependency);
++                }
++                TextureAtlasSprite depSprite = mapRegisteredSprites.get(dependency.toString());
++                j = loadTexture(stitcher, resourceManager, dependency, depSprite, bar, j, k);
++            }
++            if (textureatlassprite.hasCustomLoader(resourceManager, resourcelocation))
++            {
++                if (textureatlassprite.load(resourceManager, resourcelocation, l -> mapRegisteredSprites.get(l.toString())))
++                {
++                    return j;
++                }
++            }
++            else
+             try
+             {
+                 PngSizeInfo pngsizeinfo = PngSizeInfo.makeFromResource(resourceManager.getResource(resourcelocation));
+@@ -104,13 +157,13 @@
+             }
+             catch (RuntimeException runtimeexception)
+             {
+-                LOGGER.error("Unable to parse metadata from {}", resourcelocation, runtimeexception);
+-                continue;
++                net.minecraftforge.fml.client.FMLClientHandler.instance().trackBrokenTexture(resourcelocation, runtimeexception.getMessage());
++                return j;
+             }
+             catch (IOException ioexception)
+             {
+-                LOGGER.error("Using missing texture, unable to load {}", resourcelocation, ioexception);
+-                continue;
++                net.minecraftforge.fml.client.FMLClientHandler.instance().trackMissingTexture(resourcelocation);
++                return j;
+             }
+             finally
+             {
+@@ -122,16 +175,28 @@
+ 
+             if (j1 < k)
+             {
+-                LOGGER.warn("Texture {} with size {}x{} limits mip level from {} to {}", resourcelocation, Integer.valueOf(textureatlassprite.getIconWidth()), Integer.valueOf(textureatlassprite.getIconHeight()), Integer.valueOf(MathHelper.log2(k)), Integer.valueOf(MathHelper.log2(j1)));
+-                k = j1;
++                // FORGE: do not lower the mipmap level, just log the problematic textures
++                LOGGER.warn("Texture {} with size {}x{} will have visual artifacts at mip level {}, it can only support level {}. Please report to the mod author that the texture should be some multiple of 16x16.", resourcelocation, Integer.valueOf(textureatlassprite.getIconWidth()), Integer.valueOf(textureatlassprite.getIconHeight()), Integer.valueOf(MathHelper.log2(k)), Integer.valueOf(MathHelper.log2(j1)));
+             }
+ 
++            if (generateMipmaps(resourceManager, textureatlassprite))
+             stitcher.addSprite(textureatlassprite);
++            return j;
+         }
++        finally
++        {
++            loadingSprites.removeLast();
++            loadedSprites.add(location);
++        }
++    }
+ 
++    private void finishLoading(Stitcher stitcher, net.minecraftforge.fml.common.ProgressManager.ProgressBar bar, int j, int k)
++    {
++        net.minecraftforge.fml.common.ProgressManager.pop(bar);
+         int l = Math.min(j, k);
+         int i1 = MathHelper.log2(l);
+ 
++        if (false) // FORGE: do not lower the mipmap level
+         if (i1 < this.mipmapLevels)
+         {
+             LOGGER.warn("{}: dropping miplevel from {} to {}, because of minimum power of two: {}", this.basePath, Integer.valueOf(this.mipmapLevels), Integer.valueOf(i1), Integer.valueOf(l));
+@@ -140,9 +205,11 @@
+ 
+         this.missingImage.generateMipmaps(this.mipmapLevels);
+         stitcher.addSprite(this.missingImage);
++        bar = net.minecraftforge.fml.common.ProgressManager.push("Texture creation", 2);
+ 
+         try
+         {
++            bar.step("Stitching");
+             stitcher.doStitch();
+         }
+         catch (StitcherException stitcherexception)
+@@ -151,12 +218,16 @@
+         }
+ 
+         LOGGER.info("Created: {}x{} {}-atlas", Integer.valueOf(stitcher.getCurrentWidth()), Integer.valueOf(stitcher.getCurrentHeight()), this.basePath);
++        bar.step("Allocating GL texture");
+         TextureUtil.allocateTextureImpl(this.getGlTextureId(), this.mipmapLevels, stitcher.getCurrentWidth(), stitcher.getCurrentHeight());
+         Map<String, TextureAtlasSprite> map = Maps.<String, TextureAtlasSprite>newHashMap(this.mapRegisteredSprites);
+ 
++        net.minecraftforge.fml.common.ProgressManager.pop(bar);
++        bar = net.minecraftforge.fml.common.ProgressManager.push("Texture mipmap and upload", stitcher.getStichSlots().size());
++
+         for (TextureAtlasSprite textureatlassprite1 : stitcher.getStichSlots())
+         {
+-            if (textureatlassprite1 == this.missingImage || this.generateMipmaps(resourceManager, textureatlassprite1))
++            bar.step(textureatlassprite1.getIconName());
+             {
+                 String s = textureatlassprite1.getIconName();
+                 map.remove(s);
+@@ -186,6 +257,8 @@
+         {
+             textureatlassprite2.copyFrom(this.missingImage);
+         }
++        net.minecraftforge.client.ForgeHooksClient.onTextureStitchedPost(this);
++        net.minecraftforge.fml.common.ProgressManager.pop(bar);
+     }
+ 
+     private boolean generateMipmaps(IResourceManager resourceManager, final TextureAtlasSprite texture)
+@@ -195,7 +268,7 @@
+         label62:
+         {
+             boolean flag;
+-
++            if (texture.hasCustomLoader(resourceManager, resourcelocation)) break label62;
+             try
+             {
+                 iresource = resourceManager.getResource(resourcelocation);
+@@ -292,7 +365,7 @@
+         }
+         else
+         {
+-            TextureAtlasSprite textureatlassprite = this.mapRegisteredSprites.get(location);
++            TextureAtlasSprite textureatlassprite = this.mapRegisteredSprites.get(location.toString());
+ 
+             if (textureatlassprite == null)
+             {
+@@ -318,4 +391,52 @@
+     {
+         return this.missingImage;
+     }
++
++    //===================================================================================================
++    //                                           Forge Start
++    //===================================================================================================
++
++    private final java.util.Deque<ResourceLocation> loadingSprites = new java.util.ArrayDeque<>();
++    private final java.util.Set<ResourceLocation> loadedSprites = new java.util.HashSet<>();
++
++    /**
++     * Grabs the registered entry for the specified name, returning null if there was not a entry.
++     * Opposed to registerIcon, this will not instantiate the entry, useful to test if a mapping exists.
++     *
++     * @param name The name of the entry to find
++     * @return The registered entry, null if nothing was registered.
++     */
++    @Nullable
++    public TextureAtlasSprite getTextureExtry(String name)
++    {
++        return mapRegisteredSprites.get(name);
++    }
++
++    /**
++     * Adds a texture registry entry to this map for the specified name if one does not already exist.
++     * Returns false if the map already contains a entry for the specified name.
++     *
++     * @param entry Entry instance
++     * @return True if the entry was added to the map, false otherwise.
++     */
++    public boolean setTextureEntry(TextureAtlasSprite entry)
++    {
++        String name = entry.getIconName();
++        if (!mapRegisteredSprites.containsKey(name))
++        {
++            mapRegisteredSprites.put(name, entry);
++            return true;
++        }
++        return false;
++    }
++
++    public String getBasePath()
++    {
++        return basePath;
++    }
++
++    public int getMipmapLevels()
++    {
++        return mipmapLevels;
++    }
+ }

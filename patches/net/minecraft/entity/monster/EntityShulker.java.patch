@@ -1,0 +1,85 @@
+--- ../src-base/minecraft/net/minecraft/entity/monster/EntityShulker.java
++++ ../src-work/minecraft/net/minecraft/entity/monster/EntityShulker.java
+@@ -47,6 +47,8 @@
+ import net.minecraft.world.storage.loot.LootTableList;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Location;
++import org.bukkit.event.entity.EntityTeleportEvent;
+ 
+ public class EntityShulker extends EntityGolem implements IMob
+ {
+@@ -55,7 +57,7 @@
+     protected static final DataParameter<EnumFacing> ATTACHED_FACE = EntityDataManager.<EnumFacing>createKey(EntityShulker.class, DataSerializers.FACING);
+     protected static final DataParameter<Optional<BlockPos>> ATTACHED_BLOCK_POS = EntityDataManager.<Optional<BlockPos>>createKey(EntityShulker.class, DataSerializers.OPTIONAL_BLOCK_POS);
+     protected static final DataParameter<Byte> PEEK_TICK = EntityDataManager.<Byte>createKey(EntityShulker.class, DataSerializers.BYTE);
+-    protected static final DataParameter<Byte> COLOR = EntityDataManager.<Byte>createKey(EntityShulker.class, DataSerializers.BYTE);
++    public static final DataParameter<Byte> COLOR = EntityDataManager.<Byte>createKey(EntityShulker.class, DataSerializers.BYTE);
+     public static final EnumDyeColor DEFAULT_COLOR = EnumDyeColor.PURPLE;
+     private float prevPeekAmount;
+     private float peekAmount;
+@@ -88,12 +90,12 @@
+     protected void initEntityAI()
+     {
+         this.tasks.addTask(1, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
+-        this.tasks.addTask(4, new EntityShulker.AIAttack());
+-        this.tasks.addTask(7, new EntityShulker.AIPeek());
++        this.tasks.addTask(4, new AIAttack());
++        this.tasks.addTask(7, new AIPeek());
+         this.tasks.addTask(8, new EntityAILookIdle(this));
+         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true, new Class[0]));
+-        this.targetTasks.addTask(2, new EntityShulker.AIAttackNearest(this));
+-        this.targetTasks.addTask(3, new EntityShulker.AIDefenseAttack(this));
++        this.targetTasks.addTask(2, new AIAttackNearest(this));
++        this.targetTasks.addTask(3, new AIDefenseAttack(this));
+     }
+ 
+     protected boolean canTriggerWalking()
+@@ -146,7 +148,7 @@
+ 
+     protected EntityBodyHelper createBodyHelper()
+     {
+-        return new EntityShulker.BodyHelper(this);
++        return new BodyHelper(this);
+     }
+ 
+     public static void registerFixesShulker(DataFixer fixer)
+@@ -311,6 +313,7 @@
+             this.posX = (double)blockpos.getX() + 0.5D;
+             this.posY = (double)blockpos.getY();
+             this.posZ = (double)blockpos.getZ() + 0.5D;
++            if (this.isAddedToWorld() && !this.world.isRemote) this.world.updateEntityWithOptionalForce(this, false); // Forge - Process chunk registration after moving.
+             this.prevPosX = this.posX;
+             this.prevPosY = this.posY;
+             this.prevPosZ = this.posZ;
+@@ -418,14 +421,27 @@
+                     {
+                         if (this.world.isBlockNormalCube(blockpos1.offset(enumfacing), false))
+                         {
+-                            this.dataManager.set(ATTACHED_FACE, enumfacing);
+-                            flag = true;
+-                            break;
++                            EntityTeleportEvent teleport = new EntityTeleportEvent(this.getBukkitEntity(), this.getBukkitEntity().getLocation(), new Location(this.world.getWorld(), blockpos1.getX(), blockpos1.getY(), blockpos1.getZ()));
++                            this.world.getServer().getPluginManager().callEvent(teleport);
++                            if (!teleport.isCancelled()) {
++                                Location to = teleport.getTo();
++                                blockpos1 = new BlockPos(to.getX(), to.getY(), to.getZ());
++                                this.dataManager.set(ATTACHED_FACE, enumfacing);
++                                flag = true;
++                                break;
++                            }
+                         }
+                     }
+ 
+                     if (flag)
+                     {
++                        net.minecraftforge.event.entity.living.EnderTeleportEvent event = new net.minecraftforge.event.entity.living.EnderTeleportEvent(this, blockpos1.getX(), blockpos1.getY(), blockpos1.getZ(), 0);
++                        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) flag = false;
++                        blockpos1 = new BlockPos(event.getTargetX(), event.getTargetY(), event.getTargetZ());
++                    }
++
++                    if (flag)
++                    {
+                         this.playSound(SoundEvents.ENTITY_SHULKER_TELEPORT, 1.0F, 1.0F);
+                         this.dataManager.set(ATTACHED_BLOCK_POS, Optional.of(blockpos1));
+                         this.dataManager.set(PEEK_TICK, Byte.valueOf((byte)0));

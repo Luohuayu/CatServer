@@ -1,0 +1,102 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockRedstoneTorch.java
++++ ../src-work/minecraft/net/minecraft/block/BlockRedstoneTorch.java
+@@ -20,10 +20,11 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.block.BlockRedstoneEvent;
+ 
+ public class BlockRedstoneTorch extends BlockTorch
+ {
+-    private static final Map<World, List<BlockRedstoneTorch.Toggle>> toggles = Maps.<World, List<BlockRedstoneTorch.Toggle>>newHashMap();
++    private static final Map<World, List<Toggle>> toggles = new java.util.WeakHashMap<World, List<Toggle>>(); // FORGE - fix vanilla MC-101233
+     private final boolean isOn;
+ 
+     private boolean isBurnedOut(World worldIn, BlockPos pos, boolean turnOff)
+@@ -33,18 +34,18 @@
+             toggles.put(worldIn, Lists.newArrayList());
+         }
+ 
+-        List<BlockRedstoneTorch.Toggle> list = (List)toggles.get(worldIn);
++        List<Toggle> list = (List)toggles.get(worldIn);
+ 
+         if (turnOff)
+         {
+-            list.add(new BlockRedstoneTorch.Toggle(pos, worldIn.getTotalWorldTime()));
++            list.add(new Toggle(pos, worldIn.getTotalWorldTime()));
+         }
+ 
+         int i = 0;
+ 
+         for (int j = 0; j < list.size(); ++j)
+         {
+-            BlockRedstoneTorch.Toggle blockredstonetorch$toggle = list.get(j);
++            Toggle blockredstonetorch$toggle = list.get(j);
+ 
+             if (blockredstonetorch$toggle.pos.equals(pos))
+             {
+@@ -112,17 +113,37 @@
+     public void updateTick(World worldIn, BlockPos pos, IBlockState state, Random rand)
+     {
+         boolean flag = this.shouldBeOff(worldIn, pos, state);
+-        List<BlockRedstoneTorch.Toggle> list = (List)toggles.get(worldIn);
++        List<Toggle> list = toggles.get(worldIn);
+ 
+-        while (list != null && !list.isEmpty() && worldIn.getTotalWorldTime() - (list.get(0)).time > 60L)
+-        {
+-            list.remove(0);
++        // Paper start
++        if (list != null) {
++            int index = 0;
++            while (index < list.size() && worldIn.getTotalWorldTime() - list.get(index).getTime() > 60L) {
++                index++;
++            }
++            if (index > 0) {
++                list.subList(0, index).clear();
++            }
+         }
++        // Paper end
+ 
++        org.bukkit.plugin.PluginManager manager = worldIn.getServer().getPluginManager();
++        org.bukkit.block.Block block = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++        int oldCurrent = this.isOn ? 15 : 0;
++
++        BlockRedstoneEvent event = new BlockRedstoneEvent(block, oldCurrent, oldCurrent);
++
+         if (this.isOn)
+         {
+             if (flag)
+             {
++                if (oldCurrent != 0) {
++                    event.setNewCurrent(0);
++                    manager.callEvent(event);
++                    if (event.getNewCurrent() != 0) {
++                        return;
++                    }
++                }
+                 worldIn.setBlockState(pos, Blocks.UNLIT_REDSTONE_TORCH.getDefaultState().withProperty(FACING, state.getValue(FACING)), 3);
+ 
+                 if (this.isBurnedOut(worldIn, pos, true))
+@@ -143,6 +164,13 @@
+         }
+         else if (!flag && !this.isBurnedOut(worldIn, pos, false))
+         {
++            if (oldCurrent != 15) {
++                event.setNewCurrent(15);
++                manager.callEvent(event);
++                if (event.getNewCurrent() != 15) {
++                    return;
++                }
++            }
+             worldIn.setBlockState(pos, Blocks.REDSTONE_TORCH.getDefaultState().withProperty(FACING, state.getValue(FACING)), 3);
+         }
+     }
+@@ -209,7 +237,7 @@
+     static class Toggle
+         {
+             BlockPos pos;
+-            long time;
++            long time; final long getTime() { return this.time; } // Paper - OBFHELPER;
+ 
+             public Toggle(BlockPos pos, long time)
+             {

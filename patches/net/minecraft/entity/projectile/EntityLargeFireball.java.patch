@@ -1,0 +1,58 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityLargeFireball.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityLargeFireball.java
+@@ -9,6 +9,7 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ public class EntityLargeFireball extends EntityFireball
+ {
+@@ -17,6 +18,8 @@
+     public EntityLargeFireball(World worldIn)
+     {
+         super(worldIn);
++        // TODO: Maybe we should use net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent instead of this?
++        isIncendiary = this.world.getGameRules().getBoolean("mobGriefing");
+     }
+ 
+     @SideOnly(Side.CLIENT)
+@@ -28,6 +31,8 @@
+     public EntityLargeFireball(World worldIn, EntityLivingBase shooter, double accelX, double accelY, double accelZ)
+     {
+         super(worldIn, shooter, accelX, accelY, accelZ);
++        // TODO: Maybe we should use net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent instead of this?
++        isIncendiary = this.world.getGameRules().getBoolean("mobGriefing");
+     }
+ 
+     protected void onImpact(RayTraceResult result)
+@@ -40,8 +45,17 @@
+                 this.applyEnchantments(this.shootingEntity, result.entityHit);
+             }
+ 
+-            boolean flag = this.world.getGameRules().getBoolean("mobGriefing");
+-            this.world.newExplosion((Entity)null, this.posX, this.posY, this.posZ, (float)this.explosionPower, flag, flag);
++            // TODO: Reimplement with correct `flag` usage below
++            boolean flag = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this.shootingEntity);
++            // this.world.newExplosion((Entity)null, this.posX, this.posY, this.posZ, (float)this.explosionPower, flag, flag);
++            // CraftBukkit start - fire ExplosionPrimeEvent
++            ExplosionPrimeEvent event = new ExplosionPrimeEvent((org.bukkit.entity.Explosive) org.bukkit.craftbukkit.entity.CraftEntity.getEntity(this.world.getServer(), this));
++            this.world.getServer().getPluginManager().callEvent(event);
++            if (!event.isCancelled()) {
++                // give 'this' instead of (Entity) null so we know what causes the damage
++                this.world.newExplosion(this, this.posX, this.posY, this.posZ, event.getRadius(), event.getFire(), isIncendiary);
++            }
++            // CraftBukkit end
+             this.setDead();
+         }
+     }
+@@ -63,7 +77,8 @@
+ 
+         if (compound.hasKey("ExplosionPower", 99))
+         {
+-            this.explosionPower = compound.getInteger("ExplosionPower");
++            // CraftBukkit - set bukkitYield when setting explosionpower
++            bukkitYield = this.explosionPower = compound.getInteger("ExplosionPower");
+         }
+     }
+ }

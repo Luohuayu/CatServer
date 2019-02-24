@@ -1,0 +1,133 @@
+--- ../src-base/minecraft/net/minecraft/client/entity/EntityPlayerSP.java
++++ ../src-work/minecraft/net/minecraft/client/entity/EntityPlayerSP.java
+@@ -131,6 +131,7 @@
+ 
+     public boolean attackEntityFrom(DamageSource source, float amount)
+     {
++        net.minecraftforge.common.ForgeHooks.onPlayerAttack(this, source, amount);
+         return false;
+     }
+ 
+@@ -448,6 +449,15 @@
+         }
+     }
+ 
++    private boolean isHeadspaceFree(BlockPos pos, int height)
++    {
++        for (int y = 0; y < height; y++)
++        {
++            if (!isOpenBlockSpace(pos.add(0, y, 0))) return false;
++        }
++        return true;
++    }
++
+     protected boolean pushOutOfBlocks(double x, double y, double z)
+     {
+         if (this.noClip)
+@@ -460,30 +470,34 @@
+             double d0 = x - (double)blockpos.getX();
+             double d1 = z - (double)blockpos.getZ();
+ 
+-            if (!this.isOpenBlockSpace(blockpos))
++            int entHeight = Math.max((int)Math.ceil(this.height), 1);
++
++            boolean inTranslucentBlock = !this.isHeadspaceFree(blockpos, entHeight);
++
++            if (inTranslucentBlock)
+             {
+                 int i = -1;
+                 double d2 = 9999.0D;
+ 
+-                if (this.isOpenBlockSpace(blockpos.west()) && d0 < d2)
++                if (this.isHeadspaceFree(blockpos.west(), entHeight) && d0 < d2)
+                 {
+                     d2 = d0;
+                     i = 0;
+                 }
+ 
+-                if (this.isOpenBlockSpace(blockpos.east()) && 1.0D - d0 < d2)
++                if (this.isHeadspaceFree(blockpos.east(), entHeight) && 1.0D - d0 < d2)
+                 {
+                     d2 = 1.0D - d0;
+                     i = 1;
+                 }
+ 
+-                if (this.isOpenBlockSpace(blockpos.north()) && d1 < d2)
++                if (this.isHeadspaceFree(blockpos.north(), entHeight) && d1 < d2)
+                 {
+                     d2 = d1;
+                     i = 4;
+                 }
+ 
+-                if (this.isOpenBlockSpace(blockpos.south()) && 1.0D - d1 < d2)
++                if (this.isHeadspaceFree(blockpos.south(), entHeight) && 1.0D - d1 < d2)
+                 {
+                     d2 = 1.0D - d1;
+                     i = 5;
+@@ -518,7 +532,8 @@
+ 
+     private boolean isOpenBlockSpace(BlockPos pos)
+     {
+-        return !this.world.getBlockState(pos).isNormalCube() && !this.world.getBlockState(pos.up()).isNormalCube();
++        IBlockState iblockstate = world.getBlockState(pos);
++        return !iblockstate.getBlock().isNormalCube(iblockstate, world, pos);
+     }
+ 
+     public void setSprinting(boolean sprinting)
+@@ -563,7 +578,13 @@
+ 
+     public void playSound(SoundEvent soundIn, float volume, float pitch)
+     {
+-        this.world.playSound(this.posX, this.posY, this.posZ, soundIn, this.getSoundCategory(), volume, pitch, false);
++        net.minecraftforge.event.entity.PlaySoundAtEntityEvent event = net.minecraftforge.event.ForgeEventFactory.onPlaySoundAtEntity(this, soundIn, this.getSoundCategory(), volume, pitch);
++        if (event.isCanceled() || event.getSound() == null) return;
++        soundIn = event.getSound();
++        volume = event.getVolume();
++        pitch = event.getPitch();
++
++        this.world.playSound(this.posX, this.posY, this.posZ, soundIn, event.getCategory(), volume, pitch, false);
+     }
+ 
+     public boolean isServerWorld()
+@@ -840,6 +861,7 @@
+         float f = 0.8F;
+         boolean flag2 = this.movementInput.moveForward >= 0.8F;
+         this.movementInput.updatePlayerMoveState();
++        net.minecraftforge.client.ForgeHooksClient.onInputUpdate(this, this.movementInput);
+         this.mc.getTutorial().handleMovement(this.movementInput);
+ 
+         if (this.isHandActive() && !this.isRiding())
+@@ -859,10 +881,13 @@
+         }
+ 
+         AxisAlignedBB axisalignedbb = this.getEntityBoundingBox();
++        net.minecraftforge.client.event.PlayerSPPushOutOfBlocksEvent event = new net.minecraftforge.client.event.PlayerSPPushOutOfBlocksEvent(this, axisalignedbb);
++        if(!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) { axisalignedbb = event.getEntityBoundingBox();
+         this.pushOutOfBlocks(this.posX - (double)this.width * 0.35D, axisalignedbb.minY + 0.5D, this.posZ + (double)this.width * 0.35D);
+         this.pushOutOfBlocks(this.posX - (double)this.width * 0.35D, axisalignedbb.minY + 0.5D, this.posZ - (double)this.width * 0.35D);
+         this.pushOutOfBlocks(this.posX + (double)this.width * 0.35D, axisalignedbb.minY + 0.5D, this.posZ - (double)this.width * 0.35D);
+         this.pushOutOfBlocks(this.posX + (double)this.width * 0.35D, axisalignedbb.minY + 0.5D, this.posZ + (double)this.width * 0.35D);
++        }
+         boolean flag4 = (float)this.getFoodStats().getFoodLevel() > 6.0F || this.capabilities.allowFlying;
+ 
+         if (this.onGround && !flag1 && !flag2 && this.movementInput.moveForward >= 0.8F && !this.isSprinting() && flag4 && !this.isHandActive() && !this.isPotionActive(MobEffects.BLINDNESS))
+@@ -992,6 +1017,19 @@
+         }
+     }
+ 
++    public void updateSyncFields(EntityPlayerSP old)
++{
++       this.lastReportedPosX = old.lastReportedPosX;
++       this.lastReportedPosY = old.lastReportedPosY;
++       this.lastReportedPosZ = old.lastReportedPosZ;
++       this.lastReportedYaw = old.lastReportedYaw;
++       this.lastReportedPitch = old.lastReportedPitch;
++       this.prevOnGround = old.prevOnGround;
++       this.serverSneakState = old.serverSneakState;
++       this.serverSprintState = old.serverSprintState;
++       this.positionUpdateTicks = old.positionUpdateTicks;
++   }
++
+     public void updateRidden()
+     {
+         super.updateRidden();

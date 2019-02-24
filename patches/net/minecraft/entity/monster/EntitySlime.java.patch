@@ -1,0 +1,169 @@
+--- ../src-base/minecraft/net/minecraft/entity/monster/EntitySlime.java
++++ ../src-work/minecraft/net/minecraft/entity/monster/EntitySlime.java
+@@ -35,6 +35,7 @@
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.chunk.Chunk;
+ import net.minecraft.world.storage.loot.LootTableList;
++import org.bukkit.event.entity.SlimeSplitEvent;
+ 
+ public class EntitySlime extends EntityLiving implements IMob
+ {
+@@ -47,15 +48,15 @@
+     public EntitySlime(World worldIn)
+     {
+         super(worldIn);
+-        this.moveHelper = new EntitySlime.SlimeMoveHelper(this);
++        this.moveHelper = new SlimeMoveHelper(this);
+     }
+ 
+     protected void initEntityAI()
+     {
+-        this.tasks.addTask(1, new EntitySlime.AISlimeFloat(this));
+-        this.tasks.addTask(2, new EntitySlime.AISlimeAttack(this));
+-        this.tasks.addTask(3, new EntitySlime.AISlimeFaceRandom(this));
+-        this.tasks.addTask(5, new EntitySlime.AISlimeHop(this));
++        this.tasks.addTask(1, new AISlimeFloat(this));
++        this.tasks.addTask(2, new AISlimeAttack(this));
++        this.tasks.addTask(3, new AISlimeFaceRandom(this));
++        this.tasks.addTask(5, new AISlimeHop(this));
+         this.targetTasks.addTask(1, new EntityAIFindEntityNearestPlayer(this));
+         this.targetTasks.addTask(3, new EntityAIFindEntityNearest(this, EntityIronGolem.class));
+     }
+@@ -66,7 +67,7 @@
+         this.dataManager.register(SLIME_SIZE, Integer.valueOf(1));
+     }
+ 
+-    protected void setSlimeSize(int size, boolean resetHealth)
++    public void setSlimeSize(int size, boolean resetHealth)
+     {
+         this.dataManager.set(SLIME_SIZE, Integer.valueOf(size));
+         this.setSize(0.51000005F * (float)size, 0.51000005F * (float)size);
+@@ -137,7 +138,7 @@
+         if (this.onGround && !this.wasOnGround)
+         {
+             int i = this.getSlimeSize();
+-
++            if (spawnCustomParticles()) { i = 0; } // don't spawn particles if it's handled by the implementation itself
+             for (int j = 0; j < i * 8; ++j)
+             {
+                 float f = this.rand.nextFloat() * ((float)Math.PI * 2F);
+@@ -204,6 +205,16 @@
+         {
+             int j = 2 + this.rand.nextInt(3);
+ 
++            SlimeSplitEvent event = new SlimeSplitEvent((org.bukkit.entity.Slime) this.getBukkitEntity(), j);
++            this.world.getServer().getPluginManager().callEvent(event);
++
++            if (!event.isCancelled() && event.getCount() > 0) {
++                j = event.getCount();
++            } else {
++                super.setDead();
++                return;
++            }
++
+             for (int k = 0; k < j; ++k)
+             {
+                 float f = ((float)(k % 2) - 0.5F) * (float)i / 4.0F;
+@@ -222,7 +233,7 @@
+ 
+                 entityslime.setSlimeSize(i / 2, true);
+                 entityslime.setLocationAndAngles(this.posX + (double)f, this.posY + 0.5D, this.posZ + (double)f1, this.rand.nextFloat() * 360.0F, 0.0F);
+-                this.world.spawnEntity(entityslime);
++                this.world.addEntity(entityslime, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SLIME_SPLIT);
+             }
+         }
+ 
+@@ -304,7 +315,7 @@
+         BlockPos blockpos = new BlockPos(MathHelper.floor(this.posX), 0, MathHelper.floor(this.posZ));
+         Chunk chunk = this.world.getChunkFromBlockCoords(blockpos);
+ 
+-        if (this.world.getWorldInfo().getTerrainType() == WorldType.FLAT && this.rand.nextInt(4) != 1)
++        if (this.world.getWorldInfo().getTerrainType().handleSlimeSpawnReduction(rand, world))
+         {
+             return false;
+         }
+@@ -319,7 +330,7 @@
+                     return super.getCanSpawnHere();
+                 }
+ 
+-                if (this.rand.nextInt(10) == 0 && chunk.getRandomWithSeed(987234911L).nextInt(10) == 0 && this.posY < 40.0D)
++                if (this.rand.nextInt(10) == 0 && chunk.getRandomWithSeed(world.spigotConfig.slimeSeed).nextInt(10) == 0 && this.posY < 40.0D)
+                 {
+                     return super.getCanSpawnHere();
+                 }
+@@ -370,6 +381,14 @@
+         return this.isSmallSlime() ? SoundEvents.ENTITY_SMALL_SLIME_JUMP : SoundEvents.ENTITY_SLIME_JUMP;
+     }
+ 
++    /* ======================================== FORGE START =====================================*/
++    /**
++     * Called when the slime spawns particles on landing, see onUpdate.
++     * Return true to prevent the spawning of the default particles.
++     */
++    protected boolean spawnCustomParticles() { return false; }
++    /* ======================================== FORGE END   =====================================*/
++
+     static class AISlimeAttack extends EntityAIBase
+         {
+             private final EntitySlime slime;
+@@ -430,7 +449,7 @@
+             public void updateTask()
+             {
+                 this.slime.faceEntity(this.slime.getAttackTarget(), 10.0F, 10.0F);
+-                ((EntitySlime.SlimeMoveHelper)this.slime.getMoveHelper()).setDirection(this.slime.rotationYaw, this.slime.canDamagePlayer());
++                ((SlimeMoveHelper)this.slime.getMoveHelper()).setDirection(this.slime.rotationYaw, this.slime.canDamagePlayer());
+             }
+         }
+ 
+@@ -459,7 +478,7 @@
+                     this.chosenDegrees = (float)this.slime.getRNG().nextInt(360);
+                 }
+ 
+-                ((EntitySlime.SlimeMoveHelper)this.slime.getMoveHelper()).setDirection(this.chosenDegrees, false);
++                ((SlimeMoveHelper)this.slime.getMoveHelper()).setDirection(this.chosenDegrees, false);
+             }
+         }
+ 
+@@ -486,7 +505,7 @@
+                     this.slime.getJumpHelper().setJumping();
+                 }
+ 
+-                ((EntitySlime.SlimeMoveHelper)this.slime.getMoveHelper()).setSpeed(1.2D);
++                ((SlimeMoveHelper)this.slime.getMoveHelper()).setSpeed(1.2D);
+             }
+         }
+ 
+@@ -507,7 +526,7 @@
+ 
+             public void updateTask()
+             {
+-                ((EntitySlime.SlimeMoveHelper)this.slime.getMoveHelper()).setSpeed(1.0D);
++                ((SlimeMoveHelper)this.slime.getMoveHelper()).setSpeed(1.0D);
+             }
+         }
+ 
+@@ -534,7 +553,7 @@
+             public void setSpeed(double speedIn)
+             {
+                 this.speed = speedIn;
+-                this.action = EntityMoveHelper.Action.MOVE_TO;
++                this.action = Action.MOVE_TO;
+             }
+ 
+             public void onUpdateMoveHelper()
+@@ -543,13 +562,13 @@
+                 this.entity.rotationYawHead = this.entity.rotationYaw;
+                 this.entity.renderYawOffset = this.entity.rotationYaw;
+ 
+-                if (this.action != EntityMoveHelper.Action.MOVE_TO)
++                if (this.action != Action.MOVE_TO)
+                 {
+                     this.entity.setMoveForward(0.0F);
+                 }
+                 else
+                 {
+-                    this.action = EntityMoveHelper.Action.WAIT;
++                    this.action = Action.WAIT;
+ 
+                     if (this.entity.onGround)
+                     {

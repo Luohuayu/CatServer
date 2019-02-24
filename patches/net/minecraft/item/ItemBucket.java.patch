@@ -1,0 +1,134 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemBucket.java
++++ ../src-work/minecraft/net/minecraft/item/ItemBucket.java
+@@ -23,6 +23,10 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.RayTraceResult;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.player.PlayerBucketEmptyEvent;
++import org.bukkit.event.player.PlayerBucketFillEvent;
+ 
+ public class ItemBucket extends Item
+ {
+@@ -40,6 +44,8 @@
+         boolean flag = this.containedBlock == Blocks.AIR;
+         ItemStack itemstack = playerIn.getHeldItem(handIn);
+         RayTraceResult raytraceresult = this.rayTrace(worldIn, playerIn, flag);
++        ActionResult<ItemStack> ret = net.minecraftforge.event.ForgeEventFactory.onBucketUse(playerIn, worldIn, itemstack, raytraceresult);
++        if (ret != null) return ret;
+ 
+         if (raytraceresult == null)
+         {
+@@ -70,17 +76,27 @@
+ 
+                     if (material == Material.WATER && ((Integer)iblockstate.getValue(BlockLiquid.LEVEL)).intValue() == 0)
+                     {
++                        PlayerBucketFillEvent event = CraftEventFactory.callPlayerBucketFillEvent(playerIn, blockpos.getX(), blockpos.getY(), blockpos.getZ(), null, itemstack, Items.WATER_BUCKET);
++
++                        if (event.isCancelled()) {
++                            return new ActionResult<>(EnumActionResult.FAIL, itemstack);
++                        }
+                         worldIn.setBlockState(blockpos, Blocks.AIR.getDefaultState(), 11);
+                         playerIn.addStat(StatList.getObjectUseStats(this));
+                         playerIn.playSound(SoundEvents.ITEM_BUCKET_FILL, 1.0F, 1.0F);
+-                        return new ActionResult<ItemStack>(EnumActionResult.SUCCESS, this.fillBucket(itemstack, playerIn, Items.WATER_BUCKET));
++                        return new ActionResult<ItemStack>(EnumActionResult.SUCCESS, this.fillBucket(itemstack, playerIn, Items.WATER_BUCKET, event.getItemStack()));
+                     }
+                     else if (material == Material.LAVA && ((Integer)iblockstate.getValue(BlockLiquid.LEVEL)).intValue() == 0)
+                     {
++                        PlayerBucketFillEvent event = CraftEventFactory.callPlayerBucketFillEvent(playerIn, blockpos.getX(), blockpos.getY(), blockpos.getZ(), null, itemstack, Items.LAVA_BUCKET);
++
++                        if (event.isCancelled()) {
++                            return new ActionResult<>(EnumActionResult.FAIL, itemstack);
++                        }
+                         playerIn.playSound(SoundEvents.ITEM_BUCKET_FILL_LAVA, 1.0F, 1.0F);
+                         worldIn.setBlockState(blockpos, Blocks.AIR.getDefaultState(), 11);
+                         playerIn.addStat(StatList.getObjectUseStats(this));
+-                        return new ActionResult<ItemStack>(EnumActionResult.SUCCESS, this.fillBucket(itemstack, playerIn, Items.LAVA_BUCKET));
++                        return new ActionResult<ItemStack>(EnumActionResult.SUCCESS, this.fillBucket(itemstack, playerIn, Items.LAVA_BUCKET, event.getItemStack()));
+                     }
+                     else
+                     {
+@@ -97,7 +113,7 @@
+                 {
+                     return new ActionResult<ItemStack>(EnumActionResult.FAIL, itemstack);
+                 }
+-                else if (this.tryPlaceContainedLiquid(playerIn, worldIn, blockpos1))
++                else if (this.tryPlaceContainedLiquid(playerIn, worldIn, blockpos1, raytraceresult.sideHit, blockpos, itemstack))
+                 {
+                     if (playerIn instanceof EntityPlayerMP)
+                     {
+@@ -141,8 +157,40 @@
+         }
+     }
+ 
++    // CraftBukkit - added ob.ItemStack result - TODO: Is this... the right way to handle this?
++    private ItemStack fillBucket(ItemStack emptyBuckets, EntityPlayer player, Item fullBucket, org.bukkit.inventory.ItemStack result)
++    {
++        if (player.capabilities.isCreativeMode)
++        {
++            return emptyBuckets;
++        }
++        else
++        {
++            emptyBuckets.shrink(1);
++
++            if (emptyBuckets.isEmpty())
++            {
++                // return new ItemStack(fullBucket);
++                return CraftItemStack.asNMSCopy(result);
++            }
++            else
++            {
++                if (!player.inventory.addItemStackToInventory(CraftItemStack.asNMSCopy(result)))
++                {
++                    player.dropItem(CraftItemStack.asNMSCopy(result), false);
++                }
++
++                return emptyBuckets;
++            }
++        }
++    }
++
+     public boolean tryPlaceContainedLiquid(@Nullable EntityPlayer player, World worldIn, BlockPos posIn)
+     {
++        return tryPlaceContainedLiquid(player, worldIn, posIn, null, posIn, null);
++    }
++
++    public boolean tryPlaceContainedLiquid(@Nullable EntityPlayer player, World worldIn, BlockPos posIn, EnumFacing enumdirection, BlockPos clicked, ItemStack itemstack) {
+         if (this.containedBlock == Blocks.AIR)
+         {
+             return false;
+@@ -160,6 +208,14 @@
+             }
+             else
+             {
++                if (player != null) {
++                    PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent(player, clicked.getX(), clicked.getY(), clicked.getZ(), enumdirection, itemstack);
++                    if (event.isCancelled()) {
++                        // TODO: inventory not updated
++                        return false;
++                    }
++                }
++
+                 if (worldIn.provider.doesWaterVaporize() && this.containedBlock == Blocks.FLOWING_WATER)
+                 {
+                     int l = posIn.getX();
+@@ -188,4 +244,16 @@
+             }
+         }
+     }
++
++    @Override
++    public net.minecraftforge.common.capabilities.ICapabilityProvider initCapabilities(ItemStack stack, @Nullable net.minecraft.nbt.NBTTagCompound nbt) {
++        if (this.getClass() == ItemBucket.class)
++        {
++            return new net.minecraftforge.fluids.capability.wrappers.FluidBucketWrapper(stack);
++        }
++        else
++        {
++            return super.initCapabilities(stack, nbt);
++        }
++    }
+ }

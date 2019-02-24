@@ -1,0 +1,54 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/TileEntityEndGateway.java
++++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityEndGateway.java
+@@ -5,6 +5,7 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.Entity;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Blocks;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.nbt.NBTUtil;
+@@ -24,14 +25,18 @@
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.player.PlayerTeleportEvent;
+ 
+ public class TileEntityEndGateway extends TileEntityEndPortal implements ITickable
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+     private long age;
+     private int teleportCooldown;
+-    private BlockPos exitPortal;
+-    private boolean exactTeleport;
++    public BlockPos exitPortal;
++    public boolean exactTeleport;
+ 
+     public NBTTagCompound writeToNBT(NBTTagCompound compound)
+     {
+@@ -171,6 +176,22 @@
+             if (this.exitPortal != null)
+             {
+                 BlockPos blockpos = this.exactTeleport ? this.exitPortal : this.findExitPosition();
++                if (entityIn instanceof EntityPlayerMP) {
++                    org.bukkit.craftbukkit.entity.CraftPlayer player = (CraftPlayer) entityIn.getBukkitEntity();
++                    org.bukkit.Location location = new Location(world.getWorld(), (double) blockpos.getX() + 0.5D, (double) blockpos.getY() + 0.5D, (double) blockpos.getZ() + 0.5D);
++                    location.setPitch(player.getLocation().getPitch());
++                    location.setYaw(player.getLocation().getYaw());
++
++                    PlayerTeleportEvent teleEvent = new PlayerTeleportEvent(player, player.getLocation(), location, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
++                    Bukkit.getPluginManager().callEvent(teleEvent);
++                    if (teleEvent.isCancelled()) {
++                        return;
++                    }
++
++                    ((EntityPlayerMP) entityIn).connection.teleport(teleEvent.getTo());
++                    this.triggerCooldown(); // CraftBukkit - call at end of method
++                    return;
++                }
+                 entityIn.setPositionAndUpdate((double)blockpos.getX() + 0.5D, (double)blockpos.getY() + 0.5D, (double)blockpos.getZ() + 0.5D);
+             }
+ 

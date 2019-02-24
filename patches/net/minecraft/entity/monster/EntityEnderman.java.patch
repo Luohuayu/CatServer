@@ -1,0 +1,134 @@
+--- ../src-base/minecraft/net/minecraft/entity/monster/EntityEnderman.java
++++ ../src-work/minecraft/net/minecraft/entity/monster/EntityEnderman.java
+@@ -47,6 +47,7 @@
+ import net.minecraft.util.math.Vec3d;
+ import net.minecraft.world.World;
+ import net.minecraft.world.storage.loot.LootTableList;
++import org.bukkit.event.entity.EntityTargetEvent;
+ 
+ public class EntityEnderman extends EntityMob
+ {
+@@ -73,9 +74,9 @@
+         this.tasks.addTask(7, new EntityAIWanderAvoidWater(this, 1.0D, 0.0F));
+         this.tasks.addTask(8, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
+         this.tasks.addTask(8, new EntityAILookIdle(this));
+-        this.tasks.addTask(10, new EntityEnderman.AIPlaceBlock(this));
+-        this.tasks.addTask(11, new EntityEnderman.AITakeBlock(this));
+-        this.targetTasks.addTask(1, new EntityEnderman.AIFindPlayer(this));
++        this.tasks.addTask(10, new AIPlaceBlock(this));
++        this.tasks.addTask(11, new AITakeBlock(this));
++        this.targetTasks.addTask(1, new AIFindPlayer(this));
+         this.targetTasks.addTask(2, new EntityAIHurtByTarget(this, false, new Class[0]));
+         this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityEndermite.class, 10, true, false, new Predicate<EntityEndermite>()
+         {
+@@ -97,10 +98,21 @@
+ 
+     public void setAttackTarget(@Nullable EntityLivingBase entitylivingbaseIn)
+     {
+-        super.setAttackTarget(entitylivingbaseIn);
++        // CraftBukkit start - fire event
++        setGoalTarget(entitylivingbaseIn, EntityTargetEvent.TargetReason.UNKNOWN, true);
++    }
++
++    @Override
++    public boolean setGoalTarget(@Nullable EntityLivingBase entityliving, org.bukkit.event.entity.EntityTargetEvent.TargetReason reason, boolean fireEvent) {
++        if (!super.setGoalTarget(entityliving, reason, fireEvent)) {
++            return false;
++        }
++        entityliving = getAttackTarget();
++        // CraftBukkit end
++        // super.setAttackTarget(entitylivingbaseIn);
+         IAttributeInstance iattributeinstance = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
+ 
+-        if (entitylivingbaseIn == null)
++        if (entityliving == null)
+         {
+             this.targetChangeTime = 0;
+             this.dataManager.set(SCREAMING, Boolean.valueOf(false));
+@@ -116,6 +128,7 @@
+                 iattributeinstance.applyModifier(ATTACKING_SPEED_BOOST);
+             }
+         }
++        return true;
+     }
+ 
+     protected void entityInit()
+@@ -267,7 +280,9 @@
+ 
+     private boolean teleportTo(double x, double y, double z)
+     {
+-        boolean flag = this.attemptTeleport(x, y, z);
++        net.minecraftforge.event.entity.living.EnderTeleportEvent event = new net.minecraftforge.event.entity.living.EnderTeleportEvent(this, x, y, z, 0);
++        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) return false;
++        boolean flag = this.attemptTeleport(event.getTargetX(), event.getTargetY(), event.getTargetZ());
+ 
+         if (flag)
+         {
+@@ -354,6 +369,18 @@
+         }
+     }
+ 
++    /*===================================== Forge Start ==============================*/
++    public static void setCarriable(Block block, boolean canCarry)
++    {
++        if (canCarry) CARRIABLE_BLOCKS.add(block);
++        else          CARRIABLE_BLOCKS.remove(block);
++    }
++    public static boolean getCarriable(Block block)
++    {
++        return CARRIABLE_BLOCKS.contains(block);
++    }
++    /*===================================== Forge End ==============================*/
++
+     public boolean isScreaming()
+     {
+         return ((Boolean)this.dataManager.get(SCREAMING)).booleanValue();
+@@ -486,7 +513,7 @@
+                 {
+                     return false;
+                 }
+-                else if (!this.enderman.world.getGameRules().getBoolean("mobGriefing"))
++                else if (!net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.enderman.world, this.enderman))
+                 {
+                     return false;
+                 }
+@@ -510,8 +537,11 @@
+ 
+                 if (iblockstate2 != null && this.canPlaceBlock(world, blockpos, iblockstate2.getBlock(), iblockstate, iblockstate1))
+                 {
+-                    world.setBlockState(blockpos, iblockstate2, 3);
+-                    this.enderman.setHeldBlockState((IBlockState)null);
++                    // CraftBukkit start - Place event
++                    if (!org.bukkit.craftbukkit.event.CraftEventFactory.callEntityChangeBlockEvent(this.enderman, blockpos, this.enderman.getHeldBlockState().getBlock(), this.enderman.getHeldBlockState().getBlock().getMetaFromState(this.enderman.getHeldBlockState())).isCancelled()) {
++                        world.setBlockState(blockpos, iblockstate2, 3);
++                        this.enderman.setHeldBlockState((IBlockState) null);
++                    }
+                 }
+             }
+ 
+@@ -551,7 +581,7 @@
+                 {
+                     return false;
+                 }
+-                else if (!this.enderman.world.getGameRules().getBoolean("mobGriefing"))
++                else if (!net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.enderman.world, this.enderman))
+                 {
+                     return false;
+                 }
+@@ -576,8 +606,14 @@
+ 
+                 if (EntityEnderman.CARRIABLE_BLOCKS.contains(block) && flag)
+                 {
+-                    this.enderman.setHeldBlockState(iblockstate);
+-                    world.setBlockToAir(blockpos);
++                    // this.enderman.setHeldBlockState(iblockstate);
++                    // world.setBlockToAir(blockpos);
++                    // CraftBukkit start - Pickup event
++                    if (!org.bukkit.craftbukkit.event.CraftEventFactory.callEntityChangeBlockEvent(this.enderman, this.enderman.world.getWorld().getBlockAt(blockpos.getX(), blockpos.getY(), blockpos.getZ()), org.bukkit.Material.AIR).isCancelled()) {
++                        this.enderman.setHeldBlockState(iblockstate);
++                        world.setBlockToAir(blockpos);
++                    }
++                    // CraftBukkit end
+                 }
+             }
+         }

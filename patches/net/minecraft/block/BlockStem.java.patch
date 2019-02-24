@@ -1,0 +1,87 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockStem.java
++++ ../src-work/minecraft/net/minecraft/block/BlockStem.java
+@@ -19,6 +19,7 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.IBlockAccess;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+ public class BlockStem extends BlockBush implements IGrowable
+ {
+@@ -66,18 +67,20 @@
+     {
+         super.updateTick(worldIn, pos, state, rand);
+ 
++        if (!worldIn.isAreaLoaded(pos, 1)) return; // Forge: prevent loading unloaded chunks when checking neighbor's light
+         if (worldIn.getLightFromNeighbors(pos.up()) >= 9)
+         {
+             float f = BlockCrops.getGrowthChance(this, worldIn, pos);
+ 
+-            if (rand.nextInt((int)(25.0F / f) + 1) == 0)
++            if(net.minecraftforge.common.ForgeHooks.onCropsGrowPre(worldIn, pos, state, rand.nextInt((int) ((100.0F / (this == Blocks.PUMPKIN_STEM ? worldIn.spigotConfig.pumpkinModifier : worldIn.spigotConfig.melonModifier)) * (25.0F / f)) + 1) == 0)) // Spigot
+             {
+                 int i = ((Integer)state.getValue(AGE)).intValue();
+ 
+                 if (i < 7)
+                 {
+-                    state = state.withProperty(AGE, Integer.valueOf(i + 1));
+-                    worldIn.setBlockState(pos, state, 2);
++                    IBlockState newState = state.withProperty(AGE, Integer.valueOf(i + 1));
++                    CraftEventFactory.handleBlockGrowEvent(worldIn, pos.getX(), pos.getY(), pos.getZ(), this, getMetaFromState(newState));
++//                    worldIn.setBlockState(pos, newState, 2);
+                 }
+                 else
+                 {
+@@ -90,13 +93,16 @@
+                     }
+ 
+                     pos = pos.offset(EnumFacing.Plane.HORIZONTAL.random(rand));
+-                    Block block = worldIn.getBlockState(pos.down()).getBlock();
++                    IBlockState soil = worldIn.getBlockState(pos.down());
++                    Block block = soil.getBlock();
+ 
+-                    if (worldIn.getBlockState(pos).getBlock().blockMaterial == Material.AIR && (block == Blocks.FARMLAND || block == Blocks.DIRT || block == Blocks.GRASS))
++                    if (worldIn.isAirBlock(pos) && (block.canSustainPlant(soil, worldIn, pos.down(), EnumFacing.UP, this) || block == Blocks.DIRT || block == Blocks.GRASS))
+                     {
+-                        worldIn.setBlockState(pos, this.crop.getDefaultState());
++                        CraftEventFactory.handleBlockGrowEvent(worldIn, pos.getX(), pos.getY(), pos.getZ(), this.crop, 0);
++//                        worldIn.setBlockState(pos, this.crop.getDefaultState());
+                     }
+                 }
++                net.minecraftforge.common.ForgeHooks.onCropsGrowPost(worldIn, pos, state, worldIn.getBlockState(pos));
+             }
+         }
+     }
+@@ -104,14 +110,18 @@
+     public void growStem(World worldIn, BlockPos pos, IBlockState state)
+     {
+         int i = ((Integer)state.getValue(AGE)).intValue() + MathHelper.getInt(worldIn.rand, 2, 5);
+-        worldIn.setBlockState(pos, state.withProperty(AGE, Integer.valueOf(Math.min(7, i))), 2);
++        CraftEventFactory.handleBlockGrowEvent(worldIn, pos.getX(), pos.getY(), pos.getZ(), this, Math.min(7, i));
++//        worldIn.setBlockState(pos, state.withProperty(AGE, Integer.valueOf(Math.min(7, i))), 2);
+     }
+ 
+     public void dropBlockAsItemWithChance(World worldIn, BlockPos pos, IBlockState state, float chance, int fortune)
+     {
+         super.dropBlockAsItemWithChance(worldIn, pos, state, chance, fortune);
++    }
+ 
+-        if (!worldIn.isRemote)
++    @Override
++    public void getDrops(net.minecraft.util.NonNullList<ItemStack> drops, IBlockAccess world, BlockPos pos, IBlockState state, int fortune)
++    {
+         {
+             Item item = this.getSeedItem();
+ 
+@@ -121,9 +131,9 @@
+ 
+                 for (int j = 0; j < 3; ++j)
+                 {
+-                    if (worldIn.rand.nextInt(15) <= i)
++                    if (RANDOM.nextInt(15) <= i)
+                     {
+-                        spawnAsEntity(worldIn, pos, new ItemStack(item));
++                        drops.add(new ItemStack(item));
+                     }
+                 }
+             }

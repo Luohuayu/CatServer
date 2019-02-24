@@ -1,0 +1,208 @@
+--- ../src-base/minecraft/net/minecraft/entity/EntityHanging.java
++++ ../src-work/minecraft/net/minecraft/entity/EntityHanging.java
+@@ -3,6 +3,7 @@
+ import com.google.common.base.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.block.BlockRedstoneDiode;
++import net.minecraft.block.material.Material;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.effect.EntityLightningBolt;
+ import net.minecraft.entity.item.EntityItem;
+@@ -18,6 +19,9 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.World;
+ import org.apache.commons.lang3.Validate;
++import org.bukkit.entity.Hanging;
++import org.bukkit.event.hanging.HangingBreakByEntityEvent;
++import org.bukkit.event.hanging.HangingBreakEvent;
+ 
+ public abstract class EntityHanging extends Entity
+ {
+@@ -29,7 +33,7 @@
+         }
+     };
+     private int tickCounter1;
+-    protected BlockPos hangingPosition;
++    public BlockPos hangingPosition;
+     @Nullable
+     public EnumFacing facingDirection;
+ 
+@@ -49,7 +53,7 @@
+     {
+     }
+ 
+-    protected void updateFacingWithBoundingBox(EnumFacing facingDirectionIn)
++    public void updateFacingWithBoundingBox(EnumFacing facingDirectionIn)
+     {
+         Validate.notNull(facingDirectionIn);
+         Validate.isTrue(facingDirectionIn.getAxis().isHorizontal());
+@@ -63,42 +67,50 @@
+     {
+         if (this.facingDirection != null)
+         {
+-            double d0 = (double)this.hangingPosition.getX() + 0.5D;
+-            double d1 = (double)this.hangingPosition.getY() + 0.5D;
+-            double d2 = (double)this.hangingPosition.getZ() + 0.5D;
+-            double d3 = 0.46875D;
+-            double d4 = this.offs(this.getWidthPixels());
+-            double d5 = this.offs(this.getHeightPixels());
+-            d0 = d0 - (double)this.facingDirection.getFrontOffsetX() * 0.46875D;
+-            d2 = d2 - (double)this.facingDirection.getFrontOffsetZ() * 0.46875D;
+-            d1 = d1 + d5;
+-            EnumFacing enumfacing = this.facingDirection.rotateYCCW();
+-            d0 = d0 + d4 * (double)enumfacing.getFrontOffsetX();
+-            d2 = d2 + d4 * (double)enumfacing.getFrontOffsetZ();
+-            this.posX = d0;
+-            this.posY = d1;
+-            this.posZ = d2;
+-            double d6 = (double)this.getWidthPixels();
+-            double d7 = (double)this.getHeightPixels();
+-            double d8 = (double)this.getWidthPixels();
++            // CraftBukkit start code moved in to calculateBoundingBox
++            this.setEntityBoundingBox(calculateBoundingBox(this, this.hangingPosition, this.facingDirection, this.getWidthPixels(), this.getHeightPixels()));
++            // CraftBukkit end
++        }
++    }
+ 
+-            if (this.facingDirection.getAxis() == EnumFacing.Axis.Z)
+-            {
+-                d8 = 1.0D;
+-            }
+-            else
+-            {
+-                d6 = 1.0D;
+-            }
++    // CraftBukkit start - break out BB calc into own method
++    public static AxisAlignedBB calculateBoundingBox(Entity entity, BlockPos blockPosition, EnumFacing direction, int width, int height) {
++        double d0 = (double) blockPosition.getX() + 0.5D;
++        double d1 = (double) blockPosition.getY() + 0.5D;
++        double d2 = (double) blockPosition.getZ() + 0.5D;
++        double d3 = 0.46875D;
++        double d4 = offs(width);
++        double d5 = offs(height);
+ 
+-            d6 = d6 / 32.0D;
+-            d7 = d7 / 32.0D;
+-            d8 = d8 / 32.0D;
+-            this.setEntityBoundingBox(new AxisAlignedBB(d0 - d6, d1 - d7, d2 - d8, d0 + d6, d1 + d7, d2 + d8));
++        d0 -= (double) direction.getFrontOffsetX() * 0.46875D;
++        d2 -= (double) direction.getFrontOffsetZ() * 0.46875D;
++        d1 += d5;
++        EnumFacing enumdirection = direction.rotateYCCW();
++
++        d0 += d4 * (double) enumdirection.getFrontOffsetX();
++        d2 += d4 * (double) enumdirection.getFrontOffsetZ();
++        if (entity != null) {
++            entity.posX = d0;
++            entity.posY = d1;
++            entity.posZ = d2;
+         }
++        double d6 = (double) width;
++        double d7 = (double) height;
++        double d8 = (double) width;
++
++        if (direction.getAxis() == EnumFacing.Axis.Z) {
++            d8 = 1.0D;
++        } else {
++            d6 = 1.0D;
++        }
++
++        d6 /= 32.0D;
++        d7 /= 32.0D;
++        d8 /= 32.0D;
++        return new AxisAlignedBB(d0 - d6, d1 - d7, d2 - d8, d0 + d6, d1 + d7, d2 + d8);
+     }
+ 
+-    private double offs(int p_190202_1_)
++    private static double offs(int p_190202_1_) // CraftBukkit - static
+     {
+         return p_190202_1_ % 32 == 0 ? 0.5D : 0.0D;
+     }
+@@ -109,12 +121,30 @@
+         this.prevPosY = this.posY;
+         this.prevPosZ = this.posZ;
+ 
+-        if (this.tickCounter1++ == 100 && !this.world.isRemote)
++        if (this.tickCounter1++ == this.world.spigotConfig.hangingTickFrequency && !this.world.isRemote) // Spigot
+         {
+             this.tickCounter1 = 0;
+ 
+             if (!this.isDead && !this.onValidSurface())
+             {
++                // CraftBukkit start - fire break events
++                Material material = this.world.getBlockState(new BlockPos(this)).getMaterial();
++                HangingBreakEvent.RemoveCause cause;
++
++                if (!material.equals(Material.AIR)) {
++                    // TODO: This feels insufficient to catch 100% of suffocation cases
++                    cause = HangingBreakEvent.RemoveCause.OBSTRUCTION;
++                } else {
++                    cause = HangingBreakEvent.RemoveCause.PHYSICS;
++                }
++
++                HangingBreakEvent event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), cause);
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (isDead || event.isCancelled()) {
++                    return;
++                }
++                // CraftBukkit end
+                 this.setDead();
+                 this.onBroken((Entity)null);
+             }
+@@ -144,6 +174,9 @@
+                     blockpos$mutableblockpos.setPos(blockpos).move(enumfacing, k + i1).move(EnumFacing.UP, l + j1);
+                     IBlockState iblockstate = this.world.getBlockState(blockpos$mutableblockpos);
+ 
++                    if (iblockstate.isSideSolid(this.world, blockpos$mutableblockpos, this.facingDirection))
++                        continue;
++
+                     if (!iblockstate.getMaterial().isSolid() && !BlockRedstoneDiode.isDiode(iblockstate))
+                     {
+                         return false;
+@@ -180,6 +213,20 @@
+         {
+             if (!this.isDead && !this.world.isRemote)
+             {
++                // CraftBukkit start - fire break events
++                HangingBreakEvent event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), HangingBreakEvent.RemoveCause.DEFAULT);
++                if (source.getTrueSource() != null) {
++                    event = new HangingBreakByEntityEvent((Hanging) this.getBukkitEntity(), source.getTrueSource() == null ? null : source.getTrueSource().getBukkitEntity(), source.isExplosion() ? HangingBreakEvent.RemoveCause.EXPLOSION : HangingBreakEvent.RemoveCause.ENTITY);
++                } else if (source.isExplosion()) {
++                    event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), HangingBreakEvent.RemoveCause.EXPLOSION);
++                }
++
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (this.isDead || event.isCancelled()) {
++                    return true;
++                }
++                // CraftBukkit end
+                 this.setDead();
+                 this.markVelocityChanged();
+                 this.onBroken(source.getTrueSource());
+@@ -193,6 +240,15 @@
+     {
+         if (!this.world.isRemote && !this.isDead && x * x + y * y + z * z > 0.0D)
+         {
++            // CraftBukkit start - fire break events
++            // TODO - Does this need its own cause? Seems to only be triggered by pistons
++            HangingBreakEvent event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), HangingBreakEvent.RemoveCause.PHYSICS);
++            this.world.getServer().getPluginManager().callEvent(event);
++
++            if (this.isDead || event.isCancelled()) {
++                return;
++            }
++            // CraftBukkit end
+             this.setDead();
+             this.onBroken((Entity)null);
+         }
+@@ -200,7 +256,7 @@
+ 
+     public void addVelocity(double x, double y, double z)
+     {
+-        if (!this.world.isRemote && !this.isDead && x * x + y * y + z * z > 0.0D)
++        if (false && !this.world.isRemote && !this.isDead && x * x + y * y + z * z > 0.0D)
+         {
+             this.setDead();
+             this.onBroken((Entity)null);

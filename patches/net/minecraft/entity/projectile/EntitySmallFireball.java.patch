@@ -1,0 +1,66 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntitySmallFireball.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntitySmallFireball.java
+@@ -8,6 +8,7 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.RayTraceResult;
+ import net.minecraft.world.World;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
+ 
+ public class EntitySmallFireball extends EntityFireball
+ {
+@@ -21,6 +22,10 @@
+     {
+         super(worldIn, shooter, accelX, accelY, accelZ);
+         this.setSize(0.3125F, 0.3125F);
++        if (this.shootingEntity != null && this.shootingEntity instanceof EntityLiving) {
++            // TODO: Maybe we should use net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent instead of this?{
++            isIncendiary = this.world.getGameRules().getBoolean("mobGriefing");
++        }
+     }
+ 
+     public EntitySmallFireball(World worldIn, double x, double y, double z, double accelX, double accelY, double accelZ)
+@@ -42,12 +47,17 @@
+             {
+                 if (!result.entityHit.isImmuneToFire())
+                 {
+-                    boolean flag = result.entityHit.attackEntityFrom(DamageSource.causeFireballDamage(this, this.shootingEntity), 5.0F);
+-
+-                    if (flag)
+-                    {
++                    // CraftBukkit start - Entity damage by entity event + combust event
++                    isIncendiary = result.entityHit.attackEntityFrom(DamageSource.causeFireballDamage(this, this.shootingEntity), 5.0F);
++                    if (isIncendiary) {
+                         this.applyEnchantments(this.shootingEntity, result.entityHit);
+-                        result.entityHit.setFire(5);
++                        // result.entityHit.setFire(5);
++                        EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), result.entityHit.getBukkitEntity(), 5);
++                        result.entityHit.world.getServer().getPluginManager().callEvent(event);
++
++                        if (!event.isCancelled()) {
++                            result.entityHit.setFire(event.getDuration());
++                        }
+                     }
+                 }
+             }
+@@ -57,16 +67,18 @@
+ 
+                 if (this.shootingEntity != null && this.shootingEntity instanceof EntityLiving)
+                 {
+-                    flag1 = this.world.getGameRules().getBoolean("mobGriefing");
++                    flag1 = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this.shootingEntity);
+                 }
+ 
+-                if (flag1)
++                if (isIncendiary)
+                 {
+                     BlockPos blockpos = result.getBlockPos().offset(result.sideHit);
+ 
+                     if (this.world.isAirBlock(blockpos))
+                     {
+-                        this.world.setBlockState(blockpos, Blocks.FIRE.getDefaultState());
++                        if (!org.bukkit.craftbukkit.event.CraftEventFactory.callBlockIgniteEvent(world, blockpos.getX(), blockpos.getY(), blockpos.getZ(), this).isCancelled()) {
++                            this.world.setBlockState(blockpos, Blocks.FIRE.getDefaultState());
++                        }
+                     }
+                 }
+             }

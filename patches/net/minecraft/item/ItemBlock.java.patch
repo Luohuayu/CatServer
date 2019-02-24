@@ -1,0 +1,86 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemBlock.java
++++ ../src-work/minecraft/net/minecraft/item/ItemBlock.java
+@@ -19,7 +19,6 @@
+ import net.minecraft.util.EnumFacing;
+ import net.minecraft.util.EnumHand;
+ import net.minecraft.util.NonNullList;
+-import net.minecraft.util.SoundCategory;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+@@ -49,25 +48,13 @@
+         if (!itemstack.isEmpty() && player.canPlayerEdit(pos, facing, itemstack) && worldIn.mayPlace(this.block, pos, false, facing, (Entity)null))
+         {
+             int i = this.getMetadata(itemstack.getMetadata());
+-            IBlockState iblockstate1 = this.block.getStateForPlacement(worldIn, pos, facing, hitX, hitY, hitZ, i, player);
++            IBlockState iblockstate1 = this.block.getStateForPlacement(worldIn, pos, facing, hitX, hitY, hitZ, i, player, hand);
+ 
+-            if (worldIn.setBlockState(pos, iblockstate1, 11))
++            if (placeBlockAt(itemstack, player, worldIn, pos, facing, hitX, hitY, hitZ, iblockstate1))
+             {
+                 iblockstate1 = worldIn.getBlockState(pos);
+-
+-                if (iblockstate1.getBlock() == this.block)
+-                {
+-                    setTileEntityNBT(worldIn, player, pos, itemstack);
+-                    this.block.onBlockPlacedBy(worldIn, pos, iblockstate1, player, itemstack);
+-
+-                    if (player instanceof EntityPlayerMP)
+-                    {
+-                        CriteriaTriggers.PLACED_BLOCK.trigger((EntityPlayerMP)player, pos, itemstack);
+-                    }
+-                }
+-
+-                SoundType soundtype = this.block.getSoundType();
+-                worldIn.playSound(player, pos, soundtype.getPlaceSound(), SoundCategory.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F);
++                SoundType soundtype = iblockstate1.getBlock().getSoundType(iblockstate1, worldIn, pos, player);
++                // worldIn.playSound(player, pos, soundtype.getPlaceSound(), SoundCategory.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F); // CraftBukkit - SPIGOT-1288
+                 itemstack.shrink(1);
+             }
+ 
+@@ -127,7 +114,7 @@
+     {
+         Block block = worldIn.getBlockState(pos).getBlock();
+ 
+-        if (block == Blocks.SNOW_LAYER)
++        if (block == Blocks.SNOW_LAYER && block.isReplaceable(worldIn, pos))
+         {
+             side = EnumFacing.UP;
+         }
+@@ -171,6 +158,36 @@
+ 
+     public Block getBlock()
+     {
++        return this.getBlockRaw() == null ? null : this.getBlockRaw().delegate.get();
++    }
++
++    private Block getBlockRaw()
++    {
+         return this.block;
+     }
++
++    /**
++     * Called to actually place the block, after the location is determined
++     * and all permission checks have been made.
++     *
++     * @param stack The item stack that was used to place the block. This can be changed inside the method.
++     * @param player The player who is placing the block. Can be null if the block is not being placed by a player.
++     * @param side The side the player (or machine) right-clicked on.
++     */
++    public boolean placeBlockAt(ItemStack stack, EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, IBlockState newState)
++    {
++        if (!world.setBlockState(pos, newState, 11)) return false;
++
++        IBlockState state = world.getBlockState(pos);
++        if (state.getBlock() == this.block)
++        {
++            setTileEntityNBT(world, player, pos, stack);
++            this.block.onBlockPlacedBy(world, pos, state, player, stack);
++
++            if (player instanceof EntityPlayerMP)
++                CriteriaTriggers.PLACED_BLOCK.trigger((EntityPlayerMP)player, pos, stack);
++        }
++
++        return true;
++    }
+ }

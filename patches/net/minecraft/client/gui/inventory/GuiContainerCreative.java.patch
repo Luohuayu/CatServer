@@ -1,0 +1,400 @@
+--- ../src-base/minecraft/net/minecraft/client/gui/inventory/GuiContainerCreative.java
++++ ../src-work/minecraft/net/minecraft/client/gui/inventory/GuiContainerCreative.java
+@@ -40,6 +40,7 @@
+ import net.minecraft.util.text.TextFormatting;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.inventory.InventoryView;
+ import org.lwjgl.input.Keyboard;
+ import org.lwjgl.input.Mouse;
+ 
+@@ -57,10 +58,12 @@
+     private Slot destroyItemSlot;
+     private boolean clearSearch;
+     private CreativeCrafting listener;
++    private static int tabPage = 0;
++    private int maxPages = 0;
+ 
+     public GuiContainerCreative(EntityPlayer player)
+     {
+-        super(new GuiContainerCreative.ContainerCreative(player));
++        super(new ContainerCreative(player));
+         player.openContainer = this.inventorySlots;
+         this.allowUserInput = true;
+         this.ySize = 136;
+@@ -128,7 +131,7 @@
+                     ItemStack itemstack1 = slotIn.getStack();
+                     this.mc.player.dropItem(itemstack, true);
+                     this.mc.playerController.sendPacketDropItem(itemstack);
+-                    this.mc.playerController.sendSlotPacket(itemstack1, ((GuiContainerCreative.CreativeSlot)slotIn).slot.slotNumber);
++                    this.mc.playerController.sendSlotPacket(itemstack1, ((CreativeSlot)slotIn).slot.slotNumber);
+                 }
+                 else if (type == ClickType.THROW && !this.mc.player.inventory.getItemStack().isEmpty())
+                 {
+@@ -138,7 +141,7 @@
+                 }
+                 else
+                 {
+-                    this.mc.player.inventoryContainer.slotClick(slotIn == null ? slotId : ((GuiContainerCreative.CreativeSlot)slotIn).slot.slotNumber, mouseButton, type, this.mc.player);
++                    this.mc.player.inventoryContainer.slotClick(slotIn == null ? slotId : ((CreativeSlot)slotIn).slot.slotNumber, mouseButton, type, this.mc.player);
+                     this.mc.player.inventoryContainer.detectAndSendChanges();
+                 }
+             }
+@@ -287,6 +290,13 @@
+             this.setCurrentCreativeTab(CreativeTabs.CREATIVE_TAB_ARRAY[i]);
+             this.listener = new CreativeCrafting(this.mc);
+             this.mc.player.inventoryContainer.addListener(this.listener);
++            int tabCount = CreativeTabs.CREATIVE_TAB_ARRAY.length;
++            if (tabCount > 12)
++            {
++                buttonList.add(new GuiButton(101, guiLeft,              guiTop - 50, 20, 20, "<"));
++                buttonList.add(new GuiButton(102, guiLeft + xSize - 20, guiTop - 50, 20, 20, ">"));
++                maxPages = (int) Math.ceil((tabCount - 12) / 10D);
++            }
+         }
+         else
+         {
+@@ -308,7 +318,7 @@
+ 
+     protected void keyTyped(char typedChar, int keyCode) throws IOException
+     {
+-        if (selectedTabIndex != CreativeTabs.SEARCH.getTabIndex())
++        if (!CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex].hasSearchBar())
+         {
+             if (GameSettings.isKeyDown(this.mc.gameSettings.keyBindChat))
+             {
+@@ -343,9 +353,37 @@
+ 
+     private void updateCreativeSearch()
+     {
+-        GuiContainerCreative.ContainerCreative guicontainercreative$containercreative = (GuiContainerCreative.ContainerCreative)this.inventorySlots;
++        ContainerCreative guicontainercreative$containercreative = (ContainerCreative)this.inventorySlots;
+         guicontainercreative$containercreative.itemList.clear();
+ 
++        CreativeTabs tab = CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex];
++        if (tab.hasSearchBar() && tab != CreativeTabs.SEARCH)
++        {
++            tab.displayAllRelevantItems(guicontainercreative$containercreative.itemList);
++            if (!this.searchField.getText().isEmpty())
++            {
++                //TODO: Make this a SearchTree not a manual search
++                String search = this.searchField.getText().toLowerCase(Locale.ROOT);
++                java.util.Iterator<ItemStack> itr = guicontainercreative$containercreative.itemList.iterator();
++                while (itr.hasNext()) {
++                    ItemStack stack = itr.next();
++                    boolean matches = false;
++                    for (String line : stack.getTooltip(this.mc.player, this.mc.gameSettings.advancedItemTooltips ? ITooltipFlag.TooltipFlags.ADVANCED : ITooltipFlag.TooltipFlags.NORMAL))
++                    {
++                        if (TextFormatting.getTextWithoutFormattingCodes(line).toLowerCase(Locale.ROOT).contains(search)) {
++                            matches = true;
++                            break;
++                        }
++                    }
++                    if (!matches)
++                        itr.remove();
++                }
++            }
++            this.currentScroll = 0.0F;
++            guicontainercreative$containercreative.scrollTo(0.0F);
++            return;
++        }
++
+         if (this.searchField.getText().isEmpty())
+         {
+             for (Item item : Item.REGISTRY)
+@@ -366,7 +404,7 @@
+     {
+         CreativeTabs creativetabs = CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex];
+ 
+-        if (creativetabs.drawInForegroundOfTab())
++        if (creativetabs != null && creativetabs.drawInForegroundOfTab())
+         {
+             GlStateManager.disableBlend();
+             this.fontRenderer.drawString(I18n.format(creativetabs.getTranslatedTabLabel()), 8, 6, 4210752);
+@@ -401,7 +439,7 @@
+ 
+             for (CreativeTabs creativetabs : CreativeTabs.CREATIVE_TAB_ARRAY)
+             {
+-                if (this.isMouseOverTab(creativetabs, i, j))
++                if (creativetabs != null && this.isMouseOverTab(creativetabs, i, j))
+                 {
+                     this.setCurrentCreativeTab(creativetabs);
+                     return;
+@@ -414,14 +452,16 @@
+ 
+     private boolean needsScrollBars()
+     {
+-        return selectedTabIndex != CreativeTabs.INVENTORY.getTabIndex() && CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex].shouldHidePlayerInventory() && ((GuiContainerCreative.ContainerCreative)this.inventorySlots).canScroll();
++        if (CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex] == null) return false;
++        return selectedTabIndex != CreativeTabs.INVENTORY.getTabIndex() && CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex].shouldHidePlayerInventory() && ((ContainerCreative)this.inventorySlots).canScroll();
+     }
+ 
+     private void setCurrentCreativeTab(CreativeTabs tab)
+     {
++        if (tab == null) return;
+         int i = selectedTabIndex;
+         selectedTabIndex = tab.getTabIndex();
+-        GuiContainerCreative.ContainerCreative guicontainercreative$containercreative = (GuiContainerCreative.ContainerCreative)this.inventorySlots;
++        ContainerCreative guicontainercreative$containercreative = (ContainerCreative)this.inventorySlots;
+         this.dragSplittingSlots.clear();
+         guicontainercreative$containercreative.itemList.clear();
+ 
+@@ -474,7 +514,7 @@
+ 
+             for (int l = 0; l < container.inventorySlots.size(); ++l)
+             {
+-                Slot slot = new GuiContainerCreative.CreativeSlot(container.inventorySlots.get(l), l);
++                Slot slot = new CreativeSlot(container.inventorySlots.get(l), l);
+                 guicontainercreative$containercreative.inventorySlots.add(slot);
+ 
+                 if (l >= 5 && l < 9)
+@@ -524,12 +564,14 @@
+ 
+         if (this.searchField != null)
+         {
+-            if (tab == CreativeTabs.SEARCH)
++            if (tab.hasSearchBar())
+             {
+                 this.searchField.setVisible(true);
+                 this.searchField.setCanLoseFocus(false);
+                 this.searchField.setFocused(true);
+                 this.searchField.setText("");
++                this.searchField.width = tab.getSearchbarWidth();
++                this.searchField.x = this.guiLeft + (82 /*default left*/ + 89 /*default width*/) - this.searchField.width;
+                 this.updateCreativeSearch();
+             }
+             else
+@@ -551,7 +593,7 @@
+ 
+         if (i != 0 && this.needsScrollBars())
+         {
+-            int j = (((GuiContainerCreative.ContainerCreative)this.inventorySlots).itemList.size() + 9 - 1) / 9 - 5;
++            int j = (((ContainerCreative)this.inventorySlots).itemList.size() + 9 - 1) / 9 - 5;
+ 
+             if (i > 0)
+             {
+@@ -565,7 +607,7 @@
+ 
+             this.currentScroll = (float)((double)this.currentScroll - (double)i / (double)j);
+             this.currentScroll = MathHelper.clamp(this.currentScroll, 0.0F, 1.0F);
+-            ((GuiContainerCreative.ContainerCreative)this.inventorySlots).scrollTo(this.currentScroll);
++            ((ContainerCreative)this.inventorySlots).scrollTo(this.currentScroll);
+         }
+     }
+ 
+@@ -596,24 +638,48 @@
+         {
+             this.currentScroll = ((float)(mouseY - l) - 7.5F) / ((float)(j1 - l) - 15.0F);
+             this.currentScroll = MathHelper.clamp(this.currentScroll, 0.0F, 1.0F);
+-            ((GuiContainerCreative.ContainerCreative)this.inventorySlots).scrollTo(this.currentScroll);
++            ((ContainerCreative)this.inventorySlots).scrollTo(this.currentScroll);
+         }
+ 
+         super.drawScreen(mouseX, mouseY, partialTicks);
+ 
+-        for (CreativeTabs creativetabs : CreativeTabs.CREATIVE_TAB_ARRAY)
++        int start = tabPage * 10;
++        int end = Math.min(CreativeTabs.CREATIVE_TAB_ARRAY.length, ((tabPage + 1) * 10) + 2);
++        if (tabPage != 0) start += 2;
++        boolean rendered = false;
++
++        for (CreativeTabs creativetabs : java.util.Arrays.copyOfRange(CreativeTabs.CREATIVE_TAB_ARRAY,start,end))
+         {
++            if (creativetabs == null) continue;
+             if (this.renderCreativeInventoryHoveringText(creativetabs, mouseX, mouseY))
+             {
++                rendered = true;
+                 break;
+             }
+         }
+ 
++        if (!rendered && !renderCreativeInventoryHoveringText(CreativeTabs.SEARCH, mouseX, mouseY))
++        {
++            renderCreativeInventoryHoveringText(CreativeTabs.INVENTORY, mouseX, mouseY);
++        }
++
+         if (this.destroyItemSlot != null && selectedTabIndex == CreativeTabs.INVENTORY.getTabIndex() && this.isPointInRegion(this.destroyItemSlot.xPos, this.destroyItemSlot.yPos, 16, 16, mouseX, mouseY))
+         {
+             this.drawHoveringText(I18n.format("inventory.binSlot"), mouseX, mouseY);
+         }
+ 
++        if (maxPages != 0)
++        {
++            String page = String.format("%d / %d", tabPage + 1, maxPages + 1);
++            int width = fontRenderer.getStringWidth(page);
++            GlStateManager.disableLighting();
++            this.zLevel = 300.0F;
++            itemRender.zLevel = 300.0F;
++            fontRenderer.drawString(page, guiLeft + (xSize / 2) - (width / 2), guiTop - 44, -1);
++            this.zLevel = 0.0F;
++            itemRender.zLevel = 0.0F;
++        }
++
+         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+         GlStateManager.disableLighting();
+         this.renderHoveredToolTip(mouseX, mouseY);
+@@ -662,7 +728,10 @@
+                 }
+             }
+ 
+-            this.drawHoveringText(list, x, y);
++            net.minecraft.client.gui.FontRenderer font = stack.getItem().getFontRenderer(stack);
++            net.minecraftforge.fml.client.config.GuiUtils.preItemToolTip(stack);
++            this.drawHoveringText(list, x, y, (font == null ? fontRenderer : font));
++            net.minecraftforge.fml.client.config.GuiUtils.postItemToolTip();
+         }
+         else
+         {
+@@ -676,16 +745,35 @@
+         RenderHelper.enableGUIStandardItemLighting();
+         CreativeTabs creativetabs = CreativeTabs.CREATIVE_TAB_ARRAY[selectedTabIndex];
+ 
+-        for (CreativeTabs creativetabs1 : CreativeTabs.CREATIVE_TAB_ARRAY)
++        int start = tabPage * 10;
++        int end = Math.min(CreativeTabs.CREATIVE_TAB_ARRAY.length, ((tabPage + 1) * 10 + 2));
++        if (tabPage != 0) start += 2;
++
++        for (CreativeTabs creativetabs1 : java.util.Arrays.copyOfRange(CreativeTabs.CREATIVE_TAB_ARRAY,start,end))
+         {
+             this.mc.getTextureManager().bindTexture(CREATIVE_INVENTORY_TABS);
+ 
++            if (creativetabs1 == null) continue;
+             if (creativetabs1.getTabIndex() != selectedTabIndex)
+             {
+                 this.drawTab(creativetabs1);
+             }
+         }
+ 
++        if (tabPage != 0)
++        {
++            if (creativetabs != CreativeTabs.SEARCH)
++            {
++                this.mc.getTextureManager().bindTexture(CREATIVE_INVENTORY_TABS);
++                drawTab(CreativeTabs.SEARCH);
++            }
++            if (creativetabs != CreativeTabs.INVENTORY)
++            {
++                this.mc.getTextureManager().bindTexture(CREATIVE_INVENTORY_TABS);
++                drawTab(CreativeTabs.INVENTORY);
++            }
++        }
++
+         this.mc.getTextureManager().bindTexture(new ResourceLocation("textures/gui/container/creative_inventory/tab_" + creativetabs.getBackgroundImageName()));
+         this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+         this.searchField.drawTextBox();
+@@ -700,6 +788,14 @@
+             this.drawTexturedModalRect(i, j + (int)((float)(k - j - 17) * this.currentScroll), 232 + (this.needsScrollBars() ? 0 : 12), 0, 12, 15);
+         }
+ 
++        if (creativetabs == null || creativetabs.getTabPage() != tabPage)
++        {
++            if (creativetabs != CreativeTabs.SEARCH && creativetabs != CreativeTabs.INVENTORY)
++            {
++                return;
++            }
++        }
++
+         this.drawTab(creativetabs);
+ 
+         if (creativetabs == CreativeTabs.INVENTORY)
+@@ -710,6 +806,14 @@
+ 
+     protected boolean isMouseOverTab(CreativeTabs tab, int mouseX, int mouseY)
+     {
++        if (tab.getTabPage() != tabPage)
++        {
++            if (tab != CreativeTabs.SEARCH && tab != CreativeTabs.INVENTORY)
++            {
++                return false;
++            }
++        }
++
+         int i = tab.getTabColumn();
+         int j = 28 * i;
+         int k = 0;
+@@ -806,6 +910,8 @@
+         }
+ 
+         GlStateManager.disableLighting();
++        GlStateManager.color(1F, 1F, 1F); //Forge: Reset color in case Items change it.
++        GlStateManager.enableBlend(); //Forge: Make sure blend is enabled else tabs show a white border.
+         this.drawTexturedModalRect(l, i1, j, k, 28, 32);
+         this.zLevel = 100.0F;
+         this.itemRender.zLevel = 100.0F;
+@@ -827,6 +933,15 @@
+         {
+             this.mc.displayGuiScreen(new GuiStats(this, this.mc.player.getStatFileWriter()));
+         }
++
++        if (button.id == 101)
++        {
++            tabPage = Math.max(tabPage - 1, 0);
++        }
++        else if (button.id == 102)
++        {
++            tabPage = Math.min(tabPage + 1, maxPages);
++        }
+     }
+ 
+     public int getSelectedTabIndex()
+@@ -878,7 +993,7 @@
+                 {
+                     for (int j = 0; j < 9; ++j)
+                     {
+-                        this.addSlotToContainer(new GuiContainerCreative.LockedSlot(GuiContainerCreative.basicInventory, i * 9 + j, 9 + j * 18, 18 + i * 18));
++                        this.addSlotToContainer(new LockedSlot(GuiContainerCreative.basicInventory, i * 9 + j, 9 + j * 18, 18 + i * 18));
+                     }
+                 }
+ 
+@@ -928,6 +1043,11 @@
+                 return this.itemList.size() > 45;
+             }
+ 
++            @Override
++            public InventoryView getBukkitView() {
++                return null;
++            }
++
+             public ItemStack transferStackInSlot(EntityPlayer playerIn, int index)
+             {
+                 if (index >= this.inventorySlots.size() - 9 && index < this.inventorySlots.size())
+@@ -1031,6 +1151,39 @@
+         {
+             return this.slot.canTakeStack(playerIn);
+         }
++
++        /*========================================= FORGE START =====================================*/
++        public ResourceLocation getBackgroundLocation()
++        {
++            return this.slot.getBackgroundLocation();
++        }
++
++        public void setBackgroundLocation(ResourceLocation texture)
++        {
++            this.slot.setBackgroundLocation(texture);
++        }
++
++        public void setBackgroundName(@Nullable String name)
++        {
++            this.slot.setBackgroundName(name);
++        }
++
++        @Nullable
++        public net.minecraft.client.renderer.texture.TextureAtlasSprite getBackgroundSprite()
++        {
++            return this.slot.getBackgroundSprite();
++        }
++
++        public int getSlotIndex()
++        {
++            return this.slot.getSlotIndex();
++        }
++
++        public boolean isSameInventory(Slot other)
++        {
++            return this.slot.isSameInventory(other);
++        }
++        /*========================================= FORGE END =====================================*/
+     }
+ 
+     @SideOnly(Side.CLIENT)

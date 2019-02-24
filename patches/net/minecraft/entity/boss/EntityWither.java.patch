@@ -1,0 +1,108 @@
+--- ../src-base/minecraft/net/minecraft/entity/boss/EntityWither.java
++++ ../src-work/minecraft/net/minecraft/entity/boss/EntityWither.java
+@@ -34,8 +34,10 @@
+ import net.minecraft.network.datasync.DataParameter;
+ import net.minecraft.network.datasync.DataSerializers;
+ import net.minecraft.network.datasync.EntityDataManager;
++import net.minecraft.network.play.server.SPacketEffect;
+ import net.minecraft.pathfinding.PathNavigateGround;
+ import net.minecraft.potion.PotionEffect;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.EntitySelectors;
+ import net.minecraft.util.EnumParticleTypes;
+@@ -47,8 +49,12 @@
+ import net.minecraft.world.BossInfoServer;
+ import net.minecraft.world.EnumDifficulty;
+ import net.minecraft.world.World;
++import net.minecraft.world.WorldServer;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ public class EntityWither extends EntityMob implements IRangedAttackMob
+ {
+@@ -85,7 +91,7 @@
+ 
+     protected void initEntityAI()
+     {
+-        this.tasks.addTask(0, new EntityWither.AIDoNothing());
++        this.tasks.addTask(0, new AIDoNothing());
+         this.tasks.addTask(1, new EntityAISwimming(this));
+         this.tasks.addTask(2, new EntityAIAttackRanged(this, 1.0D, 40, 20.0F));
+         this.tasks.addTask(5, new EntityAIWanderAvoidWater(this, 1.0D));
+@@ -255,15 +261,38 @@
+ 
+             if (j1 <= 0)
+             {
+-                this.world.newExplosion(this, this.posX, this.posY + (double)this.getEyeHeight(), this.posZ, 7.0F, false, this.world.getGameRules().getBoolean("mobGriefing"));
+-                this.world.playBroadcastSound(1023, new BlockPos(this), 0);
++                // this.world.newExplosion(this, this.posX, this.posY + (double)this.getEyeHeight(), this.posZ, 7.0F, false, net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this));
++                ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), 7.0F, false);
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    this.world.newExplosion(this, this.posX, this.posY + (double) this.getEyeHeight(), this.posZ, event.getRadius(), event.getFire(), net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this));
++                }
++
++                // CraftBukkit start - Use relative location for far away sounds
++                int viewDistance = this.world.getServer().getViewDistance() * 16;
++                for (EntityPlayerMP player : world.getMinecraftServer().getServer().getPlayerList().playerEntityList) {
++                    double deltaX = this.posX - player.posX;
++                    double deltaZ = this.posZ - player.posZ;
++                    double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++                    if (world.spigotConfig.witherSpawnSoundRadius > 0 && distanceSquared > world.spigotConfig.witherSpawnSoundRadius * world.spigotConfig.witherSpawnSoundRadius) continue; // Spigot
++                    if (distanceSquared > viewDistance * viewDistance) {
++                        double deltaLength = Math.sqrt(distanceSquared);
++                        double relativeX = player.posX + (deltaX / deltaLength) * viewDistance;
++                        double relativeZ = player.posZ + (deltaZ / deltaLength) * viewDistance;
++                        player.connection.sendPacket(new SPacketEffect(1013, new BlockPos((int) relativeX, (int) this.posY, (int) relativeZ), 0, true));
++                    } else {
++                        player.connection.sendPacket(new SPacketEffect(1013, new BlockPos((int) this.posX, (int) this.posY, (int) this.posZ), 0, true));
++                    }
++                }
++                // CraftBukkit end
+             }
+ 
+             this.setInvulTime(j1);
+ 
+             if (this.ticksExisted % 10 == 0)
+             {
+-                this.heal(10.0F);
++                this.heal(10.0F, EntityRegainHealthEvent.RegainReason.WITHER_SPAWN);
+             }
+         }
+         else
+@@ -362,7 +391,7 @@
+             {
+                 --this.blockBreakCounter;
+ 
+-                if (this.blockBreakCounter == 0 && this.world.getGameRules().getBoolean("mobGriefing"))
++                if (this.blockBreakCounter == 0 && net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this))
+                 {
+                     int i1 = MathHelper.floor(this.posY);
+                     int l1 = MathHelper.floor(this.posX);
+@@ -382,8 +411,11 @@
+                                 IBlockState iblockstate = this.world.getBlockState(blockpos);
+                                 Block block = iblockstate.getBlock();
+ 
+-                                if (iblockstate.getMaterial() != Material.AIR && canDestroyBlock(block))
++                                if (!block.isAir(iblockstate, this.world, blockpos) && block.canEntityDestroy(iblockstate, world, blockpos, this) && net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(this, blockpos, iblockstate))
+                                 {
++                                    if (CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, Blocks.AIR, 0).isCancelled()) {
++                                        continue;
++                                    }
+                                     flag = this.world.destroyBlock(blockpos, true) || flag;
+                                 }
+                             }
+@@ -399,7 +431,7 @@
+ 
+             if (this.ticksExisted % 20 == 0)
+             {
+-                this.heal(1.0F);
++                this.heal(1.0F, EntityRegainHealthEvent.RegainReason.REGEN);
+             }
+ 
+             this.bossInfo.setPercent(this.getHealth() / this.getMaxHealth());

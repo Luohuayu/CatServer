@@ -1,0 +1,108 @@
+--- ../src-base/minecraft/net/minecraft/item/crafting/RecipeRepairItem.java
++++ ../src-work/minecraft/net/minecraft/item/crafting/RecipeRepairItem.java
+@@ -2,16 +2,22 @@
+ 
+ import com.google.common.collect.Lists;
+ import java.util.List;
++
++import net.minecraft.init.Items;
+ import net.minecraft.inventory.InventoryCrafting;
+-import net.minecraft.item.Item;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.util.NonNullList;
++import net.minecraft.util.ResourceLocation;
+ import net.minecraft.world.World;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-public class RecipeRepairItem implements IRecipe
++public class RecipeRepairItem extends ShapelessRecipes implements IRecipe
+ {
++    // CraftBukkit start - Delegate to new parent class
++    public RecipeRepairItem() {
++        super("", new ItemStack(Items.LEATHER_HELMET), NonNullList.from(Ingredient.EMPTY, Ingredient.fromItem(Items.LEATHER_HELMET)));
++    }
++    // CraftBukkit end
++
+     public boolean matches(InventoryCrafting inv, World worldIn)
+     {
+         List<ItemStack> list = Lists.<ItemStack>newArrayList();
+@@ -28,7 +34,7 @@
+                 {
+                     ItemStack itemstack1 = list.get(0);
+ 
+-                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isDamageable())
++                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isRepairable())
+                     {
+                         return false;
+                     }
+@@ -55,7 +61,7 @@
+                 {
+                     ItemStack itemstack1 = list.get(0);
+ 
+-                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isDamageable())
++                    if (itemstack.getItem() != itemstack1.getItem() || itemstack1.getCount() != 1 || itemstack.getCount() != 1 || !itemstack1.getItem().isRepairable())
+                     {
+                         return ItemStack.EMPTY;
+                     }
+@@ -68,20 +74,32 @@
+             ItemStack itemstack2 = list.get(0);
+             ItemStack itemstack3 = list.get(1);
+ 
+-            if (itemstack2.getItem() == itemstack3.getItem() && itemstack2.getCount() == 1 && itemstack3.getCount() == 1 && itemstack2.getItem().isDamageable())
++            if (itemstack2.getItem() == itemstack3.getItem() && itemstack2.getCount() == 1 && itemstack3.getCount() == 1 && itemstack2.getItem().isRepairable())
+             {
+-                Item item = itemstack2.getItem();
+-                int j = item.getMaxDamage() - itemstack2.getItemDamage();
+-                int k = item.getMaxDamage() - itemstack3.getItemDamage();
+-                int l = j + k + item.getMaxDamage() * 5 / 100;
+-                int i1 = item.getMaxDamage() - l;
++                // FORGE: Make itemstack sensitive // Item item = itemstack2.getItem();
++                int j = itemstack2.getMaxDamage() - itemstack2.getItemDamage();
++                int k = itemstack2.getMaxDamage() - itemstack3.getItemDamage();
++                int l = j + k + itemstack2.getMaxDamage() * 5 / 100;
++                int i1 = itemstack2.getMaxDamage() - l;
+ 
+                 if (i1 < 0)
+                 {
+                     i1 = 0;
+                 }
+ 
+-                return new ItemStack(itemstack2.getItem(), 1, i1);
++                // CraftBukkit start - Construct a dummy repair recipe
++                ItemStack result = new ItemStack(itemstack3.getItem(), 1, i1);
++                NonNullList<Ingredient> ingredients = NonNullList.create();
++                ingredients.add(Ingredient.fromStacks(new ItemStack[]{itemstack2.copy()}));
++                ingredients.add(Ingredient.fromStacks(new ItemStack[]{itemstack3.copy()}));
++                ShapelessRecipes recipe = new ShapelessRecipes("", result.copy(), ingredients);
++                recipe.key = new ResourceLocation("repairitem");
++                inv.currentRecipe = recipe;
++                if (inv.resultInventory != null && inv.eventHandler.getBukkitView() != null) // CatServer - mods bypass
++                    result = org.bukkit.craftbukkit.event.CraftEventFactory.callPreCraftEvent(inv, result, inv.eventHandler.getBukkitView(), true);
++                return result;
++                // return new ItemStack(itemstack2.getItem(), 1, i1);
++                // CraftBukkit end
+             }
+         }
+ 
+@@ -100,11 +118,7 @@
+         for (int i = 0; i < nonnulllist.size(); ++i)
+         {
+             ItemStack itemstack = inv.getStackInSlot(i);
+-
+-            if (itemstack.getItem().hasContainerItem())
+-            {
+-                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
+-            }
++            nonnulllist.set(i, net.minecraftforge.common.ForgeHooks.getContainerItem(itemstack));
+         }
+ 
+         return nonnulllist;
+@@ -115,7 +129,6 @@
+         return true;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     public boolean canFit(int width, int height)
+     {
+         return width * height >= 2;

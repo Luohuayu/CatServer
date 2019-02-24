@@ -1,0 +1,172 @@
+--- ../src-base/minecraft/net/minecraft/entity/boss/EntityDragon.java
++++ ../src-work/minecraft/net/minecraft/entity/boss/EntityDragon.java
+@@ -19,12 +19,14 @@
+ import net.minecraft.entity.item.EntityXPOrb;
+ import net.minecraft.entity.monster.IMob;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Blocks;
+ import net.minecraft.init.SoundEvents;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.network.datasync.DataParameter;
+ import net.minecraft.network.datasync.DataSerializers;
+ import net.minecraft.network.datasync.EntityDataManager;
++import net.minecraft.network.play.server.SPacketEffect;
+ import net.minecraft.pathfinding.Path;
+ import net.minecraft.pathfinding.PathHeap;
+ import net.minecraft.pathfinding.PathPoint;
+@@ -40,6 +42,7 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.math.Vec3d;
++import net.minecraft.world.Explosion;
+ import net.minecraft.world.World;
+ import net.minecraft.world.WorldProviderEnd;
+ import net.minecraft.world.end.DragonFightManager;
+@@ -49,6 +52,8 @@
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.event.entity.EntityExplodeEvent;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
+ 
+ public class EntityDragon extends EntityLiving implements IEntityMultiPart, IMob
+ {
+@@ -78,6 +83,8 @@
+     private final int[] neighbors = new int[24];
+     private final PathHeap pathFindQueue = new PathHeap();
+ 
++    private Explosion explosionSource = new Explosion(null, this, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, true); // CraftBukkit - reusable source for CraftTNTPrimed.getSource()
++
+     public EntityDragon(World worldIn)
+     {
+         super(worldIn);
+@@ -241,7 +248,7 @@
+ 
+                     Vec3d vec3d = iphase.getTargetLocation();
+ 
+-                    if (vec3d != null)
++                    if (vec3d != null && iphase.getType() != PhaseList.HOVER) // CraftBukkit - Don't move when hovering
+                     {
+                         double d6 = vec3d.x - this.posX;
+                         double d7 = vec3d.y - this.posY;
+@@ -411,7 +418,13 @@
+             }
+             else if (this.ticksExisted % 10 == 0 && this.getHealth() < this.getMaxHealth())
+             {
+-                this.setHealth(this.getHealth() + 1.0F);
++//                this.setHealth(this.getHealth() + 1.0F);
++                EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), 1.0F, EntityRegainHealthEvent.RegainReason.ENDER_CRYSTAL);
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    this.setHealth((float) (this.getHealth() + event.getAmount()));
++                }
+             }
+         }
+ 
+@@ -488,7 +501,10 @@
+         int j1 = MathHelper.floor(p_70972_1_.maxZ);
+         boolean flag = false;
+         boolean flag1 = false;
+-
++        // CraftBukkit start - Create a list to hold all the destroyed blocks
++        List<org.bukkit.block.Block> destroyedBlocks = new java.util.ArrayList<org.bukkit.block.Block>();
++        org.bukkit.craftbukkit.CraftWorld craftWorld = this.world.getWorld();
++        // CraftBukkit end
+         for (int k1 = i; k1 <= l; ++k1)
+         {
+             for (int l1 = j; l1 <= i1; ++l1)
+@@ -499,17 +515,21 @@
+                     IBlockState iblockstate = this.world.getBlockState(blockpos);
+                     Block block = iblockstate.getBlock();
+ 
+-                    if (iblockstate.getMaterial() != Material.AIR && iblockstate.getMaterial() != Material.FIRE)
++                    if (!block.isAir(iblockstate, this.world, blockpos) && iblockstate.getMaterial() != Material.FIRE)
+                     {
+-                        if (!this.world.getGameRules().getBoolean("mobGriefing"))
++                        if (!net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.world, this))
+                         {
+                             flag = true;
+                         }
+-                        else if (block != Blocks.BARRIER && block != Blocks.OBSIDIAN && block != Blocks.END_STONE && block != Blocks.BEDROCK && block != Blocks.END_PORTAL && block != Blocks.END_PORTAL_FRAME)
++                        else if (block.canEntityDestroy(iblockstate, this.world, blockpos, this) && net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(this, blockpos, iblockstate))
+                         {
+                             if (block != Blocks.COMMAND_BLOCK && block != Blocks.REPEATING_COMMAND_BLOCK && block != Blocks.CHAIN_COMMAND_BLOCK && block != Blocks.IRON_BARS && block != Blocks.END_GATEWAY)
+                             {
+-                                flag1 = this.world.setBlockToAir(blockpos) || flag1;
++                                // CraftBukkit start - Add blocks to list rather than destroying them
++                                // flag1 = this.world.setBlockToAir(blockpos) || flag1;
++                                flag1 = true;
++                                destroyedBlocks.add(craftWorld.getBlockAt(k1, l1, i2));
++                                // CraftBukkit end
+                             }
+                             else
+                             {
+@@ -525,6 +545,41 @@
+             }
+         }
+ 
++        // CraftBukkit start - Set off an EntityExplodeEvent for the dragon exploding all these blocks
++        org.bukkit.entity.Entity bukkitEntity = this.getBukkitEntity();
++        EntityExplodeEvent event = new EntityExplodeEvent(bukkitEntity, bukkitEntity.getLocation(), destroyedBlocks, 0F);
++        bukkitEntity.getServer().getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            // This flag literally means 'Dragon hit something hard' (Obsidian, White Stone or Bedrock) and will cause the dragon to slow down.
++            // We should consider adding an event extension for it, or perhaps returning true if the event is cancelled.
++            return flag;
++        } else if (event.getYield() == 0F) {
++            // Yield zero ==> no drops
++            for (org.bukkit.block.Block block : event.blockList()) {
++                this.world.setBlockToAir(new BlockPos(block.getX(), block.getY(), block.getZ()));
++            }
++        } else {
++            for (org.bukkit.block.Block block : event.blockList()) {
++                org.bukkit.Material blockId = block.getType();
++                if (blockId == org.bukkit.Material.AIR) {
++                    continue;
++                }
++
++                int blockX = block.getX();
++                int blockY = block.getY();
++                int blockZ = block.getZ();
++
++                Block nmsBlock = org.bukkit.craftbukkit.util.CraftMagicNumbers.getBlock(blockId);
++                if (nmsBlock.canDropFromExplosion(explosionSource)) {
++                    nmsBlock.dropBlockAsItemWithChance(this.world, new BlockPos(blockX, blockY, blockZ), nmsBlock.getDefaultState(), event.getYield(), 0);
++                }
++                nmsBlock.onBlockDestroyedByExplosion(world, new BlockPos(blockX, blockY, blockZ), explosionSource);
++
++                this.world.setBlockToAir(new BlockPos(blockX, blockY, blockZ));
++            }
++        }
++        // CraftBukkit end
++
+         if (flag1)
+         {
+             double d0 = p_70972_1_.minX + (p_70972_1_.maxX - p_70972_1_.minX) * (double)this.rand.nextFloat();
+@@ -638,7 +693,23 @@
+ 
+             if (this.deathTicks == 1)
+             {
+-                this.world.playBroadcastSound(1028, new BlockPos(this), 0);
++                // CraftBukkit start - Use relative location for far away sounds
++                int viewDistance = this.world.getServer().getViewDistance() * 16;
++                for (EntityPlayerMP player : this.world.getMinecraftServer().getPlayerList().playerEntityList) {
++                    double deltaX = this.posX - player.posX;
++                    double deltaZ = this.posZ - player.posZ;
++                    double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++                    if (world.spigotConfig.dragonDeathSoundRadius > 0 && distanceSquared > world.spigotConfig.dragonDeathSoundRadius * world.spigotConfig.dragonDeathSoundRadius) continue; // Spigot
++                    if (distanceSquared > viewDistance * viewDistance) {
++                        double deltaLength = Math.sqrt(distanceSquared);
++                        double relativeX = player.posX + (deltaX / deltaLength) * viewDistance;
++                        double relativeZ = player.posZ + (deltaZ / deltaLength) * viewDistance;
++                        player.connection.sendPacket(new SPacketEffect(1028, new BlockPos((int) relativeX, (int) this.posY, (int) relativeZ), 0, true));
++                    } else {
++                        player.connection.sendPacket(new SPacketEffect(1028, new BlockPos((int) this.posX, (int) this.posY, (int) this.posZ), 0, true));
++                    }
++                }
++                // CraftBukkit end
+             }
+         }
+ 

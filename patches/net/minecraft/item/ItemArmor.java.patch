@@ -1,0 +1,172 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemArmor.java
++++ ../src-work/minecraft/net/minecraft/item/ItemArmor.java
+@@ -29,6 +29,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public class ItemArmor extends Item
+ {
+@@ -47,7 +49,7 @@
+     public final int damageReduceAmount;
+     public final float toughness;
+     public final int renderIndex;
+-    private final ItemArmor.ArmorMaterial material;
++    private final ArmorMaterial material;
+ 
+     public static ItemStack dispenseArmor(IBlockSource blockSource, ItemStack stack)
+     {
+@@ -63,6 +65,28 @@
+             EntityLivingBase entitylivingbase = list.get(0);
+             EntityEquipmentSlot entityequipmentslot = EntityLiving.getSlotForItemStack(stack);
+             ItemStack itemstack = stack.splitStack(1);
++            World world = blockSource.getWorld();
++            org.bukkit.block.Block block = world.getWorld().getBlockAt(blockSource.getBlockPos().getX(), blockSource.getBlockPos().getY(), blockSource.getBlockPos().getZ());
++            CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack);
++
++            BlockDispenseEvent event = new BlockDispenseEvent(block, craftItem.clone(), new org.bukkit.util.Vector(0, 0, 0));
++            world.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                itemstack.grow(1);
++                return itemstack;
++            }
++
++            if (!event.getItem().equals(craftItem)) {
++                itemstack.grow(1);
++                // Chain to handler for new item
++                ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++                IBehaviorDispenseItem idispensebehavior = (IBehaviorDispenseItem) BlockDispenser.DISPENSE_BEHAVIOR_REGISTRY.getObject(eventStack.getItem());
++                if (idispensebehavior != IBehaviorDispenseItem.DEFAULT_BEHAVIOR && idispensebehavior != ItemArmor.DISPENSER_BEHAVIOR) {
++                    idispensebehavior.dispense(blockSource, eventStack);
++                    return itemstack;
++                }
++            }
+             entitylivingbase.setItemStackToSlot(entityequipmentslot, itemstack);
+ 
+             if (entitylivingbase instanceof EntityLiving)
+@@ -74,7 +98,7 @@
+         }
+     }
+ 
+-    public ItemArmor(ItemArmor.ArmorMaterial materialIn, int renderIndexIn, EntityEquipmentSlot equipmentSlotIn)
++    public ItemArmor(ArmorMaterial materialIn, int renderIndexIn, EntityEquipmentSlot equipmentSlotIn)
+     {
+         this.material = materialIn;
+         this.armorType = equipmentSlotIn;
+@@ -98,14 +122,14 @@
+         return this.material.getEnchantability();
+     }
+ 
+-    public ItemArmor.ArmorMaterial getArmorMaterial()
++    public ArmorMaterial getArmorMaterial()
+     {
+         return this.material;
+     }
+ 
+     public boolean hasColor(ItemStack stack)
+     {
+-        if (this.material != ItemArmor.ArmorMaterial.LEATHER)
++        if (this.material != ArmorMaterial.LEATHER)
+         {
+             return false;
+         }
+@@ -118,7 +142,7 @@
+ 
+     public int getColor(ItemStack stack)
+     {
+-        if (this.material != ItemArmor.ArmorMaterial.LEATHER)
++        if (this.material != ArmorMaterial.LEATHER)
+         {
+             return 16777215;
+         }
+@@ -142,7 +166,7 @@
+ 
+     public void removeColor(ItemStack stack)
+     {
+-        if (this.material == ItemArmor.ArmorMaterial.LEATHER)
++        if (this.material == ArmorMaterial.LEATHER)
+         {
+             NBTTagCompound nbttagcompound = stack.getTagCompound();
+ 
+@@ -160,7 +184,7 @@
+ 
+     public void setColor(ItemStack stack, int color)
+     {
+-        if (this.material != ItemArmor.ArmorMaterial.LEATHER)
++        if (this.material != ArmorMaterial.LEATHER)
+         {
+             throw new UnsupportedOperationException("Can't dye non-leather!");
+         }
+@@ -187,7 +211,9 @@
+ 
+     public boolean getIsRepairable(ItemStack toRepair, ItemStack repair)
+     {
+-        return this.material.getRepairItem() == repair.getItem() ? true : super.getIsRepairable(toRepair, repair);
++        ItemStack mat = this.material.getRepairItemStack();
++        if (!mat.isEmpty() && net.minecraftforge.oredict.OreDictionary.itemMatches(mat,repair,false)) return true;
++        return super.getIsRepairable(toRepair, repair);
+     }
+ 
+     public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand handIn)
+@@ -221,6 +247,19 @@
+         return multimap;
+     }
+ 
++    /**
++     * Determines if this armor will be rendered with the secondary 'overlay' texture.
++     * If this is true, the first texture will be rendered using a tint of the color
++     * specified by getColor(ItemStack)
++     *
++     * @param stack The stack
++     * @return true/false
++     */
++    public boolean hasOverlay(ItemStack stack)
++    {
++        return this.material == ArmorMaterial.LEATHER || getColor(stack) != 0x00FFFFFF;
++    }
++
+     public static enum ArmorMaterial
+     {
+         LEATHER("leather", 5, new int[]{1, 2, 3, 1}, 15, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, 0.0F),
+@@ -235,6 +274,8 @@
+         private final int enchantability;
+         private final SoundEvent soundEvent;
+         private final float toughness;
++        //Added by forge for custom Armor materials.
++        public ItemStack repairMaterial = ItemStack.EMPTY;
+ 
+         private ArmorMaterial(String nameIn, int maxDamageFactorIn, int[] damageReductionAmountArrayIn, int enchantabilityIn, SoundEvent soundEventIn, float toughnessIn)
+         {
+@@ -266,6 +307,7 @@
+             return this.soundEvent;
+         }
+ 
++        @Deprecated // Use getRepairItemStack below
+         public Item getRepairItem()
+         {
+             if (this == LEATHER)
+@@ -300,5 +342,21 @@
+         {
+             return this.toughness;
+         }
++
++        public ArmorMaterial setRepairItem(ItemStack stack)
++        {
++            if (!this.repairMaterial.isEmpty()) throw new RuntimeException("Repair material has already been set");
++            if (this == LEATHER || this == CHAIN || this == GOLD || this == IRON || this == DIAMOND) throw new RuntimeException("Can not change vanilla armor repair materials");
++            this.repairMaterial = stack;
++            return this;
++        }
++
++        public ItemStack getRepairItemStack()
++        {
++            if (!repairMaterial.isEmpty()) return repairMaterial;
++            Item ret = this.getRepairItem();
++            if (ret != null) repairMaterial = new ItemStack(ret,1,net.minecraftforge.oredict.OreDictionary.WILDCARD_VALUE);
++            return repairMaterial;
++        }
+     }
+ }

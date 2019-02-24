@@ -1,0 +1,253 @@
+--- ../src-base/minecraft/net/minecraft/world/chunk/storage/AnvilChunkLoader.java
++++ ../src-work/minecraft/net/minecraft/world/chunk/storage/AnvilChunkLoader.java
+@@ -49,25 +49,48 @@
+         this.fixer = dataFixerIn;
+     }
+ 
++    @Deprecated // TODO: remove (1.13)
++    public boolean chunkExists(World world, int x, int z)
++    {
++        return isChunkGeneratedAt(x, z);
++    }
++
+     @Nullable
+     public Chunk loadChunk(World worldIn, int x, int z) throws IOException
+     {
++        worldIn.timings.syncChunkLoadDataTimer.startTiming(); // Spigot
++        Object[] data = this.loadChunk__Async(worldIn, x, z);
++        worldIn.timings.syncChunkLoadDataTimer.stopTiming(); // Spigot
++        if (data != null)
++        {
++            Chunk chunk = (Chunk) data[0];
++            NBTTagCompound nbttagcompound = (NBTTagCompound) data[1];
++            this.loadEntities(worldIn, nbttagcompound.getCompoundTag("Level"), chunk);
++            return chunk;
++        }
++
++        return null;
++    }
++
++    @Nullable
++    public Object[] loadChunk__Async(World worldIn, int x, int z) throws IOException
++    {
+         ChunkPos chunkpos = new ChunkPos(x, z);
+         NBTTagCompound nbttagcompound = this.chunksToSave.get(chunkpos);
+ 
+         if (nbttagcompound == null)
+         {
+-            DataInputStream datainputstream = RegionFileCache.getChunkInputStream(this.chunkSaveLocation, x, z);
++            NBTTagCompound nbtTagCompound = RegionFileCache.getChunkInputStreamCB(this.chunkSaveLocation, x, z);
+ 
+-            if (datainputstream == null)
++            if (nbtTagCompound == null)
+             {
+                 return null;
+             }
+ 
+-            nbttagcompound = this.fixer.process(FixTypes.CHUNK, CompressedStreamTools.read(datainputstream));
++            nbttagcompound = this.fixer.process(FixTypes.CHUNK, nbtTagCompound);
+         }
+ 
+-        return this.checkedReadChunkFromNBT(worldIn, x, z, nbttagcompound);
++        return this.checkedReadChunkFromNBT__Async(worldIn, x, z, nbttagcompound);
+     }
+ 
+     public boolean isChunkGeneratedAt(int x, int z)
+@@ -80,6 +103,13 @@
+     @Nullable
+     protected Chunk checkedReadChunkFromNBT(World worldIn, int x, int z, NBTTagCompound compound)
+     {
++        Object[] data = this.checkedReadChunkFromNBT__Async(worldIn, x, z, compound);
++        return data != null ? (Chunk)data[0] : null;
++    }
++
++    @Nullable
++    protected Object[] checkedReadChunkFromNBT__Async(World worldIn, int x, int z, NBTTagCompound compound)
++    {
+         if (!compound.hasKey("Level", 10))
+         {
+             LOGGER.error("Chunk file at {},{} is missing level data, skipping", Integer.valueOf(x), Integer.valueOf(z));
+@@ -103,10 +133,29 @@
+                     LOGGER.error("Chunk file at {},{} is in the wrong location; relocating. (Expected {}, {}, got {}, {})", Integer.valueOf(x), Integer.valueOf(z), Integer.valueOf(x), Integer.valueOf(z), Integer.valueOf(chunk.x), Integer.valueOf(chunk.z));
+                     nbttagcompound.setInteger("xPos", x);
+                     nbttagcompound.setInteger("zPos", z);
++
++                    // Have to move tile entities since we don't load them at this stage
++                    NBTTagList _tileEntities = nbttagcompound.getTagList("TileEntities", 10);
++
++                    if (_tileEntities != null)
++                    {
++                        for (int te = 0; te < _tileEntities.tagCount(); te++)
++                        {
++                            NBTTagCompound _nbt = (NBTTagCompound) _tileEntities.getCompoundTagAt(te);
++                            _nbt.setInteger("x", x * 16 + (_nbt.getInteger("x") - chunk.x * 16));
++                            _nbt.setInteger("z", z * 16 + (_nbt.getInteger("z") - chunk.z * 16));
++                        }
++                    }
++
+                     chunk = this.readChunkFromNBT(worldIn, nbttagcompound);
+                 }
+ 
+-                return chunk;
++                Object[] data = new Object[2];
++                data[0] = chunk;
++                data[1] = compound;
++                // event is fired in ChunkIOProvider.callStage2 since it must be fired after TE's load.
++                // MinecraftForge.EVENT_BUS.post(new ChunkDataEvent.Load(chunk, par4NBTTagCompound));
++                return data;
+             }
+         }
+     }
+@@ -121,7 +170,10 @@
+             NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+             nbttagcompound.setTag("Level", nbttagcompound1);
+             nbttagcompound.setInteger("DataVersion", 1343);
++            net.minecraftforge.fml.common.FMLCommonHandler.instance().getDataFixer().writeVersionData(nbttagcompound);
+             this.writeChunkToNBT(chunkIn, worldIn, nbttagcompound1);
++            net.minecraftforge.common.ForgeChunkManager.storeChunkNBT(chunkIn, nbttagcompound1);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Save(chunkIn, nbttagcompound));
+             this.addChunkToPending(chunkIn.getPos(), nbttagcompound);
+         }
+         catch (Exception exception)
+@@ -186,9 +238,10 @@
+ 
+     private void writeChunkData(ChunkPos pos, NBTTagCompound compound) throws IOException
+     {
+-        DataOutputStream dataoutputstream = RegionFileCache.getChunkOutputStream(this.chunkSaveLocation, pos.x, pos.z);
+-        CompressedStreamTools.write(compound, dataoutputstream);
+-        dataoutputstream.close();
++        // DataOutputStream dataoutputstream = RegionFileCache.getChunkOutputStream(this.chunkSaveLocation, pos.x, pos.z);
++        // CompressedStreamTools.write(compound, dataoutputstream);
++        // dataoutputstream.close();
++        RegionFileCache.getChunkOutputStream(this.chunkSaveLocation, pos.x, pos.z, compound);
+     }
+ 
+     public void saveExtraChunkData(World worldIn, Chunk chunkIn) throws IOException
+@@ -305,11 +358,19 @@
+             {
+                 NBTTagCompound nbttagcompound2 = new NBTTagCompound();
+ 
++                try
++                {
+                 if (entity.writeToNBTOptional(nbttagcompound2))
+                 {
+                     chunkIn.setHasEntities(true);
+                     nbttaglist1.appendTag(nbttagcompound2);
+                 }
++                }
++                catch (Exception e)
++                {
++                    net.minecraftforge.fml.common.FMLLog.log.error("An Entity type {} has thrown an exception trying to write state. It will not persist. Report this to the mod author",
++                            entity.getClass().getName(), e);
++                }
+             }
+         }
+ 
+@@ -318,8 +379,16 @@
+ 
+         for (TileEntity tileentity : chunkIn.getTileEntityMap().values())
+         {
++            try
++            {
+             NBTTagCompound nbttagcompound3 = tileentity.writeToNBT(new NBTTagCompound());
+             nbttaglist2.appendTag(nbttagcompound3);
++            }
++            catch (Exception e)
++            {
++                net.minecraftforge.fml.common.FMLLog.log.error("A TileEntity type {} has throw an exception trying to write state. It will not persist. Report this to the mod author",
++                        tileentity.getClass().getName(), e);
++            }
+         }
+ 
+         compound.setTag("TileEntities", nbttaglist2);
+@@ -345,6 +414,18 @@
+ 
+             compound.setTag("TileTicks", nbttaglist3);
+         }
++
++        if (chunkIn.getCapabilities() != null)
++        {
++            try
++            {
++                compound.setTag("ForgeCaps", chunkIn.getCapabilities().serializeNBT());
++            }
++            catch (Exception exception)
++            {
++                net.minecraftforge.fml.common.FMLLog.log.error("A capability provider has thrown an exception trying to write state. It will not persist. Report this to the mod author", exception);
++            }
++        }
+     }
+ 
+     private Chunk readChunkFromNBT(World worldIn, NBTTagCompound compound)
+@@ -388,6 +469,17 @@
+             chunk.setBiomeArray(compound.getByteArray("Biomes"));
+         }
+ 
++        if (chunk.getCapabilities() != null && compound.hasKey("ForgeCaps")) {
++            chunk.getCapabilities().deserializeNBT(compound.getCompoundTag("ForgeCaps"));
++        }
++
++        // End this method here and split off entity loading to another method
++        return chunk;
++    }
++
++    public void loadEntities(World worldIn, NBTTagCompound compound, Chunk chunk)
++    {
++        worldIn.timings.syncChunkLoadEntitiesTimer.startTiming(); // Spigot
+         NBTTagList nbttaglist1 = compound.getTagList("Entities", 10);
+ 
+         for (int j1 = 0; j1 < nbttaglist1.tagCount(); ++j1)
+@@ -396,7 +488,8 @@
+             readChunkEntity(nbttagcompound1, worldIn, chunk);
+             chunk.setHasEntities(true);
+         }
+-
++        worldIn.timings.syncChunkLoadEntitiesTimer.stopTiming(); // Spigot
++        worldIn.timings.syncChunkLoadTileEntitiesTimer.startTiming(); // Spigot
+         NBTTagList nbttaglist2 = compound.getTagList("TileEntities", 10);
+ 
+         for (int k1 = 0; k1 < nbttaglist2.tagCount(); ++k1)
+@@ -409,7 +502,8 @@
+                 chunk.addTileEntity(tileentity);
+             }
+         }
+-
++        worldIn.timings.syncChunkLoadTileEntitiesTimer.stopTiming(); // Spigot
++        worldIn.timings.syncChunkLoadTileTicksTimer.startTiming(); // Spigot
+         if (compound.hasKey("TileTicks", 9))
+         {
+             NBTTagList nbttaglist3 = compound.getTagList("TileTicks", 10);
+@@ -431,8 +525,7 @@
+                 worldIn.scheduleBlockUpdate(new BlockPos(nbttagcompound3.getInteger("x"), nbttagcompound3.getInteger("y"), nbttagcompound3.getInteger("z")), block, nbttagcompound3.getInteger("t"), nbttagcompound3.getInteger("p"));
+             }
+         }
+-
+-        return chunk;
++        worldIn.timings.syncChunkLoadTileTicksTimer.stopTiming(); // Spigot
+     }
+ 
+     @Nullable
+@@ -521,8 +614,11 @@
+ 
+     public static void spawnEntity(Entity entityIn, World worldIn)
+     {
+-        if (worldIn.spawnEntity(entityIn) && entityIn.isBeingRidden())
+-        {
++        spawnEntity(entityIn, worldIn, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT);
++    }
++
++    public static void spawnEntity(Entity entityIn, World worldIn, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason reason) {
++        if (worldIn.addEntity(entityIn, reason) && entityIn.isBeingRidden()) {
+             for (Entity entity : entityIn.getPassengers())
+             {
+                 spawnEntity(entity, worldIn);
+@@ -563,4 +659,9 @@
+             return entity;
+         }
+     }
++
++    public int getPendingSaveCount()
++    {
++        return this.chunksToSave.size();
++    }
+ }

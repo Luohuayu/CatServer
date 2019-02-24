@@ -1,0 +1,96 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockRedstoneOre.java
++++ ../src-work/minecraft/net/minecraft/block/BlockRedstoneOre.java
+@@ -16,6 +16,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityInteractEvent;
+ 
+ public class BlockRedstoneOre extends Block
+ {
+@@ -40,19 +42,33 @@
+ 
+     public void onBlockClicked(World worldIn, BlockPos pos, EntityPlayer playerIn)
+     {
+-        this.activate(worldIn, pos);
++        this.activate(worldIn, pos, playerIn); // CraftBukkit - add playerIn
+         super.onBlockClicked(worldIn, pos, playerIn);
+     }
+ 
+     public void onEntityWalk(World worldIn, BlockPos pos, Entity entityIn)
+     {
+-        this.activate(worldIn, pos);
+-        super.onEntityWalk(worldIn, pos, entityIn);
++//        this.activate(worldIn, pos);
++//        super.onEntityWalk(worldIn, pos, entityIn);
++        if (entityIn instanceof EntityPlayer) {
++            org.bukkit.event.player.PlayerInteractEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerInteractEvent((EntityPlayer) entityIn, org.bukkit.event.block.Action.PHYSICAL, pos, null, null, null);
++            if (!event.isCancelled()) {
++                this.activate(worldIn, pos, entityIn); // add entity
++                super.onEntityWalk(worldIn, pos, entityIn);
++            }
++        } else {
++            EntityInteractEvent event = new EntityInteractEvent(entityIn.getBukkitEntity(), worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++            worldIn.getServer().getPluginManager().callEvent(event);
++            if (!event.isCancelled()) {
++                this.activate(worldIn, pos, entityIn); // add entity
++                super.onEntityWalk(worldIn, pos, entityIn);
++            }
++        }
+     }
+ 
+     public boolean onBlockActivated(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ)
+     {
+-        this.activate(worldIn, pos);
++        this.activate(worldIn, pos, playerIn); // CraftBukkit - add playerIn
+         return super.onBlockActivated(worldIn, pos, state, playerIn, hand, facing, hitX, hitY, hitZ);
+     }
+ 
+@@ -66,10 +82,26 @@
+         }
+     }
+ 
++    private void activate(World worldIn, BlockPos pos, Entity entity)
++    {
++        this.spawnParticles(worldIn, pos);
++
++        if (this == Blocks.REDSTONE_ORE)
++        {
++            if (CraftEventFactory.callEntityChangeBlockEvent(entity, pos, Blocks.LIT_REDSTONE_ORE, 0).isCancelled()) {
++                return;
++            }
++            worldIn.setBlockState(pos, Blocks.LIT_REDSTONE_ORE.getDefaultState());
++        }
++    }
++
+     public void updateTick(World worldIn, BlockPos pos, IBlockState state, Random rand)
+     {
+         if (this == Blocks.LIT_REDSTONE_ORE)
+         {
++            if (CraftEventFactory.callBlockFadeEvent(worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), Blocks.REDSTONE_ORE).isCancelled()) {
++                return;
++            }
+             worldIn.setBlockState(pos, Blocks.REDSTONE_ORE.getDefaultState());
+         }
+     }
+@@ -92,12 +124,16 @@
+     public void dropBlockAsItemWithChance(World worldIn, BlockPos pos, IBlockState state, float chance, int fortune)
+     {
+         super.dropBlockAsItemWithChance(worldIn, pos, state, chance, fortune);
++    }
+ 
+-        if (this.getItemDropped(state, worldIn.rand, fortune) != Item.getItemFromBlock(this))
++    @Override
++    public int getExpDrop(IBlockState state, net.minecraft.world.IBlockAccess world, BlockPos pos, int fortune)
++    {
++        if (this.getItemDropped(state, RANDOM, fortune) != Item.getItemFromBlock(this))
+         {
+-            int i = 1 + worldIn.rand.nextInt(5);
+-            this.dropXpOnBlockBreak(worldIn, pos, i);
++            return 1 + RANDOM.nextInt(5);
+         }
++        return 0;
+     }
+ 
+     @SideOnly(Side.CLIENT)

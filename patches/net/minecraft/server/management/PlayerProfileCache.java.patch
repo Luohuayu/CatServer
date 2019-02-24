@@ -1,0 +1,158 @@
+--- ../src-base/minecraft/net/minecraft/server/management/PlayerProfileCache.java
++++ ../src-work/minecraft/net/minecraft/server/management/PlayerProfileCache.java
+@@ -45,9 +45,9 @@
+ {
+     public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+     private static boolean onlineMode;
+-    private final Map<String, PlayerProfileCache.ProfileEntry> usernameToProfileEntryMap = Maps.<String, PlayerProfileCache.ProfileEntry>newHashMap();
+-    private final Map<UUID, PlayerProfileCache.ProfileEntry> uuidToProfileEntryMap = Maps.<UUID, PlayerProfileCache.ProfileEntry>newHashMap();
+-    private final Deque<GameProfile> gameProfiles = Lists.<GameProfile>newLinkedList();
++    private final Map<String, ProfileEntry> usernameToProfileEntryMap = Maps.<String, ProfileEntry>newHashMap();
++    private final Map<UUID, ProfileEntry> uuidToProfileEntryMap = Maps.<UUID, ProfileEntry>newHashMap();
++    private final Deque<GameProfile> gameProfiles = new java.util.concurrent.LinkedBlockingDeque<>();
+     private final GameProfileRepository profileRepo;
+     protected final Gson gson;
+     private final File usercacheFile;
+@@ -55,7 +55,7 @@
+     {
+         public Type[] getActualTypeArguments()
+         {
+-            return new Type[] {PlayerProfileCache.ProfileEntry.class};
++            return new Type[] {ProfileEntry.class};
+         }
+         public Type getRawType()
+         {
+@@ -72,7 +72,7 @@
+         this.profileRepo = profileRepoIn;
+         this.usercacheFile = usercacheFileIn;
+         GsonBuilder gsonbuilder = new GsonBuilder();
+-        gsonbuilder.registerTypeHierarchyAdapter(PlayerProfileCache.ProfileEntry.class, new PlayerProfileCache.Serializer());
++        gsonbuilder.registerTypeHierarchyAdapter(ProfileEntry.class, new Serializer());
+         this.gson = gsonbuilder.create();
+         this.load();
+     }
+@@ -131,11 +131,11 @@
+         }
+ 
+         String s = gameProfile.getName().toLowerCase(Locale.ROOT);
+-        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = new PlayerProfileCache.ProfileEntry(gameProfile, expirationDate);
++        ProfileEntry playerprofilecache$profileentry = new ProfileEntry(gameProfile, expirationDate);
+ 
+         if (this.uuidToProfileEntryMap.containsKey(uuid))
+         {
+-            PlayerProfileCache.ProfileEntry playerprofilecache$profileentry1 = this.uuidToProfileEntryMap.get(uuid);
++            ProfileEntry playerprofilecache$profileentry1 = this.uuidToProfileEntryMap.get(uuid);
+             this.usernameToProfileEntryMap.remove(playerprofilecache$profileentry1.getGameProfile().getName().toLowerCase(Locale.ROOT));
+             this.gameProfiles.remove(gameProfile);
+         }
+@@ -143,14 +143,14 @@
+         this.usernameToProfileEntryMap.put(gameProfile.getName().toLowerCase(Locale.ROOT), playerprofilecache$profileentry);
+         this.uuidToProfileEntryMap.put(uuid, playerprofilecache$profileentry);
+         this.gameProfiles.addFirst(gameProfile);
+-        this.save();
++        if(!org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) this.save(); // Spigot - skip saving if disabled
+     }
+ 
+     @Nullable
+     public GameProfile getGameProfileForUsername(String username)
+     {
+         String s = username.toLowerCase(Locale.ROOT);
+-        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.usernameToProfileEntryMap.get(s);
++        ProfileEntry playerprofilecache$profileentry = this.usernameToProfileEntryMap.get(s);
+ 
+         if (playerprofilecache$profileentry != null && (new Date()).getTime() >= playerprofilecache$profileentry.expirationDate.getTime())
+         {
+@@ -177,7 +177,7 @@
+             }
+         }
+ 
+-        this.save();
++        if(!org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) this.save(); // Spigot - skip saving if disabled
+         return playerprofilecache$profileentry == null ? null : playerprofilecache$profileentry.getGameProfile();
+     }
+ 
+@@ -190,13 +190,13 @@
+     @Nullable
+     public GameProfile getProfileByUUID(UUID uuid)
+     {
+-        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
++        ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
+         return playerprofilecache$profileentry == null ? null : playerprofilecache$profileentry.getGameProfile();
+     }
+ 
+-    private PlayerProfileCache.ProfileEntry getByUUID(UUID uuid)
++    private ProfileEntry getByUUID(UUID uuid)
+     {
+-        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
++        ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
+ 
+         if (playerprofilecache$profileentry != null)
+         {
+@@ -215,14 +215,14 @@
+         try
+         {
+             bufferedreader = Files.newReader(this.usercacheFile, StandardCharsets.UTF_8);
+-            List<PlayerProfileCache.ProfileEntry> list = (List)JsonUtils.fromJson(this.gson, bufferedreader, TYPE);
++            List<ProfileEntry> list = (List)JsonUtils.fromJson(this.gson, bufferedreader, TYPE);
+             this.usernameToProfileEntryMap.clear();
+             this.uuidToProfileEntryMap.clear();
+             this.gameProfiles.clear();
+ 
+             if (list != null)
+             {
+-                for (PlayerProfileCache.ProfileEntry playerprofilecache$profileentry : Lists.reverse(list))
++                for (ProfileEntry playerprofilecache$profileentry : Lists.reverse(list))
+                 {
+                     if (playerprofilecache$profileentry != null)
+                     {
+@@ -247,7 +247,7 @@
+ 
+     public void save()
+     {
+-        String s = this.gson.toJson(this.getEntriesWithLimit(1000));
++        String s = this.gson.toJson(this.getEntriesWithLimit(org.spigotmc.SpigotConfig.userCacheCap)); // Spigot
+         BufferedWriter bufferedwriter = null;
+ 
+         try
+@@ -270,13 +270,13 @@
+         }
+     }
+ 
+-    private List<PlayerProfileCache.ProfileEntry> getEntriesWithLimit(int limitSize)
++    private List<ProfileEntry> getEntriesWithLimit(int limitSize)
+     {
+-        List<PlayerProfileCache.ProfileEntry> list = Lists.<PlayerProfileCache.ProfileEntry>newArrayList();
++        List<ProfileEntry> list = Lists.<ProfileEntry>newArrayList();
+ 
+         for (GameProfile gameprofile : Lists.newArrayList(Iterators.limit(this.gameProfiles.iterator(), limitSize)))
+         {
+-            PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.getByUUID(gameprofile.getId());
++            ProfileEntry playerprofilecache$profileentry = this.getByUUID(gameprofile.getId());
+ 
+             if (playerprofilecache$profileentry != null)
+             {
+@@ -309,13 +309,13 @@
+         }
+     }
+ 
+-    class Serializer implements JsonDeserializer<PlayerProfileCache.ProfileEntry>, JsonSerializer<PlayerProfileCache.ProfileEntry>
++    class Serializer implements JsonDeserializer<ProfileEntry>, JsonSerializer<ProfileEntry>
+     {
+         private Serializer()
+         {
+         }
+ 
+-        public JsonElement serialize(PlayerProfileCache.ProfileEntry p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
++        public JsonElement serialize(ProfileEntry p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
+         {
+             JsonObject jsonobject = new JsonObject();
+             jsonobject.addProperty("name", p_serialize_1_.getGameProfile().getName());
+@@ -325,7 +325,7 @@
+             return jsonobject;
+         }
+ 
+-        public PlayerProfileCache.ProfileEntry deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
++        public ProfileEntry deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
+         {
+             if (p_deserialize_1_.isJsonObject())
+             {

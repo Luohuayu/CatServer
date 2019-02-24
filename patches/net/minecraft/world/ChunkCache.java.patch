@@ -1,0 +1,75 @@
+--- ../src-base/minecraft/net/minecraft/world/ChunkCache.java
++++ ../src-work/minecraft/net/minecraft/world/ChunkCache.java
+@@ -61,7 +61,7 @@
+     @Nullable
+     public TileEntity getTileEntity(BlockPos pos)
+     {
+-        return this.getTileEntity(pos, Chunk.EnumCreateEntityType.IMMEDIATE);
++        return this.getTileEntity(pos, Chunk.EnumCreateEntityType.CHECK); // Forge: don't modify world from other threads
+     }
+ 
+     @Nullable
+@@ -69,6 +69,7 @@
+     {
+         int i = (pos.getX() >> 4) - this.chunkX;
+         int j = (pos.getZ() >> 4) - this.chunkZ;
++        if (!withinBounds(i, j)) return null;
+         return this.chunkArray[i][j].getTileEntity(pos, p_190300_2_);
+     }
+ 
+@@ -112,6 +113,7 @@
+     {
+         int i = (pos.getX() >> 4) - this.chunkX;
+         int j = (pos.getZ() >> 4) - this.chunkZ;
++        if (!withinBounds(i, j)) return net.minecraft.init.Biomes.PLAINS;
+         return this.chunkArray[i][j].getBiome(pos, this.world.getBiomeProvider());
+     }
+ 
+@@ -149,6 +151,7 @@
+             {
+                 int i = (pos.getX() >> 4) - this.chunkX;
+                 int j = (pos.getZ() >> 4) - this.chunkZ;
++                if (!withinBounds(i, j)) return type.defaultLightValue;
+                 return this.chunkArray[i][j].getLightFor(type, pos);
+             }
+         }
+@@ -160,7 +163,8 @@
+ 
+     public boolean isAirBlock(BlockPos pos)
+     {
+-        return this.getBlockState(pos).getMaterial() == Material.AIR;
++        IBlockState state = this.getBlockState(pos);
++        return state.getBlock().isAir(state, this, pos);
+     }
+ 
+     @SideOnly(Side.CLIENT)
+@@ -170,6 +174,7 @@
+         {
+             int i = (pos.getX() >> 4) - this.chunkX;
+             int j = (pos.getZ() >> 4) - this.chunkZ;
++            if (!withinBounds(i, j)) return type.defaultLightValue;
+             return this.chunkArray[i][j].getLightFor(type, pos);
+         }
+         else
+@@ -188,4 +193,21 @@
+     {
+         return this.world.getWorldType();
+     }
++
++    @Override
++    public boolean isSideSolid(BlockPos pos, EnumFacing side, boolean _default)
++    {
++        int x = (pos.getX() >> 4) - this.chunkX;
++        int z = (pos.getZ() >> 4) - this.chunkZ;
++        if (pos.getY() < 0 || pos.getY() >= 256) return _default;
++        if (!withinBounds(x, z)) return _default;
++
++        IBlockState state = getBlockState(pos);
++        return state.getBlock().isSideSolid(state, this, pos, side);
++    }
++
++    private boolean withinBounds(int x, int z)
++    {
++        return x >= 0 && x < chunkArray.length && z >= 0 && z < chunkArray[x].length && chunkArray[x][z] != null;
++    }
+ }

@@ -1,0 +1,155 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockPistonBase.java
++++ ../src-work/minecraft/net/minecraft/block/BlockPistonBase.java
+@@ -1,6 +1,9 @@
+ package net.minecraft.block;
+ 
++import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Lists;
++
++import java.util.AbstractList;
+ import java.util.List;
+ import javax.annotation.Nullable;
+ import net.minecraft.block.material.EnumPushReaction;
+@@ -28,6 +31,9 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.IBlockAccess;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.bukkit.event.block.BlockPistonExtendEvent;
++import org.bukkit.event.block.BlockPistonRetractEvent;
+ 
+ public class BlockPistonBase extends BlockDirectional
+ {
+@@ -142,6 +148,15 @@
+         }
+         else if (!flag && ((Boolean)state.getValue(EXTENDED)).booleanValue())
+         {
++            if (!this.isSticky) {
++                org.bukkit.block.Block block = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++                BlockPistonRetractEvent event = new BlockPistonRetractEvent(block, ImmutableList.<org.bukkit.block.Block>of(), CraftBlock.notchToBlockFace(enumfacing));
++                worldIn.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    return;
++                }
++            }
+             worldIn.addBlockEvent(pos, this, 1, enumfacing.getIndex());
+         }
+     }
+@@ -241,7 +256,8 @@
+                     }
+                 }
+ 
+-                if (!flag1 && iblockstate.getMaterial() != Material.AIR && canPush(iblockstate, worldIn, blockpos, enumfacing.getOpposite(), false, enumfacing) && (iblockstate.getMobilityFlag() == EnumPushReaction.NORMAL || block == Blocks.PISTON || block == Blocks.STICKY_PISTON))
++                // CraftBukkit - remove '!iblockstate.getBlock().isAir(iblockstate, worldIn, blockpos)' condition
++                if (!flag1 && canPush(iblockstate, worldIn, blockpos, enumfacing.getOpposite(), false, enumfacing) && (iblockstate.getMobilityFlag() == EnumPushReaction.NORMAL || block == Blocks.PISTON || block == Blocks.STICKY_PISTON))
+                 {
+                     this.doMove(worldIn, pos, enumfacing, false);
+                 }
+@@ -307,7 +323,7 @@
+                     return false;
+                 }
+ 
+-                return !block.hasTileEntity();
++                return !block.hasTileEntity(blockStateIn);
+             }
+             else
+             {
+@@ -349,11 +365,82 @@
+             IBlockState[] aiblockstate = new IBlockState[k];
+             EnumFacing enumfacing = extending ? direction : direction.getOpposite();
+ 
++            final org.bukkit.block.Block bblock = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++
++            final List<BlockPos> moved = blockpistonstructurehelper.getBlocksToMove();
++            final List<BlockPos> broken = blockpistonstructurehelper.getBlocksToDestroy();
++
++            List<org.bukkit.block.Block> blocks = new AbstractList<org.bukkit.block.Block>() {
++
++                @Override
++                public int size() {
++                    return moved.size() + broken.size();
++                }
++
++                @Override
++                public org.bukkit.block.Block get(int index) {
++                    if (index >= size() || index < 0) {
++                        throw new ArrayIndexOutOfBoundsException(index);
++                    }
++                    BlockPos pos = index < moved.size() ? moved.get(index) : broken.get(index - moved.size());
++                    return bblock.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++                }
++            };
++
++            // CatServer start - prohibit move or brok TE!
++            boolean cancell = false;
++            for (BlockPos blockPos : moved) {
++                if (worldIn.getTileEntity(blockPos) != null) {
++                    cancell = true;
++                    break;
++                }
++            }
++            for (BlockPos blockPos : broken) {
++                if (worldIn.getTileEntity(blockPos) != null) {
++                    cancell = true;
++                    break;
++                }
++            }
++            if (cancell) {
++                for (BlockPos b : broken) {
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                }
++                for (BlockPos b : moved) {
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                    b = b.offset(enumfacing);
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                }
++                return false;
++            }
++            // CatServer end
++
++            org.bukkit.event.block.BlockPistonEvent event;
++            if (extending) {
++                event = new BlockPistonExtendEvent(bblock, blocks, CraftBlock.notchToBlockFace(enumfacing));
++            } else {
++                event = new BlockPistonRetractEvent(bblock, blocks, CraftBlock.notchToBlockFace(enumfacing));
++            }
++            worldIn.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                for (BlockPos b : broken) {
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                }
++                for (BlockPos b : moved) {
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                    b = b.offset(enumfacing);
++                    worldIn.notifyBlockUpdate(b, Blocks.AIR.getDefaultState(), worldIn.getBlockState(b), 3);
++                }
++                return false;
++            }
++
+             for (int j = list2.size() - 1; j >= 0; --j)
+             {
+                 BlockPos blockpos1 = list2.get(j);
+                 IBlockState iblockstate = worldIn.getBlockState(blockpos1);
+-                iblockstate.getBlock().dropBlockAsItem(worldIn, blockpos1, iblockstate, 0);
++                // Forge: With our change to how snowballs are dropped this needs to disallow to mimic vanilla behavior.
++                float chance = iblockstate.getBlock() instanceof BlockSnow ? -1.0f : 1.0f;
++                iblockstate.getBlock().dropBlockAsItemWithChance(worldIn, blockpos1, iblockstate, chance, 0);
+                 worldIn.setBlockState(blockpos1, Blocks.AIR.getDefaultState(), 4);
+                 --k;
+                 aiblockstate[k] = iblockstate;
+@@ -434,6 +521,13 @@
+         return new BlockStateContainer(this, new IProperty[] {FACING, EXTENDED});
+     }
+ 
++    /* ======================================== FORGE START =====================================*/
++    public boolean rotateBlock(World world, BlockPos pos, EnumFacing axis)
++    {
++        IBlockState state = world.getBlockState(pos);
++        return !state.getValue(EXTENDED) && super.rotateBlock(world, pos, axis);
++    }
++
+     public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face)
+     {
+         state = this.getActualState(state, worldIn, pos);

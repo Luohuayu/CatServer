@@ -1,0 +1,174 @@
+--- ../src-base/minecraft/net/minecraft/item/crafting/ShapedRecipes.java
++++ ../src-work/minecraft/net/minecraft/item/crafting/ShapedRecipes.java
+@@ -8,6 +8,9 @@
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonParseException;
+ import com.google.gson.JsonSyntaxException;
++
++import catserver.server.inventory.CustomModRecipe;
++
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.Map.Entry;
+@@ -19,10 +22,11 @@
+ import net.minecraft.util.NonNullList;
+ import net.minecraft.util.ResourceLocation;
+ import net.minecraft.world.World;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
++import org.bukkit.inventory.Recipe;
+ 
+-public class ShapedRecipes implements IRecipe
++public class ShapedRecipes extends net.minecraftforge.registries.IForgeRegistryEntry.Impl<IRecipe> implements net.minecraftforge.common.crafting.IShapedRecipe
+ {
+     public final int recipeWidth;
+     public final int recipeHeight;
+@@ -30,6 +34,8 @@
+     private final ItemStack recipeOutput;
+     private final String group;
+ 
++    public ResourceLocation key;
++
+     public ShapedRecipes(String group, int width, int height, NonNullList<Ingredient> ingredients, ItemStack result)
+     {
+         this.group = group;
+@@ -39,7 +45,6 @@
+         this.recipeOutput = result;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     public String getGroup()
+     {
+         return this.group;
+@@ -58,10 +63,7 @@
+         {
+             ItemStack itemstack = inv.getStackInSlot(i);
+ 
+-            if (itemstack.getItem().hasContainerItem())
+-            {
+-                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
+-            }
++            nonnulllist.set(i, net.minecraftforge.common.ForgeHooks.getContainerItem(itemstack));
+         }
+ 
+         return nonnulllist;
+@@ -72,7 +74,6 @@
+         return this.recipeItems;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     public boolean canFit(int width, int height)
+     {
+         return width >= this.recipeWidth && height >= this.recipeHeight;
+@@ -80,9 +81,9 @@
+ 
+     public boolean matches(InventoryCrafting inv, World worldIn)
+     {
+-        for (int i = 0; i <= 3 - this.recipeWidth; ++i)
++        for (int i = 0; i <= inv.getWidth() - this.recipeWidth; ++i)
+         {
+-            for (int j = 0; j <= 3 - this.recipeHeight; ++j)
++            for (int j = 0; j <= inv.getHeight() - this.recipeHeight; ++j)
+             {
+                 if (this.checkMatch(inv, i, j, true))
+                 {
+@@ -101,9 +102,9 @@
+ 
+     private boolean checkMatch(InventoryCrafting p_77573_1_, int p_77573_2_, int p_77573_3_, boolean p_77573_4_)
+     {
+-        for (int i = 0; i < 3; ++i)
++        for (int i = 0; i < p_77573_1_.getWidth(); ++i)
+         {
+-            for (int j = 0; j < 3; ++j)
++            for (int j = 0; j < p_77573_1_.getHeight(); ++j)
+             {
+                 int k = i - p_77573_2_;
+                 int l = j - p_77573_3_;
+@@ -379,4 +380,85 @@
+             return new ItemStack(item, j, i);
+         }
+     }
++
++    @Override
++    public Recipe toBukkitRecipe() {
++        // CatServer start - handle special custom recipe
++        if (this.recipeHeight < 1 || this.recipeHeight > 3 || this.recipeWidth < 1 || this.recipeWidth > 3) {
++            return new CustomModRecipe((IRecipe) this, this.getRegistryName());
++        }
++        // CatServer end
++        CraftItemStack result = CraftItemStack.asCraftMirror(this.recipeOutput);
++        CraftShapedRecipe recipe = new CraftShapedRecipe(result, this);
++        switch (this.recipeHeight) {
++            case 1:
++                switch (this.recipeWidth) {
++                    case 1:
++                        recipe.shape("a");
++                        break;
++                    case 2:
++                        recipe.shape("ab");
++                        break;
++                    case 3:
++                        recipe.shape("abc");
++                        break;
++                }
++                break;
++            case 2:
++                switch (this.recipeWidth) {
++                    case 1:
++                        recipe.shape("a","b");
++                        break;
++                    case 2:
++                        recipe.shape("ab","cd");
++                        break;
++                    case 3:
++                        recipe.shape("abc","def");
++                        break;
++                }
++                break;
++            case 3:
++                switch (this.recipeWidth) {
++                    case 1:
++                        recipe.shape("a","b","c");
++                        break;
++                    case 2:
++                        recipe.shape("ab","cd","ef");
++                        break;
++                    case 3:
++                        recipe.shape("abc","def","ghi");
++                        break;
++                }
++                break;
++        }
++        char c = 'a';
++        for (Ingredient list : this.recipeItems) {
++            if (list != null) { // CatServer - get recipe from OreDictionary
++                ItemStack[] matchingStacks = list.getMatchingStacks();
++                if (matchingStacks.length > 0) {
++                    net.minecraft.item.ItemStack stack = matchingStacks[0];
++                    recipe.setIngredient(c, org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(stack.getItem()), (matchingStacks.length) > 1 ? 32767 : stack.getMetadata());
++                }
++            }
++            c++;
++        }
++        return recipe;
++    }
++
++    @Override
++    public void setKey(ResourceLocation key) {
++        this.key = key;
++    }
++
++    //================================================ FORGE START ================================================
++    @Override
++    public int getRecipeWidth()
++    {
++        return this.getWidth();
++    }
++    @Override
++    public int getRecipeHeight()
++    {
++        return this.getHeight();
++    }
+ }

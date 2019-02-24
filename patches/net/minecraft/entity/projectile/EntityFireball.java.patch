@@ -1,0 +1,71 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityFireball.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityFireball.java
+@@ -14,6 +14,7 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+ public abstract class EntityFireball extends Entity
+ {
+@@ -24,6 +25,9 @@
+     public double accelerationY;
+     public double accelerationZ;
+ 
++    public float bukkitYield = 1;
++    public boolean isIncendiary = true;
++
+     public EntityFireball(World worldIn)
+     {
+         super(worldIn);
+@@ -64,12 +68,18 @@
+     {
+         super(worldIn);
+         this.shootingEntity = shooter;
++        this.projectileSource = (org.bukkit.entity.LivingEntity) shooter.getBukkitEntity();
+         this.setSize(1.0F, 1.0F);
+         this.setLocationAndAngles(shooter.posX, shooter.posY, shooter.posZ, shooter.rotationYaw, shooter.rotationPitch);
+         this.setPosition(this.posX, this.posY, this.posZ);
+         this.motionX = 0.0D;
+         this.motionY = 0.0D;
+         this.motionZ = 0.0D;
++        // CraftBukkit start - Added setDirection method
++        this.setDirection(accelX, accelY, accelZ);
++    }
++
++    public void setDirection(double accelX, double accelY, double accelZ) {
+         accelX = accelX + this.rand.nextGaussian() * 0.4D;
+         accelY = accelY + this.rand.nextGaussian() * 0.4D;
+         accelZ = accelZ + this.rand.nextGaussian() * 0.4D;
+@@ -93,9 +103,12 @@
+             ++this.ticksInAir;
+             RayTraceResult raytraceresult = ProjectileHelper.forwardsRaycast(this, true, this.ticksInAir >= 25, this.shootingEntity);
+ 
+-            if (raytraceresult != null)
++            if (raytraceresult != null && !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, raytraceresult))
+             {
+                 this.onImpact(raytraceresult);
++                if (this.isDead) {
++                    CraftEventFactory.callProjectileHitEvent(this, raytraceresult);
++                }
+             }
+ 
+             this.posX += this.motionX;
+@@ -209,6 +222,9 @@
+ 
+             if (source.getTrueSource() != null)
+             {
++                if (CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, amount)) {
++                    return false;
++                }
+                 Vec3d vec3d = source.getTrueSource().getLookVec();
+ 
+                 if (vec3d != null)
+@@ -224,6 +240,7 @@
+                 if (source.getTrueSource() instanceof EntityLivingBase)
+                 {
+                     this.shootingEntity = (EntityLivingBase)source.getTrueSource();
++                    this.projectileSource = (org.bukkit.projectiles.ProjectileSource) this.shootingEntity.getBukkitEntity();
+                 }
+ 
+                 return true;

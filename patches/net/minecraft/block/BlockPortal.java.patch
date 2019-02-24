@@ -1,0 +1,188 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockPortal.java
++++ ../src-work/minecraft/net/minecraft/block/BlockPortal.java
+@@ -29,6 +29,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.entity.EntityPortalEnterEvent;
++import org.bukkit.event.world.PortalCreateEvent;
+ 
+ public class BlockPortal extends BlockBreakable
+ {
+@@ -62,7 +64,7 @@
+     {
+         super.updateTick(worldIn, pos, state, rand);
+ 
+-        if (worldIn.provider.isSurfaceWorld() && worldIn.getGameRules().getBoolean("doMobSpawning") && rand.nextInt(2000) < worldIn.getDifficulty().getDifficultyId())
++        if (worldIn.spigotConfig.enableZombiePigmenPortalSpawns && worldIn.provider.isSurfaceWorld() && worldIn.getGameRules().getBoolean("doMobSpawning") && rand.nextInt(2000) < worldIn.getDifficulty().getDifficultyId()) // Spigot
+         {
+             int i = pos.getY();
+             BlockPos blockpos;
+@@ -74,7 +76,7 @@
+ 
+             if (i > 0 && !worldIn.getBlockState(blockpos.up()).isNormalCube())
+             {
+-                Entity entity = ItemMonsterPlacer.spawnCreature(worldIn, EntityList.getKey(EntityPigZombie.class), (double)blockpos.getX() + 0.5D, (double)blockpos.getY() + 1.1D, (double)blockpos.getZ() + 0.5D);
++                Entity entity = ItemMonsterPlacer.spawnCreature(worldIn, EntityList.getKey(EntityPigZombie.class), (double)blockpos.getX() + 0.5D, (double)blockpos.getY() + 1.1D, (double)blockpos.getZ() + 0.5D, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.NETHER_PORTAL);
+ 
+                 if (entity != null)
+                 {
+@@ -109,21 +111,21 @@
+ 
+     public boolean trySpawnPortal(World worldIn, BlockPos pos)
+     {
+-        BlockPortal.Size blockportal$size = new BlockPortal.Size(worldIn, pos, EnumFacing.Axis.X);
++        Size blockportal$size = new Size(worldIn, pos, EnumFacing.Axis.X);
+ 
+-        if (blockportal$size.isValid() && blockportal$size.portalBlockCount == 0)
++        if (blockportal$size.isValid() && blockportal$size.portalBlockCount == 0 && !net.minecraftforge.event.ForgeEventFactory.onTrySpawnPortal(worldIn,pos,blockportal$size))
+         {
+-            blockportal$size.placePortalBlocks();
+-            return true;
++            return blockportal$size.placePortalBlocksCB();
++//            return true;
+         }
+         else
+         {
+-            BlockPortal.Size blockportal$size1 = new BlockPortal.Size(worldIn, pos, EnumFacing.Axis.Z);
++            Size blockportal$size1 = new Size(worldIn, pos, EnumFacing.Axis.Z);
+ 
+-            if (blockportal$size1.isValid() && blockportal$size1.portalBlockCount == 0)
++            if (blockportal$size1.isValid() && blockportal$size1.portalBlockCount == 0 && !net.minecraftforge.event.ForgeEventFactory.onTrySpawnPortal(worldIn,pos,blockportal$size1))
+             {
+-                blockportal$size1.placePortalBlocks();
+-                return true;
++                return blockportal$size1.placePortalBlocksCB();
++//                return true;
+             }
+             else
+             {
+@@ -138,7 +140,7 @@
+ 
+         if (enumfacing$axis == EnumFacing.Axis.X)
+         {
+-            BlockPortal.Size blockportal$size = new BlockPortal.Size(worldIn, pos, EnumFacing.Axis.X);
++            Size blockportal$size = new Size(worldIn, pos, EnumFacing.Axis.X);
+ 
+             if (!blockportal$size.isValid() || blockportal$size.portalBlockCount < blockportal$size.width * blockportal$size.height)
+             {
+@@ -147,7 +149,7 @@
+         }
+         else if (enumfacing$axis == EnumFacing.Axis.Z)
+         {
+-            BlockPortal.Size blockportal$size1 = new BlockPortal.Size(worldIn, pos, EnumFacing.Axis.Z);
++            Size blockportal$size1 = new Size(worldIn, pos, EnumFacing.Axis.Z);
+ 
+             if (!blockportal$size1.isValid() || blockportal$size1.portalBlockCount < blockportal$size1.width * blockportal$size1.height)
+             {
+@@ -216,6 +218,8 @@
+     {
+         if (!entityIn.isRiding() && !entityIn.isBeingRidden() && entityIn.isNonBoss())
+         {
++            EntityPortalEnterEvent event = new EntityPortalEnterEvent(entityIn.getBukkitEntity(), new org.bukkit.Location(worldIn.getWorld(), pos.getX(), pos.getY(), pos.getZ()));
++            worldIn.getServer().getPluginManager().callEvent(event);
+             entityIn.setPortal(pos);
+         }
+     }
+@@ -304,13 +308,13 @@
+     public BlockPattern.PatternHelper createPatternHelper(World worldIn, BlockPos p_181089_2_)
+     {
+         EnumFacing.Axis enumfacing$axis = EnumFacing.Axis.Z;
+-        BlockPortal.Size blockportal$size = new BlockPortal.Size(worldIn, p_181089_2_, EnumFacing.Axis.X);
++        Size blockportal$size = new Size(worldIn, p_181089_2_, EnumFacing.Axis.X);
+         LoadingCache<BlockPos, BlockWorldState> loadingcache = BlockPattern.createLoadingCache(worldIn, true);
+ 
+         if (!blockportal$size.isValid())
+         {
+             enumfacing$axis = EnumFacing.Axis.X;
+-            blockportal$size = new BlockPortal.Size(worldIn, p_181089_2_, EnumFacing.Axis.Z);
++            blockportal$size = new Size(worldIn, p_181089_2_, EnumFacing.Axis.Z);
+         }
+ 
+         if (!blockportal$size.isValid())
+@@ -370,6 +374,7 @@
+             private BlockPos bottomLeft;
+             private int height;
+             private int width;
++            java.util.Collection<org.bukkit.block.Block> blocks = new java.util.HashSet<org.bukkit.block.Block>();
+ 
+             public Size(World worldIn, BlockPos p_i45694_2_, EnumFacing.Axis p_i45694_3_)
+             {
+@@ -442,6 +447,8 @@
+ 
+             protected int calculatePortalHeight()
+             {
++                this.blocks.clear();
++                org.bukkit.World bworld = this.world.getWorld();
+                 label56:
+ 
+                 for (this.height = 0; this.height < 21; ++this.height)
+@@ -468,6 +475,9 @@
+                             if (block != Blocks.OBSIDIAN)
+                             {
+                                 break label56;
++                            } else {
++                                BlockPos pos = blockpos.offset(this.leftDir);
++                                blocks.add(bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
+                             }
+                         }
+                         else if (i == this.width - 1)
+@@ -477,6 +487,9 @@
+                             if (block != Blocks.OBSIDIAN)
+                             {
+                                 break label56;
++                            } else {
++                                BlockPos pos = blockpos.offset(this.rightDir);
++                                blocks.add(bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
+                             }
+                         }
+                     }
+@@ -488,6 +501,9 @@
+                     {
+                         this.height = 0;
+                         break;
++                    } else {
++                        BlockPos pos = this.bottomLeft.offset(this.rightDir, j).up(this.height);
++                        blocks.add(bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
+                     }
+                 }
+ 
+@@ -526,5 +542,38 @@
+                     }
+                 }
+             }
++
++            public boolean placePortalBlocksCB()
++            {
++                org.bukkit.World bworld = this.world.getWorld();
++
++                // Copy below for loop
++                for (int i = 0; i < this.width; ++i) {
++                    BlockPos blockposition = this.bottomLeft.offset(this.rightDir, i);
++
++                    for (int j = 0; j < this.height; ++j) {
++                        BlockPos pos = blockposition.up(j);
++                        blocks.add(bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++                    }
++                }
++
++                PortalCreateEvent event = new PortalCreateEvent(blocks, bworld, PortalCreateEvent.CreateReason.FIRE);
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    return false;
++                }
++                for (int i = 0; i < this.width; ++i)
++                {
++                    BlockPos blockpos = this.bottomLeft.offset(this.rightDir, i);
++
++                    for (int j = 0; j < this.height; ++j)
++                    {
++                        this.world.setBlockState(blockpos.up(j), Blocks.PORTAL.getDefaultState().withProperty(BlockPortal.AXIS, this.axis), 2);
++                    }
++                }
++
++                return true;
++            }
+         }
+ }

@@ -1,0 +1,70 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/MobSpawnerBaseLogic.java
++++ ../src-work/minecraft/net/minecraft/tileentity/MobSpawnerBaseLogic.java
+@@ -22,21 +22,21 @@
+ 
+ public abstract class MobSpawnerBaseLogic
+ {
+-    private int spawnDelay = 20;
++    public int spawnDelay = 20;
+     private final List<WeightedSpawnerEntity> potentialSpawns = Lists.<WeightedSpawnerEntity>newArrayList();
+     private WeightedSpawnerEntity spawnData = new WeightedSpawnerEntity();
+     private double mobRotation;
+     private double prevMobRotation;
+-    private int minSpawnDelay = 200;
+-    private int maxSpawnDelay = 800;
+-    private int spawnCount = 4;
++    public int minSpawnDelay = 200;
++    public int maxSpawnDelay = 800;
++    public int spawnCount = 4;
+     private Entity cachedEntity;
+-    private int maxNearbyEntities = 6;
+-    private int activatingRangeFromPlayer = 16;
+-    private int spawnRange = 4;
++    public int maxNearbyEntities = 6;
++    public int activatingRangeFromPlayer = 16;
++    public int spawnRange = 4;
+ 
+     @Nullable
+-    private ResourceLocation getEntityId()
++    public ResourceLocation getEntityId()
+     {
+         String s = this.spawnData.getNbt().getString("id");
+         return StringUtils.isNullOrEmpty(s) ? null : new ResourceLocation(s);
+@@ -47,6 +47,7 @@
+         if (id != null)
+         {
+             this.spawnData.getNbt().setString("id", id.toString());
++            this.potentialSpawns.clear(); // CraftBukkit - SPIGOT-3496, MC-92282
+         }
+     }
+ 
+@@ -124,14 +125,18 @@
+                     EntityLiving entityliving = entity instanceof EntityLiving ? (EntityLiving)entity : null;
+                     entity.setLocationAndAngles(entity.posX, entity.posY, entity.posZ, world.rand.nextFloat() * 360.0F, 0.0F);
+ 
+-                    if (entityliving == null || entityliving.getCanSpawnHere() && entityliving.isNotColliding())
++                    if (entityliving == null || net.minecraftforge.event.ForgeEventFactory.canEntitySpawnSpawner(entityliving, getSpawnerWorld(), (float)entity.posX, (float)entity.posY, (float)entity.posZ, this))
+                     {
+                         if (this.spawnData.getNbt().getSize() == 1 && this.spawnData.getNbt().hasKey("id", 8) && entity instanceof EntityLiving)
+                         {
++                            if (!net.minecraftforge.event.ForgeEventFactory.doSpecialSpawn(entityliving, this.getSpawnerWorld(), (float)entity.posX, (float)entity.posY, (float)entity.posZ, this))
+                             ((EntityLiving)entity).onInitialSpawn(world.getDifficultyForLocation(new BlockPos(entity)), (IEntityLivingData)null);
+                         }
+-
+-                        AnvilChunkLoader.spawnEntity(entity, world);
++                        if (entity.world.spigotConfig.nerfSpawnerMobs) entity.fromMobSpawner = true; // Spigot Start
++                        if (org.bukkit.craftbukkit.event.CraftEventFactory.callSpawnerSpawnEvent(entity, blockpos).isCancelled()) {
++                            continue;
++                        }
++                        AnvilChunkLoader.spawnEntity(entity, world, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SPAWNER);
+                         world.playEvent(2004, blockpos, 0);
+ 
+                         if (entityliving != null)
+@@ -307,4 +312,7 @@
+     {
+         return this.prevMobRotation;
+     }
++
++    /* ======================================== FORGE START =====================================*/
++    @Nullable public Entity getSpawnerEntity() { return null; }
+ }

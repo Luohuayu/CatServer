@@ -1,0 +1,131 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemMap.java
++++ ../src-work/minecraft/net/minecraft/item/ItemMap.java
+@@ -21,11 +21,14 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.text.translation.I18n;
+ import net.minecraft.world.World;
++import net.minecraft.world.WorldServer;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.chunk.Chunk;
+ import net.minecraft.world.storage.MapData;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Bukkit;
++import org.bukkit.event.server.MapInitializeEvent;
+ 
+ public class ItemMap extends ItemMapBase
+ {
+@@ -36,16 +39,20 @@
+ 
+     public static ItemStack setupNewMap(World worldIn, double worldX, double worldZ, byte scale, boolean trackingPosition, boolean unlimitedTracking)
+     {
+-        ItemStack itemstack = new ItemStack(Items.FILLED_MAP, 1, worldIn.getUniqueDataId("map"));
++        World worldMain = worldIn.getServer().getServer().worlds[0]; // CraftBukkit - store reference to primary world
++        // ItemStack itemstack = new ItemStack(Items.FILLED_MAP, 1, worldIn.getUniqueDataId("map"));
++        ItemStack itemstack = new ItemStack(Items.FILLED_MAP, 1, worldMain.getUniqueDataId("map")); // CraftBukkit - use primary world for maps
+         String s = "map_" + itemstack.getMetadata();
+         MapData mapdata = new MapData(s);
+-        worldIn.setData(s, mapdata);
++        worldMain.setData(s, mapdata);
+         mapdata.scale = scale;
+         mapdata.calculateMapCenter(worldX, worldZ, mapdata.scale);
+-        mapdata.dimension = (byte)worldIn.provider.getDimensionType().getId();
++        // mapdata.dimension = worldIn.provider.getDimension();
++        mapdata.dimension = ((WorldServer) worldIn).dimension;  // CraftBukkit - use bukkit dimension
+         mapdata.trackingPosition = trackingPosition;
+         mapdata.unlimitedTracking = unlimitedTracking;
+         mapdata.markDirty();
++        org.bukkit.craftbukkit.event.CraftEventFactory.callEvent(new org.bukkit.event.server.MapInitializeEvent(mapdata.mapView));
+         return itemstack;
+     }
+ 
+@@ -60,19 +67,25 @@
+     @Nullable
+     public MapData getMapData(ItemStack stack, World worldIn)
+     {
++        World worldMain = worldIn.getServer().getServer().worlds[0]; // CraftBukkit - store reference to primary world
+         String s = "map_" + stack.getMetadata();
+-        MapData mapdata = (MapData)worldIn.loadData(MapData.class, s);
++        // MapData mapdata = (MapData)worldIn.loadData(MapData.class, s);
++        MapData mapdata = (MapData) worldMain.loadData(MapData.class, s);// CraftBukkit - use primary world for maps
+ 
+         if (mapdata == null && !worldIn.isRemote)
+         {
+-            stack.setItemDamage(worldIn.getUniqueDataId("map"));
++            stack.setItemDamage(worldMain.getUniqueDataId("map"));
+             s = "map_" + stack.getMetadata();
+             mapdata = new MapData(s);
+             mapdata.scale = 3;
+             mapdata.calculateMapCenter((double)worldIn.getWorldInfo().getSpawnX(), (double)worldIn.getWorldInfo().getSpawnZ(), mapdata.scale);
+-            mapdata.dimension = (byte)worldIn.provider.getDimensionType().getId();
++            // mapdata.dimension = worldIn.provider.getDimension();
++            mapdata.dimension = ((WorldServer) worldIn).dimension; // CraftBukkit - fixes Bukkit multiworld maps
+             mapdata.markDirty();
+-            worldIn.setData(s, mapdata);
++            worldMain.setData(s, mapdata);
++
++            MapInitializeEvent event = new MapInitializeEvent(mapdata.mapView);
++            Bukkit.getServer().getPluginManager().callEvent(event);
+         }
+ 
+         return mapdata;
+@@ -80,7 +93,8 @@
+ 
+     public void updateMapData(World worldIn, Entity viewer, MapData data)
+     {
+-        if (worldIn.provider.getDimensionType().getId() == data.dimension && viewer instanceof EntityPlayer)
++        // CraftBukkit - world.provider -> ((WorldServer) world)
++        if (((WorldServer) worldIn).dimension == data.dimension && viewer instanceof EntityPlayer)
+         {
+             int i = 1 << data.scale;
+             int j = data.xCenter;
+@@ -251,13 +265,13 @@
+ 
+     public static void renderBiomePreviewMap(World worldIn, ItemStack map)
+     {
+-        if (map.getItem() == Items.FILLED_MAP)
++        if (map.getItem() instanceof ItemMap)
+         {
+-            MapData mapdata = Items.FILLED_MAP.getMapData(map, worldIn);
++            MapData mapdata = ((ItemMap) map.getItem()).getMapData(map, worldIn);
+ 
+             if (mapdata != null)
+             {
+-                if (worldIn.provider.getDimensionType().getId() == mapdata.dimension)
++                if (worldIn.provider.getDimension() == mapdata.dimension)
+                 {
+                     int i = 1 << mapdata.scale;
+                     int j = mapdata.xCenter;
+@@ -425,6 +439,7 @@
+     protected static void scaleMap(ItemStack p_185063_0_, World p_185063_1_, int p_185063_2_)
+     {
+         MapData mapdata = Items.FILLED_MAP.getMapData(p_185063_0_, p_185063_1_);
++        p_185063_1_ = p_185063_1_.getServer().getServer().worlds[0];
+         p_185063_0_.setItemDamage(p_185063_1_.getUniqueDataId("map"));
+         MapData mapdata1 = new MapData("map_" + p_185063_0_.getMetadata());
+ 
+@@ -436,12 +451,15 @@
+             mapdata1.dimension = mapdata.dimension;
+             mapdata1.markDirty();
+             p_185063_1_.setData("map_" + p_185063_0_.getMetadata(), mapdata1);
++            MapInitializeEvent event = new MapInitializeEvent(mapdata1.mapView);
++            Bukkit.getServer().getPluginManager().callEvent(event);
+         }
+     }
+ 
+     protected static void enableMapTracking(ItemStack p_185064_0_, World p_185064_1_)
+     {
+         MapData mapdata = Items.FILLED_MAP.getMapData(p_185064_0_, p_185064_1_);
++        p_185064_1_ = p_185064_1_.getServer().getServer().worlds[0];
+         p_185064_0_.setItemDamage(p_185064_1_.getUniqueDataId("map"));
+         MapData mapdata1 = new MapData("map_" + p_185064_0_.getMetadata());
+         mapdata1.trackingPosition = true;
+@@ -454,6 +472,8 @@
+             mapdata1.dimension = mapdata.dimension;
+             mapdata1.markDirty();
+             p_185064_1_.setData("map_" + p_185064_0_.getMetadata(), mapdata1);
++            MapInitializeEvent event = new MapInitializeEvent(mapdata1.mapView);
++            Bukkit.getServer().getPluginManager().callEvent(event);
+         }
+     }
+ 

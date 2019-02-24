@@ -1,0 +1,138 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockTallGrass.java
++++ ../src-work/minecraft/net/minecraft/block/BlockTallGrass.java
+@@ -22,15 +22,15 @@
+ import net.minecraft.world.IBlockAccess;
+ import net.minecraft.world.World;
+ 
+-public class BlockTallGrass extends BlockBush implements IGrowable
++public class BlockTallGrass extends BlockBush implements IGrowable, net.minecraftforge.common.IShearable
+ {
+-    public static final PropertyEnum<BlockTallGrass.EnumType> TYPE = PropertyEnum.<BlockTallGrass.EnumType>create("type", BlockTallGrass.EnumType.class);
++    public static final PropertyEnum<EnumType> TYPE = PropertyEnum.<EnumType>create("type", EnumType.class);
+     protected static final AxisAlignedBB TALL_GRASS_AABB = new AxisAlignedBB(0.09999999403953552D, 0.0D, 0.09999999403953552D, 0.8999999761581421D, 0.800000011920929D, 0.8999999761581421D);
+ 
+     protected BlockTallGrass()
+     {
+         super(Material.VINE);
+-        this.setDefaultState(this.blockState.getBaseState().withProperty(TYPE, BlockTallGrass.EnumType.DEAD_BUSH));
++        this.setDefaultState(this.blockState.getBaseState().withProperty(TYPE, EnumType.DEAD_BUSH));
+     }
+ 
+     public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos)
+@@ -40,7 +40,7 @@
+ 
+     public boolean canBlockStay(World worldIn, BlockPos pos, IBlockState state)
+     {
+-        return this.canSustainBush(worldIn.getBlockState(pos.down()));
++        return super.canBlockStay(worldIn, pos, state);
+     }
+ 
+     public boolean isReplaceable(IBlockAccess worldIn, BlockPos pos)
+@@ -50,7 +50,7 @@
+ 
+     public Item getItemDropped(IBlockState state, Random rand, int fortune)
+     {
+-        return rand.nextInt(8) == 0 ? Items.WHEAT_SEEDS : Items.AIR;
++        return null;
+     }
+ 
+     public int quantityDroppedWithBonus(int fortune, Random random)
+@@ -63,7 +63,7 @@
+         if (!worldIn.isRemote && stack.getItem() == Items.SHEARS)
+         {
+             player.addStat(StatList.getBlockStats(this));
+-            spawnAsEntity(worldIn, pos, new ItemStack(Blocks.TALLGRASS, 1, ((BlockTallGrass.EnumType)state.getValue(TYPE)).getMeta()));
++            spawnAsEntity(worldIn, pos, new ItemStack(Blocks.TALLGRASS, 1, ((EnumType)state.getValue(TYPE)).getMeta()));
+         }
+         else
+         {
+@@ -86,7 +86,7 @@
+ 
+     public boolean canGrow(World worldIn, BlockPos pos, IBlockState state, boolean isClient)
+     {
+-        return state.getValue(TYPE) != BlockTallGrass.EnumType.DEAD_BUSH;
++        return state.getValue(TYPE) != EnumType.DEAD_BUSH;
+     }
+ 
+     public boolean canUseBonemeal(World worldIn, Random rand, BlockPos pos, IBlockState state)
+@@ -98,7 +98,7 @@
+     {
+         BlockDoublePlant.EnumPlantType blockdoubleplant$enumplanttype = BlockDoublePlant.EnumPlantType.GRASS;
+ 
+-        if (state.getValue(TYPE) == BlockTallGrass.EnumType.FERN)
++        if (state.getValue(TYPE) == EnumType.FERN)
+         {
+             blockdoubleplant$enumplanttype = BlockDoublePlant.EnumPlantType.FERN;
+         }
+@@ -111,12 +111,12 @@
+ 
+     public IBlockState getStateFromMeta(int meta)
+     {
+-        return this.getDefaultState().withProperty(TYPE, BlockTallGrass.EnumType.byMetadata(meta));
++        return this.getDefaultState().withProperty(TYPE, EnumType.byMetadata(meta));
+     }
+ 
+     public int getMetaFromState(IBlockState state)
+     {
+-        return ((BlockTallGrass.EnumType)state.getValue(TYPE)).getMeta();
++        return ((EnumType)state.getValue(TYPE)).getMeta();
+     }
+ 
+     protected BlockStateContainer createBlockState()
+@@ -124,9 +124,9 @@
+         return new BlockStateContainer(this, new IProperty[] {TYPE});
+     }
+ 
+-    public Block.EnumOffsetType getOffsetType()
++    public EnumOffsetType getOffsetType()
+     {
+-        return Block.EnumOffsetType.XYZ;
++        return EnumOffsetType.XYZ;
+     }
+ 
+     public static enum EnumType implements IStringSerializable
+@@ -135,7 +135,7 @@
+         GRASS(1, "tall_grass"),
+         FERN(2, "fern");
+ 
+-        private static final BlockTallGrass.EnumType[] META_LOOKUP = new BlockTallGrass.EnumType[values().length];
++        private static final EnumType[] META_LOOKUP = new EnumType[values().length];
+         private final int meta;
+         private final String name;
+ 
+@@ -155,7 +155,7 @@
+             return this.name;
+         }
+ 
+-        public static BlockTallGrass.EnumType byMetadata(int meta)
++        public static EnumType byMetadata(int meta)
+         {
+             if (meta < 0 || meta >= META_LOOKUP.length)
+             {
+@@ -172,10 +172,25 @@
+ 
+         static
+         {
+-            for (BlockTallGrass.EnumType blocktallgrass$enumtype : values())
++            for (EnumType blocktallgrass$enumtype : values())
+             {
+                 META_LOOKUP[blocktallgrass$enumtype.getMeta()] = blocktallgrass$enumtype;
+             }
+         }
+     }
++
++    @Override public boolean isShearable(ItemStack item, IBlockAccess world, BlockPos pos){ return true; }
++    @Override
++    public NonNullList<ItemStack> onSheared(ItemStack item, IBlockAccess world, BlockPos pos, int fortune)
++    {
++        return NonNullList.withSize(1, new ItemStack(Blocks.TALLGRASS, 1, ((EnumType)world.getBlockState(pos).getValue(TYPE)).getMeta()));
++    }
++    @Override
++    public void getDrops(NonNullList<ItemStack> drops, IBlockAccess world, BlockPos pos, IBlockState state, int fortune)
++    {
++        if (RANDOM.nextInt(8) != 0) return;
++        ItemStack seed = net.minecraftforge.common.ForgeHooks.getGrassSeed(RANDOM, fortune);
++        if (!seed.isEmpty())
++            drops.add(seed);
++    }
+ }

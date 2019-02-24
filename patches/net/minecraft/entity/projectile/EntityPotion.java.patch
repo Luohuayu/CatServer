@@ -1,0 +1,138 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityPotion.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityPotion.java
+@@ -1,9 +1,14 @@
+ package net.minecraft.entity.projectile;
+ 
+ import com.google.common.base.Predicate;
++
++import java.util.HashMap;
++import java.util.Iterator;
+ import java.util.List;
++import java.util.Map;
+ import javax.annotation.Nullable;
+ import net.minecraft.entity.EntityAreaEffectCloud;
++import net.minecraft.entity.EntityLiving;
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.monster.EntityBlaze;
+ import net.minecraft.entity.monster.EntityEnderman;
+@@ -31,6 +36,8 @@
+ import net.minecraft.world.World;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.entity.LivingEntity;
+ 
+ public class EntityPotion extends EntityThrowable
+ {
+@@ -124,7 +131,7 @@
+             {
+                 this.applyWater();
+             }
+-            else if (!list.isEmpty())
++            else if (true || !list.isEmpty()) // CraftBukkit - Call event even if no effects to apply
+             {
+                 if (this.isLingering())
+                 {
+@@ -161,45 +168,55 @@
+         }
+     }
+ 
+-    private void applySplash(RayTraceResult p_190543_1_, List<PotionEffect> p_190543_2_)
+-    {
++    private void applySplash(RayTraceResult p_190543_1_, List<PotionEffect> p_190543_2_) {
+         AxisAlignedBB axisalignedbb = this.getEntityBoundingBox().grow(4.0D, 2.0D, 4.0D);
+         List<EntityLivingBase> list = this.world.<EntityLivingBase>getEntitiesWithinAABB(EntityLivingBase.class, axisalignedbb);
+-
+-        if (!list.isEmpty())
+-        {
+-            for (EntityLivingBase entitylivingbase : list)
+-            {
+-                if (entitylivingbase.canBeHitWithPotion())
+-                {
++        Map<LivingEntity, Double> affected = new HashMap<LivingEntity, Double>();
++        if (!list.isEmpty()) {
++            for (EntityLivingBase entitylivingbase : list) {
++                if (entitylivingbase.canBeHitWithPotion()) {
+                     double d0 = this.getDistanceSq(entitylivingbase);
+ 
+-                    if (d0 < 16.0D)
+-                    {
++                    if (d0 < 16.0D) {
+                         double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
+ 
+-                        if (entitylivingbase == p_190543_1_.entityHit)
+-                        {
++                        if (entitylivingbase == p_190543_1_.entityHit) {
+                             d1 = 1.0D;
+                         }
++                        affected.put((LivingEntity) entitylivingbase.getBukkitEntity(), d1);
++                    }
++                }
++            }
++        }
++        org.bukkit.event.entity.PotionSplashEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPotionSplashEvent(this, affected);
++        if (!event.isCancelled() && p_190543_2_ != null && !p_190543_2_.isEmpty()) { // do not process effects if there are no effects to process
++            for (LivingEntity victim : event.getAffectedEntities()) {
++                if (!(victim instanceof CraftLivingEntity)) {
++                    continue;
++                }
++                EntityLivingBase entityliving = ((CraftLivingEntity) victim).getHandle();
++                double d1 = event.getIntensity(victim);
++                // CraftBukkit end
+ 
+-                        for (PotionEffect potioneffect : p_190543_2_)
+-                        {
+-                            Potion potion = potioneffect.getPotion();
++                for (PotionEffect mobeffect : p_190543_2_) {
++                    Potion mobeffectlist = mobeffect.getPotion();
++                    // CraftBukkit start - Abide by PVP settings - for players only!
++                    if (!this.world.pvpMode && this.getThrower() instanceof EntityPlayer && entityliving instanceof EntityPlayer && entityliving != this.getThrower()) {
++                        int i = Potion.getIdFromPotion(mobeffectlist);
++                        // Block SLOWER_MOVEMENT, SLOWER_DIG, HARM, BLINDNESS, HUNGER, WEAKNESS and POISON potions
++                        if (i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18 || i == 19) {
++                            continue;
++                        }
++                    }
++                    // CraftBukkit end
+ 
+-                            if (potion.isInstant())
+-                            {
+-                                potion.affectEntity(this, this.getThrower(), entitylivingbase, potioneffect.getAmplifier(), d1);
+-                            }
+-                            else
+-                            {
+-                                int i = (int)(d1 * (double)potioneffect.getDuration() + 0.5D);
++                    if (mobeffectlist.isInstant()) {
++                        mobeffectlist.affectEntity(this, this.getThrower(), entityliving, mobeffect.getAmplifier(), d1);
++                    } else {
++                        int i = (int) (d1 * (double) mobeffect.getDuration() + 0.5D);
+ 
+-                                if (i > 20)
+-                                {
+-                                    entitylivingbase.addPotionEffect(new PotionEffect(potion, i, potioneffect.getAmplifier(), potioneffect.getIsAmbient(), potioneffect.doesShowParticles()));
+-                                }
+-                            }
++                        if (i > 20) {
++                            entityliving.addPotionEffect(new PotionEffect(mobeffectlist, i, mobeffect.getAmplifier(), mobeffect.getIsAmbient(), mobeffect.doesShowParticles()));
+                         }
+                     }
+                 }
+@@ -229,10 +246,16 @@
+             entityareaeffectcloud.setColor(nbttagcompound.getInteger("CustomPotionColor"));
+         }
+ 
+-        this.world.spawnEntity(entityareaeffectcloud);
++        // this.world.spawnEntity(entityareaeffectcloud);
++        org.bukkit.event.entity.LingeringPotionSplashEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callLingeringPotionSplashEvent(this, entityareaeffectcloud);
++        if (!(event.isCancelled() || entityareaeffectcloud.isDead)) {
++            this.world.spawnEntity(entityareaeffectcloud);
++        } else {
++            entityareaeffectcloud.isDead = true;
++        }
+     }
+ 
+-    private boolean isLingering()
++    public boolean isLingering()
+     {
+         return this.getPotion().getItem() == Items.LINGERING_POTION;
+     }

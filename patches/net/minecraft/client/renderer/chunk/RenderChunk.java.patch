@@ -1,0 +1,80 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/chunk/RenderChunk.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/chunk/RenderChunk.java
+@@ -162,7 +162,7 @@
+                     lvt_9_1_.setOpaqueCube(blockpos$mutableblockpos);
+                 }
+ 
+-                if (block.hasTileEntity())
++                if (block.hasTileEntity(iblockstate))
+                 {
+                     TileEntity tileentity = this.worldView.getTileEntity(blockpos$mutableblockpos, Chunk.EnumCreateEntityType.CHECK);
+ 
+@@ -172,17 +172,19 @@
+ 
+                         if (tileentityspecialrenderer != null)
+                         {
+-                            compiledchunk.addTileEntity(tileentity);
+ 
+                             if (tileentityspecialrenderer.isGlobalRenderer(tileentity))
+                             {
+                                 lvt_10_1_.add(tileentity);
+                             }
++                            else compiledchunk.addTileEntity(tileentity); // FORGE: Fix MC-112730
+                         }
+                     }
+                 }
+ 
+-                BlockRenderLayer blockrenderlayer1 = block.getBlockLayer();
++                for(BlockRenderLayer blockrenderlayer1 : BlockRenderLayer.values()) {
++                     if(!block.canRenderInLayer(iblockstate, blockrenderlayer1)) continue;
++                     net.minecraftforge.client.ForgeHooksClient.setRenderLayer(blockrenderlayer1);
+                 int j = blockrenderlayer1.ordinal();
+ 
+                 if (block.getDefaultState().getRenderType() != EnumBlockRenderType.INVISIBLE)
+@@ -197,6 +199,8 @@
+ 
+                     aboolean[j] |= blockrendererdispatcher.renderBlock(iblockstate, blockpos$mutableblockpos, this.worldView, bufferbuilder);
+                 }
++                }
++                net.minecraftforge.client.ForgeHooksClient.setRenderLayer(null);
+             }
+ 
+             for (BlockRenderLayer blockrenderlayer : BlockRenderLayer.values())
+@@ -278,7 +282,9 @@
+     private void rebuildWorldView()
+     {
+         int i = 1;
+-        this.worldView = new ChunkCache(this.world, this.position.add(-1, -1, -1), this.position.add(16, 16, 16), 1);
++        ChunkCache cache = createRegionRenderCache(this.world, this.position.add(-1, -1, -1), this.position.add(16, 16, 16), 1);
++        net.minecraftforge.client.MinecraftForgeClient.onRebuildChunk(this.world, this.position, cache);
++        this.worldView = cache;
+     }
+ 
+     @Nullable
+@@ -427,6 +433,26 @@
+         return this.needsUpdate && this.needsImmediateUpdate;
+     }
+ 
++    /* ======================================== FORGE START =====================================*/
++    /**
++     * Creates a new RegionRenderCache instance.<br>
++     * Extending classes can change the behavior of the cache, allowing to visually change
++     * blocks (schematics etc).
++     *
++     * @see RegionRenderCache
++     * @param world The world to cache.
++     * @param from The starting position of the chunk minus one on each axis.
++     * @param to The ending position of the chunk plus one on each axis.
++     * @param subtract Padding used internally by the RegionRenderCache constructor to make
++     *                 the cache a 20x20x20 cube, for a total of 8000 states in the cache.
++     * @return new RegionRenderCache instance
++     */
++    protected ChunkCache createRegionRenderCache(World world, BlockPos from, BlockPos to, int subtract)
++    {
++        return new ChunkCache(world, from, to, subtract);
++    }
++    /* ========================================= FORGE END ======================================*/
++
+     public BlockPos getBlockPosOffset16(EnumFacing facing)
+     {
+         return this.mapEnumFacing[facing.ordinal()];

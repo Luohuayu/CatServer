@@ -1,0 +1,91 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemBow.java
++++ ../src-work/minecraft/net/minecraft/item/ItemBow.java
+@@ -5,6 +5,7 @@
+ import net.minecraft.enchantment.EnchantmentHelper;
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.entity.projectile.EntityArrow;
+ import net.minecraft.init.Enchantments;
+ import net.minecraft.init.Items;
+@@ -18,6 +19,7 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.entity.EntityCombustEvent;
+ 
+ public class ItemBow extends Item
+ {
+@@ -90,6 +92,10 @@
+             boolean flag = entityplayer.capabilities.isCreativeMode || EnchantmentHelper.getEnchantmentLevel(Enchantments.INFINITY, stack) > 0;
+             ItemStack itemstack = this.findAmmo(entityplayer);
+ 
++            int i = this.getMaxItemUseDuration(stack) - timeLeft;
++            i = net.minecraftforge.event.ForgeEventFactory.onArrowLoose(stack, worldIn, entityplayer, i, !itemstack.isEmpty() || flag);
++            if (i < 0) return;
++
+             if (!itemstack.isEmpty() || flag)
+             {
+                 if (itemstack.isEmpty())
+@@ -97,12 +103,11 @@
+                     itemstack = new ItemStack(Items.ARROW);
+                 }
+ 
+-                int i = this.getMaxItemUseDuration(stack) - timeLeft;
+                 float f = getArrowVelocity(i);
+ 
+                 if ((double)f >= 0.1D)
+                 {
+-                    boolean flag1 = flag && itemstack.getItem() == Items.ARROW;
++                    boolean flag1 = entityplayer.capabilities.isCreativeMode || (itemstack.getItem() instanceof ItemArrow && ((ItemArrow) itemstack.getItem()).isInfinite(itemstack, stack, entityplayer));
+ 
+                     if (!worldIn.isRemote)
+                     {
+@@ -131,8 +136,19 @@
+ 
+                         if (EnchantmentHelper.getEnchantmentLevel(Enchantments.FLAME, stack) > 0)
+                         {
+-                            entityarrow.setFire(100);
++                            // entityarrow.setFire(100);
++                            EntityCombustEvent event = new EntityCombustEvent(entityarrow.getBukkitEntity(), 100);
++                            entityarrow.world.getServer().getPluginManager().callEvent(event);
++
++                            if (!event.isCancelled()) {
++                                entityarrow.setFire(event.getDuration());
++                            }
+                         }
++                        org.bukkit.event.entity.EntityShootBowEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityShootBowEvent(entityplayer, itemstack, entityarrow, f);
++                        if (event.isCancelled()) {
++                            event.getProjectile().remove();
++                            return;
++                        }
+ 
+                         stack.damageItem(1, entityplayer);
+ 
+@@ -141,7 +157,15 @@
+                             entityarrow.pickupStatus = EntityArrow.PickupStatus.CREATIVE_ONLY;
+                         }
+ 
+-                        worldIn.spawnEntity(entityarrow);
++                        // worldIn.spawnEntity(entityarrow);
++                        if (event.getProjectile() == entityarrow.getBukkitEntity()) {
++                            if (!worldIn.spawnEntity(entityarrow)) {
++                                if (entityplayer instanceof EntityPlayerMP) {
++                                    ((EntityPlayerMP) entityplayer).getBukkitEntity().updateInventory();
++                                }
++                                return;
++                            }
++                        }
+                     }
+ 
+                     worldIn.playSound((EntityPlayer)null, entityplayer.posX, entityplayer.posY, entityplayer.posZ, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.PLAYERS, 1.0F, 1.0F / (itemRand.nextFloat() * 0.4F + 1.2F) + f * 0.5F);
+@@ -190,6 +214,9 @@
+         ItemStack itemstack = playerIn.getHeldItem(handIn);
+         boolean flag = !this.findAmmo(playerIn).isEmpty();
+ 
++        ActionResult<ItemStack> ret = net.minecraftforge.event.ForgeEventFactory.onArrowNock(itemstack, worldIn, playerIn, handIn, flag);
++        if (ret != null) return ret;
++
+         if (!playerIn.capabilities.isCreativeMode && !flag)
+         {
+             return flag ? new ActionResult(EnumActionResult.PASS, itemstack) : new ActionResult(EnumActionResult.FAIL, itemstack);

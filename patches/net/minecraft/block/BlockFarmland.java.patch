@@ -1,0 +1,76 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockFarmland.java
++++ ../src-work/minecraft/net/minecraft/block/BlockFarmland.java
+@@ -19,6 +19,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityInteractEvent;
+ 
+ public class BlockFarmland extends Block
+ {
+@@ -72,20 +74,40 @@
+ 
+     public void onFallenUpon(World worldIn, BlockPos pos, Entity entityIn, float fallDistance)
+     {
+-        if (!worldIn.isRemote && worldIn.rand.nextFloat() < fallDistance - 0.5F && entityIn instanceof EntityLivingBase && (entityIn instanceof EntityPlayer || worldIn.getGameRules().getBoolean("mobGriefing")) && entityIn.width * entityIn.width * entityIn.height > 0.512F)
++        super.onFallenUpon(worldIn, pos, entityIn, fallDistance); // CraftBukkit - moved here as game rules / events shouldn't affect fall damage.
++        if (net.minecraftforge.common.ForgeHooks.onFarmlandTrample(worldIn, pos, Blocks.DIRT.getDefaultState(), fallDistance, entityIn)) // Forge: Move logic to Entity#canTrample
+         {
++            org.bukkit.event.Cancellable cancellable;
++            if (entityIn instanceof EntityPlayer) {
++                cancellable = CraftEventFactory.callPlayerInteractEvent((EntityPlayer) entityIn, org.bukkit.event.block.Action.PHYSICAL, pos, null, null, null);
++            } else {
++                cancellable = new EntityInteractEvent(entityIn.getBukkitEntity(), worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()));
++                worldIn.getServer().getPluginManager().callEvent((EntityInteractEvent) cancellable);
++            }
++
++            if (cancellable.isCancelled()) {
++                return;
++            }
++
++            if (CraftEventFactory.callEntityChangeBlockEvent(entityIn, pos, Blocks.DIRT, 0).isCancelled()) {
++                return;
++            }
+             turnToDirt(worldIn, pos);
+         }
+ 
+-        super.onFallenUpon(worldIn, pos, entityIn, fallDistance);
++//        super.onFallenUpon(worldIn, pos, entityIn, fallDistance); // CraftBukkit - moved up
+     }
+ 
+-    protected static void turnToDirt(World p_190970_0_, BlockPos worldIn)
++    protected static void turnToDirt(World worldIn, BlockPos pos)
+     {
+-        p_190970_0_.setBlockState(worldIn, Blocks.DIRT.getDefaultState());
+-        AxisAlignedBB axisalignedbb = field_194405_c.offset(worldIn);
++        org.bukkit.block.Block block = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++        if (CraftEventFactory.callBlockFadeEvent(block, Blocks.DIRT).isCancelled()) {
++            return;
++        }
++        worldIn.setBlockState(pos, Blocks.DIRT.getDefaultState());
++        AxisAlignedBB axisalignedbb = field_194405_c.offset(pos);
+ 
+-        for (Entity entity : p_190970_0_.getEntitiesWithinAABBExcludingEntity((Entity)null, axisalignedbb))
++        for (Entity entity : worldIn.getEntitiesWithinAABBExcludingEntity((Entity)null, axisalignedbb))
+         {
+             double d0 = Math.min(axisalignedbb.maxY - axisalignedbb.minY, axisalignedbb.maxY - entity.getEntityBoundingBox().minY);
+             entity.setPositionAndUpdate(entity.posX, entity.posY + d0 + 0.001D, entity.posZ);
+@@ -95,7 +117,7 @@
+     private boolean hasCrops(World worldIn, BlockPos pos)
+     {
+         Block block = worldIn.getBlockState(pos.up()).getBlock();
+-        return block instanceof BlockCrops || block instanceof BlockStem;
++        return block instanceof net.minecraftforge.common.IPlantable && canSustainPlant(worldIn.getBlockState(pos), worldIn, pos, EnumFacing.UP, (net.minecraftforge.common.IPlantable)block);
+     }
+ 
+     private boolean hasWater(World worldIn, BlockPos pos)
+@@ -108,7 +130,7 @@
+             }
+         }
+ 
+-        return false;
++        return net.minecraftforge.common.FarmlandWaterManager.hasBlockWaterTicket(worldIn, pos);
+     }
+ 
+     public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos)

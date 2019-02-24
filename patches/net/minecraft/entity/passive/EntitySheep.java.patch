@@ -1,0 +1,99 @@
+--- ../src-base/minecraft/net/minecraft/entity/passive/EntitySheep.java
++++ ../src-work/minecraft/net/minecraft/entity/passive/EntitySheep.java
+@@ -24,6 +24,7 @@
+ import net.minecraft.init.Items;
+ import net.minecraft.init.SoundEvents;
+ import net.minecraft.inventory.Container;
++import net.minecraft.inventory.InventoryCraftResult;
+ import net.minecraft.inventory.InventoryCrafting;
+ import net.minecraft.item.EnumDyeColor;
+ import net.minecraft.item.Item;
+@@ -45,8 +46,10 @@
+ import net.minecraft.world.storage.loot.LootTableList;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.entity.SheepRegrowWoolEvent;
++import org.bukkit.inventory.InventoryView;
+ 
+-public class EntitySheep extends EntityAnimal
++public class EntitySheep extends EntityAnimal implements net.minecraftforge.common.IShearable
+ {
+     private static final DataParameter<Byte> DYE_COLOR = EntityDataManager.<Byte>createKey(EntitySheep.class, DataSerializers.BYTE);
+     private final InventoryCrafting inventoryCrafting = new InventoryCrafting(new Container()
+@@ -55,6 +58,11 @@
+         {
+             return false;
+         }
++
++        @Override
++        public InventoryView getBukkitView() {
++            return null; // TODO: O.O
++        }
+     }, 2, 1);
+     private static final Map<EnumDyeColor, float[]> DYE_TO_RGB = Maps.newEnumMap(EnumDyeColor.class);
+     private int sheepTimer;
+@@ -79,6 +87,7 @@
+         this.setSize(0.9F, 1.3F);
+         this.inventoryCrafting.setInventorySlotContents(0, new ItemStack(Items.DYE));
+         this.inventoryCrafting.setInventorySlotContents(1, new ItemStack(Items.DYE));
++        this.inventoryCrafting.resultInventory = new InventoryCraftResult(); // CraftBukkit - add result slot for event
+     }
+ 
+     protected void initEntityAI()
+@@ -185,11 +194,12 @@
+         }
+     }
+ 
++    // TODO: Implement PlayerShearEntityEvent
+     public boolean processInteract(EntityPlayer player, EnumHand hand)
+     {
+         ItemStack itemstack = player.getHeldItem(hand);
+ 
+-        if (itemstack.getItem() == Items.SHEARS && !this.getSheared() && !this.isChild())
++        if (false && itemstack.getItem() == Items.SHEARS && !this.getSheared() && !this.isChild())   //Forge: Moved to onSheared
+         {
+             if (!this.world.isRemote)
+             {
+@@ -198,7 +208,9 @@
+ 
+                 for (int j = 0; j < i; ++j)
+                 {
++                    this.forceDrops = true;
+                     EntityItem entityitem = this.entityDropItem(new ItemStack(Item.getItemFromBlock(Blocks.WOOL), 1, this.getFleeceColor().getMetadata()), 1.0F);
++                    this.forceDrops = false;
+                     entityitem.motionY += (double)(this.rand.nextFloat() * 0.05F);
+                     entityitem.motionX += (double)((this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F);
+                     entityitem.motionZ += (double)((this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F);
+@@ -348,6 +360,10 @@
+ 
+     public void eatGrassBonus()
+     {
++        SheepRegrowWoolEvent event = new SheepRegrowWoolEvent((org.bukkit.entity.Sheep) this.getBukkitEntity());
++        this.world.getServer().getPluginManager().callEvent(event);
++
++        if (event.isCancelled()) return;
+         this.setSheared(false);
+ 
+         if (this.isChild())
+@@ -364,6 +380,21 @@
+         return livingdata;
+     }
+ 
++    @Override public boolean isShearable(ItemStack item, net.minecraft.world.IBlockAccess world, BlockPos pos){ return !this.getSheared() && !this.isChild(); }
++    @Override
++    public java.util.List<ItemStack> onSheared(ItemStack item, net.minecraft.world.IBlockAccess world, BlockPos pos, int fortune)
++    {
++        this.setSheared(true);
++        int i = 1 + this.rand.nextInt(3);
++
++        java.util.List<ItemStack> ret = new java.util.ArrayList<ItemStack>();
++        for (int j = 0; j < i; ++j)
++            ret.add(new ItemStack(Item.getItemFromBlock(Blocks.WOOL), 1, this.getFleeceColor().getMetadata()));
++
++        this.playSound(SoundEvents.ENTITY_SHEEP_SHEAR, 1.0F, 1.0F);
++        return ret;
++    }
++
+     private EnumDyeColor getDyeColorMixFromParents(EntityAnimal father, EntityAnimal mother)
+     {
+         int i = ((EntitySheep)father).getFleeceColor().getDyeDamage();

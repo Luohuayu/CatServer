@@ -1,0 +1,109 @@
+--- ../src-base/minecraft/net/minecraft/server/dedicated/PropertyManager.java
++++ ../src-work/minecraft/net/minecraft/server/dedicated/PropertyManager.java
+@@ -5,6 +5,8 @@
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.util.Properties;
++
++import joptsimple.OptionSet;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+@@ -14,8 +16,9 @@
+ public class PropertyManager
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+-    private final Properties serverProperties = new Properties();
++    public final Properties serverProperties = new Properties();
+     private final File serverPropertiesFile;
++    private OptionSet options = null;
+ 
+     public PropertyManager(File propertiesFile)
+     {
+@@ -57,6 +60,18 @@
+         }
+     }
+ 
++    public PropertyManager(final OptionSet options) {
++        this((File) options.valueOf("config"));
++        this.options = options;
++    }
++
++    private <T> T getOverride(String name, T value) {
++        if ((this.options != null) && (this.options.has(name))) {
++            return (T) this.options.valueOf(name);
++        }
++        return value;
++    }
++
+     public void generateNewProperties()
+     {
+         LOGGER.info("Generating new properties file");
+@@ -69,6 +84,11 @@
+ 
+         try
+         {
++            // CraftBukkit start - Don't attempt writing to file if it's read only
++            if (this.serverPropertiesFile.exists() && !this.serverPropertiesFile.canWrite()) {
++                return;
++            }
++            // CraftBukkit end
+             fileoutputstream = new FileOutputStream(this.serverPropertiesFile);
+             this.serverProperties.store(fileoutputstream, "Minecraft server properties");
+         }
+@@ -107,20 +127,20 @@
+             this.saveProperties();
+         }
+ 
+-        return this.serverProperties.getProperty(key, defaultValue);
++        return getOverride(key, this.serverProperties.getProperty(key, defaultValue));
+     }
+ 
+     public int getIntProperty(String key, int defaultValue)
+     {
+         try
+         {
+-            return Integer.parseInt(this.getStringProperty(key, "" + defaultValue));
++            return getOverride(key, Integer.parseInt(this.getStringProperty(key, "" + defaultValue)));
+         }
+         catch (Exception var4)
+         {
+             this.serverProperties.setProperty(key, "" + defaultValue);
+             this.saveProperties();
+-            return defaultValue;
++            return getOverride(key, defaultValue);
+         }
+     }
+ 
+@@ -128,13 +148,13 @@
+     {
+         try
+         {
+-            return Long.parseLong(this.getStringProperty(key, "" + defaultValue));
++            return getOverride(key, Long.parseLong(this.getStringProperty(key, "" + defaultValue)));
+         }
+         catch (Exception var5)
+         {
+             this.serverProperties.setProperty(key, "" + defaultValue);
+             this.saveProperties();
+-            return defaultValue;
++            return getOverride(key, defaultValue);
+         }
+     }
+ 
+@@ -142,13 +162,13 @@
+     {
+         try
+         {
+-            return Boolean.parseBoolean(this.getStringProperty(key, "" + defaultValue));
++            return getOverride(key, Boolean.parseBoolean(this.getStringProperty(key, "" + defaultValue)));
+         }
+         catch (Exception var4)
+         {
+             this.serverProperties.setProperty(key, "" + defaultValue);
+             this.saveProperties();
+-            return defaultValue;
++            return getOverride(key, defaultValue);
+         }
+     }
+ 

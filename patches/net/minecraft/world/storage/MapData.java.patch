@@ -1,0 +1,198 @@
+--- ../src-base/minecraft/net/minecraft/world/storage/MapData.java
++++ ../src-work/minecraft/net/minecraft/world/storage/MapData.java
+@@ -4,6 +4,7 @@
+ import com.google.common.collect.Maps;
+ import java.util.List;
+ import java.util.Map;
++import java.util.UUID;
+ import javax.annotation.Nullable;
+ import net.minecraft.entity.item.EntityItemFrame;
+ import net.minecraft.entity.player.EntityPlayer;
+@@ -15,23 +16,32 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.map.CraftMapView;
+ 
+ public class MapData extends WorldSavedData
+ {
+     public int xCenter;
+     public int zCenter;
+-    public byte dimension;
++    public int dimension; //FML byte -> int
+     public boolean trackingPosition;
+     public boolean unlimitedTracking;
+     public byte scale;
+     public byte[] colors = new byte[16384];
+-    public List<MapData.MapInfo> playersArrayList = Lists.<MapData.MapInfo>newArrayList();
+-    private final Map<EntityPlayer, MapData.MapInfo> playersHashMap = Maps.<EntityPlayer, MapData.MapInfo>newHashMap();
++    public List<MapInfo> playersArrayList = Lists.<MapInfo>newArrayList();
++    private final Map<EntityPlayer, MapInfo> playersHashMap = Maps.<EntityPlayer, MapInfo>newHashMap();
+     public Map<String, MapDecoration> mapDecorations = Maps.<String, MapDecoration>newLinkedHashMap();
+ 
++    public final CraftMapView mapView;
++    private CraftServer server;
++    private UUID uniqueId = null;
++
+     public MapData(String mapname)
+     {
+         super(mapname);
++        mapView = new CraftMapView(this);
++        server = (CraftServer) org.bukkit.Bukkit.getServer();
+     }
+ 
+     public void calculateMapCenter(double x, double z, int mapScale)
+@@ -45,7 +55,31 @@
+ 
+     public void readFromNBT(NBTTagCompound nbt)
+     {
+-        this.dimension = nbt.getByte("dimension");
++        // this.dimension = nbt.getInteger("dimension");
++        // CraftBukkit start
++        int dimension = nbt.getInteger("dimension");
++
++        if (dimension >= 10) {
++            long least = nbt.getLong("UUIDLeast");
++            long most = nbt.getLong("UUIDMost");
++
++            if (least != 0L && most != 0L) {
++                this.uniqueId = new UUID(most, least);
++
++                CraftWorld world = (CraftWorld) server.getWorld(this.uniqueId);
++                // Check if the stored world details are correct.
++                if (world == null) {
++                    /* All Maps which do not have their valid world loaded are set to a dimension which hopefully won't be reached.
++                       This is to prevent them being corrupted with the wrong map data. */
++                    dimension = 127;
++                } else {
++                    dimension = (byte) world.getHandle().dimension;
++                }
++            }
++        }
++
++        this.dimension = dimension;
++        // CraftBukkit end
+         this.xCenter = nbt.getInteger("xCenter");
+         this.zCenter = nbt.getInteger("zCenter");
+         this.scale = nbt.getByte("scale");
+@@ -97,7 +131,26 @@
+ 
+     public NBTTagCompound writeToNBT(NBTTagCompound compound)
+     {
+-        compound.setByte("dimension", this.dimension);
++        // CraftBukkit start
++        if (this.dimension >= 10) {
++            if (this.uniqueId == null) {
++                for (org.bukkit.World world : server.getWorlds()) {
++                    CraftWorld cWorld = (CraftWorld) world;
++                    if (cWorld.getHandle().dimension == this.dimension) {
++                        this.uniqueId = cWorld.getUID();
++                        break;
++                    }
++                }
++            }
++            /* Perform a second check to see if a matching world was found, this is a necessary
++               change incase Maps are forcefully unlinked from a World and lack a UID.*/
++            if (this.uniqueId != null) {
++                compound.setLong("UUIDLeast", this.uniqueId.getLeastSignificantBits());
++                compound.setLong("UUIDMost", this.uniqueId.getMostSignificantBits());
++            }
++        }
++        // CraftBukkit end
++        compound.setInteger("dimension", this.dimension);
+         compound.setInteger("xCenter", this.xCenter);
+         compound.setInteger("zCenter", this.zCenter);
+         compound.setByte("scale", this.scale);
+@@ -113,7 +166,7 @@
+     {
+         if (!this.playersHashMap.containsKey(player))
+         {
+-            MapData.MapInfo mapdata$mapinfo = new MapData.MapInfo(player);
++            MapInfo mapdata$mapinfo = new MapInfo(player);
+             this.playersHashMap.put(player, mapdata$mapinfo);
+             this.playersArrayList.add(mapdata$mapinfo);
+         }
+@@ -125,7 +178,7 @@
+ 
+         for (int i = 0; i < this.playersArrayList.size(); ++i)
+         {
+-            MapData.MapInfo mapdata$mapinfo1 = this.playersArrayList.get(i);
++            MapInfo mapdata$mapinfo1 = this.playersArrayList.get(i);
+ 
+             if (!mapdata$mapinfo1.player.isDead && (mapdata$mapinfo1.player.inventory.hasItemStack(mapStack) || mapStack.isOnItemFrame()))
+             {
+@@ -208,9 +261,9 @@
+             rotationIn = rotationIn + (rotationIn < 0.0D ? -8.0D : 8.0D);
+             b2 = (byte)((int)(rotationIn * 16.0D / 360.0D));
+ 
+-            if (this.dimension < 0)
++            if (worldIn.provider.shouldMapSpin(decorationName, worldX, worldZ, rotationIn))
+             {
+-                int l = (int)(worldIn.getWorldInfo().getWorldTime() / 10L);
++                int l = (int)(worldIn.getWorldTime() / 10L);
+                 b2 = (byte)(l * l * 34187121 + l * 121 >> 15 & 15);
+             }
+         }
+@@ -268,7 +321,7 @@
+     @Nullable
+     public Packet<?> getMapPacket(ItemStack mapStack, World worldIn, EntityPlayer player)
+     {
+-        MapData.MapInfo mapdata$mapinfo = this.playersHashMap.get(player);
++        MapInfo mapdata$mapinfo = this.playersHashMap.get(player);
+         return mapdata$mapinfo == null ? null : mapdata$mapinfo.getPacket(mapStack);
+     }
+ 
+@@ -276,19 +329,19 @@
+     {
+         super.markDirty();
+ 
+-        for (MapData.MapInfo mapdata$mapinfo : this.playersArrayList)
++        for (MapInfo mapdata$mapinfo : this.playersArrayList)
+         {
+             mapdata$mapinfo.update(x, y);
+         }
+     }
+ 
+-    public MapData.MapInfo getMapInfo(EntityPlayer player)
++    public MapInfo getMapInfo(EntityPlayer player)
+     {
+-        MapData.MapInfo mapdata$mapinfo = this.playersHashMap.get(player);
++        MapInfo mapdata$mapinfo = this.playersHashMap.get(player);
+ 
+         if (mapdata$mapinfo == null)
+         {
+-            mapdata$mapinfo = new MapData.MapInfo(player);
++            mapdata$mapinfo = new MapInfo(player);
+             this.playersHashMap.put(player, mapdata$mapinfo);
+             this.playersArrayList.add(mapdata$mapinfo);
+         }
+@@ -315,14 +368,25 @@
+         @Nullable
+         public Packet<?> getPacket(ItemStack stack)
+         {
++            org.bukkit.craftbukkit.map.RenderData render = MapData.this.mapView.render((org.bukkit.craftbukkit.entity.CraftPlayer) this.player.getBukkitEntity());
++
++            java.util.Collection<MapDecoration> icons = new java.util.ArrayList<>();
++
++            for ( org.bukkit.map.MapCursor cursor : render.cursors) {
++
++                if (cursor.isVisible()) {
++                    icons.add(new MapDecoration(MapDecoration.Type.byIcon(cursor.getRawType()), cursor.getX(), cursor.getY(), cursor.getDirection()));
++                }
++            }
++
+             if (this.isDirty)
+             {
+                 this.isDirty = false;
+-                return new SPacketMaps(stack.getMetadata(), MapData.this.scale, MapData.this.trackingPosition, MapData.this.mapDecorations.values(), MapData.this.colors, this.minX, this.minY, this.maxX + 1 - this.minX, this.maxY + 1 - this.minY);
++                return new SPacketMaps(stack.getMetadata(), MapData.this.scale, MapData.this.trackingPosition, icons, render.buffer, this.minX, this.minY, this.maxX + 1 - this.minX, this.maxY + 1 - this.minY);
+             }
+             else
+             {
+-                return this.tick++ % 5 == 0 ? new SPacketMaps(stack.getMetadata(), MapData.this.scale, MapData.this.trackingPosition, MapData.this.mapDecorations.values(), MapData.this.colors, 0, 0, 0, 0) : null;
++                return this.tick++ % 5 == 0 ? new SPacketMaps(stack.getMetadata(), MapData.this.scale, MapData.this.trackingPosition, icons, render.buffer, 0, 0, 0, 0) : null;
+             }
+         }
+ 

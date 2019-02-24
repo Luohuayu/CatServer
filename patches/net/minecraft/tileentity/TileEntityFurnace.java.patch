@@ -1,0 +1,276 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/TileEntityFurnace.java
++++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityFurnace.java
+@@ -22,6 +22,7 @@
+ import net.minecraft.item.ItemTool;
+ import net.minecraft.item.crafting.FurnaceRecipes;
+ import net.minecraft.nbt.NBTTagCompound;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.EnumFacing;
+ import net.minecraft.util.ITickable;
+ import net.minecraft.util.NonNullList;
+@@ -32,6 +33,14 @@
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ 
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.inventory.FurnaceBurnEvent;
++import org.bukkit.event.inventory.FurnaceSmeltEvent;
++
++import java.util.List;
++
+ public class TileEntityFurnace extends TileEntityLockable implements ITickable, ISidedInventory
+ {
+     private static final int[] SLOTS_TOP = new int[] {0};
+@@ -44,6 +53,31 @@
+     private int totalCookTime;
+     private String furnaceCustomName;
+ 
++    private int lastTick = MinecraftServer.currentTick;
++    // CraftBukkit start - add fields and methods
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    private int maxStack = MAX_STACK;
++    
++    public List<ItemStack> getContents() {
++        return this.furnaceItemStacks;
++    }
++        
++    public void onOpen(CraftHumanEntity who) {
++        transaction.add(who);
++    }
++    
++    public void onClose(CraftHumanEntity who) {
++        transaction.remove(who);
++    }
++        
++    public List<HumanEntity> getViewers() {
++        return transaction;
++    }
++        
++    public void setMaxStackSize(int size) {
++        maxStack = size;
++    }
++    // CraftBukkit end
+     public int getSizeInventory()
+     {
+         return this.furnaceItemStacks.size();
+@@ -121,9 +155,9 @@
+         super.readFromNBT(compound);
+         this.furnaceItemStacks = NonNullList.<ItemStack>withSize(this.getSizeInventory(), ItemStack.EMPTY);
+         ItemStackHelper.loadAllItems(compound, this.furnaceItemStacks);
+-        this.furnaceBurnTime = compound.getShort("BurnTime");
+-        this.cookTime = compound.getShort("CookTime");
+-        this.totalCookTime = compound.getShort("CookTimeTotal");
++        this.furnaceBurnTime = compound.getInteger("BurnTime");
++        this.cookTime = compound.getInteger("CookTime");
++        this.totalCookTime = compound.getInteger("CookTimeTotal");
+         this.currentItemBurnTime = getItemBurnTime(this.furnaceItemStacks.get(1));
+ 
+         if (compound.hasKey("CustomName", 8))
+@@ -135,9 +169,9 @@
+     public NBTTagCompound writeToNBT(NBTTagCompound compound)
+     {
+         super.writeToNBT(compound);
+-        compound.setShort("BurnTime", (short)this.furnaceBurnTime);
+-        compound.setShort("CookTime", (short)this.cookTime);
+-        compound.setShort("CookTimeTotal", (short)this.totalCookTime);
++        compound.setInteger("BurnTime", (short)this.furnaceBurnTime);
++        compound.setInteger("CookTime", (short)this.cookTime);
++        compound.setInteger("CookTimeTotal", (short)this.totalCookTime);
+         ItemStackHelper.saveAllItems(compound, this.furnaceItemStacks);
+ 
+         if (this.hasCustomName())
+@@ -150,6 +184,7 @@
+ 
+     public int getInventoryStackLimit()
+     {
++        // TODO: Should it be maxStack?
+         return 64;
+     }
+ 
+@@ -166,12 +201,31 @@
+ 
+     public void update()
+     {
+-        boolean flag = this.isBurning();
++        boolean flag = (this.getBlockType() == Blocks.LIT_FURNACE); // CraftBukkit - SPIGOT-844 - Check if furnace block is lit using the block instead of burn time
+         boolean flag1 = false;
+ 
++        // CraftBukkit start - Use wall time instead of ticks for cooking
++        int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++        this.lastTick = MinecraftServer.currentTick;
++
++        // CraftBukkit - moved from below - edited for wall time
++        if (this.isBurning() && this.canSmelt()) {
++            this.cookTime += elapsedTicks;
++            if (this.cookTime >= this.totalCookTime) {
++                this.cookTime = 0;
++                this.totalCookTime = this.getCookTime((ItemStack) this.furnaceItemStacks.get(0));
++                this.smeltItem();
++                flag1 = true;
++            }
++        } else {
++            this.cookTime = 0;
++        }
++        // CraftBukkit end
++
+         if (this.isBurning())
+         {
+-            --this.furnaceBurnTime;
++            // --this.furnaceBurnTime;
++            this.furnaceBurnTime -= elapsedTicks; // CraftBukkit - use elapsedTicks in place of constant
+         }
+ 
+         if (!this.world.isRemote)
+@@ -180,13 +234,21 @@
+ 
+             if (this.isBurning() || !itemstack.isEmpty() && !((ItemStack)this.furnaceItemStacks.get(0)).isEmpty())
+             {
+-                if (!this.isBurning() && this.canSmelt())
+-                {
+-                    this.furnaceBurnTime = getItemBurnTime(itemstack);
+-                    this.currentItemBurnTime = this.furnaceBurnTime;
++                // CraftBukkit start - Handle multiple elapsed ticks
++                if (this.furnaceBurnTime <= 0 && this.canSmelt()) { // CraftBukkit - == to <=
++                    CraftItemStack fuel = CraftItemStack.asCraftMirror(itemstack);
+ 
+-                    if (this.isBurning())
+-                    {
++                    FurnaceBurnEvent furnaceBurnEvent = new FurnaceBurnEvent(this.world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), fuel, getItemBurnTime(itemstack));
++                    this.world.getServer().getPluginManager().callEvent(furnaceBurnEvent);
++
++                    if (furnaceBurnEvent.isCancelled()) {
++                        return;
++                    }
++
++                    this.currentItemBurnTime = furnaceBurnEvent.getBurnTime();
++                    this.furnaceBurnTime += this.currentItemBurnTime;
++                    if (this.furnaceBurnTime > 0 && furnaceBurnEvent.isBurning()) {
++                        // CraftBukkit end
+                         flag1 = true;
+ 
+                         if (!itemstack.isEmpty())
+@@ -196,13 +258,14 @@
+ 
+                             if (itemstack.isEmpty())
+                             {
+-                                Item item1 = item.getContainerItem();
+-                                this.furnaceItemStacks.set(1, item1 == null ? ItemStack.EMPTY : new ItemStack(item1));
++                                ItemStack item1 = item.getContainerItem(itemstack);
++                                this.furnaceItemStacks.set(1, item1);
+                             }
+                         }
+                     }
+                 }
+ 
++                /* CraftBukkit start - Moved up
+                 if (this.isBurning() && this.canSmelt())
+                 {
+                     ++this.cookTime;
+@@ -219,6 +282,7 @@
+                 {
+                     this.cookTime = 0;
+                 }
++                */
+             }
+             else if (!this.isBurning() && this.cookTime > 0)
+             {
+@@ -229,6 +293,7 @@
+             {
+                 flag1 = true;
+                 BlockFurnace.setState(this.isBurning(), this.world, this.pos);
++                this.updateContainingBlockInfo(); // CraftBukkit - Invalidate tile entity's cached block type
+             }
+         }
+ 
+@@ -269,13 +334,13 @@
+                 {
+                     return false;
+                 }
+-                else if (itemstack1.getCount() < this.getInventoryStackLimit() && itemstack1.getCount() < itemstack1.getMaxStackSize())
++                else if (itemstack1.getCount() + itemstack.getCount() <= this.getInventoryStackLimit() && itemstack1.getCount() + itemstack.getCount() <= itemstack1.getMaxStackSize())  // Forge fix: make furnace respect stack sizes in furnace recipes
+                 {
+                     return true;
+                 }
+                 else
+                 {
+-                    return itemstack1.getCount() < itemstack.getMaxStackSize();
++                    return itemstack1.getCount() + itemstack.getCount() <= itemstack.getMaxStackSize(); // Forge fix: make furnace respect stack sizes in furnace recipes
+                 }
+             }
+         }
+@@ -289,14 +354,39 @@
+             ItemStack itemstack1 = FurnaceRecipes.instance().getSmeltingResult(itemstack);
+             ItemStack itemstack2 = this.furnaceItemStacks.get(2);
+ 
++            CraftItemStack source = CraftItemStack.asCraftMirror(itemstack);
++            org.bukkit.inventory.ItemStack result = CraftItemStack.asBukkitCopy(itemstack1);
++
++            FurnaceSmeltEvent furnaceSmeltEvent = new FurnaceSmeltEvent(this.world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), source, result);
++            this.world.getServer().getPluginManager().callEvent(furnaceSmeltEvent);
++
++            if (furnaceSmeltEvent.isCancelled()) {
++                return;
++            }
++
++            result = furnaceSmeltEvent.getResult();
++            itemstack1 = CraftItemStack.asNMSCopy(result);
++
++            if (!itemstack1.isEmpty()) {
++                if (itemstack2.isEmpty()) {
++                    this.furnaceItemStacks.set(2, itemstack1.copy());
++                } else if (CraftItemStack.asCraftMirror(itemstack2).isSimilar(result)) {
++                    itemstack2.grow(itemstack1.getCount());
++                } else {
++                    return;
++                }
++            }
++
++            /*
+             if (itemstack2.isEmpty())
+             {
+                 this.furnaceItemStacks.set(2, itemstack1.copy());
+             }
+             else if (itemstack2.getItem() == itemstack1.getItem())
+             {
+-                itemstack2.grow(1);
++                itemstack2.grow(itemstack1.getCount());
+             }
++            */
+ 
+             if (itemstack.getItem() == Item.getItemFromBlock(Blocks.SPONGE) && itemstack.getMetadata() == 1 && !((ItemStack)this.furnaceItemStacks.get(1)).isEmpty() && ((ItemStack)this.furnaceItemStacks.get(1)).getItem() == Items.BUCKET)
+             {
+@@ -315,6 +405,8 @@
+         }
+         else
+         {
++            int burnTime = net.minecraftforge.event.ForgeEventFactory.getItemBurnTime(stack);
++            if (burnTime >= 0) return burnTime;
+             Item item = stack.getItem();
+ 
+             if (item == Item.getItemFromBlock(Blocks.WOODEN_SLAB))
+@@ -530,4 +622,23 @@
+     {
+         this.furnaceItemStacks.clear();
+     }
++
++    net.minecraftforge.items.IItemHandler handlerTop = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.UP);
++    net.minecraftforge.items.IItemHandler handlerBottom = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.DOWN);
++    net.minecraftforge.items.IItemHandler handlerSide = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.WEST);
++
++    @SuppressWarnings("unchecked")
++    @Override
++    @javax.annotation.Nullable
++    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @javax.annotation.Nullable EnumFacing facing)
++    {
++        if (facing != null && capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)
++            if (facing == EnumFacing.DOWN)
++                return (T) handlerBottom;
++            else if (facing == EnumFacing.UP)
++                return (T) handlerTop;
++            else
++                return (T) handlerSide;
++        return super.getCapability(capability, facing);
++    }
+ }

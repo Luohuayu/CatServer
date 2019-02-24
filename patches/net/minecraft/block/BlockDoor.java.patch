@@ -1,0 +1,187 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockDoor.java
++++ ../src-work/minecraft/net/minecraft/block/BlockDoor.java
+@@ -29,14 +29,15 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.block.BlockRedstoneEvent;
+ 
+ public class BlockDoor extends Block
+ {
+     public static final PropertyDirection FACING = BlockHorizontal.FACING;
+     public static final PropertyBool OPEN = PropertyBool.create("open");
+-    public static final PropertyEnum<BlockDoor.EnumHingePosition> HINGE = PropertyEnum.<BlockDoor.EnumHingePosition>create("hinge", BlockDoor.EnumHingePosition.class);
++    public static final PropertyEnum<EnumHingePosition> HINGE = PropertyEnum.<EnumHingePosition>create("hinge", EnumHingePosition.class);
+     public static final PropertyBool POWERED = PropertyBool.create("powered");
+-    public static final PropertyEnum<BlockDoor.EnumDoorHalf> HALF = PropertyEnum.<BlockDoor.EnumDoorHalf>create("half", BlockDoor.EnumDoorHalf.class);
++    public static final PropertyEnum<EnumDoorHalf> HALF = PropertyEnum.<EnumDoorHalf>create("half", EnumDoorHalf.class);
+     protected static final AxisAlignedBB SOUTH_AABB = new AxisAlignedBB(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 0.1875D);
+     protected static final AxisAlignedBB NORTH_AABB = new AxisAlignedBB(0.0D, 0.0D, 0.8125D, 1.0D, 1.0D, 1.0D);
+     protected static final AxisAlignedBB WEST_AABB = new AxisAlignedBB(0.8125D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
+@@ -45,7 +46,7 @@
+     protected BlockDoor(Material materialIn)
+     {
+         super(materialIn);
+-        this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(OPEN, Boolean.valueOf(false)).withProperty(HINGE, BlockDoor.EnumHingePosition.LEFT).withProperty(POWERED, Boolean.valueOf(false)).withProperty(HALF, BlockDoor.EnumDoorHalf.LOWER));
++        this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(OPEN, Boolean.valueOf(false)).withProperty(HINGE, EnumHingePosition.LEFT).withProperty(POWERED, Boolean.valueOf(false)).withProperty(HALF, EnumDoorHalf.LOWER));
+     }
+ 
+     public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos)
+@@ -53,7 +54,7 @@
+         state = state.getActualState(source, pos);
+         EnumFacing enumfacing = (EnumFacing)state.getValue(FACING);
+         boolean flag = !((Boolean)state.getValue(OPEN)).booleanValue();
+-        boolean flag1 = state.getValue(HINGE) == BlockDoor.EnumHingePosition.RIGHT;
++        boolean flag1 = state.getValue(HINGE) == EnumHingePosition.RIGHT;
+ 
+         switch (enumfacing)
+         {
+@@ -139,7 +140,7 @@
+         }
+         else
+         {
+-            BlockPos blockpos = state.getValue(HALF) == BlockDoor.EnumDoorHalf.LOWER ? pos : pos.down();
++            BlockPos blockpos = state.getValue(HALF) == EnumDoorHalf.LOWER ? pos : pos.down();
+             IBlockState iblockstate = pos.equals(blockpos) ? state : worldIn.getBlockState(blockpos);
+ 
+             if (iblockstate.getBlock() != this)
+@@ -163,7 +164,7 @@
+ 
+         if (iblockstate.getBlock() == this)
+         {
+-            BlockPos blockpos = iblockstate.getValue(HALF) == BlockDoor.EnumDoorHalf.LOWER ? pos : pos.down();
++            BlockPos blockpos = iblockstate.getValue(HALF) == EnumDoorHalf.LOWER ? pos : pos.down();
+             IBlockState iblockstate1 = pos == blockpos ? iblockstate : worldIn.getBlockState(blockpos);
+ 
+             if (iblockstate1.getBlock() == this && ((Boolean)iblockstate1.getValue(OPEN)).booleanValue() != open)
+@@ -177,7 +178,7 @@
+ 
+     public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos)
+     {
+-        if (state.getValue(HALF) == BlockDoor.EnumDoorHalf.UPPER)
++        if (state.getValue(HALF) == EnumDoorHalf.UPPER)
+         {
+             BlockPos blockpos = pos.down();
+             IBlockState iblockstate = worldIn.getBlockState(blockpos);
+@@ -203,7 +204,7 @@
+                 flag1 = true;
+             }
+ 
+-            if (!worldIn.getBlockState(pos.down()).isTopSolid())
++            if (!worldIn.getBlockState(pos.down()).isSideSolid(worldIn,  pos.down(), EnumFacing.UP))
+             {
+                 worldIn.setBlockToAir(pos);
+                 flag1 = true;
+@@ -223,17 +224,27 @@
+             }
+             else
+             {
+-                boolean flag = worldIn.isBlockPowered(pos) || worldIn.isBlockPowered(blockpos1);
++                org.bukkit.World bworld = worldIn.getWorld();
++                org.bukkit.block.Block bukkitBlock = bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++                org.bukkit.block.Block blockTop = bworld.getBlockAt(blockpos1.getX(), blockpos1.getY(), blockpos1.getZ());
+ 
+-                if (blockIn != this && (flag || blockIn.getDefaultState().canProvidePower()) && flag != ((Boolean)iblockstate1.getValue(POWERED)).booleanValue())
+-                {
+-                    worldIn.setBlockState(blockpos1, iblockstate1.withProperty(POWERED, Boolean.valueOf(flag)), 2);
++                int power = bukkitBlock.getBlockPower();
++                int powerTop = blockTop.getBlockPower();
++                if (powerTop > power) power = powerTop;
++                int oldPower = iblockstate1.getValue(BlockDoor.POWERED) ? 15 : 0;
+ 
+-                    if (flag != ((Boolean)state.getValue(OPEN)).booleanValue())
++                if (oldPower == 0 ^ power == 0) {
++                    BlockRedstoneEvent eventRedstone = new BlockRedstoneEvent(bukkitBlock, oldPower, power);
++                    worldIn.getServer().getPluginManager().callEvent(eventRedstone);
++
++                    boolean flag2 = eventRedstone.getNewCurrent() > 0;
++                    worldIn.setBlockState(blockpos1, iblockstate1.withProperty(POWERED, Boolean.valueOf(flag2)), 2);
++
++                    if (flag2 != state.getValue(OPEN))
+                     {
+-                        worldIn.setBlockState(pos, state.withProperty(OPEN, Boolean.valueOf(flag)), 2);
++                        worldIn.setBlockState(pos, state.withProperty(OPEN, Boolean.valueOf(flag2)), 2);
+                         worldIn.markBlockRangeForRenderUpdate(pos, pos);
+-                        worldIn.playEvent((EntityPlayer)null, flag ? this.getOpenSound() : this.getCloseSound(), pos, 0);
++                        worldIn.playEvent(null, flag2 ? this.getOpenSound() : this.getCloseSound(), pos, 0);
+                     }
+                 }
+             }
+@@ -242,18 +253,19 @@
+ 
+     public Item getItemDropped(IBlockState state, Random rand, int fortune)
+     {
+-        return state.getValue(HALF) == BlockDoor.EnumDoorHalf.UPPER ? Items.AIR : this.getItem();
++        return state.getValue(HALF) == EnumDoorHalf.UPPER ? Items.AIR : this.getItem();
+     }
+ 
+     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
+     {
+-        if (pos.getY() >= 255)
++        if (pos.getY() >= worldIn.getHeight() - 1)
+         {
+             return false;
+         }
+         else
+         {
+-            return worldIn.getBlockState(pos.down()).isTopSolid() && super.canPlaceBlockAt(worldIn, pos) && super.canPlaceBlockAt(worldIn, pos.up());
++            IBlockState state = worldIn.getBlockState(pos.down());
++            return (state.isTopSolid() || state.getBlockFaceShape(worldIn, pos.down(), EnumFacing.UP) == BlockFaceShape.SOLID) && super.canPlaceBlockAt(worldIn, pos) && super.canPlaceBlockAt(worldIn, pos.up());
+         }
+     }
+ 
+@@ -316,12 +328,12 @@
+         BlockPos blockpos = pos.down();
+         BlockPos blockpos1 = pos.up();
+ 
+-        if (player.capabilities.isCreativeMode && state.getValue(HALF) == BlockDoor.EnumDoorHalf.UPPER && worldIn.getBlockState(blockpos).getBlock() == this)
++        if (player.capabilities.isCreativeMode && state.getValue(HALF) == EnumDoorHalf.UPPER && worldIn.getBlockState(blockpos).getBlock() == this)
+         {
+             worldIn.setBlockToAir(blockpos);
+         }
+ 
+-        if (state.getValue(HALF) == BlockDoor.EnumDoorHalf.LOWER && worldIn.getBlockState(blockpos1).getBlock() == this)
++        if (state.getValue(HALF) == EnumDoorHalf.LOWER && worldIn.getBlockState(blockpos1).getBlock() == this)
+         {
+             if (player.capabilities.isCreativeMode)
+             {
+@@ -340,7 +352,7 @@
+ 
+     public IBlockState getActualState(IBlockState state, IBlockAccess worldIn, BlockPos pos)
+     {
+-        if (state.getValue(HALF) == BlockDoor.EnumDoorHalf.LOWER)
++        if (state.getValue(HALF) == EnumDoorHalf.LOWER)
+         {
+             IBlockState iblockstate = worldIn.getBlockState(pos.up());
+ 
+@@ -364,7 +376,7 @@
+ 
+     public IBlockState withRotation(IBlockState state, Rotation rot)
+     {
+-        return state.getValue(HALF) != BlockDoor.EnumDoorHalf.LOWER ? state : state.withProperty(FACING, rot.rotate((EnumFacing)state.getValue(FACING)));
++        return state.getValue(HALF) != EnumDoorHalf.LOWER ? state : state.withProperty(FACING, rot.rotate((EnumFacing)state.getValue(FACING)));
+     }
+ 
+     public IBlockState withMirror(IBlockState state, Mirror mirrorIn)
+@@ -374,18 +386,18 @@
+ 
+     public IBlockState getStateFromMeta(int meta)
+     {
+-        return (meta & 8) > 0 ? this.getDefaultState().withProperty(HALF, BlockDoor.EnumDoorHalf.UPPER).withProperty(HINGE, (meta & 1) > 0 ? BlockDoor.EnumHingePosition.RIGHT : BlockDoor.EnumHingePosition.LEFT).withProperty(POWERED, Boolean.valueOf((meta & 2) > 0)) : this.getDefaultState().withProperty(HALF, BlockDoor.EnumDoorHalf.LOWER).withProperty(FACING, EnumFacing.getHorizontal(meta & 3).rotateYCCW()).withProperty(OPEN, Boolean.valueOf((meta & 4) > 0));
++        return (meta & 8) > 0 ? this.getDefaultState().withProperty(HALF, EnumDoorHalf.UPPER).withProperty(HINGE, (meta & 1) > 0 ? EnumHingePosition.RIGHT : EnumHingePosition.LEFT).withProperty(POWERED, Boolean.valueOf((meta & 2) > 0)) : this.getDefaultState().withProperty(HALF, EnumDoorHalf.LOWER).withProperty(FACING, EnumFacing.getHorizontal(meta & 3).rotateYCCW()).withProperty(OPEN, Boolean.valueOf((meta & 4) > 0));
+     }
+ 
+     public int getMetaFromState(IBlockState state)
+     {
+         int i = 0;
+ 
+-        if (state.getValue(HALF) == BlockDoor.EnumDoorHalf.UPPER)
++        if (state.getValue(HALF) == EnumDoorHalf.UPPER)
+         {
+             i = i | 8;
+ 
+-            if (state.getValue(HINGE) == BlockDoor.EnumHingePosition.RIGHT)
++            if (state.getValue(HINGE) == EnumHingePosition.RIGHT)
+             {
+                 i |= 1;
+             }

@@ -1,0 +1,56 @@
+--- ../src-base/minecraft/net/minecraft/network/handshake/client/C00Handshake.java
++++ ../src-work/minecraft/net/minecraft/network/handshake/client/C00Handshake.java
+@@ -11,9 +11,10 @@
+ public class C00Handshake implements Packet<INetHandlerHandshakeServer>
+ {
+     private int protocolVersion;
+-    private String ip;
+-    private int port;
++    public String ip;
++    public int port;
+     private EnumConnectionState requestedState;
++    private boolean hasFMLMarker = false;
+ 
+     public C00Handshake()
+     {
+@@ -28,18 +29,28 @@
+         this.requestedState = p_i47613_3_;
+     }
+ 
++    public C00Handshake(String address, int port, EnumConnectionState state, boolean addFMLMarker)
++    {
++        this(address, port, state);
++        this.hasFMLMarker = addFMLMarker;
++    }
++
+     public void readPacketData(PacketBuffer buf) throws IOException
+     {
+         this.protocolVersion = buf.readVarInt();
+-        this.ip = buf.readString(255);
++        this.ip = buf.readString(Short.MAX_VALUE); // Spigot
+         this.port = buf.readUnsignedShort();
+         this.requestedState = EnumConnectionState.getById(buf.readVarInt());
++        this.hasFMLMarker = this.ip.contains("\0FML\0");
++        if (this.hasFMLMarker) {
++            this.ip = this.ip.replace("\0FML\0", "");
++        }else if (this.ip.split("\0").length>2) this.hasFMLMarker = true; //CatServer - Bungee support
+     }
+ 
+     public void writePacketData(PacketBuffer buf) throws IOException
+     {
+         buf.writeVarInt(this.protocolVersion);
+-        buf.writeString(this.ip);
++        buf.writeString(this.ip + "\0FML\0");
+         buf.writeShort(this.port);
+         buf.writeVarInt(this.requestedState.getId());
+     }
+@@ -58,4 +69,9 @@
+     {
+         return this.protocolVersion;
+     }
++
++    public boolean hasFMLMarker()
++    {
++        return this.hasFMLMarker;
++    }
+ }

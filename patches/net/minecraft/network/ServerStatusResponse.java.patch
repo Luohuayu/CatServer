@@ -1,0 +1,172 @@
+--- ../src-base/minecraft/net/minecraft/network/ServerStatusResponse.java
++++ ../src-work/minecraft/net/minecraft/network/ServerStatusResponse.java
+@@ -17,8 +17,8 @@
+ public class ServerStatusResponse
+ {
+     private ITextComponent description;
+-    private ServerStatusResponse.Players players;
+-    private ServerStatusResponse.Version version;
++    private Players players;
++    private Version version;
+     private String favicon;
+ 
+     public ITextComponent getServerDescription()
+@@ -29,31 +29,35 @@
+     public void setServerDescription(ITextComponent descriptionIn)
+     {
+         this.description = descriptionIn;
++        invalidateJson();
+     }
+ 
+-    public ServerStatusResponse.Players getPlayers()
++    public Players getPlayers()
+     {
+         return this.players;
+     }
+ 
+-    public void setPlayers(ServerStatusResponse.Players playersIn)
++    public void setPlayers(Players playersIn)
+     {
+         this.players = playersIn;
++        invalidateJson();
+     }
+ 
+-    public ServerStatusResponse.Version getVersion()
++    public Version getVersion()
+     {
+         return this.version;
+     }
+ 
+-    public void setVersion(ServerStatusResponse.Version versionIn)
++    public void setVersion(Version versionIn)
+     {
+         this.version = versionIn;
++        invalidateJson();
+     }
+ 
+     public void setFavicon(String faviconBlob)
+     {
+         this.favicon = faviconBlob;
++        invalidateJson();
+     }
+ 
+     public String getFavicon()
+@@ -93,12 +97,12 @@
+                 this.players = playersIn;
+             }
+ 
+-            public static class Serializer implements JsonDeserializer<ServerStatusResponse.Players>, JsonSerializer<ServerStatusResponse.Players>
++            public static class Serializer implements JsonDeserializer<Players>, JsonSerializer<Players>
+                 {
+-                    public ServerStatusResponse.Players deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
++                    public Players deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
+                     {
+                         JsonObject jsonobject = JsonUtils.getJsonObject(p_deserialize_1_, "players");
+-                        ServerStatusResponse.Players serverstatusresponse$players = new ServerStatusResponse.Players(JsonUtils.getInt(jsonobject, "max"), JsonUtils.getInt(jsonobject, "online"));
++                        Players serverstatusresponse$players = new Players(JsonUtils.getInt(jsonobject, "max"), JsonUtils.getInt(jsonobject, "online"));
+ 
+                         if (JsonUtils.isJsonArray(jsonobject, "sample"))
+                         {
+@@ -122,7 +126,7 @@
+                         return serverstatusresponse$players;
+                     }
+ 
+-                    public JsonElement serialize(ServerStatusResponse.Players p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
++                    public JsonElement serialize(Players p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
+                     {
+                         JsonObject jsonobject = new JsonObject();
+                         jsonobject.addProperty("max", Integer.valueOf(p_serialize_1_.getMaxPlayers()));
+@@ -163,12 +167,12 @@
+ 
+                 if (jsonobject.has("players"))
+                 {
+-                    serverstatusresponse.setPlayers((ServerStatusResponse.Players)p_deserialize_3_.deserialize(jsonobject.get("players"), ServerStatusResponse.Players.class));
++                    serverstatusresponse.setPlayers((Players)p_deserialize_3_.deserialize(jsonobject.get("players"), Players.class));
+                 }
+ 
+                 if (jsonobject.has("version"))
+                 {
+-                    serverstatusresponse.setVersion((ServerStatusResponse.Version)p_deserialize_3_.deserialize(jsonobject.get("version"), ServerStatusResponse.Version.class));
++                    serverstatusresponse.setVersion((Version)p_deserialize_3_.deserialize(jsonobject.get("version"), Version.class));
+                 }
+ 
+                 if (jsonobject.has("favicon"))
+@@ -176,6 +180,7 @@
+                     serverstatusresponse.setFavicon(JsonUtils.getString(jsonobject, "favicon"));
+                 }
+ 
++                net.minecraftforge.fml.client.FMLClientHandler.instance().captureAdditionalData(serverstatusresponse, jsonobject);
+                 return serverstatusresponse;
+             }
+ 
+@@ -203,10 +208,50 @@
+                     jsonobject.addProperty("favicon", p_serialize_1_.getFavicon());
+                 }
+ 
++                net.minecraftforge.fml.common.network.internal.FMLNetworkHandler.enhanceStatusQuery(jsonobject);
+                 return jsonobject;
+             }
+         }
+ 
++    private java.util.concurrent.Semaphore mutex = new java.util.concurrent.Semaphore(1);
++    private String json = null;
++    /**
++     * Returns this object as a Json string.
++     * Converting to JSON if a cached version is not available.
++     *
++     * Also to prevent potentially large memory allocations on the server
++     * this is moved from the S00PacketServerInfo writePacket function
++     *
++     * As this method is called from the network threads thread safety is important!
++     *
++     * @return
++     */
++    public String getJson()
++    {
++        String ret = this.json;
++        if (ret == null)
++        {
++            mutex.acquireUninterruptibly();
++            ret = this.json;
++            if (ret == null)
++            {
++                ret = net.minecraft.network.status.server.SPacketServerInfo.GSON.toJson(this);
++                this.json = ret;
++            }
++            mutex.release();
++        }
++        return ret;
++    }
++
++    /**
++     * Invalidates the cached json, causing the next call to getJson to rebuild it.
++     * This is needed externally because PlayerCountData.setPlayer's is public.
++     */
++    public void invalidateJson()
++    {
++        this.json = null;
++    }
++
+     public static class Version
+         {
+             private final String name;
+@@ -228,15 +273,15 @@
+                 return this.protocol;
+             }
+ 
+-            public static class Serializer implements JsonDeserializer<ServerStatusResponse.Version>, JsonSerializer<ServerStatusResponse.Version>
++            public static class Serializer implements JsonDeserializer<Version>, JsonSerializer<Version>
+                 {
+-                    public ServerStatusResponse.Version deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
++                    public Version deserialize(JsonElement p_deserialize_1_, Type p_deserialize_2_, JsonDeserializationContext p_deserialize_3_) throws JsonParseException
+                     {
+                         JsonObject jsonobject = JsonUtils.getJsonObject(p_deserialize_1_, "version");
+-                        return new ServerStatusResponse.Version(JsonUtils.getString(jsonobject, "name"), JsonUtils.getInt(jsonobject, "protocol"));
++                        return new Version(JsonUtils.getString(jsonobject, "name"), JsonUtils.getInt(jsonobject, "protocol"));
+                     }
+ 
+-                    public JsonElement serialize(ServerStatusResponse.Version p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
++                    public JsonElement serialize(Version p_serialize_1_, Type p_serialize_2_, JsonSerializationContext p_serialize_3_)
+                     {
+                         JsonObject jsonobject = new JsonObject();
+                         jsonobject.addProperty("name", p_serialize_1_.getName());

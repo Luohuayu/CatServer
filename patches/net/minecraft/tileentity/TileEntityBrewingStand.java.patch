@@ -1,0 +1,207 @@
+--- ../src-base/minecraft/net/minecraft/tileentity/TileEntityBrewingStand.java
++++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityBrewingStand.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.tileentity;
+ 
+ import java.util.Arrays;
++import java.util.List;
++
+ import net.minecraft.block.BlockBrewingStand;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.entity.player.EntityPlayer;
+@@ -15,6 +17,7 @@
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.potion.PotionHelper;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.EnumFacing;
+ import net.minecraft.util.ITickable;
+ import net.minecraft.util.NonNullList;
+@@ -23,6 +26,13 @@
+ import net.minecraft.util.datafix.walkers.ItemStackDataLists;
+ import net.minecraft.util.math.BlockPos;
+ 
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.inventory.BrewEvent;
++import org.bukkit.event.inventory.BrewingStandFuelEvent;
++import org.bukkit.inventory.InventoryHolder;
++
+ public class TileEntityBrewingStand extends TileEntityLockable implements ITickable, ISidedInventory
+ {
+     private static final int[] SLOTS_FOR_UP = new int[] {3};
+@@ -35,6 +45,31 @@
+     private String customName;
+     private int fuel;
+ 
++    private int lastTick = MinecraftServer.currentTick;
++    // CraftBukkit start - add fields and methods
++    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    private int maxStack = MAX_STACK;
++    
++    public List<ItemStack> getContents() {
++        return this.brewingItemStacks;
++    }
++        
++    public void onOpen(CraftHumanEntity who) {
++        transaction.add(who);
++    }
++    
++    public void onClose(CraftHumanEntity who) {
++        transaction.remove(who);
++    }
++        
++    public List<HumanEntity> getViewers() {
++        return transaction;
++    }
++        
++    public void setMaxStackSize(int size) {
++        maxStack = size;
++    }
++    // CraftBukkit end
+     public String getName()
+     {
+         return this.hasCustomName() ? this.customName : "container.brewing";
+@@ -74,8 +109,19 @@
+ 
+         if (this.fuel <= 0 && itemstack.getItem() == Items.BLAZE_POWDER)
+         {
+-            this.fuel = 20;
+-            itemstack.shrink(1);
++            // this.fuel = 20;
++            // itemstack.shrink(1);
++            BrewingStandFuelEvent event = new BrewingStandFuelEvent(world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), CraftItemStack.asCraftMirror(itemstack), 20);
++            this.world.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return;
++            }
++
++            this.fuel = event.getFuelPower();
++            if (this.fuel > 0 && event.isConsuming()) {
++                itemstack.shrink(1);
++            }
+             this.markDirty();
+         }
+ 
+@@ -83,10 +129,14 @@
+         boolean flag1 = this.brewTime > 0;
+         ItemStack itemstack1 = this.brewingItemStacks.get(3);
+ 
++        // CraftBukkit start - Use wall time instead of ticks for brewing
++        int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++        this.lastTick = MinecraftServer.currentTick;
++
+         if (flag1)
+         {
+-            --this.brewTime;
+-            boolean flag2 = this.brewTime == 0;
++            this.brewTime -= elapsedTicks;
++            boolean flag2 = this.brewTime <= 0; // == -> <=
+ 
+             if (flag2 && flag)
+             {
+@@ -153,6 +203,7 @@
+ 
+     private boolean canBrew()
+     {
++        if (1 == 1) return net.minecraftforge.common.brewing.BrewingRecipeRegistry.canBrew(brewingItemStacks, brewingItemStacks.get(3), OUTPUT_SLOTS); // divert to VanillaBrewingRegistry
+         ItemStack itemstack = this.brewingItemStacks.get(3);
+ 
+         if (itemstack.isEmpty())
+@@ -181,19 +232,26 @@
+ 
+     private void brewPotions()
+     {
++        if (net.minecraftforge.event.ForgeEventFactory.onPotionAttemptBrew(brewingItemStacks)) return;
+         ItemStack itemstack = this.brewingItemStacks.get(3);
+ 
+-        for (int i = 0; i < 3; ++i)
+-        {
+-            this.brewingItemStacks.set(i, PotionHelper.doReaction(itemstack, this.brewingItemStacks.get(i)));
++        InventoryHolder owner = this.getOwner();
++        if (owner != null) {
++            BrewEvent event = new BrewEvent(world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), (org.bukkit.inventory.BrewerInventory) owner.getInventory(), this.fuel);
++            org.bukkit.Bukkit.getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++                return;
++            }
+         }
+ 
++        net.minecraftforge.common.brewing.BrewingRecipeRegistry.brewPotions(brewingItemStacks, brewingItemStacks.get(3), OUTPUT_SLOTS);
++
+         itemstack.shrink(1);
+         BlockPos blockpos = this.getPos();
+ 
+-        if (itemstack.getItem().hasContainerItem())
++        if (itemstack.getItem().hasContainerItem(itemstack))
+         {
+-            ItemStack itemstack1 = new ItemStack(itemstack.getItem().getContainerItem());
++            ItemStack itemstack1 = itemstack.getItem().getContainerItem(itemstack);
+ 
+             if (itemstack.isEmpty())
+             {
+@@ -207,6 +265,7 @@
+ 
+         this.brewingItemStacks.set(3, itemstack);
+         this.world.playEvent(1035, blockpos, 0);
++        net.minecraftforge.event.ForgeEventFactory.onPotionBrewed(brewingItemStacks);
+     }
+ 
+     public static void registerFixesBrewingStand(DataFixer fixer)
+@@ -269,7 +328,7 @@
+ 
+     public int getInventoryStackLimit()
+     {
+-        return 64;
++        return this.maxStack;
+     }
+ 
+     public boolean isUsableByPlayer(EntityPlayer player)
+@@ -296,7 +355,7 @@
+     {
+         if (index == 3)
+         {
+-            return PotionHelper.isReagent(stack);
++            return net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidIngredient(stack);
+         }
+         else
+         {
+@@ -308,7 +367,7 @@
+             }
+             else
+             {
+-                return (item == Items.POTIONITEM || item == Items.SPLASH_POTION || item == Items.LINGERING_POTION || item == Items.GLASS_BOTTLE) && this.getStackInSlot(index).isEmpty();
++                return net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidInput(stack) && this.getStackInSlot(index).isEmpty();
+             }
+         }
+     }
+@@ -377,6 +436,27 @@
+         }
+     }
+ 
++    net.minecraftforge.items.IItemHandler handlerInput = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.UP);
++    net.minecraftforge.items.IItemHandler handlerOutput = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.DOWN);
++    net.minecraftforge.items.IItemHandler handlerSides = new net.minecraftforge.items.wrapper.SidedInvWrapper(this, EnumFacing.NORTH);
++
++    @SuppressWarnings("unchecked")
++    @Override
++    @javax.annotation.Nullable
++    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @javax.annotation.Nullable EnumFacing facing)
++    {
++        if (facing != null && capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)
++        {
++            if (facing == EnumFacing.UP)
++                return (T) handlerInput;
++            else if (facing == EnumFacing.DOWN)
++                return (T) handlerOutput;
++            else
++                return (T) handlerSides;
++        }
++        return super.getCapability(capability, facing);
++    }
++
+     public int getFieldCount()
+     {
+         return 2;

@@ -1,0 +1,91 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/tileentity/TileEntityRendererDispatcher.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/tileentity/TileEntityRendererDispatcher.java
+@@ -92,7 +92,7 @@
+     @Nullable
+     public <T extends TileEntity> TileEntitySpecialRenderer<T> getRenderer(@Nullable TileEntity tileEntityIn)
+     {
+-        return tileEntityIn == null ? null : this.getRenderer(tileEntityIn.getClass());
++        return tileEntityIn == null || tileEntityIn.isInvalid() ? null : this.getRenderer(tileEntityIn.getClass()); // Forge: fix MC-123363
+     }
+ 
+     public void prepare(World worldIn, TextureManager renderEngineIn, FontRenderer fontRendererIn, Entity entityIn, RayTraceResult cameraHitResultIn, float p_190056_6_)
+@@ -117,12 +117,15 @@
+     {
+         if (tileentityIn.getDistanceSq(this.entityX, this.entityY, this.entityZ) < tileentityIn.getMaxRenderDistanceSquared())
+         {
++            if(!drawingBatch || !tileentityIn.hasFastRenderer())
++            {
+             RenderHelper.enableStandardItemLighting();
+             int i = this.world.getCombinedLight(tileentityIn.getPos(), 0);
+             int j = i % 65536;
+             int k = i / 65536;
+             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, (float)j, (float)k);
+             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
++            }
+             BlockPos blockpos = tileentityIn.getPos();
+             this.render(tileentityIn, (double)blockpos.getX() - staticPlayerX, (double)blockpos.getY() - staticPlayerY, (double)blockpos.getZ() - staticPlayerZ, partialTicks, destroyStage, 1.0F);
+         }
+@@ -146,6 +149,9 @@
+         {
+             try
+             {
++                if(drawingBatch && tileEntityIn.hasFastRenderer())
++                    tileentityspecialrenderer.renderTileEntityFast(tileEntityIn, x, y, z, partialTicks, destroyStage, p_192854_10_, batchBuffer.getBuffer());
++                else
+                 tileentityspecialrenderer.render(tileEntityIn, x, y, z, partialTicks, destroyStage, p_192854_10_);
+             }
+             catch (Throwable throwable)
+@@ -172,4 +178,53 @@
+     {
+         return this.fontRenderer;
+     }
++
++    /* ======================================== FORGE START =====================================*/
++    /**
++     * Buffer used for batched TESRs
++     */
++    private net.minecraft.client.renderer.Tessellator batchBuffer = new net.minecraft.client.renderer.Tessellator(0x200000);
++    private boolean drawingBatch = false;
++
++    /**
++     * Prepare for a batched TESR rendering.
++     * You probably shouldn't call this manually.
++     */
++    public void preDrawBatch()
++    {
++        batchBuffer.getBuffer().begin(org.lwjgl.opengl.GL11.GL_QUADS, net.minecraft.client.renderer.vertex.DefaultVertexFormats.BLOCK);
++        drawingBatch = true;
++    }
++
++    /**
++     * Render all TESRs batched so far.
++     * You probably shouldn't call this manually.
++     */
++    public void drawBatch(int pass)
++    {
++        renderEngine.bindTexture(net.minecraft.client.renderer.texture.TextureMap.LOCATION_BLOCKS_TEXTURE);
++        net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
++        GlStateManager.blendFunc(org.lwjgl.opengl.GL11.GL_SRC_ALPHA, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA);
++        GlStateManager.enableBlend();
++        GlStateManager.disableCull();
++
++        if (net.minecraft.client.Minecraft.isAmbientOcclusionEnabled())
++        {
++            GlStateManager.shadeModel(org.lwjgl.opengl.GL11.GL_SMOOTH);
++        }
++        else
++        {
++            GlStateManager.shadeModel(org.lwjgl.opengl.GL11.GL_FLAT);
++        }
++
++        if(pass > 0)
++        {
++            net.minecraft.util.math.Vec3d cameraPos = net.minecraft.client.renderer.ActiveRenderInfo.getCameraPosition();
++            batchBuffer.getBuffer().sortVertexData((float)cameraPos.x, (float)cameraPos.y, (float)cameraPos.z);
++        }
++        batchBuffer.draw();
++
++        net.minecraft.client.renderer.RenderHelper.enableStandardItemLighting();
++        drawingBatch = false;
++    }
+ }

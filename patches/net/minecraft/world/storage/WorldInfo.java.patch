@@ -1,0 +1,202 @@
+--- ../src-base/minecraft/net/minecraft/world/storage/WorldInfo.java
++++ ../src-work/minecraft/net/minecraft/world/storage/WorldInfo.java
+@@ -6,7 +6,10 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.crash.ICrashReportDetail;
++import net.minecraft.entity.player.EntityPlayer;
++import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.nbt.NBTTagCompound;
++import net.minecraft.network.play.server.SPacketServerDifficulty;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.datafix.DataFixer;
+ import net.minecraft.util.datafix.FixTypes;
+@@ -17,10 +20,14 @@
+ import net.minecraft.world.EnumDifficulty;
+ import net.minecraft.world.GameRules;
+ import net.minecraft.world.GameType;
++import net.minecraft.world.WorldServer;
+ import net.minecraft.world.WorldSettings;
+ import net.minecraft.world.WorldType;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Bukkit;
++import org.bukkit.event.weather.ThunderChangeEvent;
++import org.bukkit.event.weather.WeatherChangeEvent;
+ 
+ public class WorldInfo
+ {
+@@ -63,9 +70,12 @@
+     private double borderDamagePerBlock = 0.2D;
+     private int borderWarningDistance = 5;
+     private int borderWarningTime = 15;
+-    private final Map<DimensionType, NBTTagCompound> dimensionData = Maps.newEnumMap(DimensionType.class);
++    private final Map<Integer, NBTTagCompound> dimensionData = Maps.newHashMap();
+     private GameRules gameRules = new GameRules();
++    private Map<String, net.minecraft.nbt.NBTBase> additionalProperties;
+ 
++    public WorldServer world;
++
+     protected WorldInfo()
+     {
+     }
+@@ -160,6 +170,7 @@
+         this.thunderTime = nbt.getInteger("thunderTime");
+         this.thundering = nbt.getBoolean("thundering");
+         this.hardcore = nbt.getBoolean("hardcore");
++        this.dimension = nbt.getInteger("dimension");
+ 
+         if (nbt.hasKey("initialized", 99))
+         {
+@@ -251,7 +262,7 @@
+ 
+             for (String s : nbttagcompound1.getKeySet())
+             {
+-                this.dimensionData.put(DimensionType.getById(Integer.parseInt(s)), nbttagcompound1.getCompoundTag(s));
++                this.dimensionData.put(Integer.parseInt(s), nbttagcompound1.getCompoundTag(s));
+             }
+         }
+     }
+@@ -366,6 +377,7 @@
+         nbt.setDouble("BorderSizeLerpTarget", this.borderSizeLerpTarget);
+         nbt.setDouble("BorderWarningBlocks", (double)this.borderWarningDistance);
+         nbt.setDouble("BorderWarningTime", (double)this.borderWarningTime);
++        net.minecraftforge.fml.common.FMLCommonHandler.instance().getDataFixer().writeVersionData(nbt);
+ 
+         if (this.difficulty != null)
+         {
+@@ -374,11 +386,13 @@
+ 
+         nbt.setBoolean("DifficultyLocked", this.difficultyLocked);
+         nbt.setTag("GameRules", this.gameRules.writeToNBT());
++        nbt.setInteger("dimension", this.dimension);
+         NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+ 
+-        for (Entry<DimensionType, NBTTagCompound> entry : this.dimensionData.entrySet())
++        for (Entry<Integer, NBTTagCompound> entry : this.dimensionData.entrySet())
+         {
+-            nbttagcompound1.setTag(String.valueOf(((DimensionType)entry.getKey()).getId()), entry.getValue());
++            if (entry.getValue() == null || entry.getValue().hasNoTags()) continue;
++            nbttagcompound1.setTag(String.valueOf(entry.getKey()), entry.getValue());
+         }
+ 
+         nbt.setTag("DimensionData", nbttagcompound1);
+@@ -508,6 +522,14 @@
+ 
+     public void setThundering(boolean thunderingIn)
+     {
++        org.bukkit.World world = Bukkit.getWorld(getWorldName());
++        if (world != null) {
++            ThunderChangeEvent thunder = new ThunderChangeEvent(world, thunderingIn);
++            Bukkit.getServer().getPluginManager().callEvent(thunder);
++            if (thunder.isCancelled()) {
++                return;
++            }
++        }
+         this.thundering = thunderingIn;
+     }
+ 
+@@ -528,6 +550,14 @@
+ 
+     public void setRaining(boolean isRaining)
+     {
++        org.bukkit.World world = Bukkit.getWorld(getWorldName());
++        if (world != null) {
++            WeatherChangeEvent weather = new WeatherChangeEvent(world, isRaining);
++            Bukkit.getServer().getPluginManager().callEvent(weather);
++            if (weather.isCancelled()) {
++                return;
++            }
++        }
+         this.raining = isRaining;
+     }
+ 
+@@ -708,6 +738,11 @@
+ 
+     public void setDifficulty(EnumDifficulty newDifficulty)
+     {
++        net.minecraftforge.common.ForgeHooks.onDifficultyChange(newDifficulty, this.difficulty);
++        SPacketServerDifficulty packet = new SPacketServerDifficulty(this.getDifficulty(), this.isDifficultyLocked());
++        for (EntityPlayerMP player :(java.util.List<EntityPlayerMP>) (java.util.List) world.playerEntities) {
++            player.connection.sendPacket(packet);
++        }
+         this.difficulty = newDifficulty;
+     }
+ 
+@@ -805,18 +840,49 @@
+             }
+         });
+     }
++    /**
++     * Allow access to additional mod specific world based properties
++     * Used by FML to store mod list associated with a world, and maybe an id map
++     * Used by Forge to store the dimensions available to a world
++     * @param additionalProperties
++     */
++    public void setAdditionalProperties(Map<String,net.minecraft.nbt.NBTBase> additionalProperties)
++    {
++        // one time set for this
++        if (this.additionalProperties == null)
++        {
++            this.additionalProperties = additionalProperties;
++        }
++    }
+ 
++    public net.minecraft.nbt.NBTBase getAdditionalProperty(String additionalProperty)
++    {
++        return this.additionalProperties!=null? this.additionalProperties.get(additionalProperty) : null;
++    }
++
++    @Deprecated //Use the int version below, and pass in dimension id NOT TYPE id
+     public NBTTagCompound getDimensionData(DimensionType dimensionIn)
+     {
++        return getDimensionData(dimensionIn.getId());
++    }
++    public NBTTagCompound getDimensionData(int dimensionIn)
++    {
+         NBTTagCompound nbttagcompound = this.dimensionData.get(dimensionIn);
+         return nbttagcompound == null ? new NBTTagCompound() : nbttagcompound;
+     }
+ 
++    @Deprecated //Use the int version below, and pass in dimension id NOT TYPE id
+     public void setDimensionData(DimensionType dimensionIn, NBTTagCompound compound)
+     {
+-        this.dimensionData.put(dimensionIn, compound);
++        this.setDimensionData(dimensionIn.getId(), compound);
+     }
+ 
++    //Dimension numerical ID version of setter, as two dimensions could in theory have the same DimensionType. ID should be grabbed from the world NOT the Type
++    public void setDimensionData(int dimensionID, NBTTagCompound compound)
++    {
++        this.dimensionData.put(dimensionID, compound);
++    }
++
+     @SideOnly(Side.CLIENT)
+     public int getVersionId()
+     {
+@@ -834,4 +900,25 @@
+     {
+         return this.versionName;
+     }
++
++    // CraftBukkit start - Check if the name stored in NBT is the correct one
++    public void checkName(String name) {
++        if (!this.levelName.equals(name)) {
++            this.levelName = name;
++        }
++    }
++    // CraftBukkit end
++
++    /**
++     * Sets the Dimension.
++     */
++    public void setDimension(int dim)
++    {
++        this.dimension = dim;
++    }
++
++    public int getDimension()
++    {
++        return this.dimension;
++    }
+ }

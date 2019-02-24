@@ -1,0 +1,296 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/EntityRenderer.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/EntityRenderer.java
+@@ -211,6 +211,7 @@
+             {
+                 this.loadShader(new ResourceLocation("shaders/post/invert.json"));
+             }
++            else net.minecraftforge.client.ForgeHooksClient.loadEntityShader(entityIn, this);
+         }
+     }
+ 
+@@ -290,7 +291,7 @@
+             this.mc.setRenderViewEntity(this.mc.player);
+         }
+ 
+-        float f3 = this.mc.world.getLightBrightness(new BlockPos(this.mc.getRenderViewEntity()));
++        float f3 = this.mc.world.getLightBrightness(new BlockPos(this.mc.getRenderViewEntity().getPositionEyes(1F))); // Forge: fix MC-51150
+         float f4 = (float)this.mc.gameSettings.renderDistanceChunks / 32.0F;
+         float f2 = f3 * (1.0F - f4) + f4;
+         this.fogColor1 += (f2 - this.fogColor1) * 0.1F;
+@@ -412,7 +413,7 @@
+ 
+                         if (d3 < d2 || d2 == 0.0D)
+                         {
+-                            if (entity1.getLowestRidingEntity() == entity.getLowestRidingEntity())
++                            if (entity1.getLowestRidingEntity() == entity.getLowestRidingEntity() && !entity1.canRiderInteract())
+                             {
+                                 if (d2 == 0.0D)
+                                 {
+@@ -505,7 +506,7 @@
+                 f = f * 60.0F / 70.0F;
+             }
+ 
+-            return f;
++            return net.minecraftforge.client.ForgeHooksClient.getFOVModifier(this, entity, iblockstate, partialTicks, f);
+         }
+     }
+ 
+@@ -569,14 +570,8 @@
+             {
+                 BlockPos blockpos = new BlockPos(entity);
+                 IBlockState iblockstate = this.mc.world.getBlockState(blockpos);
+-                Block block = iblockstate.getBlock();
++                net.minecraftforge.client.ForgeHooksClient.orientBedCamera(this.mc.world, blockpos, iblockstate, entity);
+ 
+-                if (block == Blocks.BED)
+-                {
+-                    int j = ((EnumFacing)iblockstate.getValue(BlockBed.FACING)).getHorizontalIndex();
+-                    GlStateManager.rotate((float)(j * 90), 0.0F, 1.0F, 0.0F);
+-                }
+-
+                 GlStateManager.rotate(entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks + 180.0F, 0.0F, -1.0F, 0.0F);
+                 GlStateManager.rotate(entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks, -1.0F, 0.0F, 0.0F);
+             }
+@@ -643,17 +638,20 @@
+ 
+         if (!this.mc.gameSettings.debugCamEnable)
+         {
+-            GlStateManager.rotate(entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks, 1.0F, 0.0F, 0.0F);
+-
++            float yaw = entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks + 180.0F;
++            float pitch = entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks;
++            float roll = 0.0F;
+             if (entity instanceof EntityAnimal)
+             {
+                 EntityAnimal entityanimal = (EntityAnimal)entity;
+-                GlStateManager.rotate(entityanimal.prevRotationYawHead + (entityanimal.rotationYawHead - entityanimal.prevRotationYawHead) * partialTicks + 180.0F, 0.0F, 1.0F, 0.0F);
++                yaw = entityanimal.prevRotationYawHead + (entityanimal.rotationYawHead - entityanimal.prevRotationYawHead) * partialTicks + 180.0F;
+             }
+-            else
+-            {
+-                GlStateManager.rotate(entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks + 180.0F, 0.0F, 1.0F, 0.0F);
+-            }
++            IBlockState state = ActiveRenderInfo.getBlockStateAtEntityViewpoint(this.mc.world, entity, partialTicks);
++            net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup event = new net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup(this, entity, state, partialTicks, yaw, pitch, roll);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++            GlStateManager.rotate(event.getRoll(), 0.0F, 0.0F, 1.0F);
++            GlStateManager.rotate(event.getPitch(), 1.0F, 0.0F, 0.0F);
++            GlStateManager.rotate(event.getYaw(), 0.0F, 1.0F, 0.0F);
+         }
+ 
+         GlStateManager.translate(0.0F, -f, 0.0F);
+@@ -771,6 +769,7 @@
+ 
+             boolean flag = this.mc.getRenderViewEntity() instanceof EntityLivingBase && ((EntityLivingBase)this.mc.getRenderViewEntity()).isPlayerSleeping();
+ 
++            if (!net.minecraftforge.client.ForgeHooksClient.renderFirstPersonHand(mc.renderGlobal, partialTicks, pass))
+             if (this.mc.gameSettings.thirdPersonView == 0 && !flag && !this.mc.gameSettings.hideGUI && !this.mc.playerController.isSpectator())
+             {
+                 this.enableLightmap();
+@@ -875,6 +874,15 @@
+                         f10 = 0.25F + f7 * 0.75F;
+                     }
+ 
++                    float[] colors = {f8, f9, f10};
++                    world.provider.getLightmapColors(partialTicks, f, f2, f3, colors);
++                    f8 = colors[0]; f9 = colors[1]; f10 = colors[2];
++
++                    // Forge: fix MC-58177
++                    f8 = MathHelper.clamp(f8, 0f, 1f);
++                    f9 = MathHelper.clamp(f9, 0f, 1f);
++                    f10 = MathHelper.clamp(f10, 0f, 1f);
++
+                     if (this.mc.player.isPotionActive(MobEffects.NIGHT_VISION))
+                     {
+                         float f15 = this.getNightVisionBrightness(this.mc.player, partialTicks);
+@@ -1101,6 +1109,10 @@
+                 GlStateManager.loadIdentity();
+                 this.setupOverlayRendering();
+                 this.renderEndNanoTime = System.nanoTime();
++                // Forge: Fix MC-112292
++                net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.renderEngine = this.mc.getTextureManager();
++                // Forge: also fix rendering text before entering world (not part of MC-112292, but the same reason)
++                net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher.instance.fontRenderer = this.mc.fontRenderer;
+             }
+ 
+             if (this.mc.currentScreen != null)
+@@ -1109,7 +1121,7 @@
+ 
+                 try
+                 {
+-                    this.mc.currentScreen.drawScreen(k1, l1, this.mc.getTickLength());
++                    net.minecraftforge.client.ForgeHooksClient.drawScreen(this.mc.currentScreen, k1, l1, this.mc.getTickLength());
+                 }
+                 catch (Throwable throwable)
+                 {
+@@ -1204,7 +1216,7 @@
+ 
+                     if (this.mc.playerController.getCurrentGameType() == GameType.SPECTATOR)
+                     {
+-                        flag = block.hasTileEntity() && this.mc.world.getTileEntity(blockpos) instanceof IInventory;
++                        flag = block.hasTileEntity(this.mc.world.getBlockState(blockpos)) && this.mc.world.getTileEntity(blockpos) instanceof IInventory;
+                     }
+                     else
+                     {
+@@ -1262,7 +1274,7 @@
+         GlStateManager.clear(16640);
+         this.mc.mcProfiler.endStartSection("camera");
+         this.setupCameraTransform(partialTicks, pass);
+-        ActiveRenderInfo.updateRenderInfo(this.mc.player, this.mc.gameSettings.thirdPersonView == 2);
++        ActiveRenderInfo.updateRenderInfo(this.mc.getRenderViewEntity(), this.mc.gameSettings.thirdPersonView == 2); //Forge: MC-46445 Spectator mode particles and sounds computed from where you have been before
+         this.mc.mcProfiler.endStartSection("frustum");
+         ClippingHelperImpl.getInstance();
+         this.mc.mcProfiler.endStartSection("culling");
+@@ -1315,7 +1327,9 @@
+         GlStateManager.disableAlpha();
+         renderglobal.renderBlockLayer(BlockRenderLayer.SOLID, (double)partialTicks, pass, entity);
+         GlStateManager.enableAlpha();
++        this.mc.getTextureManager().getTexture(TextureMap.LOCATION_BLOCKS_TEXTURE).setBlurMipmap(false, this.mc.gameSettings.mipmapLevels > 0); // FORGE: fix flickering leaves when mods mess up the blurMipmap settings
+         renderglobal.renderBlockLayer(BlockRenderLayer.CUTOUT_MIPPED, (double)partialTicks, pass, entity);
++        this.mc.getTextureManager().getTexture(TextureMap.LOCATION_BLOCKS_TEXTURE).restoreLastBlurMipmap();
+         this.mc.getTextureManager().getTexture(TextureMap.LOCATION_BLOCKS_TEXTURE).setBlurMipmap(false, false);
+         renderglobal.renderBlockLayer(BlockRenderLayer.CUTOUT, (double)partialTicks, pass, entity);
+         this.mc.getTextureManager().getTexture(TextureMap.LOCATION_BLOCKS_TEXTURE).restoreLastBlurMipmap();
+@@ -1329,7 +1343,9 @@
+             GlStateManager.pushMatrix();
+             RenderHelper.enableStandardItemLighting();
+             this.mc.mcProfiler.endStartSection("entities");
++            net.minecraftforge.client.ForgeHooksClient.setRenderPass(0);
+             renderglobal.renderEntities(entity, icamera, partialTicks);
++            net.minecraftforge.client.ForgeHooksClient.setRenderPass(0);
+             RenderHelper.disableStandardItemLighting();
+             this.disableLightmap();
+         }
+@@ -1342,6 +1358,7 @@
+             EntityPlayer entityplayer = (EntityPlayer)entity;
+             GlStateManager.disableAlpha();
+             this.mc.mcProfiler.endStartSection("outline");
++            if (!net.minecraftforge.client.ForgeHooksClient.onDrawBlockHighlight(renderglobal, entityplayer, mc.objectMouseOver, 0, partialTicks))
+             renderglobal.drawSelectionBox(entityplayer, this.mc.objectMouseOver, 0, partialTicks);
+             GlStateManager.enableAlpha();
+         }
+@@ -1388,6 +1405,17 @@
+         GlStateManager.shadeModel(7425);
+         this.mc.mcProfiler.endStartSection("translucent");
+         renderglobal.renderBlockLayer(BlockRenderLayer.TRANSLUCENT, (double)partialTicks, pass, entity);
++        if (!this.debugView) //Only render if render pass 0 happens as well.
++        {
++            RenderHelper.enableStandardItemLighting();
++            this.mc.mcProfiler.endStartSection("entities");
++            net.minecraftforge.client.ForgeHooksClient.setRenderPass(1);
++            renderglobal.renderEntities(entity, icamera, partialTicks);
++            // restore blending function changed by RenderGlobal.preRenderDamagedBlocks
++            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
++            net.minecraftforge.client.ForgeHooksClient.setRenderPass(-1);
++            RenderHelper.disableStandardItemLighting();
++        }
+         GlStateManager.shadeModel(7424);
+         GlStateManager.depthMask(true);
+         GlStateManager.enableCull();
+@@ -1400,6 +1428,9 @@
+             this.renderCloudsCheck(renderglobal, partialTicks, pass, d0, d1, d2);
+         }
+ 
++        this.mc.mcProfiler.endStartSection("forge_render_last");
++        net.minecraftforge.client.ForgeHooksClient.dispatchRenderLast(renderglobal, partialTicks);
++
+         this.mc.mcProfiler.endStartSection("hand");
+ 
+         if (this.renderHand)
+@@ -1515,6 +1546,13 @@
+ 
+     protected void renderRainSnow(float partialTicks)
+     {
++        net.minecraftforge.client.IRenderHandler renderer = this.mc.world.provider.getWeatherRenderer();
++        if (renderer != null)
++        {
++            renderer.render(partialTicks, this.mc.world, mc);
++            return;
++        }
++
+         float f = this.mc.world.getRainStrength(partialTicks);
+ 
+         if (f > 0.0F)
+@@ -1749,30 +1787,17 @@
+             this.fogColorGreen = (float)vec3d3.y;
+             this.fogColorBlue = (float)vec3d3.z;
+         }
+-        else if (iblockstate.getMaterial() == Material.WATER)
++        else
+         {
+-            float f12 = 0.0F;
+-
+-            if (entity instanceof EntityLivingBase)
+-            {
+-                f12 = (float)EnchantmentHelper.getRespirationModifier((EntityLivingBase)entity) * 0.2F;
+-
+-                if (((EntityLivingBase)entity).isPotionActive(MobEffects.WATER_BREATHING))
+-                {
+-                    f12 = f12 * 0.3F + 0.6F;
+-                }
+-            }
+-
+-            this.fogColorRed = 0.02F + f12;
+-            this.fogColorGreen = 0.02F + f12;
+-            this.fogColorBlue = 0.2F + f12;
++            //Forge Moved to Block.
++            Vec3d viewport = ActiveRenderInfo.projectViewFromEntity(entity, partialTicks);
++            BlockPos viewportPos = new BlockPos(viewport);
++            IBlockState viewportState = this.mc.world.getBlockState(viewportPos);
++            Vec3d inMaterialColor = viewportState.getBlock().getFogColor(this.mc.world, viewportPos, viewportState, entity, new Vec3d(fogColorRed, fogColorGreen, fogColorBlue), partialTicks);
++            this.fogColorRed = (float)inMaterialColor.x;
++            this.fogColorGreen = (float)inMaterialColor.y;
++            this.fogColorBlue = (float)inMaterialColor.z;
+         }
+-        else if (iblockstate.getMaterial() == Material.LAVA)
+-        {
+-            this.fogColorRed = 0.6F;
+-            this.fogColorGreen = 0.1F;
+-            this.fogColorBlue = 0.0F;
+-        }
+ 
+         float f13 = this.fogColor2 + (this.fogColor1 - this.fogColor2) * partialTicks;
+         this.fogColorRed *= f13;
+@@ -1830,6 +1855,9 @@
+                 f6 = 1.0F / this.fogColorBlue;
+             }
+ 
++            // Forge: fix MC-4647 and MC-10480
++            if (Float.isInfinite(f6)) f6 = Math.nextAfter(f6, 0.0);
++
+             this.fogColorRed = this.fogColorRed * (1.0F - f15) + this.fogColorRed * f6 * f15;
+             this.fogColorGreen = this.fogColorGreen * (1.0F - f15) + this.fogColorGreen * f6 * f15;
+             this.fogColorBlue = this.fogColorBlue * (1.0F - f15) + this.fogColorBlue * f6 * f15;
+@@ -1845,6 +1873,13 @@
+             this.fogColorBlue = f7;
+         }
+ 
++        net.minecraftforge.client.event.EntityViewRenderEvent.FogColors event = new net.minecraftforge.client.event.EntityViewRenderEvent.FogColors(this, entity, iblockstate, partialTicks, this.fogColorRed, this.fogColorGreen, this.fogColorBlue);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++
++        this.fogColorRed = event.getRed();
++        this.fogColorGreen = event.getGreen();
++        this.fogColorBlue = event.getBlue();
++
+         GlStateManager.clearColor(this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 0.0F);
+     }
+ 
+@@ -1855,7 +1890,9 @@
+         GlStateManager.glNormal3f(0.0F, -1.0F, 0.0F);
+         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+         IBlockState iblockstate = ActiveRenderInfo.getBlockStateAtEntityViewpoint(this.mc.world, entity, partialTicks);
+-
++        float hook = net.minecraftforge.client.ForgeHooksClient.getFogDensity(this, entity, iblockstate, partialTicks, 0.1F);
++        if (hook >= 0) GlStateManager.setFogDensity(hook);
++        else
+         if (entity instanceof EntityLivingBase && ((EntityLivingBase)entity).isPotionActive(MobEffects.BLINDNESS))
+         {
+             float f1 = 5.0F;
+@@ -1940,6 +1977,7 @@
+                 GlStateManager.setFogStart(f * 0.05F);
+                 GlStateManager.setFogEnd(Math.min(f, 192.0F) * 0.5F);
+             }
++            net.minecraftforge.client.ForgeHooksClient.onFogRender(this, entity, iblockstate, partialTicks, startCoords, f);
+         }
+ 
+         GlStateManager.enableColorMaterial();

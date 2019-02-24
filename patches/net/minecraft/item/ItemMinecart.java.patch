@@ -1,0 +1,94 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemMinecart.java
++++ ../src-work/minecraft/net/minecraft/item/ItemMinecart.java
+@@ -15,6 +15,8 @@
+ import net.minecraft.util.EnumHand;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public class ItemMinecart extends Item
+ {
+@@ -30,7 +32,7 @@
+             double d2 = source.getZ() + (double)enumfacing.getFrontOffsetZ() * 1.125D;
+             BlockPos blockpos = source.getBlockPos().offset(enumfacing);
+             IBlockState iblockstate = world.getBlockState(blockpos);
+-            BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? (BlockRailBase.EnumRailDirection)iblockstate.getValue(((BlockRailBase)iblockstate.getBlock()).getShapeProperty()) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
++            BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? ((BlockRailBase)iblockstate.getBlock()).getRailDirection(world, blockpos, iblockstate, null) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
+             double d3;
+ 
+             if (BlockRailBase.isRailBlock(iblockstate))
+@@ -52,7 +54,7 @@
+                 }
+ 
+                 IBlockState iblockstate1 = world.getBlockState(blockpos.down());
+-                BlockRailBase.EnumRailDirection blockrailbase$enumraildirection1 = iblockstate1.getBlock() instanceof BlockRailBase ? (BlockRailBase.EnumRailDirection)iblockstate1.getValue(((BlockRailBase)iblockstate1.getBlock()).getShapeProperty()) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
++                BlockRailBase.EnumRailDirection blockrailbase$enumraildirection1 = iblockstate1.getBlock() instanceof BlockRailBase ? ((BlockRailBase)iblockstate1.getBlock()).getRailDirection(world, blockpos.down(), iblockstate1, null) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
+ 
+                 if (enumfacing != EnumFacing.DOWN && blockrailbase$enumraildirection1.isAscending())
+                 {
+@@ -64,15 +66,41 @@
+                 }
+             }
+ 
+-            EntityMinecart entityminecart = EntityMinecart.create(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
++            // EntityMinecart entityminecart = EntityMinecart.create(world, d0, d1 + d3, d2, ((ItemMinecart)stack.getItem()).minecartType);
++            ItemStack itemstack1 = stack.splitStack(1);
++            org.bukkit.block.Block block2 = world.getWorld().getBlockAt(source.getBlockPos().getX(), source.getBlockPos().getY(), source.getBlockPos().getZ());
++            CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack1);
+ 
++            BlockDispenseEvent event = new BlockDispenseEvent(block2, craftItem.clone(), new org.bukkit.util.Vector(d0, d1 + d3, d2));
++            world.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                stack.grow(1);
++                return stack;
++            }
++
++            if (!event.getItem().equals(craftItem)) {
++                stack.grow(1);
++                // Chain to handler for new item
++                ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++                IBehaviorDispenseItem idispensebehavior = BlockDispenser.DISPENSE_BEHAVIOR_REGISTRY.getObject(eventStack.getItem());
++                if (idispensebehavior != IBehaviorDispenseItem.DEFAULT_BEHAVIOR && idispensebehavior != this) {
++                    idispensebehavior.dispense(source, eventStack);
++                    return stack;
++                }
++            }
++
++            itemstack1 = CraftItemStack.asNMSCopy(event.getItem());
++            EntityMinecart entityminecart = EntityMinecart.create(world, event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), ((ItemMinecart) itemstack1.getItem()).minecartType);
++
+             if (stack.hasDisplayName())
+             {
+                 entityminecart.setCustomNameTag(stack.getDisplayName());
+             }
+ 
+-            world.spawnEntity(entityminecart);
+-            stack.shrink(1);
++            // world.spawnEntity(entityminecart);
++            if (!world.spawnEntity(entityminecart)) stack.grow(1);
++            // stack.shrink(1); // CraftBukkit - handled during event processing
+             return stack;
+         }
+         protected void playDispenseSound(IBlockSource source)
+@@ -104,7 +132,7 @@
+ 
+             if (!worldIn.isRemote)
+             {
+-                BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? (BlockRailBase.EnumRailDirection)iblockstate.getValue(((BlockRailBase)iblockstate.getBlock()).getShapeProperty()) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
++                BlockRailBase.EnumRailDirection blockrailbase$enumraildirection = iblockstate.getBlock() instanceof BlockRailBase ? ((BlockRailBase)iblockstate.getBlock()).getRailDirection(worldIn, pos, iblockstate, null) : BlockRailBase.EnumRailDirection.NORTH_SOUTH;
+                 double d0 = 0.0D;
+ 
+                 if (blockrailbase$enumraildirection.isAscending())
+@@ -119,7 +147,9 @@
+                     entityminecart.setCustomNameTag(itemstack.getDisplayName());
+                 }
+ 
+-                worldIn.spawnEntity(entityminecart);
++                // worldIn.spawnEntity(entityminecart);
++                if (!worldIn.spawnEntity(entityminecart))
++                    return EnumActionResult.PASS;
+             }
+ 
+             itemstack.shrink(1);

@@ -1,0 +1,101 @@
+--- ../src-base/minecraft/net/minecraft/client/network/NetHandlerPlayClient.java
++++ ../src-work/minecraft/net/minecraft/client/network/NetHandlerPlayClient.java
+@@ -295,7 +295,7 @@
+     {
+         PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.gameController);
+         this.gameController.playerController = new PlayerControllerMP(this.gameController, this);
+-        this.clientWorldController = new WorldClient(this, new WorldSettings(0L, packetIn.getGameType(), false, packetIn.isHardcoreMode(), packetIn.getWorldType()), packetIn.getDimension(), packetIn.getDifficulty(), this.gameController.mcProfiler);
++        this.clientWorldController = new WorldClient(this, new WorldSettings(0L, packetIn.getGameType(), false, packetIn.isHardcoreMode(), packetIn.getWorldType()), net.minecraftforge.fml.common.network.handshake.NetworkDispatcher.get(getNetworkManager()).getOverrideDimension(packetIn), packetIn.getDifficulty(), this.gameController.mcProfiler);
+         this.gameController.gameSettings.difficulty = packetIn.getDifficulty();
+         this.gameController.loadWorld(this.clientWorldController);
+         this.gameController.player.dimension = packetIn.getDimension();
+@@ -745,7 +745,7 @@
+         chunk.read(packetIn.getReadBuffer(), packetIn.getExtractedSize(), packetIn.isFullChunk());
+         this.clientWorldController.markBlockRangeForRenderUpdate(packetIn.getChunkX() << 4, 0, packetIn.getChunkZ() << 4, (packetIn.getChunkX() << 4) + 15, 256, (packetIn.getChunkZ() << 4) + 15);
+ 
+-        if (!packetIn.isFullChunk() || !(this.clientWorldController.provider instanceof WorldProviderSurface))
++        if (!packetIn.isFullChunk() || this.clientWorldController.provider.shouldClientCheckLighting())
+         {
+             chunk.resetRelightChecks();
+         }
+@@ -757,7 +757,7 @@
+ 
+             if (tileentity != null)
+             {
+-                tileentity.readFromNBT(nbttagcompound);
++                tileentity.handleUpdateTag(nbttagcompound);
+             }
+         }
+     }
+@@ -840,7 +840,9 @@
+     public void handleChat(SPacketChat packetIn)
+     {
+         PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.gameController);
+-        this.gameController.ingameGUI.addChatMessage(packetIn.getType(), packetIn.getChatComponent());
++        ITextComponent message = net.minecraftforge.event.ForgeEventFactory.onClientChat(packetIn.getType(), packetIn.getChatComponent());
++        if (message == null) return;
++        this.gameController.ingameGUI.addChatMessage(packetIn.getType(), message);
+     }
+ 
+     public void handleAnimation(SPacketAnimation packetIn)
+@@ -971,7 +973,7 @@
+ 
+                     if (entity1 == this.gameController.player && !flag)
+                     {
+-                        this.gameController.ingameGUI.setOverlayMessage(I18n.format("mount.onboard", GameSettings.getKeyDisplayString(this.gameController.gameSettings.keyBindSneak.getKeyCode())), false);
++                        this.gameController.ingameGUI.setOverlayMessage(I18n.format("mount.onboard", this.gameController.gameSettings.keyBindSneak.getDisplayName()), false);
+                     }
+                 }
+             }
+@@ -1219,6 +1221,15 @@
+             {
+                 tileentity.readFromNBT(packetIn.getNbtCompound());
+             }
++            else
++            {
++                if(tileentity == null)
++                {
++                    LOGGER.error("Received invalid update packet for null tile entity at {} with data: {}", packetIn.getPos(), packetIn.getNbtCompound());
++                    return;
++                }
++                tileentity.onDataPacket(netManager, packetIn);
++            }
+ 
+             if (flag && this.gameController.currentScreen instanceof GuiCommandBlock)
+             {
+@@ -1319,15 +1330,15 @@
+             }
+             else if (f == 101.0F)
+             {
+-                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.movement", new Object[] {GameSettings.getKeyDisplayString(gamesettings.keyBindForward.getKeyCode()), GameSettings.getKeyDisplayString(gamesettings.keyBindLeft.getKeyCode()), GameSettings.getKeyDisplayString(gamesettings.keyBindBack.getKeyCode()), GameSettings.getKeyDisplayString(gamesettings.keyBindRight.getKeyCode())}));
++                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.movement", new Object[] {gamesettings.keyBindForward.getDisplayName(), gamesettings.keyBindLeft.getDisplayName(), gamesettings.keyBindBack.getDisplayName(), gamesettings.keyBindRight.getDisplayName()}));
+             }
+             else if (f == 102.0F)
+             {
+-                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.jump", new Object[] {GameSettings.getKeyDisplayString(gamesettings.keyBindJump.getKeyCode())}));
++                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.jump", new Object[] {gamesettings.keyBindJump.getDisplayName()}));
+             }
+             else if (f == 103.0F)
+             {
+-                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.inventory", new Object[] {GameSettings.getKeyDisplayString(gamesettings.keyBindInventory.getKeyCode())}));
++                this.gameController.ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation("demo.help.inventory", new Object[] {gamesettings.keyBindInventory.getDisplayName()}));
+             }
+         }
+         else if (i == 6)
+@@ -1489,7 +1500,7 @@
+ 
+         if (entity instanceof EntityLivingBase)
+         {
+-            Potion potion = Potion.getPotionById(packetIn.getEffectId());
++            Potion potion = Potion.getPotionById(packetIn.getEffectId() & 0xFF);
+ 
+             if (potion != null)
+             {
+@@ -1856,6 +1867,7 @@
+             }
+             finally
+             {
++                if (false) // Forge: let packet handle releasing buffer
+                 packetbuffer.release();
+             }
+         }

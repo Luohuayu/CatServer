@@ -1,0 +1,88 @@
+--- ../src-base/minecraft/net/minecraft/command/CommandHandler.java
++++ ../src-work/minecraft/net/minecraft/command/CommandHandler.java
+@@ -3,6 +3,11 @@
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
++
++import catserver.server.command.BukkitCommandWrapper;
++import catserver.server.command.CraftSimpleCommandMap;
++import catserver.server.command.ModCustomCommand;
++
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.Map;
+@@ -27,15 +32,18 @@
+     {
+         rawCommand = rawCommand.trim();
+ 
+-        if (rawCommand.startsWith("/"))
++        // CatServer -  WorldEdit commands compatible
++        /*if (rawCommand.startsWith("/"))
+         {
+             rawCommand = rawCommand.substring(1);
+-        }
++        }*/
+ 
+         String[] astring = rawCommand.split(" ");
+         String s = astring[0];
+         astring = dropFirstString(astring);
+         ICommand icommand = this.commandMap.get(s);
++        if (icommand == null) icommand = BukkitCommandWrapper.toNMSCommand(sender, s); // CatServer - allow mods execute plugin command
++
+         int i = 0;
+ 
+         try
+@@ -50,6 +58,17 @@
+             }
+             else if (icommand.checkPermission(this.getServer(), sender))
+             {
++                net.minecraftforge.event.CommandEvent event = new net.minecraftforge.event.CommandEvent(icommand, sender, astring);
++                if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event))
++                {
++                    if (event.getException() != null)
++                    {
++                        com.google.common.base.Throwables.throwIfUnchecked(event.getException());
++                    }
++                    return 1;
++                }
++                if (event.getParameters() != null) astring = event.getParameters();
++
+                 if (j > -1)
+                 {
+                     List<Entity> list = EntitySelector.<Entity>matchEntities(sender, astring[j], Entity.class);
+@@ -133,21 +152,25 @@
+ 
+     protected abstract MinecraftServer getServer();
+ 
+-    public ICommand registerCommand(ICommand command)
+-    {
++    public ICommand registerCommand(ICommand command) {
+         this.commandMap.put(command.getName(), command);
+         this.commandSet.add(command);
+ 
+-        for (String s : command.getAliases())
+-        {
+-            ICommand icommand = this.commandMap.get(s);
++        CraftSimpleCommandMap commandMap = MinecraftServer.getServerInst().server.getCraftCommandMap();
++        ModCustomCommand customCommand = new ModCustomCommand(command);
+ 
+-            if (icommand == null || !icommand.getName().equals(s))
+-            {
+-                this.commandMap.put(s, command);
++        List<String> list = command.getAliases();
++        if (list != null) customCommand.setAliases(list);
++        commandMap.register(command.getName(), customCommand);
++
++        if (list != null) {
++            for (String s : list) {
++                ICommand icommand = (ICommand)this.commandMap.get(s);
++                if (icommand == null || !icommand.getName().equals(s)) {
++                    this.commandMap.put(s, command);
++                }
+             }
+         }
+-
+         return command;
+     }
+ 

@@ -1,0 +1,63 @@
+--- ../src-base/minecraft/net/minecraft/entity/ai/EntityAIAttackMelee.java
++++ ../src-work/minecraft/net/minecraft/entity/ai/EntityAIAttackMelee.java
+@@ -21,6 +21,8 @@
+     private double targetY;
+     private double targetZ;
+     protected final int attackInterval = 20;
++    private int failedPathFindingPenalty = 0;
++    private boolean canPenalize = false;
+ 
+     public EntityAIAttackMelee(EntityCreature creature, double speedIn, boolean useLongMemory)
+     {
+@@ -45,6 +47,19 @@
+         }
+         else
+         {
++            if (canPenalize)
++            {
++                if (--this.delayCounter <= 0)
++                {
++                    this.path = this.attacker.getNavigator().getPathToEntityLiving(entitylivingbase);
++                    this.delayCounter = 4 + this.attacker.getRNG().nextInt(7);
++                    return this.path != null;
++                }
++                else
++                {
++                    return true;
++                }
++            }
+             this.path = this.attacker.getNavigator().getPathToEntityLiving(entitylivingbase);
+ 
+             if (this.path != null)
+@@ -105,6 +120,7 @@
+     public void updateTask()
+     {
+         EntityLivingBase entitylivingbase = this.attacker.getAttackTarget();
++        if (entitylivingbase == null) return; // CatServer - fix NPE
+         this.attacker.getLookHelper().setLookPositionWithEntity(entitylivingbase, 30.0F, 30.0F);
+         double d0 = this.attacker.getDistanceSq(entitylivingbase.posX, entitylivingbase.getEntityBoundingBox().minY, entitylivingbase.posZ);
+         --this.delayCounter;
+@@ -116,6 +132,23 @@
+             this.targetZ = entitylivingbase.posZ;
+             this.delayCounter = 4 + this.attacker.getRNG().nextInt(7);
+ 
++            if (this.canPenalize)
++            {
++                this.delayCounter += failedPathFindingPenalty;
++                if (this.attacker.getNavigator().getPath() != null)
++                {
++                    net.minecraft.pathfinding.PathPoint finalPathPoint = this.attacker.getNavigator().getPath().getFinalPathPoint();
++                    if (finalPathPoint != null && entitylivingbase.getDistanceSq(finalPathPoint.x, finalPathPoint.y, finalPathPoint.z) < 1)
++                        failedPathFindingPenalty = 0;
++                    else
++                        failedPathFindingPenalty += 10;
++                }
++                else
++                {
++                    failedPathFindingPenalty += 10;
++                }
++            }
++
+             if (d0 > 1024.0D)
+             {
+                 this.delayCounter += 10;

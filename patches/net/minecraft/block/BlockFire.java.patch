@@ -1,0 +1,340 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockFire.java
++++ ../src-work/minecraft/net/minecraft/block/BlockFire.java
+@@ -25,6 +25,9 @@
+ import net.minecraft.world.WorldProviderEnd;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.block.BlockBurnEvent;
++import org.bukkit.event.block.BlockSpreadEvent;
+ 
+ public class BlockFire extends Block
+ {
+@@ -39,7 +42,15 @@
+ 
+     public IBlockState getActualState(IBlockState state, IBlockAccess worldIn, BlockPos pos)
+     {
+-        return !worldIn.getBlockState(pos.down()).isTopSolid() && !Blocks.FIRE.canCatchFire(worldIn, pos.down()) ? state.withProperty(NORTH, Boolean.valueOf(this.canCatchFire(worldIn, pos.north()))).withProperty(EAST, Boolean.valueOf(this.canCatchFire(worldIn, pos.east()))).withProperty(SOUTH, Boolean.valueOf(this.canCatchFire(worldIn, pos.south()))).withProperty(WEST, Boolean.valueOf(this.canCatchFire(worldIn, pos.west()))).withProperty(UPPER, Boolean.valueOf(this.canCatchFire(worldIn, pos.up()))) : this.getDefaultState();
++        if (!worldIn.getBlockState(pos.down()).isSideSolid(worldIn, pos.down(), EnumFacing.UP) && !Blocks.FIRE.canCatchFire(worldIn, pos.down(), EnumFacing.UP))
++        {
++            return state.withProperty(NORTH, this.canCatchFire(worldIn, pos.north(), EnumFacing.SOUTH))
++                        .withProperty(EAST,  this.canCatchFire(worldIn, pos.east(), EnumFacing.WEST))
++                        .withProperty(SOUTH, this.canCatchFire(worldIn, pos.south(), EnumFacing.NORTH))
++                        .withProperty(WEST,  this.canCatchFire(worldIn, pos.west(), EnumFacing.EAST))
++                        .withProperty(UPPER, this.canCatchFire(worldIn, pos.up(), EnumFacing.DOWN));
++        }
++        return this.getDefaultState();
+     }
+ 
+     protected BlockFire()
+@@ -92,6 +103,7 @@
+ 
+     public void setFireInfo(Block blockIn, int encouragement, int flammability)
+     {
++        if (blockIn == Blocks.AIR) throw new IllegalArgumentException("Tried to set air on fire... This is bad.");
+         this.encouragements.put(blockIn, Integer.valueOf(encouragement));
+         this.flammabilities.put(blockIn, Integer.valueOf(flammability));
+     }
+@@ -126,24 +138,20 @@
+     {
+         if (worldIn.getGameRules().getBoolean("doFireTick"))
+         {
++            if (!worldIn.isAreaLoaded(pos, 2)) return; // Forge: prevent loading unloaded chunks when spreading fire
+             if (!this.canPlaceBlockAt(worldIn, pos))
+             {
+-                worldIn.setBlockToAir(pos);
++                fireExtinguished(worldIn, pos); // CraftBukkit - invalid place location
+             }
+ 
+             Block block = worldIn.getBlockState(pos.down()).getBlock();
+-            boolean flag = block == Blocks.NETHERRACK || block == Blocks.MAGMA;
++            boolean flag = block.isFireSource(worldIn, pos.down(), EnumFacing.UP);
+ 
+-            if (worldIn.provider instanceof WorldProviderEnd && block == Blocks.BEDROCK)
+-            {
+-                flag = true;
+-            }
+-
+             int i = ((Integer)state.getValue(AGE)).intValue();
+ 
+             if (!flag && worldIn.isRaining() && this.canDie(worldIn, pos) && rand.nextFloat() < 0.2F + (float)i * 0.03F)
+             {
+-                worldIn.setBlockToAir(pos);
++                fireExtinguished(worldIn, pos); // CraftBukkit - extinguished by rain
+             }
+             else
+             {
+@@ -159,17 +167,17 @@
+                 {
+                     if (!this.canNeighborCatchFire(worldIn, pos))
+                     {
+-                        if (!worldIn.getBlockState(pos.down()).isTopSolid() || i > 3)
++                        if (!worldIn.getBlockState(pos.down()).isSideSolid(worldIn, pos.down(), EnumFacing.UP) || i > 3)
+                         {
+-                            worldIn.setBlockToAir(pos);
++                            fireExtinguished(worldIn, pos);
+                         }
+ 
+                         return;
+                     }
+ 
+-                    if (!this.canCatchFire(worldIn, pos.down()) && i == 15 && rand.nextInt(4) == 0)
++                    if (!this.canCatchFire(worldIn, pos.down(), EnumFacing.UP) && i == 15 && rand.nextInt(4) == 0)
+                     {
+-                        worldIn.setBlockToAir(pos);
++                        fireExtinguished(worldIn, pos);
+                         return;
+                     }
+                 }
+@@ -182,12 +190,14 @@
+                     j = -50;
+                 }
+ 
+-                this.catchOnFire(worldIn, pos.east(), 300 + j, rand, i);
+-                this.catchOnFire(worldIn, pos.west(), 300 + j, rand, i);
+-                this.catchOnFire(worldIn, pos.down(), 250 + j, rand, i);
+-                this.catchOnFire(worldIn, pos.up(), 250 + j, rand, i);
+-                this.catchOnFire(worldIn, pos.north(), 300 + j, rand, i);
+-                this.catchOnFire(worldIn, pos.south(), 300 + j, rand, i);
++                // CraftBukkit start - add source blockposition to burn calls
++                this.tryCatchFire(worldIn, pos.east(), 300 + j, rand, i, EnumFacing.WEST, pos);
++                this.tryCatchFire(worldIn, pos.west(), 300 + j, rand, i, EnumFacing.EAST, pos);
++                this.tryCatchFire(worldIn, pos.down(), 250 + j, rand, i, EnumFacing.UP, pos);
++                this.tryCatchFire(worldIn, pos.up(), 250 + j, rand, i, EnumFacing.DOWN, pos);
++                this.tryCatchFire(worldIn, pos.north(), 300 + j, rand, i, EnumFacing.SOUTH, pos);
++                this.tryCatchFire(worldIn, pos.south(), 300 + j, rand, i, EnumFacing.NORTH, pos);
++                // CraftBukkit end
+ 
+                 for (int k = -1; k <= 1; ++k)
+                 {
+@@ -225,7 +235,26 @@
+                                             i2 = 15;
+                                         }
+ 
+-                                        worldIn.setBlockState(blockpos, state.withProperty(AGE, Integer.valueOf(i2)), 3);
++                                        // CraftBukkit start - Call to stop spread of fire
++                                        if (worldIn.getBlockState(blockpos) != Blocks.FIRE) {
++                                            if (CraftEventFactory.callBlockIgniteEvent(worldIn, blockpos.getX(), blockpos.getY(), blockpos.getZ(), pos.getX(), pos.getY(), pos.getZ()).isCancelled()) {
++                                                continue;
++                                            }
++
++                                            org.bukkit.Server server = worldIn.getServer();
++                                            org.bukkit.World bworld = worldIn.getWorld();
++                                            org.bukkit.block.BlockState blockState = bworld.getBlockAt(blockpos.getX(), blockpos.getY(), blockpos.getZ()).getState();
++                                            blockState.setTypeId(Block.getIdFromBlock(this));
++                                            blockState.setData(new org.bukkit.material.MaterialData(Block.getIdFromBlock(this), (byte) l1));
++
++                                            BlockSpreadEvent spreadEvent = new BlockSpreadEvent(blockState.getBlock(), bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()), blockState);
++                                            server.getPluginManager().callEvent(spreadEvent);
++
++                                            if (!spreadEvent.isCancelled()) {
++                                                blockState.update(true);
++                                            }
++                                        }
++                                        // CraftBukkit end
+                                     }
+                                 }
+                             }
+@@ -246,22 +275,30 @@
+         return false;
+     }
+ 
++    @Deprecated // Use Block.getFlammability
+     public int getFlammability(Block blockIn)
+     {
+         Integer integer = this.flammabilities.get(blockIn);
+         return integer == null ? 0 : integer.intValue();
+     }
+ 
++    @Deprecated // Use Block.getFireSpreadSpeed
+     public int getEncouragement(Block blockIn)
+     {
+         Integer integer = this.encouragements.get(blockIn);
+         return integer == null ? 0 : integer.intValue();
+     }
+ 
++    @Deprecated // Use tryCatchFire with face below
+     private void catchOnFire(World worldIn, BlockPos pos, int chance, Random random, int age)
+     {
+-        int i = this.getFlammability(worldIn.getBlockState(pos).getBlock());
++        this.tryCatchFire(worldIn, pos, chance, random, age, EnumFacing.UP);
++    }
+ 
++    private void tryCatchFire(World worldIn, BlockPos pos, int chance, Random random, int age, EnumFacing face)
++    {
++        int i = worldIn.getBlockState(pos).getBlock().getFlammability(worldIn, pos, face);
++
+         if (random.nextInt(chance) < i)
+         {
+             IBlockState iblockstate = worldIn.getBlockState(pos);
+@@ -289,11 +326,52 @@
+         }
+     }
+ 
++    // Atom: Create a new method, instead of the method modification above for sanity
++    private void tryCatchFire(World worldIn, BlockPos pos, int chance, Random random, int age, EnumFacing face, BlockPos sourcePos)
++    {
++        int i = worldIn.getBlockState(pos).getBlock().getFlammability(worldIn, pos, face);
++
++        if (random.nextInt(chance) < i)
++        {
++            IBlockState iblockstate = worldIn.getBlockState(pos);
++            org.bukkit.block.Block theBlock = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++            org.bukkit.block.Block sourceBlock = worldIn.getWorld().getBlockAt(sourcePos.getX(), sourcePos.getY(), sourcePos.getZ());
++
++            BlockBurnEvent event = new BlockBurnEvent(theBlock, sourceBlock);
++            worldIn.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return;
++            }
++
++            if (random.nextInt(age + 10) < 5 && !worldIn.isRainingAt(pos))
++            {
++                int j = age + random.nextInt(5) / 4;
++
++                if (j > 15)
++                {
++                    j = 15;
++                }
++
++                worldIn.setBlockState(pos, this.getDefaultState().withProperty(AGE, Integer.valueOf(j)), 3);
++            }
++            else
++            {
++                worldIn.setBlockToAir(pos);
++            }
++
++            if (iblockstate.getBlock() == Blocks.TNT)
++            {
++                Blocks.TNT.onBlockDestroyedByPlayer(worldIn, pos, iblockstate.withProperty(BlockTNT.EXPLODE, Boolean.valueOf(true)));
++            }
++        }
++    }
++
+     private boolean canNeighborCatchFire(World worldIn, BlockPos pos)
+     {
+         for (EnumFacing enumfacing : EnumFacing.values())
+         {
+-            if (this.canCatchFire(worldIn, pos.offset(enumfacing)))
++            if (this.canCatchFire(worldIn, pos.offset(enumfacing), enumfacing.getOpposite()))
+             {
+                 return true;
+             }
+@@ -314,7 +392,7 @@
+ 
+             for (EnumFacing enumfacing : EnumFacing.values())
+             {
+-                i = Math.max(this.getEncouragement(worldIn.getBlockState(pos.offset(enumfacing)).getBlock()), i);
++                i = Math.max(worldIn.getBlockState(pos.offset(enumfacing)).getBlock().getFireSpreadSpeed(worldIn, pos.offset(enumfacing), enumfacing.getOpposite()), i);
+             }
+ 
+             return i;
+@@ -326,9 +404,10 @@
+         return false;
+     }
+ 
++    @Deprecated // Use canCatchFire with face sensitive version below
+     public boolean canCatchFire(IBlockAccess worldIn, BlockPos pos)
+     {
+-        return this.getEncouragement(worldIn.getBlockState(pos).getBlock()) > 0;
++        return canCatchFire(worldIn, pos, EnumFacing.UP);
+     }
+ 
+     public boolean canPlaceBlockAt(World worldIn, BlockPos pos)
+@@ -340,7 +419,7 @@
+     {
+         if (!worldIn.getBlockState(pos.down()).isTopSolid() && !this.canNeighborCatchFire(worldIn, pos))
+         {
+-            worldIn.setBlockToAir(pos);
++            fireExtinguished(worldIn, pos); // CraftBukkit - fuel block gone
+         }
+     }
+ 
+@@ -350,7 +429,7 @@
+         {
+             if (!worldIn.getBlockState(pos.down()).isTopSolid() && !this.canNeighborCatchFire(worldIn, pos))
+             {
+-                worldIn.setBlockToAir(pos);
++                fireExtinguished(worldIn, pos); // CraftBukkit - fuel block broke
+             }
+             else
+             {
+@@ -372,9 +451,9 @@
+             worldIn.playSound((double)((float)pos.getX() + 0.5F), (double)((float)pos.getY() + 0.5F), (double)((float)pos.getZ() + 0.5F), SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.BLOCKS, 1.0F + rand.nextFloat(), rand.nextFloat() * 0.7F + 0.3F, false);
+         }
+ 
+-        if (!worldIn.getBlockState(pos.down()).isTopSolid() && !Blocks.FIRE.canCatchFire(worldIn, pos.down()))
++        if (!worldIn.getBlockState(pos.down()).isSideSolid(worldIn, pos.down(), EnumFacing.UP) && !Blocks.FIRE.canCatchFire(worldIn, pos.down(), EnumFacing.UP))
+         {
+-            if (Blocks.FIRE.canCatchFire(worldIn, pos.west()))
++            if (Blocks.FIRE.canCatchFire(worldIn, pos.west(), EnumFacing.EAST))
+             {
+                 for (int j = 0; j < 2; ++j)
+                 {
+@@ -385,7 +464,7 @@
+                 }
+             }
+ 
+-            if (Blocks.FIRE.canCatchFire(worldIn, pos.east()))
++            if (Blocks.FIRE.canCatchFire(worldIn, pos.east(), EnumFacing.WEST))
+             {
+                 for (int k = 0; k < 2; ++k)
+                 {
+@@ -396,7 +475,7 @@
+                 }
+             }
+ 
+-            if (Blocks.FIRE.canCatchFire(worldIn, pos.north()))
++            if (Blocks.FIRE.canCatchFire(worldIn, pos.north(), EnumFacing.SOUTH))
+             {
+                 for (int l = 0; l < 2; ++l)
+                 {
+@@ -407,7 +486,7 @@
+                 }
+             }
+ 
+-            if (Blocks.FIRE.canCatchFire(worldIn, pos.south()))
++            if (Blocks.FIRE.canCatchFire(worldIn, pos.south(), EnumFacing.NORTH))
+             {
+                 for (int i1 = 0; i1 < 2; ++i1)
+                 {
+@@ -418,7 +497,7 @@
+                 }
+             }
+ 
+-            if (Blocks.FIRE.canCatchFire(worldIn, pos.up()))
++            if (Blocks.FIRE.canCatchFire(worldIn, pos.up(), EnumFacing.DOWN))
+             {
+                 for (int j1 = 0; j1 < 2; ++j1)
+                 {
+@@ -462,8 +541,29 @@
+         return new BlockStateContainer(this, new IProperty[] {AGE, NORTH, EAST, SOUTH, WEST, UPPER});
+     }
+ 
++    /*================================= Forge Start ======================================*/
++    /**
++     * Side sensitive version that calls the block function.
++     *
++     * @param world The current world
++     * @param pos Block position
++     * @param face The side the fire is coming from
++     * @return True if the face can catch fire.
++     */
++    public boolean canCatchFire(IBlockAccess world, BlockPos pos, EnumFacing face)
++    {
++        return world.getBlockState(pos).getBlock().isFlammable(world, pos, face);
++    }
++    /*================================= Forge Start ======================================*/
++
+     public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face)
+     {
+         return BlockFaceShape.UNDEFINED;
+     }
++
++    private void fireExtinguished(World world, BlockPos position) {
++        if (!CraftEventFactory.callBlockFadeEvent(world.getWorld().getBlockAt(position.getX(), position.getY(), position.getZ()), Blocks.AIR).isCancelled()) {
++            world.setBlockToAir(position);
++        }
++    }
+ }

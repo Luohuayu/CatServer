@@ -1,0 +1,67 @@
+--- ../src-base/minecraft/net/minecraft/entity/ai/EntityAIMate.java
++++ ../src-work/minecraft/net/minecraft/entity/ai/EntityAIMate.java
+@@ -6,6 +6,7 @@
+ import net.minecraft.entity.EntityAgeable;
+ import net.minecraft.entity.item.EntityXPOrb;
+ import net.minecraft.entity.passive.EntityAnimal;
++import net.minecraft.entity.passive.EntityTameable;
+ import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.stats.StatList;
+ import net.minecraft.util.EnumParticleTypes;
+@@ -92,8 +93,23 @@
+     {
+         EntityAgeable entityageable = this.animal.createChild(this.targetMate);
+ 
++        final net.minecraftforge.event.entity.living.BabyEntitySpawnEvent event = new net.minecraftforge.event.entity.living.BabyEntitySpawnEvent(animal, targetMate, entityageable);
++        final boolean cancelled = net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++        entityageable = event.getChild();
++        if (cancelled) {
++            //Reset the "inLove" state for the animals
++            this.animal.setGrowingAge(6000);
++            this.targetMate.setGrowingAge(6000);
++            this.animal.resetInLove();
++            this.targetMate.resetInLove();
++            return;
++        }
++
+         if (entityageable != null)
+         {
++            if (entityageable instanceof EntityTameable && ((EntityTameable) entityageable).isTamed()) {
++                entityageable.persistenceRequired = true;
++            }
+             EntityPlayerMP entityplayermp = this.animal.getLoveCause();
+ 
+             if (entityplayermp == null && this.targetMate.getLoveCause() != null)
+@@ -101,6 +117,13 @@
+                 entityplayermp = this.targetMate.getLoveCause();
+             }
+ 
++            int experience = this.animal.getRNG().nextInt(7) + 1;
++            org.bukkit.event.entity.EntityBreedEvent entityBreedEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityBreedEvent(entityageable, animal, targetMate, entityplayermp, this.animal.breedItem, experience);
++            if (entityBreedEvent.isCancelled()) {
++                return;
++            }
++            experience = entityBreedEvent.getExperience();
++
+             if (entityplayermp != null)
+             {
+                 entityplayermp.addStat(StatList.ANIMALS_BRED);
+@@ -113,7 +136,7 @@
+             this.targetMate.resetInLove();
+             entityageable.setGrowingAge(-24000);
+             entityageable.setLocationAndAngles(this.animal.posX, this.animal.posY, this.animal.posZ, 0.0F, 0.0F);
+-            this.world.spawnEntity(entityageable);
++            this.world.addEntity(entityageable, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING);
+             Random random = this.animal.getRNG();
+ 
+             for (int i = 0; i < 7; ++i)
+@@ -129,7 +152,8 @@
+ 
+             if (this.world.getGameRules().getBoolean("doMobLoot"))
+             {
+-                this.world.spawnEntity(new EntityXPOrb(this.world, this.animal.posX, this.animal.posY, this.animal.posZ, random.nextInt(7) + 1));
++                if (experience > 0)
++                    this.world.spawnEntity(new EntityXPOrb(this.world, this.animal.posX, this.animal.posY, this.animal.posZ, experience));
+             }
+         }
+     }

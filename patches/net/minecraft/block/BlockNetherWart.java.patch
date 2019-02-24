@@ -1,0 +1,61 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockNetherWart.java
++++ ../src-work/minecraft/net/minecraft/block/BlockNetherWart.java
+@@ -42,25 +42,29 @@
+ 
+     public boolean canBlockStay(World worldIn, BlockPos pos, IBlockState state)
+     {
+-        return this.canSustainBush(worldIn.getBlockState(pos.down()));
++        return super.canBlockStay(worldIn, pos, state);
+     }
+ 
+     public void updateTick(World worldIn, BlockPos pos, IBlockState state, Random rand)
+     {
+         int i = ((Integer)state.getValue(AGE)).intValue();
+ 
+-        if (i < 3 && rand.nextInt(10) == 0)
++        if (i < 3 && net.minecraftforge.common.ForgeHooks.onCropsGrowPre(worldIn, pos, state, rand.nextInt(Math.max(1, (int) (100.0F / worldIn.spigotConfig.wartModifier) * 10)) == 0))
+         {
+-            state = state.withProperty(AGE, Integer.valueOf(i + 1));
+-            worldIn.setBlockState(pos, state, 2);
++            IBlockState newState = state.withProperty(AGE, Integer.valueOf(i + 1));
++//            worldIn.setBlockState(pos, newState, 2);
++            org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockGrowEvent(worldIn, pos.getX(), pos.getY(), pos.getZ(), this, getMetaFromState(newState));
++            net.minecraftforge.common.ForgeHooks.onCropsGrowPost(worldIn, pos, state, newState);
+         }
+ 
+         super.updateTick(worldIn, pos, state, rand);
+     }
+ 
++    @SuppressWarnings("unused")
+     public void dropBlockAsItemWithChance(World worldIn, BlockPos pos, IBlockState state, float chance, int fortune)
+     {
+-        if (!worldIn.isRemote)
++        super.dropBlockAsItemWithChance(worldIn, pos, state, chance, fortune);
++        if (false && !worldIn.isRemote)
+         {
+             int i = 1;
+ 
+@@ -106,6 +110,23 @@
+         return ((Integer)state.getValue(AGE)).intValue();
+     }
+ 
++    @Override
++    public void getDrops(net.minecraft.util.NonNullList<ItemStack> drops, net.minecraft.world.IBlockAccess world, BlockPos pos, IBlockState state, int fortune)
++    {
++        Random rand = world instanceof World ? ((World)world).rand : new Random();
++        int count = 1;
++
++        if (((Integer)state.getValue(AGE)) >= 3)
++        {
++            count = 2 + rand.nextInt(3) + (fortune > 0 ? rand.nextInt(fortune + 1) : 0);
++        }
++
++        for (int i = 0; i < count; i++)
++        {
++            drops.add(new ItemStack(Items.NETHER_WART));
++        }
++    }
++
+     protected BlockStateContainer createBlockState()
+     {
+         return new BlockStateContainer(this, new IProperty[] {AGE});

@@ -1,0 +1,169 @@
+--- ../src-base/minecraft/net/minecraft/entity/monster/EntityZombie.java
++++ ../src-work/minecraft/net/minecraft/entity/monster/EntityZombie.java
+@@ -51,6 +51,10 @@
+ import net.minecraft.world.storage.loot.LootTableList;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityCombustEvent;
++import org.bukkit.event.entity.EntityTargetEvent;
+ 
+ public class EntityZombie extends EntityMob
+ {
+@@ -87,7 +91,7 @@
+         this.tasks.addTask(6, new EntityAIMoveThroughVillage(this, 1.0D, false));
+         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true, new Class[] {EntityPigZombie.class}));
+         this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
+-        this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityVillager.class, false));
++        if (world.spigotConfig.zombieAggressiveTowardsVillager) this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityVillager.class, false)); // Spigot
+         this.targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityIronGolem.class, true));
+     }
+ 
+@@ -98,7 +102,7 @@
+         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.23000000417232513D);
+         this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(3.0D);
+         this.getEntityAttribute(SharedMonsterAttributes.ARMOR).setBaseValue(2.0D);
+-        this.getAttributeMap().registerAttribute(SPAWN_REINFORCEMENTS_CHANCE).setBaseValue(this.rand.nextDouble() * 0.10000000149011612D);
++        this.getAttributeMap().registerAttribute(SPAWN_REINFORCEMENTS_CHANCE).setBaseValue(this.rand.nextDouble() * net.minecraftforge.common.ForgeModContainer.zombieSummonBaseChance);
+     }
+ 
+     protected void entityInit()
+@@ -215,7 +219,13 @@
+ 
+                 if (flag)
+                 {
+-                    this.setFire(8);
++                    // this.setFire(8);
++                    EntityCombustEvent event = new EntityCombustEvent(this.getBukkitEntity(), 8);
++                    this.world.getServer().getPluginManager().callEvent(event);
++
++                    if (!event.isCancelled()) {
++                        this.setFire(event.getDuration());
++                    }
+                 }
+             }
+         }
+@@ -239,12 +249,24 @@
+                 entitylivingbase = (EntityLivingBase)source.getTrueSource();
+             }
+ 
+-            if (entitylivingbase != null && this.world.getDifficulty() == EnumDifficulty.HARD && (double)this.rand.nextFloat() < this.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).getAttributeValue() && this.world.getGameRules().getBoolean("doMobSpawning"))
++            int i = MathHelper.floor(this.posX);
++            int j = MathHelper.floor(this.posY);
++            int k = MathHelper.floor(this.posZ);
++            net.minecraftforge.event.entity.living.ZombieEvent.SummonAidEvent summonAid = net.minecraftforge.event.ForgeEventFactory.fireZombieSummonAid(this, world, i, j, k, entitylivingbase, this.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).getAttributeValue());
++            if (summonAid.getResult() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY) return true;
++
++            if (summonAid.getResult() == net.minecraftforge.fml.common.eventhandler.Event.Result.ALLOW  ||
++                entitylivingbase != null && this.world.getDifficulty() == EnumDifficulty.HARD && (double)this.rand.nextFloat() < this.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).getAttributeValue() && this.world.getGameRules().getBoolean("doMobSpawning"))
+             {
+-                int i = MathHelper.floor(this.posX);
+-                int j = MathHelper.floor(this.posY);
+-                int k = MathHelper.floor(this.posZ);
+-                EntityZombie entityzombie = new EntityZombie(this.world);
++                EntityZombie entityzombie;
++                if (summonAid.getCustomSummonedAid() != null && summonAid.getResult() == net.minecraftforge.fml.common.eventhandler.Event.Result.ALLOW)
++                {
++                    entityzombie = summonAid.getCustomSummonedAid();
++                }
++                else
++                {
++                    entityzombie = new EntityZombie(this.world);
++                }
+ 
+                 for (int l = 0; l < 50; ++l)
+                 {
+@@ -252,14 +274,14 @@
+                     int j1 = j + MathHelper.getInt(this.rand, 7, 40) * MathHelper.getInt(this.rand, -1, 1);
+                     int k1 = k + MathHelper.getInt(this.rand, 7, 40) * MathHelper.getInt(this.rand, -1, 1);
+ 
+-                    if (this.world.getBlockState(new BlockPos(i1, j1 - 1, k1)).isTopSolid() && this.world.getLightFromNeighbors(new BlockPos(i1, j1, k1)) < 10)
++                    if (this.world.getBlockState(new BlockPos(i1, j1 - 1, k1)).isSideSolid(this.world, new BlockPos(i1, j1 - 1, k1), net.minecraft.util.EnumFacing.UP) && this.world.getLightFromNeighbors(new BlockPos(i1, j1, k1)) < 10)
+                     {
+                         entityzombie.setPosition((double)i1, (double)j1, (double)k1);
+ 
+                         if (!this.world.isAnyPlayerWithinRangeAt((double)i1, (double)j1, (double)k1, 7.0D) && this.world.checkNoEntityCollision(entityzombie.getEntityBoundingBox(), entityzombie) && this.world.getCollisionBoxes(entityzombie, entityzombie.getEntityBoundingBox()).isEmpty() && !this.world.containsAnyLiquid(entityzombie.getEntityBoundingBox()))
+                         {
+-                            this.world.spawnEntity(entityzombie);
+-                            entityzombie.setAttackTarget(entitylivingbase);
++                            this.world.addEntity(entityzombie, CreatureSpawnEvent.SpawnReason.REINFORCEMENTS);
++                            if (entitylivingbase != null) entityzombie.setGoalTarget(entitylivingbase, EntityTargetEvent.TargetReason.REINFORCEMENT_TARGET, true);
+                             entityzombie.onInitialSpawn(this.world.getDifficultyForLocation(new BlockPos(entityzombie)), (IEntityLivingData)null);
+                             this.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).applyModifier(new AttributeModifier("Zombie reinforcement caller charge", -0.05000000074505806D, 0));
+                             entityzombie.getEntityAttribute(SPAWN_REINFORCEMENTS_CHANCE).applyModifier(new AttributeModifier("Zombie reinforcement callee charge", -0.05000000074505806D, 0));
+@@ -287,7 +309,13 @@
+ 
+             if (this.getHeldItemMainhand().isEmpty() && this.isBurning() && this.rand.nextFloat() < f * 0.3F)
+             {
+-                entityIn.setFire(2 * (int)f);
++                // entityIn.setFire(2 * (int)f);
++                EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), entityIn.getBukkitEntity(), 2 * (int) f); // PAIL: fixme
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    entityIn.setFire(event.getDuration());
++                }
+             }
+         }
+ 
+@@ -393,7 +421,7 @@
+             EntityZombieVillager entityzombievillager = new EntityZombieVillager(this.world);
+             entityzombievillager.copyLocationAndAnglesFrom(entityvillager);
+             this.world.removeEntity(entityvillager);
+-            entityzombievillager.onInitialSpawn(this.world.getDifficultyForLocation(new BlockPos(entityzombievillager)), new EntityZombie.GroupData(false));
++            entityzombievillager.onInitialSpawn(this.world.getDifficultyForLocation(new BlockPos(entityzombievillager)), new GroupData(false));
+             entityzombievillager.setProfession(entityvillager.getProfession());
+             entityzombievillager.setChild(entityvillager.isChild());
+             entityzombievillager.setNoAI(entityvillager.isAIDisabled());
+@@ -404,7 +432,7 @@
+                 entityzombievillager.setAlwaysRenderNameTag(entityvillager.getAlwaysRenderNameTag());
+             }
+ 
+-            this.world.spawnEntity(entityzombievillager);
++            this.world.addEntity(entityzombievillager, CreatureSpawnEvent.SpawnReason.INFECTION);
+             this.world.playEvent((EntityPlayer)null, 1026, new BlockPos(this), 0);
+         }
+     }
+@@ -435,12 +463,12 @@
+ 
+         if (livingdata == null)
+         {
+-            livingdata = new EntityZombie.GroupData(this.world.rand.nextFloat() < 0.05F);
++            livingdata = new GroupData(this.world.rand.nextFloat() < net.minecraftforge.common.ForgeModContainer.zombieBabyChance);
+         }
+ 
+-        if (livingdata instanceof EntityZombie.GroupData)
++        if (livingdata instanceof GroupData)
+         {
+-            EntityZombie.GroupData entityzombie$groupdata = (EntityZombie.GroupData)livingdata;
++            GroupData entityzombie$groupdata = (GroupData)livingdata;
+ 
+             if (entityzombie$groupdata.isChild)
+             {
+@@ -463,7 +491,7 @@
+                     entitychicken1.setLocationAndAngles(this.posX, this.posY, this.posZ, this.rotationYaw, 0.0F);
+                     entitychicken1.onInitialSpawn(difficulty, (IEntityLivingData)null);
+                     entitychicken1.setChickenJockey(true);
+-                    this.world.spawnEntity(entitychicken1);
++                    this.world.addEntity(entitychicken1, CreatureSpawnEvent.SpawnReason.MOUNT);
+                     this.startRiding(entitychicken1);
+                 }
+             }
+@@ -531,7 +559,7 @@
+ 
+     public void onDeath(DamageSource cause)
+     {
+-        super.onDeath(cause);
++        // super.onDeath(cause); // CraftBukkit - moved down
+ 
+         if (cause.getTrueSource() instanceof EntityCreeper)
+         {
+@@ -548,6 +576,7 @@
+                 }
+             }
+         }
++        super.onDeath(cause);
+     }
+ 
+     protected ItemStack getSkullDrop()

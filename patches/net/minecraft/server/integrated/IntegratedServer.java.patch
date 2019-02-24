@@ -1,0 +1,133 @@
+--- ../src-base/minecraft/net/minecraft/server/integrated/IntegratedServer.java
++++ ../src-work/minecraft/net/minecraft/server/integrated/IntegratedServer.java
+@@ -8,6 +8,8 @@
+ import java.io.File;
+ import java.io.IOException;
+ import java.net.InetAddress;
++
++import joptsimple.OptionSet;
+ import net.minecraft.client.ClientBrandRetriever;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.multiplayer.ThreadLanServerPing;
+@@ -17,12 +19,14 @@
+ import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.profiler.Snooper;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.dedicated.PropertyManager;
+ import net.minecraft.server.management.PlayerProfileCache;
+ import net.minecraft.util.CryptManager;
+ import net.minecraft.util.HttpUtil;
+ import net.minecraft.util.Util;
+ import net.minecraft.world.EnumDifficulty;
+ import net.minecraft.world.GameType;
++import net.minecraft.world.MinecraftException;
+ import net.minecraft.world.ServerWorldEventHandler;
+ import net.minecraft.world.WorldServer;
+ import net.minecraft.world.WorldServerDemo;
+@@ -48,7 +52,7 @@
+ 
+     public IntegratedServer(Minecraft clientIn, String folderNameIn, String worldNameIn, WorldSettings worldSettingsIn, YggdrasilAuthenticationService authServiceIn, MinecraftSessionService sessionServiceIn, GameProfileRepository profileRepoIn, PlayerProfileCache profileCacheIn)
+     {
+-        super(new File(clientIn.mcDataDir, "saves"), clientIn.getProxy(), clientIn.getDataFixer(), authServiceIn, sessionServiceIn, profileRepoIn, profileCacheIn);
++        super(null, clientIn.getProxy(), clientIn.getDataFixer(), authServiceIn, sessionServiceIn, profileRepoIn, profileCacheIn);
+         this.setServerOwner(clientIn.getSession().getUsername());
+         this.setFolderName(folderNameIn);
+         this.setWorldName(worldNameIn);
+@@ -60,6 +64,11 @@
+         this.worldSettings = this.isDemo() ? WorldServerDemo.DEMO_WORLD_SETTINGS : worldSettingsIn;
+     }
+ 
++    @Override
++    public PropertyManager getPropertyManager() {
++        return null;
++    }
++
+     public ServerCommandManager createCommandManager()
+     {
+         return new IntegratedServerCommandManager(this);
+@@ -68,8 +77,6 @@
+     public void loadAllWorlds(String saveName, String worldNameIn, long seed, WorldType type, String generatorOptions)
+     {
+         this.convertMapIfNeeded(saveName);
+-        this.worlds = new WorldServer[3];
+-        this.timeOfLastDimensionTick = new long[this.worlds.length][100];
+         ISaveHandler isavehandler = this.getActiveAnvilConverter().getSaveLoader(saveName, true);
+         this.setResourcePackFromWorld(this.getFolderName(), isavehandler);
+         WorldInfo worldinfo = isavehandler.loadWorldInfo();
+@@ -83,6 +90,7 @@
+             worldinfo.setWorldName(worldNameIn);
+         }
+ 
++        if (false) { //Forge: Dead Code, implement below.
+         for (int i = 0; i < this.worlds.length; ++i)
+         {
+             int j = 0;
+@@ -117,10 +125,25 @@
+ 
+             this.worlds[i].addEventListener(new ServerWorldEventHandler(this, this.worlds[i]));
+         }
++        }// Forge: End Dead Code
+ 
+-        this.getPlayerList().setPlayerManager(this.worlds);
++        WorldServer overWorld = (isDemo() ? (WorldServer)(new WorldServerDemo(this, isavehandler, worldinfo, 0, this.profiler)).init() :
++                                            (WorldServer)(new WorldServer(this, isavehandler, worldinfo, 0, this.profiler)).init());
++        overWorld.initialize(this.worldSettings);
++        for (int dim : net.minecraftforge.common.DimensionManager.getStaticDimensionIDs())
++        {
++            WorldServer world = (dim == 0 ? overWorld : (WorldServer)(new WorldServerMulti(this, isavehandler, dim, overWorld, this.profiler)).init());
++            world.addEventListener(new ServerWorldEventHandler(this, world));
++            if (!this.isSinglePlayer())
++            {
++                world.getWorldInfo().setGameType(getGameType());
++            }
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(world));
++        }
+ 
+-        if (this.worlds[0].getWorldInfo().getDifficulty() == null)
++        this.getPlayerList().setPlayerManager(new WorldServer[]{ overWorld });
++
++        if (overWorld.getWorldInfo().getDifficulty() == null)
+         {
+             this.setDifficultyForAllWorlds(this.mc.gameSettings.difficulty);
+         }
+@@ -138,9 +161,10 @@
+         this.setAllowFlight(true);
+         LOGGER.info("Generating keypair");
+         this.setKeyPair(CryptManager.generateKeyPair());
++        if (!net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerAboutToStart(this)) return false;
+         this.loadAllWorlds(this.getFolderName(), this.getWorldName(), this.worldSettings.getSeed(), this.worldSettings.getTerrainType(), this.worldSettings.getGeneratorOptions());
+         this.setMOTD(this.getServerOwner() + " - " + this.worlds[0].getWorldInfo().getWorldName());
+-        return true;
++        return net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerStarting(this);
+     }
+ 
+     public void tick()
+@@ -213,6 +237,7 @@
+ 
+     public EnumDifficulty getDifficulty()
+     {
++        if (this.mc.world == null) return this.mc.gameSettings.difficulty; // Fix NPE just in case.
+         return this.mc.world.getWorldInfo().getDifficulty();
+     }
+ 
+@@ -353,7 +378,11 @@
+ 
+     public void stopServer()
+     {
+-        super.stopServer();
++        try {
++            super.stopServer();
++        } catch (MinecraftException e) {
++            e.printStackTrace();
++        }
+ 
+         if (this.lanServerPing != null)
+         {
+@@ -364,6 +393,7 @@
+ 
+     public void initiateShutdown()
+     {
++        if (isServerRunning())
+         Futures.getUnchecked(this.addScheduledTask(new Runnable()
+         {
+             public void run()

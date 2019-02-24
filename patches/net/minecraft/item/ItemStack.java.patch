@@ -1,0 +1,534 @@
+--- ../src-base/minecraft/net/minecraft/item/ItemStack.java
++++ ../src-work/minecraft/net/minecraft/item/ItemStack.java
+@@ -5,11 +5,17 @@
+ import com.google.common.collect.Multimap;
+ import java.text.DecimalFormat;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Random;
+ import java.util.Map.Entry;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.block.Block;
++import net.minecraft.block.BlockContainer;
++import net.minecraft.block.BlockJukebox;
++import net.minecraft.block.BlockMushroom;
++import net.minecraft.block.BlockSapling;
++import net.minecraft.block.SoundType;
+ import net.minecraft.block.state.IBlockState;
+ import net.minecraft.client.util.ITooltipFlag;
+ import net.minecraft.enchantment.Enchantment;
+@@ -30,12 +36,16 @@
+ import net.minecraft.nbt.NBTBase;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.nbt.NBTTagList;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.stats.StatList;
++import net.minecraft.tileentity.TileEntity;
++import net.minecraft.tileentity.TileEntitySkull;
+ import net.minecraft.util.ActionResult;
+ import net.minecraft.util.EnumActionResult;
+ import net.minecraft.util.EnumFacing;
+ import net.minecraft.util.EnumHand;
+ import net.minecraft.util.ResourceLocation;
++import net.minecraft.util.SoundCategory;
+ import net.minecraft.util.datafix.DataFixer;
+ import net.minecraft.util.datafix.FixTypes;
+ import net.minecraft.util.datafix.walkers.BlockEntityTag;
+@@ -49,14 +59,21 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Location;
++import org.bukkit.TreeType;
++import org.bukkit.block.BlockState;
++import org.bukkit.craftbukkit.block.CraftBlockState;
++import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.entity.Player;
++import org.bukkit.event.world.StructureGrowEvent;
+ 
+-public final class ItemStack
++public final class ItemStack implements net.minecraftforge.common.capabilities.ICapabilitySerializable<NBTTagCompound>
+ {
+     public static final ItemStack EMPTY = new ItemStack((Item)null);
+     public static final DecimalFormat DECIMALFORMAT = new DecimalFormat("#.##");
+     private int stackSize;
+     private int animationsToGo;
+-    private final Item item;
++    public Item item; // CatServer - private -> public
+     private NBTTagCompound stackTagCompound;
+     private boolean isEmpty;
+     int itemDamage;
+@@ -66,6 +83,10 @@
+     private Block canPlaceOnCacheBlock;
+     private boolean canPlaceOnCacheResult;
+ 
++    private net.minecraftforge.registries.IRegistryDelegate<Item> delegate;
++    private net.minecraftforge.common.capabilities.CapabilityDispatcher capabilities;
++    private NBTTagCompound capNBT;
++
+     public ItemStack(Block blockIn)
+     {
+         this(blockIn, 1);
+@@ -91,8 +112,10 @@
+         this(itemIn, amount, 0);
+     }
+ 
+-    public ItemStack(Item itemIn, int amount, int meta)
++    public ItemStack(Item itemIn, int amount, int meta){ this(itemIn, amount, meta, null); }
++    public ItemStack(Item itemIn, int amount, int meta, @Nullable NBTTagCompound capNBT)
+     {
++        this.capNBT = capNBT;
+         this.item = itemIn;
+         this.itemDamage = meta;
+         this.stackSize = amount;
+@@ -103,6 +126,7 @@
+         }
+ 
+         this.updateEmptyState();
++        this.forgeInit();
+     }
+ 
+     private void updateEmptyState()
+@@ -112,21 +136,33 @@
+ 
+     public ItemStack(NBTTagCompound compound)
+     {
+-        this.item = Item.getByNameOrId(compound.getString("id"));
++        this.load(compound);
++
++        this.updateEmptyState();
++        this.forgeInit();
++    }
++
++    public void load(NBTTagCompound compound)
++    {
++        this.capNBT = compound.hasKey("ForgeCaps") ? compound.getCompoundTag("ForgeCaps") : null;
++        this.item = compound.hasKey("id", 8) ? Item.getByNameOrId(compound.getString("id")) : Items.AIR; //Forge fix tons of NumberFormatExceptions that are caused by deserializing EMPTY ItemStacks.
+         this.stackSize = compound.getByte("Count");
+-        this.itemDamage = Math.max(0, compound.getShort("Damage"));
++        // CraftBukkit start - Route through setData for filtering
++        // this.itemDamage = Math.max(0, compound.getShort("Damage"));
++        this.setItemDamage(compound.getShort("Damage"));
+ 
+         if (compound.hasKey("tag", 10))
+         {
+-            this.stackTagCompound = compound.getCompoundTag("tag");
++            // CraftBukkit start - make defensive copy as this data may be coming from the save thread
++            // this.stackTagCompound = compound.getCompoundTag("tag");
++            this.stackTagCompound = compound.getCompoundTag("tag").copy();
+ 
+             if (this.item != null)
+             {
+-                this.item.updateItemStackNBT(compound);
++                // this.item.updateItemStackNBT(compound);
++                this.item.updateItemStackNBT(this.stackTagCompound);
+             }
+         }
+-
+-        this.updateEmptyState();
+     }
+ 
+     public boolean isEmpty()
+@@ -135,7 +171,7 @@
+         {
+             return true;
+         }
+-        else if (this.item != null && this.item != Item.getItemFromBlock(Blocks.AIR))
++        else if (this.getItemRaw() != null && this.getItemRaw() != Items.AIR)
+         {
+             if (this.stackSize <= 0)
+             {
+@@ -169,11 +205,12 @@
+ 
+     public Item getItem()
+     {
+-        return this.isEmpty ? Item.getItemFromBlock(Blocks.AIR) : this.item;
++        return this.isEmpty || this.delegate == null ? Items.AIR : this.delegate.get();
+     }
+ 
+     public EnumActionResult onItemUse(EntityPlayer playerIn, World worldIn, BlockPos pos, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ)
+     {
++        if (!worldIn.isRemote) return net.minecraftforge.common.ForgeHooks.onPlaceItemIntoWorld(this, playerIn, worldIn, pos, side, hitX, hitY, hitZ, hand);
+         EnumActionResult enumactionresult = this.getItem().onItemUse(playerIn, worldIn, pos, hand, side, hitX, hitY, hitZ);
+ 
+         if (enumactionresult == EnumActionResult.SUCCESS)
+@@ -184,6 +221,19 @@
+         return enumactionresult;
+     }
+ 
++    public EnumActionResult onItemUseFirst(EntityPlayer playerIn, World worldIn, BlockPos pos, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ)
++    {
++        // copy of onitemuse but for onitemusefirst
++        EnumActionResult enumactionresult = this.getItem().onItemUseFirst(playerIn, worldIn, pos, side, hitX, hitY, hitZ, hand);
++
++        if (enumactionresult == EnumActionResult.SUCCESS)
++        {
++            playerIn.addStat(StatList.getObjectUseStats(this.item));
++        }
++
++        return enumactionresult;
++    }
++
+     public float getDestroySpeed(IBlockState blockIn)
+     {
+         return this.getItem().getDestroySpeed(this, blockIn);
+@@ -208,15 +258,22 @@
+ 
+         if (this.stackTagCompound != null)
+         {
+-            nbt.setTag("tag", this.stackTagCompound);
++            // nbt.setTag("tag", this.stackTagCompound);
++            nbt.setTag("tag", this.stackTagCompound.copy()); // CraftBukkit - make defensive copy, data is going to another thread
+         }
+ 
++        if (this.capabilities != null)
++        {
++            NBTTagCompound cnbt = this.capabilities.serializeNBT();
++            if (!cnbt.hasNoTags()) nbt.setTag("ForgeCaps", cnbt);
++        }
++
+         return nbt;
+     }
+ 
+     public int getMaxStackSize()
+     {
+-        return this.getItem().getItemStackLimit();
++        return this.getItem().getItemStackLimit(this);
+     }
+ 
+     public boolean isStackable()
+@@ -230,7 +287,7 @@
+         {
+             return false;
+         }
+-        else if (this.item.getMaxDamage() <= 0)
++        else if (this.item.getMaxDamage(this) <= 0)
+         {
+             return false;
+         }
+@@ -247,32 +304,48 @@
+ 
+     public boolean isItemDamaged()
+     {
+-        return this.isItemStackDamageable() && this.itemDamage > 0;
++        return this.isItemStackDamageable() && getItem().isDamaged(this);
+     }
+ 
+     public int getItemDamage()
+     {
+-        return this.itemDamage;
++        return getItem().getDamage(this);
+     }
+ 
+     public int getMetadata()
+     {
+-        return this.itemDamage;
++        return getItem().getMetadata(this);
+     }
+ 
+     public void setItemDamage(int meta)
+     {
+-        this.itemDamage = meta;
++        // CraftBukkit start - Filter out data for items that shouldn't have it
++        // The crafting system uses this value for a special purpose so we have to allow it
++        if (meta == 32767) {
++            getItem().setDamage(this, meta);
++            return;
++        }
+ 
+-        if (this.itemDamage < 0)
+-        {
+-            this.itemDamage = 0;
++        // Is this a block?
++        if (CraftMagicNumbers.getBlock(CraftMagicNumbers.getId(this.getItem())) != Blocks.AIR) {
++            // If vanilla doesn't use data on it don't allow any
++            if (!(this.getHasSubtypes() || this.getItem().isDamageable())) {
++                meta = 0;
++            }
+         }
++
++        // Filter invalid plant data
++        if (CraftMagicNumbers.getBlock(CraftMagicNumbers.getId(this.getItem())) == Blocks.DOUBLE_PLANT && (meta > 5 || meta < 0)) {
++            meta = 0;
++        }
++        // CraftBukkit end
++
++        getItem().setDamage(this, meta);
+     }
+ 
+     public int getMaxDamage()
+     {
+-        return this.getItem().getMaxDamage();
++        return this.getItem().getMaxDamage(this);
+     }
+ 
+     public boolean attemptDamageItem(int amount, Random rand, @Nullable EntityPlayerMP damager)
+@@ -297,7 +370,18 @@
+                 }
+ 
+                 amount -= j;
+-
++                // Spigot start
++                if (damager != null) {
++                    org.bukkit.craftbukkit.inventory.CraftItemStack item = org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(this);
++                    org.bukkit.event.player.PlayerItemDamageEvent event = new org.bukkit.event.player.PlayerItemDamageEvent(damager.getBukkitEntity(), item, amount);
++                    org.bukkit.Bukkit.getServer().getPluginManager().callEvent(event);
++                    if (amount != event.getDamage() || event.isCancelled()) {
++                        event.getPlayer().updateInventory();
++                    }
++                    if (event.isCancelled()) return false;
++                    amount = event.getDamage();
++                }
++                // Spigot end
+                 if (amount <= 0)
+                 {
+                     return false;
+@@ -309,8 +393,8 @@
+                 CriteriaTriggers.ITEM_DURABILITY_CHANGED.trigger(damager, this, this.itemDamage + amount);
+             }
+ 
+-            this.itemDamage += amount;
+-            return this.itemDamage > this.getMaxDamage();
++            setItemDamage(getItemDamage() + amount); //Redirect through Item's callback if applicable.
++            return getItemDamage() > getMaxDamage();
+         }
+     }
+ 
+@@ -323,6 +407,11 @@
+                 if (this.attemptDamageItem(amount, entityIn.getRNG(), entityIn instanceof EntityPlayerMP ? (EntityPlayerMP)entityIn : null))
+                 {
+                     entityIn.renderBrokenItemStack(this);
++                    // CraftBukkit start - Check for item breaking
++                    if (this.stackSize == 1 && entityIn instanceof EntityPlayer) {
++                        org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerItemBreakEvent((EntityPlayer) entityIn, this);
++                    }
++                    // CraftBukkit end
+                     this.shrink(1);
+ 
+                     if (entityIn instanceof EntityPlayer)
+@@ -359,7 +448,7 @@
+ 
+     public boolean canHarvestBlock(IBlockState blockIn)
+     {
+-        return this.getItem().canHarvestBlock(blockIn);
++        return this.getItem().canHarvestBlock(blockIn, this);
+     }
+ 
+     public boolean interactWithEntity(EntityPlayer playerIn, EntityLivingBase entityIn, EnumHand hand)
+@@ -369,7 +458,7 @@
+ 
+     public ItemStack copy()
+     {
+-        ItemStack itemstack = new ItemStack(this.item, this.stackSize, this.itemDamage);
++        ItemStack itemstack = new ItemStack(this.item, this.stackSize, this.itemDamage, this.capabilities != null ? this.capabilities.serializeNBT() : null);
+         itemstack.setAnimationsToGo(this.getAnimationsToGo());
+ 
+         if (this.stackTagCompound != null)
+@@ -394,7 +483,7 @@
+             }
+             else
+             {
+-                return stackA.stackTagCompound == null || stackA.stackTagCompound.equals(stackB.stackTagCompound);
++                return (stackA.stackTagCompound == null || stackA.stackTagCompound.equals(stackB.stackTagCompound)) && stackA.areCapsCompatible(stackB);
+             }
+         }
+         else
+@@ -435,7 +524,7 @@
+         }
+         else
+         {
+-            return this.stackTagCompound == null || this.stackTagCompound.equals(other.stackTagCompound);
++            return (this.stackTagCompound == null || this.stackTagCompound.equals(other.stackTagCompound)) && this.areCapsCompatible(other);
+         }
+     }
+ 
+@@ -862,6 +951,7 @@
+             }
+         }
+ 
++        net.minecraftforge.event.ForgeEventFactory.onItemTooltip(this, playerIn, list, advanced);
+         return list;
+     }
+ 
+@@ -957,6 +1047,15 @@
+ 
+     public void setRepairCost(int cost)
+     {
++        // CraftBukkit start - remove RepairCost tag when 0 (SPIGOT-3945)
++        if (cost == 0) {
++            if (this.hasTagCompound()) {
++                this.stackTagCompound.removeTag("RepairCost");
++            }
++            return;
++        }
++        // CraftBukkit end
++
+         if (!this.hasTagCompound())
+         {
+             this.stackTagCompound = new NBTTagCompound();
+@@ -987,7 +1086,7 @@
+         }
+         else
+         {
+-            multimap = this.getItem().getItemAttributeModifiers(equipmentSlot);
++            multimap = this.getItem().getAttributeModifiers(equipmentSlot, this);
+         }
+ 
+         return multimap;
+@@ -1017,6 +1116,14 @@
+         nbttaglist.appendTag(nbttagcompound);
+     }
+ 
++    @Deprecated
++    public void setItem(Item item) {
++        this.item = item;
++        // Update delegate as well
++        this.delegate = item.delegate;
++        this.setItemDamage(this.getItemDamage()); // CraftBukkit - Set data again to ensure it is filtered properly
++    }
++
+     public ITextComponent getTextComponent()
+     {
+         TextComponentString textcomponentstring = new TextComponentString(this.getDisplayName());
+@@ -1130,4 +1237,140 @@
+     {
+         this.grow(-quantity);
+     }
++
++    @Override
++    public boolean hasCapability(net.minecraftforge.common.capabilities.Capability<?> capability, @Nullable net.minecraft.util.EnumFacing facing)
++    {
++        return this.isEmpty  || this.capabilities == null ? false : this.capabilities.hasCapability(capability, facing);
++    }
++
++    @Override
++    @Nullable
++    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable net.minecraft.util.EnumFacing facing)
++    {
++        return this.isEmpty  || this.capabilities == null ? null : this.capabilities.getCapability(capability, facing);
++    }
++
++    public void deserializeNBT(NBTTagCompound nbt)
++    {
++        // TODO do this better while respecting new rules
++        final ItemStack itemStack = new ItemStack(nbt);
++        this.stackTagCompound = itemStack.stackTagCompound;
++        this.capNBT = itemStack.capNBT;
++    }
++
++    public NBTTagCompound serializeNBT()
++    {
++        NBTTagCompound ret = new NBTTagCompound();
++        this.writeToNBT(ret);
++        return ret;
++    }
++
++    public boolean areCapsCompatible(ItemStack other)
++    {
++        if (this.capabilities == null)
++        {
++            if (other.capabilities == null)
++            {
++                return true;
++            }
++            else
++            {
++                return other.capabilities.areCompatible(null);
++            }
++        }
++        else
++        {
++            return this.capabilities.areCompatible(other.capabilities);
++        }
++    }
++
++    /**
++     * Set up forge's ItemStack additions.
++     */
++    private void forgeInit()
++    {
++        Item item = getItemRaw();
++        if (item != null)
++        {
++            this.delegate = item.delegate;
++            net.minecraftforge.common.capabilities.ICapabilityProvider provider = item.initCapabilities(this, this.capNBT);
++            this.capabilities = net.minecraftforge.event.ForgeEventFactory.gatherCapabilities(this, provider);
++            if (this.capNBT != null && this.capabilities != null) this.capabilities.deserializeNBT(this.capNBT);
++        }
++    }
++
++    /**
++     * Internal call to get the actual item, not the delegate.
++     * In all other methods, FML replaces calls to this.item with the item delegate.
++     */
++    @Nullable
++    private Item getItemRaw()
++    {
++        return this.item;
++    }
++
++    /**
++     * Modeled after ItemStack.areItemStacksEqual
++     * Uses Item.getNBTShareTag for comparison instead of NBT and capabilities.
++     * Only used for comparing itemStacks that were transferred from server to client using Item.getNBTShareTag.
++     */
++    public static boolean areItemStacksEqualUsingNBTShareTag(ItemStack stackA, ItemStack stackB)
++    {
++        if (stackA.isEmpty())
++            return stackB.isEmpty();
++        else
++            return !stackB.isEmpty() && stackA.isItemStackEqualUsingNBTShareTag(stackB);
++    }
++
++    /**
++     * Modeled after ItemStack.isItemStackEqual
++     * Uses Item.getNBTShareTag for comparison instead of NBT and capabilities.
++     * Only used for comparing itemStacks that were transferred from server to client using Item.getNBTShareTag.
++     */
++    private boolean isItemStackEqualUsingNBTShareTag(ItemStack other)
++    {
++        return this.stackSize == other.stackSize && this.getItem() == other.getItem() && this.itemDamage == other.itemDamage && areItemStackShareTagsEqual(this, other);
++    }
++
++    /**
++     * Modeled after ItemStack.areItemStackTagsEqual
++     * Uses Item.getNBTShareTag for comparison instead of NBT and capabilities.
++     * Only used for comparing itemStacks that were transferred from server to client using Item.getNBTShareTag.
++     */
++    public static boolean areItemStackShareTagsEqual(ItemStack stackA, ItemStack stackB)
++    {
++        NBTTagCompound shareTagA = stackA.getItem().getNBTShareTag(stackA);
++        NBTTagCompound shareTagB = stackB.getItem().getNBTShareTag(stackB);
++        if (shareTagA == null)
++            return shareTagB == null;
++        else
++            return shareTagB != null && shareTagA.equals(shareTagB);
++    }
++
++    /**
++     *
++     * Should this item, when held, allow sneak-clicks to pass through to the underlying block?
++     *
++     * @param world The world
++     * @param pos Block position in world
++     * @param player The Player that is wielding the item
++     * @return
++     */
++    public boolean doesSneakBypassUse(net.minecraft.world.IBlockAccess world, BlockPos pos, EntityPlayer player)
++    {
++        return this.isEmpty() || this.getItem().doesSneakBypassUse(this, world, pos, player);
++    }
++
++    // Spigot start
++    public static boolean fastMatches(ItemStack itemstack, ItemStack itemstack1) {
++        if (itemstack == null && itemstack1 == null) {
++            return true;
++        }
++        if (itemstack != null && itemstack1 != null) {
++            return itemstack.stackSize == itemstack1.stackSize && itemstack.item == itemstack1.item && itemstack.itemDamage == itemstack1.itemDamage;
++        }
++        return false;
++    }
++    // Spigot end
+ }

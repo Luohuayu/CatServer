@@ -1,0 +1,193 @@
+--- ../src-base/minecraft/net/minecraft/entity/projectile/EntityArrow.java
++++ ../src-work/minecraft/net/minecraft/entity/projectile/EntityArrow.java
+@@ -12,6 +12,7 @@
+ import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.IProjectile;
+ import net.minecraft.entity.MoverType;
++import net.minecraft.entity.item.EntityItem;
+ import net.minecraft.entity.monster.EntityEnderman;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.EntityPlayerMP;
+@@ -36,6 +37,10 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.entity.LivingEntity;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityCombustEvent;
++import org.bukkit.event.player.PlayerPickupArrowEvent;
+ 
+ public abstract class EntityArrow extends Entity implements IProjectile
+ {
+@@ -47,28 +52,40 @@
+         }
+     });
+     private static final DataParameter<Byte> CRITICAL = EntityDataManager.<Byte>createKey(EntityArrow.class, DataSerializers.BYTE);
+-    private int xTile;
+-    private int yTile;
+-    private int zTile;
++    public int xTile; // PAIL: private->public
++    public int yTile; // PAIL: private->public
++    public int zTile; // PAIL: private->public
+     private Block inTile;
+     private int inData;
+-    protected boolean inGround;
++    public boolean inGround; // Spigot
+     protected int timeInGround;
+-    public EntityArrow.PickupStatus pickupStatus;
++    public PickupStatus pickupStatus;
+     public int arrowShake;
+     public Entity shootingEntity;
+     private int ticksInGround;
+     private int ticksInAir;
+     private double damage;
+-    private int knockbackStrength;
++    public int knockbackStrength;
+ 
++    // Spigot Start
++    @Override
++    public void inactiveTick()
++    {
++        if ( this.inGround )
++        {
++            this.ticksInGround += 1; // Despawn counter. First int after shooter
++        }
++        super.inactiveTick();
++    }
++    // Spigot End
++
+     public EntityArrow(World worldIn)
+     {
+         super(worldIn);
+         this.xTile = -1;
+         this.yTile = -1;
+         this.zTile = -1;
+-        this.pickupStatus = EntityArrow.PickupStatus.DISALLOWED;
++        this.pickupStatus = PickupStatus.DISALLOWED;
+         this.damage = 2.0D;
+         this.setSize(0.5F, 0.5F);
+     }
+@@ -83,10 +100,11 @@
+     {
+         this(worldIn, shooter.posX, shooter.posY + (double)shooter.getEyeHeight() - 0.10000000149011612D, shooter.posZ);
+         this.shootingEntity = shooter;
++        this.projectileSource = (LivingEntity) shooter.getBukkitEntity();
+ 
+         if (shooter instanceof EntityPlayer)
+         {
+-            this.pickupStatus = EntityArrow.PickupStatus.ALLOWED;
++            this.pickupStatus = PickupStatus.ALLOWED;
+         }
+     }
+ 
+@@ -222,7 +240,7 @@
+             {
+                 ++this.ticksInGround;
+ 
+-                if (this.ticksInGround >= 1200)
++                if (this.ticksInGround >= world.spigotConfig.arrowDespawnRate) // Spigot - First int after shooter
+                 {
+                     this.setDead();
+                 }
+@@ -262,7 +280,7 @@
+                 }
+             }
+ 
+-            if (raytraceresult != null)
++            if (raytraceresult != null && !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, raytraceresult))
+             {
+                 this.onHit(raytraceresult);
+             }
+@@ -339,7 +357,7 @@
+     protected void onHit(RayTraceResult raytraceResultIn)
+     {
+         Entity entity = raytraceResultIn.entityHit;
+-
++        org.bukkit.craftbukkit.event.CraftEventFactory.callProjectileHitEvent(this, raytraceResultIn);
+         if (entity != null)
+         {
+             float f = MathHelper.sqrt(this.motionX * this.motionX + this.motionY * this.motionY + this.motionZ * this.motionZ);
+@@ -363,7 +381,12 @@
+ 
+             if (this.isBurning() && !(entity instanceof EntityEnderman))
+             {
+-                entity.setFire(5);
++//                entity.setFire(5);
++                EntityCombustByEntityEvent combustEvent = new EntityCombustByEntityEvent(this.getBukkitEntity(), entity.getBukkitEntity(), 5);
++                org.bukkit.Bukkit.getPluginManager().callEvent(combustEvent);
++                if (!combustEvent.isCancelled()) {
++                    entity.setFire(combustEvent.getDuration());
++                }
+             }
+ 
+             if (entity.attackEntityFrom(damagesource, (float)i))
+@@ -419,7 +442,7 @@
+ 
+                 if (!this.world.isRemote && this.motionX * this.motionX + this.motionY * this.motionY + this.motionZ * this.motionZ < 0.0010000000474974513D)
+                 {
+-                    if (this.pickupStatus == EntityArrow.PickupStatus.ALLOWED)
++                    if (this.pickupStatus == PickupStatus.ALLOWED)
+                     {
+                         this.entityDropItem(this.getArrowStack(), 0.1F);
+                     }
+@@ -556,11 +579,11 @@
+ 
+         if (compound.hasKey("pickup", 99))
+         {
+-            this.pickupStatus = EntityArrow.PickupStatus.getByOrdinal(compound.getByte("pickup"));
++            this.pickupStatus = PickupStatus.getByOrdinal(compound.getByte("pickup"));
+         }
+         else if (compound.hasKey("player", 99))
+         {
+-            this.pickupStatus = compound.getBoolean("player") ? EntityArrow.PickupStatus.ALLOWED : EntityArrow.PickupStatus.DISALLOWED;
++            this.pickupStatus = compound.getBoolean("player") ? PickupStatus.ALLOWED : PickupStatus.DISALLOWED;
+         }
+ 
+         this.setIsCritical(compound.getBoolean("crit"));
+@@ -570,9 +593,20 @@
+     {
+         if (!this.world.isRemote && this.inGround && this.arrowShake <= 0)
+         {
+-            boolean flag = this.pickupStatus == EntityArrow.PickupStatus.ALLOWED || this.pickupStatus == EntityArrow.PickupStatus.CREATIVE_ONLY && entityIn.capabilities.isCreativeMode;
++            ItemStack itemstack = this.getArrowStack();
++            EntityItem item = new EntityItem(this.world, this.posX, this.posY, this.posZ, itemstack);
++            if (this.pickupStatus == PickupStatus.ALLOWED && entityIn.inventory.canHold(itemstack) > 0) {
++                PlayerPickupArrowEvent event = new PlayerPickupArrowEvent((org.bukkit.entity.Player) entityIn.getBukkitEntity(), new org.bukkit.craftbukkit.entity.CraftItem(this.world.getServer(), this, item), (org.bukkit.entity.Arrow) this.getBukkitEntity());
++                // event.setCancelled(!entityhuman.canPickUpLoot); TODO
++                this.world.getServer().getPluginManager().callEvent(event);
+ 
+-            if (this.pickupStatus == EntityArrow.PickupStatus.ALLOWED && !entityIn.inventory.addItemStackToInventory(this.getArrowStack()))
++                if (event.isCancelled()) {
++                    return;
++                }
++            }
++            boolean flag = this.pickupStatus == PickupStatus.ALLOWED || this.pickupStatus == PickupStatus.CREATIVE_ONLY && entityIn.capabilities.isCreativeMode;
++
++            if (this.pickupStatus == PickupStatus.ALLOWED && !entityIn.inventory.addItemStackToInventory(item.getItem()))
+             {
+                 flag = false;
+             }
+@@ -655,7 +689,13 @@
+ 
+         if (EnchantmentHelper.getMaxEnchantmentLevel(Enchantments.FLAME, p_190547_1_) > 0)
+         {
+-            this.setFire(100);
++//            this.setFire(100);
++            EntityCombustEvent event = new EntityCombustEvent(this.getBukkitEntity(), 100);
++            this.world.getServer().getPluginManager().callEvent(event);
++
++            if (!event.isCancelled()) {
++                this.setFire(event.getDuration());
++            }
+         }
+     }
+ 
+@@ -665,7 +705,7 @@
+         ALLOWED,
+         CREATIVE_ONLY;
+ 
+-        public static EntityArrow.PickupStatus getByOrdinal(int ordinal)
++        public static PickupStatus getByOrdinal(int ordinal)
+         {
+             if (ordinal < 0 || ordinal > values().length)
+             {

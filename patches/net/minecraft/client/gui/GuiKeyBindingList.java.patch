@@ -1,0 +1,129 @@
+--- ../src-base/minecraft/net/minecraft/client/gui/GuiKeyBindingList.java
++++ ../src-work/minecraft/net/minecraft/client/gui/GuiKeyBindingList.java
+@@ -15,7 +15,7 @@
+ {
+     private final GuiControls controlsScreen;
+     private final Minecraft mc;
+-    private final GuiListExtended.IGuiListEntry[] listEntries;
++    private final IGuiListEntry[] listEntries;
+     private int maxListLabelWidth;
+ 
+     public GuiKeyBindingList(GuiControls controls, Minecraft mcIn)
+@@ -24,7 +24,7 @@
+         this.controlsScreen = controls;
+         this.mc = mcIn;
+         KeyBinding[] akeybinding = (KeyBinding[])ArrayUtils.clone(mcIn.gameSettings.keyBindings);
+-        this.listEntries = new GuiListExtended.IGuiListEntry[akeybinding.length + KeyBinding.getKeybinds().size()];
++        this.listEntries = new IGuiListEntry[akeybinding.length + KeyBinding.getKeybinds().size()];
+         Arrays.sort((Object[])akeybinding);
+         int i = 0;
+         String s = null;
+@@ -36,7 +36,7 @@
+             if (!s1.equals(s))
+             {
+                 s = s1;
+-                this.listEntries[i++] = new GuiKeyBindingList.CategoryEntry(s1);
++                this.listEntries[i++] = new CategoryEntry(s1);
+             }
+ 
+             int j = mcIn.fontRenderer.getStringWidth(I18n.format(keybinding.getKeyDescription()));
+@@ -46,7 +46,7 @@
+                 this.maxListLabelWidth = j;
+             }
+ 
+-            this.listEntries[i++] = new GuiKeyBindingList.KeyEntry(keybinding);
++            this.listEntries[i++] = new KeyEntry(keybinding);
+         }
+     }
+ 
+@@ -55,14 +55,14 @@
+         return this.listEntries.length;
+     }
+ 
+-    public GuiListExtended.IGuiListEntry getListEntry(int index)
++    public IGuiListEntry getListEntry(int index)
+     {
+         return this.listEntries[index];
+     }
+ 
+     protected int getScrollBarX()
+     {
+-        return super.getScrollBarX() + 15;
++        return super.getScrollBarX() + 35;
+     }
+ 
+     public int getListWidth()
+@@ -71,7 +71,7 @@
+     }
+ 
+     @SideOnly(Side.CLIENT)
+-    public class CategoryEntry implements GuiListExtended.IGuiListEntry
++    public class CategoryEntry implements IGuiListEntry
+     {
+         private final String labelText;
+         private final int labelWidth;
+@@ -102,7 +102,7 @@
+     }
+ 
+     @SideOnly(Side.CLIENT)
+-    public class KeyEntry implements GuiListExtended.IGuiListEntry
++    public class KeyEntry implements IGuiListEntry
+     {
+         private final KeyBinding keybinding;
+         private final String keyDesc;
+@@ -113,7 +113,7 @@
+         {
+             this.keybinding = name;
+             this.keyDesc = I18n.format(name.getKeyDescription());
+-            this.btnChangeKeyBinding = new GuiButton(0, 0, 0, 75, 20, I18n.format(name.getKeyDescription()));
++            this.btnChangeKeyBinding = new GuiButton(0, 0, 0, 95, 20, I18n.format(name.getKeyDescription()));
+             this.btnReset = new GuiButton(0, 0, 0, 50, 20, I18n.format("controls.reset"));
+         }
+ 
+@@ -121,23 +121,24 @@
+         {
+             boolean flag = GuiKeyBindingList.this.controlsScreen.buttonId == this.keybinding;
+             GuiKeyBindingList.this.mc.fontRenderer.drawString(this.keyDesc, x + 90 - GuiKeyBindingList.this.maxListLabelWidth, y + slotHeight / 2 - GuiKeyBindingList.this.mc.fontRenderer.FONT_HEIGHT / 2, 16777215);
+-            this.btnReset.x = x + 190;
++            this.btnReset.x = x + 210;
+             this.btnReset.y = y;
+-            this.btnReset.enabled = this.keybinding.getKeyCode() != this.keybinding.getKeyCodeDefault();
++            this.btnReset.enabled = !this.keybinding.isSetToDefaultValue();
+             this.btnReset.drawButton(GuiKeyBindingList.this.mc, mouseX, mouseY, partialTicks);
+             this.btnChangeKeyBinding.x = x + 105;
+             this.btnChangeKeyBinding.y = y;
+-            this.btnChangeKeyBinding.displayString = GameSettings.getKeyDisplayString(this.keybinding.getKeyCode());
++            this.btnChangeKeyBinding.displayString = this.keybinding.getDisplayName();
+             boolean flag1 = false;
++            boolean keyCodeModifierConflict = true; // less severe form of conflict, like SHIFT conflicting with SHIFT+G
+ 
+             if (this.keybinding.getKeyCode() != 0)
+             {
+                 for (KeyBinding keybinding : GuiKeyBindingList.this.mc.gameSettings.keyBindings)
+                 {
+-                    if (keybinding != this.keybinding && keybinding.getKeyCode() == this.keybinding.getKeyCode())
++                    if (keybinding != this.keybinding && keybinding.conflicts(this.keybinding))
+                     {
+                         flag1 = true;
+-                        break;
++                        keyCodeModifierConflict &= keybinding.hasKeyCodeModifierConflict(this.keybinding);
+                     }
+                 }
+             }
+@@ -148,7 +149,7 @@
+             }
+             else if (flag1)
+             {
+-                this.btnChangeKeyBinding.displayString = TextFormatting.RED + this.btnChangeKeyBinding.displayString;
++                this.btnChangeKeyBinding.displayString = (keyCodeModifierConflict ? TextFormatting.GOLD : TextFormatting.RED) + this.btnChangeKeyBinding.displayString;
+             }
+ 
+             this.btnChangeKeyBinding.drawButton(GuiKeyBindingList.this.mc, mouseX, mouseY, partialTicks);
+@@ -163,6 +164,7 @@
+             }
+             else if (this.btnReset.mousePressed(GuiKeyBindingList.this.mc, mouseX, mouseY))
+             {
++                this.keybinding.setToDefault();
+                 GuiKeyBindingList.this.mc.gameSettings.setOptionKeyBinding(this.keybinding, this.keybinding.getKeyCodeDefault());
+                 KeyBinding.resetKeyBindingArrayAndHash();
+                 return true;

@@ -1,0 +1,590 @@
+--- ../src-base/minecraft/net/minecraft/client/Minecraft.java
++++ ../src-work/minecraft/net/minecraft/client/Minecraft.java
+@@ -344,7 +344,6 @@
+         this.sessionService = (new YggdrasilAuthenticationService(this.proxy, UUID.randomUUID().toString())).createMinecraftSessionService();
+         this.session = gameConfig.userInfo.session;
+         LOGGER.info("Setting user: {}", (Object)this.session.getUsername());
+-        LOGGER.debug("(Session ID is {})", (Object)this.session.getSessionID());
+         this.isDemo = gameConfig.gameInfo.isDemo;
+         this.displayWidth = gameConfig.displayInfo.width > 0 ? gameConfig.displayInfo.width : 1;
+         this.displayHeight = gameConfig.displayInfo.height > 0 ? gameConfig.displayInfo.height : 1;
+@@ -464,10 +463,10 @@
+         this.mcResourceManager = new SimpleReloadableResourceManager(this.metadataSerializer_);
+         this.mcLanguageManager = new LanguageManager(this.metadataSerializer_, this.gameSettings.language);
+         this.mcResourceManager.registerReloadListener(this.mcLanguageManager);
+-        this.refreshResources();
++        net.minecraftforge.fml.client.FMLClientHandler.instance().beginMinecraftLoading(this, this.defaultResourcePacks, this.mcResourceManager, this.metadataSerializer_);
+         this.renderEngine = new TextureManager(this.mcResourceManager);
+         this.mcResourceManager.registerReloadListener(this.renderEngine);
+-        this.drawSplashScreen(this.renderEngine);
++        net.minecraftforge.fml.client.SplashProgress.drawVanillaScreen(this.renderEngine);
+         this.skinManager = new SkinManager(this.renderEngine, new File(this.fileAssets, "skins"), this.sessionService);
+         this.saveLoader = new AnvilSaveConverter(new File(this.mcDataDir, "saves"), this.dataFixer);
+         this.mcSoundHandler = new SoundHandler(this.mcResourceManager, this.gameSettings);
+@@ -487,6 +486,8 @@
+         this.mcResourceManager.registerReloadListener(new GrassColorReloadListener());
+         this.mcResourceManager.registerReloadListener(new FoliageColorReloadListener());
+         this.mouseHelper = new MouseHelper();
++        net.minecraftforge.fml.common.ProgressManager.ProgressBar bar= net.minecraftforge.fml.common.ProgressManager.push("Rendering Setup", 5, true);
++        bar.step("GL Setup");
+         this.checkGLError("Pre startup");
+         GlStateManager.enableTexture2D();
+         GlStateManager.shadeModel(7425);
+@@ -500,19 +501,24 @@
+         GlStateManager.loadIdentity();
+         GlStateManager.matrixMode(5888);
+         this.checkGLError("Startup");
++        bar.step("Loading Texture Map");
+         this.textureMapBlocks = new TextureMap("textures");
+         this.textureMapBlocks.setMipmapLevels(this.gameSettings.mipmapLevels);
+         this.renderEngine.loadTickableTexture(TextureMap.LOCATION_BLOCKS_TEXTURE, this.textureMapBlocks);
+         this.renderEngine.bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
+         this.textureMapBlocks.setBlurMipmapDirect(false, this.gameSettings.mipmapLevels > 0);
++        bar.step("Loading Model Manager");
+         this.modelManager = new ModelManager(this.textureMapBlocks);
+         this.mcResourceManager.registerReloadListener(this.modelManager);
+         this.blockColors = BlockColors.init();
+         this.itemColors = ItemColors.init(this.blockColors);
++        bar.step("Loading Item Renderer");
+         this.renderItem = new RenderItem(this.renderEngine, this.modelManager, this.itemColors);
+         this.renderManager = new RenderManager(this.renderEngine, this.renderItem);
+         this.itemRenderer = new ItemRenderer(this);
+         this.mcResourceManager.registerReloadListener(this.renderItem);
++        bar.step("Loading Entity Renderer");
++        net.minecraftforge.fml.client.SplashProgress.pause();
+         this.entityRenderer = new EntityRenderer(this, this.mcResourceManager);
+         this.mcResourceManager.registerReloadListener(this.entityRenderer);
+         this.blockRenderDispatcher = new BlockRendererDispatcher(this.modelManager.getBlockModelShapes(), this.blockColors);
+@@ -523,23 +529,27 @@
+         this.mcResourceManager.registerReloadListener(this.searchTreeManager);
+         GlStateManager.viewport(0, 0, this.displayWidth, this.displayHeight);
+         this.effectRenderer = new ParticleManager(this.world, this.renderEngine);
++        net.minecraftforge.fml.client.SplashProgress.resume();
++        net.minecraftforge.fml.common.ProgressManager.pop(bar);
++        net.minecraftforge.fml.client.FMLClientHandler.instance().finishMinecraftLoading();
+         this.checkGLError("Post startup");
+-        this.ingameGUI = new GuiIngame(this);
++        this.ingameGUI = new net.minecraftforge.client.GuiIngameForge(this);
+ 
+         if (this.serverName != null)
+         {
+-            this.displayGuiScreen(new GuiConnecting(new GuiMainMenu(), this, this.serverName, this.serverPort));
++            net.minecraftforge.fml.client.FMLClientHandler.instance().connectToServerAtStartup(this.serverName, this.serverPort);
+         }
+         else
+         {
+             this.displayGuiScreen(new GuiMainMenu());
+         }
+ 
+-        this.renderEngine.deleteTexture(this.mojangLogo);
++        net.minecraftforge.fml.client.SplashProgress.clearVanillaResources(renderEngine, mojangLogo);
+         this.mojangLogo = null;
+         this.loadingScreen = new LoadingScreenRenderer(this);
+         this.debugRenderer = new DebugRenderer(this);
+ 
++        net.minecraftforge.fml.client.FMLClientHandler.instance().onInitializationComplete();
+         if (this.gameSettings.fullScreen && !this.fullscreen)
+         {
+             this.toggleFullscreen();
+@@ -748,21 +758,23 @@
+         File file2 = new File(file1, "crash-" + (new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss")).format(new Date()) + "-client.txt");
+         Bootstrap.printToSYSOUT(crashReportIn.getCompleteReport());
+ 
++        int retVal;
+         if (crashReportIn.getFile() != null)
+         {
+             Bootstrap.printToSYSOUT("#@!@# Game crashed! Crash report saved to: #@!@# " + crashReportIn.getFile());
+-            System.exit(-1);
++            retVal = -1;
+         }
+         else if (crashReportIn.saveToFile(file2))
+         {
+             Bootstrap.printToSYSOUT("#@!@# Game crashed! Crash report saved to: #@!@# " + file2.getAbsolutePath());
+-            System.exit(-1);
++            retVal = -1;
+         }
+         else
+         {
+             Bootstrap.printToSYSOUT("#@?@# Game crashed! Crash report could not be saved. #@?@#");
+-            System.exit(-2);
++            retVal = -2;
+         }
++        net.minecraftforge.fml.common.FMLCommonHandler.instance().handleExit(retVal);
+     }
+ 
+     public boolean isUnicode()
+@@ -955,11 +967,6 @@
+ 
+     public void displayGuiScreen(@Nullable GuiScreen guiScreenIn)
+     {
+-        if (this.currentScreen != null)
+-        {
+-            this.currentScreen.onGuiClosed();
+-        }
+-
+         if (guiScreenIn == null && this.world == null)
+         {
+             guiScreenIn = new GuiMainMenu();
+@@ -969,6 +976,17 @@
+             guiScreenIn = new GuiGameOver((ITextComponent)null);
+         }
+ 
++        GuiScreen old = this.currentScreen;
++        net.minecraftforge.client.event.GuiOpenEvent event = new net.minecraftforge.client.event.GuiOpenEvent(guiScreenIn);
++
++        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) return;
++
++        guiScreenIn = event.getGui();
++        if (old != null && guiScreenIn != old)
++        {
++            old.onGuiClosed();
++        }
++
+         if (guiScreenIn instanceof GuiMainMenu || guiScreenIn instanceof GuiMultiplayer)
+         {
+             this.gameSettings.showDebugInfo = false;
+@@ -1082,7 +1100,7 @@
+         long i1 = System.nanoTime() - l;
+         this.checkGLError("Pre render");
+         this.mcProfiler.endStartSection("sound");
+-        this.mcSoundHandler.setListener(this.player, this.timer.renderPartialTicks);
++        this.mcSoundHandler.setListener(this.getRenderViewEntity(), this.timer.renderPartialTicks); //Forge: MC-46445 Spectator mode particles and sounds computed from where you have been before
+         this.mcProfiler.endSection();
+         this.mcProfiler.startSection("render");
+         GlStateManager.pushMatrix();
+@@ -1094,11 +1112,13 @@
+ 
+         if (!this.skipRenderWorld)
+         {
++            net.minecraftforge.fml.common.FMLCommonHandler.instance().onRenderTickStart(this.timer.renderPartialTicks);
+             this.mcProfiler.endStartSection("gameRenderer");
+             this.entityRenderer.updateCameraAndRender(this.isGamePaused ? this.renderPartialTicksPaused : this.timer.renderPartialTicks, i);
+             this.mcProfiler.endStartSection("toasts");
+             this.toastGui.drawToast(new ScaledResolution(this));
+             this.mcProfiler.endSection();
++            net.minecraftforge.fml.common.FMLCommonHandler.instance().onRenderTickEnd(this.timer.renderPartialTicks);
+         }
+ 
+         this.mcProfiler.endSection();
+@@ -1455,9 +1475,9 @@
+             {
+                 BlockPos blockpos = this.objectMouseOver.getBlockPos();
+ 
+-                if (this.world.getBlockState(blockpos).getMaterial() != Material.AIR && this.playerController.onPlayerDamageBlock(blockpos, this.objectMouseOver.sideHit))
++                if (!this.world.isAirBlock(blockpos) && this.playerController.onPlayerDamageBlock(blockpos, this.objectMouseOver.sideHit))
+                 {
+-                    this.effectRenderer.addBlockHitEffects(blockpos, this.objectMouseOver.sideHit);
++                    this.effectRenderer.addBlockHitEffects(blockpos, this.objectMouseOver);
+                     this.player.swingArm(EnumHand.MAIN_HAND);
+                 }
+             }
+@@ -1491,7 +1511,7 @@
+                     case BLOCK:
+                         BlockPos blockpos = this.objectMouseOver.getBlockPos();
+ 
+-                        if (this.world.getBlockState(blockpos).getMaterial() != Material.AIR)
++                        if (!this.world.isAirBlock(blockpos))
+                         {
+                             this.playerController.clickBlock(blockpos, this.objectMouseOver.sideHit);
+                             break;
+@@ -1505,6 +1525,7 @@
+                         }
+ 
+                         this.player.resetCooldown();
++                        net.minecraftforge.common.ForgeHooks.onEmptyLeftClick(this.player);
+                 }
+ 
+                 this.player.swingArm(EnumHand.MAIN_HAND);
+@@ -1570,6 +1591,7 @@
+                         }
+                     }
+ 
++                    if (itemstack.isEmpty() && (this.objectMouseOver == null || this.objectMouseOver.typeOfHit == RayTraceResult.Type.MISS)) net.minecraftforge.common.ForgeHooks.onEmptyClick(this.player, enumhand);
+                     if (!itemstack.isEmpty() && this.playerController.processRightClick(this.player, this.world, enumhand) == EnumActionResult.SUCCESS)
+                     {
+                         this.entityRenderer.itemRenderer.resetEquippedProgress(enumhand);
+@@ -1630,6 +1652,11 @@
+             }
+ 
+             Display.setFullscreen(this.fullscreen);
++            if (!this.fullscreen) //Forge: Fix MC-68754, Screen is not resizeable after exiting fullscreen due to LWJGL bug https://github.com/LWJGL/lwjgl/issues/142 which is fixed, but not in the version MC ships
++            {
++                Display.setResizable(false);
++                Display.setResizable(true);
++            }
+             Display.setVSyncEnabled(this.gameSettings.enableVsync);
+             this.updateDisplay();
+         }
+@@ -1676,6 +1703,8 @@
+             --this.rightClickDelayTimer;
+         }
+ 
++        net.minecraftforge.fml.common.FMLCommonHandler.instance().onPreClientTick();
++
+         this.mcProfiler.startSection("gui");
+ 
+         if (!this.isGamePaused)
+@@ -1877,6 +1906,7 @@
+         }
+ 
+         this.mcProfiler.endSection();
++        net.minecraftforge.fml.common.FMLCommonHandler.instance().onPostClientTick();
+         this.systemTime = getSystemTime();
+     }
+ 
+@@ -1982,6 +2012,7 @@
+                     }
+                 }
+             }
++            net.minecraftforge.fml.common.FMLCommonHandler.instance().fireKeyInput();
+         }
+ 
+         this.processKeyBinds();
+@@ -2239,6 +2270,8 @@
+     {
+         while (Mouse.next())
+         {
++            if (net.minecraftforge.client.ForgeHooksClient.postMouseEvent()) continue;
++
+             int i = Mouse.getEventButton();
+             KeyBinding.setKeyBindState(i - 100, Mouse.getEventButtonState());
+ 
+@@ -2294,6 +2327,7 @@
+                     this.currentScreen.handleMouseInput();
+                 }
+             }
++            net.minecraftforge.fml.common.FMLCommonHandler.instance().fireMouseInput();
+         }
+     }
+ 
+@@ -2304,6 +2338,7 @@
+ 
+     public void launchIntegratedServer(String folderName, String worldName, @Nullable WorldSettings worldSettingsIn)
+     {
++        net.minecraftforge.fml.client.FMLClientHandler.instance().startIntegratedServer(folderName, worldName, worldSettingsIn);
+         this.loadWorld((WorldClient)null);
+         System.gc();
+         ISaveHandler isavehandler = this.saveLoader.getSaveLoader(folderName, false);
+@@ -2344,8 +2379,14 @@
+ 
+         this.loadingScreen.displaySavingString(I18n.format("menu.loadingLevel"));
+ 
+-        while (!this.integratedServer.serverIsInRunLoop())
++        while (!this.integratedServer.serverIsInRunLoop() && !this.integratedServer.isServerStopped())
+         {
++            if (!net.minecraftforge.fml.common.StartupQuery.check())
++            {
++                loadWorld(null);
++                displayGuiScreen(null);
++                return;
++            }
+             String s = this.integratedServer.getUserMessage();
+ 
+             if (s != null)
+@@ -2371,8 +2412,14 @@
+         SocketAddress socketaddress = this.integratedServer.getNetworkSystem().addLocalEndpoint();
+         NetworkManager networkmanager = NetworkManager.provideLocalClient(socketaddress);
+         networkmanager.setNetHandler(new NetHandlerLoginClient(networkmanager, this, (GuiScreen)null));
+-        networkmanager.sendPacket(new C00Handshake(socketaddress.toString(), 0, EnumConnectionState.LOGIN));
+-        networkmanager.sendPacket(new CPacketLoginStart(this.getSession().getProfile()));
++        networkmanager.sendPacket(new C00Handshake(socketaddress.toString(), 0, EnumConnectionState.LOGIN, true));
++        com.mojang.authlib.GameProfile gameProfile = this.getSession().getProfile();
++        if (!this.getSession().hasCachedProperties())
++        {
++            gameProfile = sessionService.fillProfileProperties(gameProfile, true); //Forge: Fill profile properties upon game load. Fixes MC-52974.
++            this.getSession().setProperties(gameProfile.getProperties());
++        }
++        networkmanager.sendPacket(new CPacketLoginStart(gameProfile));
+         this.myNetworkManager = networkmanager;
+     }
+ 
+@@ -2383,6 +2430,8 @@
+ 
+     public void loadWorld(@Nullable WorldClient worldClientIn, String loadingMessage)
+     {
++        if (world != null) net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Unload(world));
++
+         if (worldClientIn == null)
+         {
+             NetHandlerPlayClient nethandlerplayclient = this.getConnection();
+@@ -2395,6 +2444,18 @@
+             if (this.integratedServer != null && this.integratedServer.isAnvilFileSet())
+             {
+                 this.integratedServer.initiateShutdown();
++                if (loadingScreen != null && this.running)
++                {
++                    this.loadingScreen.displayLoadingString(I18n.format("forge.client.shutdown.internal"));
++                }
++                while (!integratedServer.isServerStopped())
++                {
++                    try
++                    {
++                        Thread.sleep(10);
++                    }
++                    catch (InterruptedException ie) {}
++                }
+             }
+ 
+             this.integratedServer = null;
+@@ -2418,6 +2479,7 @@
+             this.ingameGUI.resetPlayersOverlayFooterHeader();
+             this.setServerData((ServerData)null);
+             this.integratedServerIsRunning = false;
++            net.minecraftforge.fml.client.FMLClientHandler.instance().handleClientWorldClosing(this.world);
+         }
+ 
+         this.mcSoundHandler.stopSounds();
+@@ -2434,6 +2496,7 @@
+         }
+ 
+         TileEntityRendererDispatcher.instance.setWorld(worldClientIn);
++        net.minecraftforge.client.MinecraftForgeClient.clearRenderCache();
+ 
+         if (worldClientIn != null)
+         {
+@@ -2488,6 +2551,7 @@
+         EntityPlayerSP entityplayersp = this.player;
+         this.player = this.playerController.createPlayer(this.world, this.player == null ? new StatisticsManager() : this.player.getStatFileWriter(), this.player == null ? new RecipeBook() : this.player.getRecipeBook());
+         this.player.getDataManager().setEntryValues(entityplayersp.getDataManager().getAll());
++        this.player.updateSyncFields(entityplayersp); // Forge: fix MC-10657
+         this.player.dimension = dimension;
+         this.renderViewEntity = this.player;
+         this.player.preparePlayerToSpawn();
+@@ -2535,159 +2599,8 @@
+     {
+         if (this.objectMouseOver != null && this.objectMouseOver.typeOfHit != RayTraceResult.Type.MISS)
+         {
+-            boolean flag = this.player.capabilities.isCreativeMode;
+-            TileEntity tileentity = null;
+-            ItemStack itemstack;
+-
+-            if (this.objectMouseOver.typeOfHit == RayTraceResult.Type.BLOCK)
+-            {
+-                BlockPos blockpos = this.objectMouseOver.getBlockPos();
+-                IBlockState iblockstate = this.world.getBlockState(blockpos);
+-                Block block = iblockstate.getBlock();
+-
+-                if (iblockstate.getMaterial() == Material.AIR)
+-                {
+-                    return;
+-                }
+-
+-                itemstack = block.getItem(this.world, blockpos, iblockstate);
+-
+-                if (itemstack.isEmpty())
+-                {
+-                    return;
+-                }
+-
+-                if (flag && GuiScreen.isCtrlKeyDown() && block.hasTileEntity())
+-                {
+-                    tileentity = this.world.getTileEntity(blockpos);
+-                }
+-            }
+-            else
+-            {
+-                if (this.objectMouseOver.typeOfHit != RayTraceResult.Type.ENTITY || this.objectMouseOver.entityHit == null || !flag)
+-                {
+-                    return;
+-                }
+-
+-                if (this.objectMouseOver.entityHit instanceof EntityPainting)
+-                {
+-                    itemstack = new ItemStack(Items.PAINTING);
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityLeashKnot)
+-                {
+-                    itemstack = new ItemStack(Items.LEAD);
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityItemFrame)
+-                {
+-                    EntityItemFrame entityitemframe = (EntityItemFrame)this.objectMouseOver.entityHit;
+-                    ItemStack itemstack1 = entityitemframe.getDisplayedItem();
+-
+-                    if (itemstack1.isEmpty())
+-                    {
+-                        itemstack = new ItemStack(Items.ITEM_FRAME);
+-                    }
+-                    else
+-                    {
+-                        itemstack = itemstack1.copy();
+-                    }
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityMinecart)
+-                {
+-                    EntityMinecart entityminecart = (EntityMinecart)this.objectMouseOver.entityHit;
+-                    Item item1;
+-
+-                    switch (entityminecart.getType())
+-                    {
+-                        case FURNACE:
+-                            item1 = Items.FURNACE_MINECART;
+-                            break;
+-                        case CHEST:
+-                            item1 = Items.CHEST_MINECART;
+-                            break;
+-                        case TNT:
+-                            item1 = Items.TNT_MINECART;
+-                            break;
+-                        case HOPPER:
+-                            item1 = Items.HOPPER_MINECART;
+-                            break;
+-                        case COMMAND_BLOCK:
+-                            item1 = Items.COMMAND_BLOCK_MINECART;
+-                            break;
+-                        default:
+-                            item1 = Items.MINECART;
+-                    }
+-
+-                    itemstack = new ItemStack(item1);
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityBoat)
+-                {
+-                    itemstack = new ItemStack(((EntityBoat)this.objectMouseOver.entityHit).getItemBoat());
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityArmorStand)
+-                {
+-                    itemstack = new ItemStack(Items.ARMOR_STAND);
+-                }
+-                else if (this.objectMouseOver.entityHit instanceof EntityEnderCrystal)
+-                {
+-                    itemstack = new ItemStack(Items.END_CRYSTAL);
+-                }
+-                else
+-                {
+-                    ResourceLocation resourcelocation = EntityList.getKey(this.objectMouseOver.entityHit);
+-
+-                    if (resourcelocation == null || !EntityList.ENTITY_EGGS.containsKey(resourcelocation))
+-                    {
+-                        return;
+-                    }
+-
+-                    itemstack = new ItemStack(Items.SPAWN_EGG);
+-                    ItemMonsterPlacer.applyEntityIdToItemStack(itemstack, resourcelocation);
+-                }
+-            }
+-
+-            if (itemstack.isEmpty())
+-            {
+-                String s = "";
+-
+-                if (this.objectMouseOver.typeOfHit == RayTraceResult.Type.BLOCK)
+-                {
+-                    s = ((ResourceLocation)Block.REGISTRY.getNameForObject(this.world.getBlockState(this.objectMouseOver.getBlockPos()).getBlock())).toString();
+-                }
+-                else if (this.objectMouseOver.typeOfHit == RayTraceResult.Type.ENTITY)
+-                {
+-                    s = EntityList.getKey(this.objectMouseOver.entityHit).toString();
+-                }
+-
+-                LOGGER.warn("Picking on: [{}] {} gave null item", this.objectMouseOver.typeOfHit, s);
+-            }
+-            else
+-            {
+-                InventoryPlayer inventoryplayer = this.player.inventory;
+-
+-                if (tileentity != null)
+-                {
+-                    this.storeTEInStack(itemstack, tileentity);
+-                }
+-
+-                int i = inventoryplayer.getSlotFor(itemstack);
+-
+-                if (flag)
+-                {
+-                    inventoryplayer.setPickedItemStack(itemstack);
+-                    this.playerController.sendSlotPacket(this.player.getHeldItem(EnumHand.MAIN_HAND), 36 + inventoryplayer.currentItem);
+-                }
+-                else if (i != -1)
+-                {
+-                    if (InventoryPlayer.isHotbar(i))
+-                    {
+-                        inventoryplayer.currentItem = i;
+-                    }
+-                    else
+-                    {
+-                        this.playerController.pickItem(i);
+-                    }
+-                }
+-            }
++            net.minecraftforge.common.ForgeHooks.onPickBlock(this.objectMouseOver, this.player, this.world);
++            // We delete this code wholly instead of commenting it out, to make sure we detect changes in it between MC versions
+         }
+     }
+ 
+@@ -3009,18 +2922,8 @@
+ 
+     public static int getGLMaximumTextureSize()
+     {
+-        for (int i = 16384; i > 0; i >>= 1)
+-        {
+-            GlStateManager.glTexImage2D(32868, 0, 6408, i, i, 0, 6408, 5121, (IntBuffer)null);
+-            int j = GlStateManager.glGetTexLevelParameteri(32868, 0, 4096);
+-
+-            if (j != 0)
+-            {
+-                return i;
+-            }
+-        }
+-
+-        return -1;
++        //Forge we redirect this to our code which caches the value before any splash screen stuff is done.
++        return net.minecraftforge.fml.client.SplashProgress.getMaxTextureSize();
+     }
+ 
+     public boolean isSnooperEnabled()
+@@ -3152,6 +3055,9 @@
+         }
+         else if (this.player != null)
+         {
++            MusicTicker.MusicType type = this.world.provider.getMusicType();
++            if (type != null) return type;
++
+             if (this.player.world.provider instanceof WorldProviderHell)
+             {
+                 return MusicTicker.MusicType.NETHER;
+@@ -3181,11 +3087,11 @@
+             {
+                 if (Keyboard.getEventKeyState())
+                 {
+-                    if (i == this.gameSettings.keyBindFullscreen.getKeyCode())
++                    if (this.gameSettings.keyBindFullscreen.isActiveAndMatches(i))
+                     {
+                         this.toggleFullscreen();
+                     }
+-                    else if (i == this.gameSettings.keyBindScreenshot.getKeyCode())
++                    else if (this.gameSettings.keyBindScreenshot.isActiveAndMatches(i))
+                     {
+                         this.ingameGUI.getChatGUI().printChatMessage(ScreenShotHelper.saveScreenshot(this.mcDataDir, this.displayWidth, this.displayHeight, this.framebufferMc));
+                     }
+@@ -3199,6 +3105,7 @@
+                         }
+                     }
+                 }
++                else if (this.currentScreen instanceof GuiControls) ((GuiControls)this.currentScreen).buttonId = null;
+             }
+         }
+     }
+@@ -3328,6 +3235,12 @@
+         return this.blockColors;
+     }
+ 
++    // FORGE
++    public ItemColors getItemColors()
++    {
++        return this.itemColors;
++    }
++
+     public boolean isReducedDebug()
+     {
+         return this.player != null && this.player.hasReducedDebug() || this.gameSettings.reducedDebugInfo;
+@@ -3342,4 +3255,9 @@
+     {
+         return this.tutorial;
+     }
++
++    public SearchTreeManager getSearchTreeManager()
++    {
++        return this.searchTreeManager;
++    }
+ }

@@ -1,0 +1,90 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockGrass.java
++++ ../src-work/minecraft/net/minecraft/block/BlockGrass.java
+@@ -15,6 +15,11 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.block.BlockState;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.event.block.BlockFadeEvent;
++import org.bukkit.event.block.BlockSpreadEvent;
+ 
+ public class BlockGrass extends Block implements IGrowable
+ {
+@@ -38,9 +43,20 @@
+     {
+         if (!worldIn.isRemote)
+         {
+-            if (worldIn.getLightFromNeighbors(pos.up()) < 4 && worldIn.getBlockState(pos.up()).getLightOpacity() > 2)
++            if (!worldIn.isAreaLoaded(pos, 3)) return; // Forge: prevent loading unloaded chunks when checking neighbor's light and spreading
++            if (worldIn.getLightFromNeighbors(pos.up()) < 4 && worldIn.getBlockState(pos.up()).getLightOpacity(worldIn, pos.up()) > 2)
+             {
+-                worldIn.setBlockState(pos, Blocks.DIRT.getDefaultState());
++//                worldIn.setBlockState(pos, Blocks.DIRT.getDefaultState());
++                org.bukkit.World bworld = worldIn.getWorld();
++                BlockState blockState = bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()).getState();
++                blockState.setType(CraftMagicNumbers.getMaterial(Blocks.DIRT));
++
++                BlockFadeEvent event = new BlockFadeEvent(blockState.getBlock(), blockState);
++                worldIn.getServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    blockState.update(true);
++                }
+             }
+             else
+             {
+@@ -58,9 +74,19 @@
+                         IBlockState iblockstate = worldIn.getBlockState(blockpos.up());
+                         IBlockState iblockstate1 = worldIn.getBlockState(blockpos);
+ 
+-                        if (iblockstate1.getBlock() == Blocks.DIRT && iblockstate1.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.DIRT && worldIn.getLightFromNeighbors(blockpos.up()) >= 4 && iblockstate.getLightOpacity() <= 2)
++                        if (iblockstate1.getBlock() == Blocks.DIRT && iblockstate1.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.DIRT && worldIn.getLightFromNeighbors(blockpos.up()) >= 4 && iblockstate.getLightOpacity(worldIn, pos.up()) <= 2)
+                         {
+-                            worldIn.setBlockState(blockpos, Blocks.GRASS.getDefaultState());
++//                            worldIn.setBlockState(blockpos, Blocks.GRASS.getDefaultState());
++                            org.bukkit.World bworld = worldIn.getWorld();
++                            BlockState blockState = bworld.getBlockAt(blockpos.getX(), blockpos.getY(), blockpos.getZ()).getState();
++                            blockState.setType(CraftMagicNumbers.getMaterial(Blocks.GRASS));
++
++                            BlockSpreadEvent event = new BlockSpreadEvent(blockState.getBlock(), bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ()), blockState);
++                            worldIn.getServer().getPluginManager().callEvent(event);
++
++                            if (!event.isCancelled()) {
++                                blockState.update(true);
++                            }
+                         }
+                     }
+                 }
+@@ -96,18 +122,11 @@
+             {
+                 if (j >= i / 16)
+                 {
+-                    if (worldIn.getBlockState(blockpos1).getBlock().blockMaterial == Material.AIR)
++                    if (worldIn.isAirBlock(blockpos1))
+                     {
+                         if (rand.nextInt(8) == 0)
+                         {
+-                            BlockFlower.EnumFlowerType blockflower$enumflowertype = worldIn.getBiome(blockpos1).pickRandomFlower(rand, blockpos1);
+-                            BlockFlower blockflower = blockflower$enumflowertype.getBlockType().getBlock();
+-                            IBlockState iblockstate = blockflower.getDefaultState().withProperty(blockflower.getTypeProperty(), blockflower$enumflowertype);
+-
+-                            if (blockflower.canBlockStay(worldIn, blockpos1, iblockstate))
+-                            {
+-                                worldIn.setBlockState(blockpos1, iblockstate, 3);
+-                            }
++                            worldIn.getBiome(blockpos1).plantFlower(worldIn, rand, blockpos1);
+                         }
+                         else
+                         {
+@@ -115,7 +134,8 @@
+ 
+                             if (Blocks.TALLGRASS.canBlockStay(worldIn, blockpos1, iblockstate1))
+                             {
+-                                worldIn.setBlockState(blockpos1, iblockstate1, 3);
++//                                worldIn.setBlockState(blockpos1, iblockstate1, 3);
++                                CraftEventFactory.handleBlockGrowEvent(worldIn, blockpos1.getX(), blockpos1.getY(), blockpos1.getZ(), iblockstate1.getBlock(), iblockstate1.getBlock().getMetaFromState(iblockstate1));
+                             }
+                         }
+                     }

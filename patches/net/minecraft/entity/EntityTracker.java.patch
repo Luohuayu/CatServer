@@ -1,0 +1,70 @@
+--- ../src-base/minecraft/net/minecraft/entity/EntityTracker.java
++++ ../src-work/minecraft/net/minecraft/entity/EntityTracker.java
+@@ -53,13 +53,13 @@
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final WorldServer world;
+     private final Set<EntityTrackerEntry> entries = Sets.<EntityTrackerEntry>newHashSet();
+-    private final IntHashMap<EntityTrackerEntry> trackedEntityHashTable = new IntHashMap<EntityTrackerEntry>();
++    public final IntHashMap<EntityTrackerEntry> trackedEntityHashTable = new IntHashMap<EntityTrackerEntry>();
+     private int maxTrackingDistanceThreshold;
+ 
+     public EntityTracker(WorldServer theWorldIn)
+     {
+         this.world = theWorldIn;
+-        this.maxTrackingDistanceThreshold = theWorldIn.getMinecraftServer().getPlayerList().getEntityViewDistance();
++        this.maxTrackingDistanceThreshold = net.minecraft.server.management.PlayerChunkMap.getFurthestViewableBlock(theWorldIn.spigotConfig.viewDistance); // Spigot
+     }
+ 
+     public static long getPositionLong(double value)
+@@ -77,6 +77,8 @@
+ 
+     public void track(Entity entityIn)
+     {
++        if (net.minecraftforge.fml.common.registry.EntityRegistry.instance().tryTrackingEntity(this, entityIn)) return;
++
+         if (entityIn instanceof EntityPlayerMP)
+         {
+             this.track(entityIn, 512, 2);
+@@ -196,7 +198,7 @@
+         }
+         else if (entityIn instanceof EntityAreaEffectCloud)
+         {
+-            this.track(entityIn, 160, Integer.MAX_VALUE, true);
++            this.track(entityIn, 160, 10 /*Integer.MAX_VALUE*/, true); // CraftBukkit
+         }
+         else if (entityIn instanceof EntityEnderCrystal)
+         {
+@@ -215,6 +217,7 @@
+ 
+     public void track(Entity entityIn, int trackingRange, final int updateFrequency, boolean sendVelocityUpdates)
+     {
++        trackingRange = org.spigotmc.TrackingRange.getEntityTrackingRange(entityIn, trackingRange); // Spigot
+         try
+         {
+             if (this.trackedEntityHashTable.containsItem(entityIn.getEntityId()))
+@@ -339,6 +342,25 @@
+         }
+     }
+ 
++    /* ======================================== FORGE START =====================================*/
++
++    // don't expose the EntityTrackerEntry directly so mods can't mess with the data in there as easily
++    /**
++     * Get all players tracking the given Entity. The Entity must be part of the World that this Tracker belongs to.
++     * @param entity the Entity
++     * @return all players tracking the Entity
++     */
++    public Set<? extends net.minecraft.entity.player.EntityPlayer> getTrackingPlayers(Entity entity)
++    {
++        EntityTrackerEntry entry = (EntityTrackerEntry) trackedEntityHashTable.lookup(entity.getEntityId());
++        if (entry == null)
++            return java.util.Collections.emptySet();
++        else
++            return java.util.Collections.unmodifiableSet(entry.trackingPlayers);
++    }
++
++    /* ======================================== FORGE END   =====================================*/
++
+     public void sendToTrackingAndSelf(Entity entityIn, Packet<?> packetIn)
+     {
+         EntityTrackerEntry entitytrackerentry = this.trackedEntityHashTable.lookup(entityIn.getEntityId());

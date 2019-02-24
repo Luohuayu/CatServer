@@ -1,0 +1,107 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockDynamicLiquid.java
++++ ../src-work/minecraft/net/minecraft/block/BlockDynamicLiquid.java
+@@ -9,6 +9,8 @@
+ import net.minecraft.util.EnumFacing;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
++import org.bukkit.block.BlockFace;
++import org.bukkit.event.block.BlockFromToEvent;
+ 
+ public class BlockDynamicLiquid extends BlockLiquid
+ {
+@@ -26,6 +28,7 @@
+ 
+     public void updateTick(World worldIn, BlockPos pos, IBlockState state, Random rand)
+     {
++        if (!worldIn.isAreaLoaded(pos, this.getSlopeFindDistance(worldIn))) return; // Forge: avoid loading unloaded chunks
+         int i = ((Integer)state.getValue(LEVEL)).intValue();
+         int j = 1;
+ 
+@@ -67,7 +70,7 @@
+                 }
+             }
+ 
+-            if (this.adjacentSourceBlocks >= 2 && this.blockMaterial == Material.WATER)
++            if (this.adjacentSourceBlocks >= 2 && net.minecraftforge.event.ForgeEventFactory.canCreateFluidSource(worldIn, pos, state, this.blockMaterial == Material.WATER))
+             {
+                 IBlockState iblockstate = worldIn.getBlockState(pos.down());
+ 
+@@ -112,14 +115,22 @@
+             this.placeStaticBlock(worldIn, pos, state);
+         }
+ 
++        org.bukkit.block.Block source = worldIn.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
+         IBlockState iblockstate1 = worldIn.getBlockState(pos.down());
+ 
+         if (this.canFlowInto(worldIn, pos.down(), iblockstate1))
+         {
++            BlockFromToEvent event = new BlockFromToEvent(source, BlockFace.DOWN);
++            worldIn.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return;
++            }
+             if (this.blockMaterial == Material.LAVA && worldIn.getBlockState(pos.down()).getMaterial() == Material.WATER)
+             {
+-                worldIn.setBlockState(pos.down(), Blocks.STONE.getDefaultState());
+-                this.triggerMixEffects(worldIn, pos.down());
++                if (org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockFormEvent(worldIn, pos.down(), net.minecraftforge.event.ForgeEventFactory.fireFluidPlaceBlockEvent(worldIn, pos.down(), pos, Blocks.STONE.getDefaultState()), null)) {
++                    this.triggerMixEffects(worldIn, pos.down());
++                }
+                 return;
+             }
+ 
+@@ -149,14 +160,19 @@
+ 
+             for (EnumFacing enumfacing1 : set)
+             {
+-                this.tryFlowInto(worldIn, pos.offset(enumfacing1), worldIn.getBlockState(pos.offset(enumfacing1)), k1);
++                BlockFromToEvent event = new BlockFromToEvent(source, org.bukkit.craftbukkit.block.CraftBlock.notchToBlockFace(enumfacing1));
++                worldIn.getServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    this.tryFlowInto(worldIn, pos.offset(enumfacing1), worldIn.getBlockState(pos.offset(enumfacing1)), k1);
++                }
+             }
+         }
+     }
+ 
+     private void tryFlowInto(World worldIn, BlockPos pos, IBlockState state, int level)
+     {
+-        if (this.canFlowInto(worldIn, pos, state))
++        if (worldIn.isBlockLoaded(pos) && this.canFlowInto(worldIn, pos, state)) // CraftBukkit - add isLoaded check
+         {
+             if (state.getMaterial() != Material.AIR)
+             {
+@@ -166,6 +182,7 @@
+                 }
+                 else
+                 {
++                    if (state.getBlock() != Blocks.SNOW_LAYER) //Forge: Vanilla has a 'bug' where snowballs don't drop like every other block. So special case because ewww...
+                     state.getBlock().dropBlockAsItem(worldIn, pos, state, 0);
+                 }
+             }
+@@ -187,7 +204,7 @@
+ 
+                 if (!this.isBlocked(worldIn, blockpos, iblockstate) && (iblockstate.getMaterial() != this.blockMaterial || ((Integer)iblockstate.getValue(LEVEL)).intValue() > 0))
+                 {
+-                    if (!this.isBlocked(worldIn, blockpos.down(), iblockstate))
++                    if (!this.isBlocked(worldIn, blockpos.down(), worldIn.getBlockState(blockpos.down())))
+                     {
+                         return distance;
+                     }
+@@ -254,11 +271,12 @@
+ 
+     private boolean isBlocked(World worldIn, BlockPos pos, IBlockState state)
+     {
+-        Block block = worldIn.getBlockState(pos).getBlock();
++        Block block = state.getBlock(); //Forge: state must be valid for position
++        Material mat = state.getMaterial();
+ 
+         if (!(block instanceof BlockDoor) && block != Blocks.STANDING_SIGN && block != Blocks.LADDER && block != Blocks.REEDS)
+         {
+-            return block.blockMaterial != Material.PORTAL && block.blockMaterial != Material.STRUCTURE_VOID ? block.blockMaterial.blocksMovement() : true;
++            return mat != Material.PORTAL && mat != Material.STRUCTURE_VOID ? mat.blocksMovement() : true;
+         }
+         else
+         {

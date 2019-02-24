@@ -1,0 +1,131 @@
+--- ../src-base/minecraft/net/minecraft/item/crafting/ShapelessRecipes.java
++++ ../src-work/minecraft/net/minecraft/item/crafting/ShapelessRecipes.java
+@@ -9,24 +9,32 @@
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.util.JsonUtils;
+ import net.minecraft.util.NonNullList;
++import net.minecraft.util.ResourceLocation;
+ import net.minecraft.world.World;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.inventory.CraftShapelessRecipe;
++import org.bukkit.inventory.Recipe;
+ 
+-public class ShapelessRecipes implements IRecipe
++public class ShapelessRecipes extends net.minecraftforge.registries.IForgeRegistryEntry.Impl<IRecipe> implements IRecipe
+ {
+     private final ItemStack recipeOutput;
+     public final NonNullList<Ingredient> recipeItems;
+     private final String group;
++    private final boolean isSimple;
+ 
++    public ResourceLocation key;
++
+     public ShapelessRecipes(String group, ItemStack output, NonNullList<Ingredient> ingredients)
+     {
+         this.group = group;
+         this.recipeOutput = output;
+         this.recipeItems = ingredients;
++        boolean simple = true;
++        for (Ingredient i : ingredients)
++            simple &= i.isSimple();
++        this.isSimple = simple;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     public String getGroup()
+     {
+         return this.group;
+@@ -50,10 +58,7 @@
+         {
+             ItemStack itemstack = inv.getStackInSlot(i);
+ 
+-            if (itemstack.getItem().hasContainerItem())
+-            {
+-                nonnulllist.set(i, new ItemStack(itemstack.getItem().getContainerItem()));
+-            }
++            nonnulllist.set(i, net.minecraftforge.common.ForgeHooks.getContainerItem(itemstack));
+         }
+ 
+         return nonnulllist;
+@@ -61,7 +66,9 @@
+ 
+     public boolean matches(InventoryCrafting inv, World worldIn)
+     {
+-        List<Ingredient> list = Lists.newArrayList(this.recipeItems);
++        int ingredientCount = 0;
++        net.minecraft.client.util.RecipeItemHelper recipeItemHelper = new net.minecraft.client.util.RecipeItemHelper();
++        List<ItemStack> inputs = Lists.newArrayList();
+ 
+         for (int i = 0; i < inv.getHeight(); ++i)
+         {
+@@ -71,27 +78,22 @@
+ 
+                 if (!itemstack.isEmpty())
+                 {
+-                    boolean flag = false;
+-
+-                    for (Ingredient ingredient : list)
+-                    {
+-                        if (ingredient.apply(itemstack))
+-                        {
+-                            flag = true;
+-                            list.remove(ingredient);
+-                            break;
+-                        }
+-                    }
+-
+-                    if (!flag)
+-                    {
+-                        return false;
+-                    }
++                    ++ingredientCount;
++                    if (this.isSimple)
++                        recipeItemHelper.accountStack(itemstack, 1);
++                    else
++                        inputs.add(itemstack);
+                 }
+             }
+         }
+ 
+-        return list.isEmpty();
++        if (ingredientCount != this.recipeItems.size())
++            return false;
++
++        if (this.isSimple)
++            return recipeItemHelper.canCraft(this, null);
++
++        return net.minecraftforge.common.util.RecipeMatcher.findMatches(inputs, this.recipeItems) != null;
+     }
+ 
+     public ItemStack getCraftingResult(InventoryCrafting inv)
+@@ -136,9 +138,27 @@
+         return nonnulllist;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     public boolean canFit(int width, int height)
+     {
+         return width * height >= this.recipeItems.size();
+     }
++
++    @Override
++    public Recipe toBukkitRecipe() {
++        CraftItemStack result = CraftItemStack.asCraftMirror(this.recipeOutput);
++        CraftShapelessRecipe recipe = new CraftShapelessRecipe(result, this);
++        for (Ingredient list : this.recipeItems) {
++            if (list != null) { // CatServer - get recipe from OreDictionary
++                ItemStack[] matchingStacks = list.getMatchingStacks();
++                net.minecraft.item.ItemStack stack = matchingStacks[0];
++                recipe.addIngredient(org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(stack.getItem()), (matchingStacks.length) > 1 ? 32767 : stack.getMetadata());
++            }
++        }
++        return recipe;
++    }
++
++    @Override
++    public void setKey(ResourceLocation key) {
++        this.key = key;
++    }
+ }

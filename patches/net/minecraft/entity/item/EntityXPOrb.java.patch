@@ -1,0 +1,155 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityXPOrb.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityXPOrb.java
+@@ -3,6 +3,7 @@
+ import net.minecraft.block.material.Material;
+ import net.minecraft.enchantment.EnchantmentHelper;
+ import net.minecraft.entity.Entity;
++import net.minecraft.entity.EntityLivingBase;
+ import net.minecraft.entity.MoverType;
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.init.Enchantments;
+@@ -15,6 +16,9 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityTargetEvent;
++import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+ 
+ public class EntityXPOrb extends Entity
+ {
+@@ -74,6 +78,7 @@
+     public void onUpdate()
+     {
+         super.onUpdate();
++        EntityPlayer prevTarget = this.closestPlayer;// CraftBukkit - store old target
+ 
+         if (this.delayBeforeCanPickup > 0)
+         {
+@@ -117,18 +122,27 @@
+ 
+         if (this.closestPlayer != null)
+         {
+-            double d1 = (this.closestPlayer.posX - this.posX) / 8.0D;
+-            double d2 = (this.closestPlayer.posY + (double)this.closestPlayer.getEyeHeight() / 2.0D - this.posY) / 8.0D;
+-            double d3 = (this.closestPlayer.posZ - this.posZ) / 8.0D;
+-            double d4 = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
+-            double d5 = 1.0D - d4;
++            boolean cancelled = false;
++            if (this.closestPlayer != prevTarget) {
++                EntityTargetLivingEntityEvent event = CraftEventFactory.callEntityTargetLivingEvent(this, closestPlayer, EntityTargetEvent.TargetReason.CLOSEST_PLAYER);
++                EntityLivingBase target = event.getTarget() == null ? null : ((org.bukkit.craftbukkit.entity.CraftLivingEntity) event.getTarget()).getHandle();
++                closestPlayer = target instanceof EntityPlayer ? (EntityPlayer) target : null;
++                cancelled = event.isCancelled();
++            }
+ 
+-            if (d5 > 0.0D)
+-            {
+-                d5 = d5 * d5;
+-                this.motionX += d1 / d4 * d5 * 0.1D;
+-                this.motionY += d2 / d4 * d5 * 0.1D;
+-                this.motionZ += d3 / d4 * d5 * 0.1D;
++            if (!cancelled && closestPlayer != null) {
++                double d1 = (this.closestPlayer.posX - this.posX) / 8.0D;
++                double d2 = (this.closestPlayer.posY + (double) this.closestPlayer.getEyeHeight() / 2.0D - this.posY) / 8.0D;
++                double d3 = (this.closestPlayer.posZ - this.posZ) / 8.0D;
++                double d4 = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
++                double d5 = 1.0D - d4;
++
++                if (d5 > 0.0D) {
++                    d5 = d5 * d5;
++                    this.motionX += d1 / d4 * d5 * 0.1D;
++                    this.motionY += d2 / d4 * d5 * 0.1D;
++                    this.motionZ += d3 / d4 * d5 * 0.1D;
++                }
+             }
+         }
+ 
+@@ -137,7 +151,9 @@
+ 
+         if (this.onGround)
+         {
+-            f = this.world.getBlockState(new BlockPos(MathHelper.floor(this.posX), MathHelper.floor(this.getEntityBoundingBox().minY) - 1, MathHelper.floor(this.posZ))).getBlock().slipperiness * 0.98F;
++            BlockPos underPos = new BlockPos(MathHelper.floor(this.posX), MathHelper.floor(this.getEntityBoundingBox().minY) - 1, MathHelper.floor(this.posZ));
++            net.minecraft.block.state.IBlockState underState = this.world.getBlockState(underPos);
++            f = underState.getBlock().getSlipperiness(underState, this.world, underPos, this) * 0.98F;
+         }
+ 
+         this.motionX *= (double)f;
+@@ -170,6 +186,7 @@
+ 
+     public boolean attackEntityFrom(DamageSource source, float amount)
+     {
++        if (this.world.isRemote || this.isDead) return false; //Forge: Fixes MC-53850
+         if (this.isEntityInvulnerable(source))
+         {
+             return false;
+@@ -208,20 +225,28 @@
+         {
+             if (this.delayBeforeCanPickup == 0 && entityIn.xpCooldown == 0)
+             {
++                if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerPickupXpEvent(entityIn, this))) return;
+                 entityIn.xpCooldown = 2;
+                 entityIn.onItemPickup(this, 1);
+                 ItemStack itemstack = EnchantmentHelper.getEnchantedItem(Enchantments.MENDING, entityIn);
+ 
+                 if (!itemstack.isEmpty() && itemstack.isItemDamaged())
+                 {
+-                    int i = Math.min(this.xpToDurability(this.xpValue), itemstack.getItemDamage());
+-                    this.xpValue -= this.durabilityToXp(i);
+-                    itemstack.setItemDamage(itemstack.getItemDamage() - i);
++                    float ratio = itemstack.getItem().getXpRepairRatio(itemstack);
++                    int i = Math.min(roundAverage(this.xpValue * ratio), itemstack.getItemDamage());
++//                    this.xpValue -= roundAverage(i / ratio);
++//                    itemstack.setItemDamage(itemstack.getItemDamage() - i);
++                    org.bukkit.event.player.PlayerItemMendEvent event = CraftEventFactory.callPlayerItemMendEvent(entityIn, this, itemstack, i);
++                    i = event.getRepairAmount();
++                    if (!event.isCancelled()) {
++                        this.xpValue -= roundAverage(i / ratio);
++                        itemstack.setItemDamage(itemstack.getItemDamage() - i);
++                    }
+                 }
+ 
+                 if (this.xpValue > 0)
+                 {
+-                    entityIn.addExperience(this.xpValue);
++                    entityIn.addExperience(CraftEventFactory.callPlayerExpChangeEvent(entityIn, this.xpValue).getAmount()); // CraftBukkit - this.value -> event.getAmount()
+                 }
+ 
+                 this.setDead();
+@@ -291,6 +316,24 @@
+ 
+     public static int getXPSplit(int expValue)
+     {
++        // CraftBukkit start
++        if (expValue > 162670129) return expValue - 100000;
++        if (expValue > 81335063) return 81335063;
++        if (expValue > 40667527) return 40667527;
++        if (expValue > 20333759) return 20333759;
++        if (expValue > 10166857) return 10166857;
++        if (expValue > 5083423) return 5083423;
++        if (expValue > 2541701) return 2541701;
++        if (expValue > 1270849) return 1270849;
++        if (expValue > 635413) return 635413;
++        if (expValue > 317701) return 317701;
++        if (expValue > 158849) return 158849;
++        if (expValue > 79423) return 79423;
++        if (expValue > 39709) return 39709;
++        if (expValue > 19853) return 19853;
++        if (expValue > 9923) return 9923;
++        if (expValue > 4957) return 4957;
++        // CraftBukkit end
+         if (expValue >= 2477)
+         {
+             return 2477;
+@@ -337,4 +380,10 @@
+     {
+         return false;
+     }
++
++    private static int roundAverage(float value)
++    {
++        double floor = Math.floor(value);
++        return (int) floor + (Math.random() < value - floor ? 1 : 0);
++    }
+ }

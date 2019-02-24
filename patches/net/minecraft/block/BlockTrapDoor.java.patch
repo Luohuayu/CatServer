@@ -1,0 +1,110 @@
+--- ../src-base/minecraft/net/minecraft/block/BlockTrapDoor.java
++++ ../src-work/minecraft/net/minecraft/block/BlockTrapDoor.java
+@@ -24,12 +24,13 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.event.block.BlockRedstoneEvent;
+ 
+ public class BlockTrapDoor extends Block
+ {
+     public static final PropertyDirection FACING = BlockHorizontal.FACING;
+     public static final PropertyBool OPEN = PropertyBool.create("open");
+-    public static final PropertyEnum<BlockTrapDoor.DoorHalf> HALF = PropertyEnum.<BlockTrapDoor.DoorHalf>create("half", BlockTrapDoor.DoorHalf.class);
++    public static final PropertyEnum<DoorHalf> HALF = PropertyEnum.<DoorHalf>create("half", DoorHalf.class);
+     protected static final AxisAlignedBB EAST_OPEN_AABB = new AxisAlignedBB(0.0D, 0.0D, 0.0D, 0.1875D, 1.0D, 1.0D);
+     protected static final AxisAlignedBB WEST_OPEN_AABB = new AxisAlignedBB(0.8125D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
+     protected static final AxisAlignedBB SOUTH_OPEN_AABB = new AxisAlignedBB(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 0.1875D);
+@@ -40,7 +41,7 @@
+     protected BlockTrapDoor(Material materialIn)
+     {
+         super(materialIn);
+-        this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(OPEN, Boolean.valueOf(false)).withProperty(HALF, BlockTrapDoor.DoorHalf.BOTTOM));
++        this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(OPEN, Boolean.valueOf(false)).withProperty(HALF, DoorHalf.BOTTOM));
+         this.setCreativeTab(CreativeTabs.REDSTONE);
+     }
+ 
+@@ -66,7 +67,7 @@
+                     axisalignedbb = EAST_OPEN_AABB;
+             }
+         }
+-        else if (state.getValue(HALF) == BlockTrapDoor.DoorHalf.TOP)
++        else if (state.getValue(HALF) == DoorHalf.TOP)
+         {
+             axisalignedbb = TOP_AABB;
+         }
+@@ -130,6 +131,18 @@
+ 
+             if (flag || blockIn.getDefaultState().canProvidePower())
+             {
++                org.bukkit.World bworld = worldIn.getWorld();
++                org.bukkit.block.Block bblock = bworld.getBlockAt(pos.getX(), pos.getY(), pos.getZ());
++
++                int power = bblock.getBlockPower();
++                int oldPower = state.getValue(OPEN) ? 15 : 0;
++
++                if (oldPower == 0 ^ power == 0 || blockIn.getDefaultState().hasComparatorInputOverride()) {
++                    BlockRedstoneEvent eventRedstone = new BlockRedstoneEvent(bblock, oldPower, power);
++                    worldIn.getServer().getPluginManager().callEvent(eventRedstone);
++                    flag = eventRedstone.getNewCurrent() > 0;
++                }
++
+                 boolean flag1 = ((Boolean)state.getValue(OPEN)).booleanValue();
+ 
+                 if (flag1 != flag)
+@@ -148,12 +161,12 @@
+         if (facing.getAxis().isHorizontal())
+         {
+             iblockstate = iblockstate.withProperty(FACING, facing).withProperty(OPEN, Boolean.valueOf(false));
+-            iblockstate = iblockstate.withProperty(HALF, hitY > 0.5F ? BlockTrapDoor.DoorHalf.TOP : BlockTrapDoor.DoorHalf.BOTTOM);
++            iblockstate = iblockstate.withProperty(HALF, hitY > 0.5F ? DoorHalf.TOP : DoorHalf.BOTTOM);
+         }
+         else
+         {
+             iblockstate = iblockstate.withProperty(FACING, placer.getHorizontalFacing().getOpposite()).withProperty(OPEN, Boolean.valueOf(false));
+-            iblockstate = iblockstate.withProperty(HALF, facing == EnumFacing.UP ? BlockTrapDoor.DoorHalf.BOTTOM : BlockTrapDoor.DoorHalf.TOP);
++            iblockstate = iblockstate.withProperty(HALF, facing == EnumFacing.UP ? DoorHalf.BOTTOM : DoorHalf.TOP);
+         }
+ 
+         if (worldIn.isBlockPowered(pos))
+@@ -203,7 +216,7 @@
+ 
+     public IBlockState getStateFromMeta(int meta)
+     {
+-        return this.getDefaultState().withProperty(FACING, getFacing(meta)).withProperty(OPEN, Boolean.valueOf((meta & 4) != 0)).withProperty(HALF, (meta & 8) == 0 ? BlockTrapDoor.DoorHalf.BOTTOM : BlockTrapDoor.DoorHalf.TOP);
++        return this.getDefaultState().withProperty(FACING, getFacing(meta)).withProperty(OPEN, Boolean.valueOf((meta & 4) != 0)).withProperty(HALF, (meta & 8) == 0 ? DoorHalf.BOTTOM : DoorHalf.TOP);
+     }
+ 
+     @SideOnly(Side.CLIENT)
+@@ -222,7 +235,7 @@
+             i |= 4;
+         }
+ 
+-        if (state.getValue(HALF) == BlockTrapDoor.DoorHalf.TOP)
++        if (state.getValue(HALF) == DoorHalf.TOP)
+         {
+             i |= 8;
+         }
+@@ -247,9 +260,21 @@
+ 
+     public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face)
+     {
+-        return (face == EnumFacing.UP && state.getValue(HALF) == BlockTrapDoor.DoorHalf.TOP || face == EnumFacing.DOWN && state.getValue(HALF) == BlockTrapDoor.DoorHalf.BOTTOM) && !((Boolean)state.getValue(OPEN)).booleanValue() ? BlockFaceShape.SOLID : BlockFaceShape.UNDEFINED;
++        return (face == EnumFacing.UP && state.getValue(HALF) == DoorHalf.TOP || face == EnumFacing.DOWN && state.getValue(HALF) == DoorHalf.BOTTOM) && !((Boolean)state.getValue(OPEN)).booleanValue() ? BlockFaceShape.SOLID : BlockFaceShape.UNDEFINED;
+     }
+ 
++    @Override
++    public boolean isLadder(IBlockState state, IBlockAccess world, BlockPos pos, EntityLivingBase entity)
++    {
++        if (state.getValue(OPEN))
++        {
++            IBlockState down = world.getBlockState(pos.down());
++            if (down.getBlock() == net.minecraft.init.Blocks.LADDER)
++                return down.getValue(BlockLadder.FACING) == state.getValue(FACING);
++        }
++        return false;
++    }
++
+     public static enum DoorHalf implements IStringSerializable
+     {
+         TOP("top"),

@@ -1,0 +1,220 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityArmorStand.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityArmorStand.java
+@@ -31,13 +31,18 @@
+ import net.minecraft.util.datafix.DataFixer;
+ import net.minecraft.util.datafix.FixTypes;
+ import net.minecraft.util.datafix.walkers.ItemStackDataLists;
+-import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.Rotations;
+ import net.minecraft.util.math.Vec3d;
+ import net.minecraft.world.World;
+ import net.minecraft.world.WorldServer;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.craftbukkit.CraftEquipmentSlot;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.entity.ArmorStand;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
++import org.bukkit.inventory.EquipmentSlot;
+ 
+ public class EntityArmorStand extends EntityLivingBase
+ {
+@@ -58,7 +63,7 @@
+     {
+         public boolean apply(@Nullable Entity p_apply_1_)
+         {
+-            return p_apply_1_ instanceof EntityMinecart && ((EntityMinecart)p_apply_1_).getType() == EntityMinecart.Type.RIDEABLE;
++            return p_apply_1_ instanceof EntityMinecart && ((EntityMinecart)p_apply_1_).canBeRidden();
+         }
+     };
+     private final NonNullList<ItemStack> handItems;
+@@ -67,13 +72,15 @@
+     public long punchCooldown;
+     private int disabledSlots;
+     private boolean wasMarker;
+-    private Rotations headRotation;
+-    private Rotations bodyRotation;
+-    private Rotations leftArmRotation;
+-    private Rotations rightArmRotation;
+-    private Rotations leftLegRotation;
+-    private Rotations rightLegRotation;
++    public Rotations headRotation;
++    public Rotations bodyRotation;
++    public Rotations leftArmRotation;
++    public Rotations rightArmRotation;
++    public Rotations leftLegRotation;
++    public Rotations rightLegRotation;
+ 
++    private java.util.ArrayList<org.bukkit.inventory.ItemStack> drops = new java.util.ArrayList<>(); // CatServer
++
+     public EntityArmorStand(World worldIn)
+     {
+         super(worldIn);
+@@ -95,6 +102,13 @@
+         this.setPosition(posX, posY, posZ);
+     }
+ 
++    // CraftBukkit start - SPIGOT-3607, SPIGOT-3637
++    @Override
++    public float getBukkitYaw() {
++        return this.rotationYaw;
++    }
++    // CraftBukkit end
++
+     protected final void setSize(float width, float height)
+     {
+         double d0 = this.posX;
+@@ -457,6 +471,19 @@
+         {
+             if (!itemstack.isEmpty() || (this.disabledSlots & 1 << p_184795_2_.getSlotIndex() + 16) == 0)
+             {
++                org.bukkit.inventory.ItemStack armorStandItem = CraftItemStack.asCraftMirror(itemstack);
++                org.bukkit.inventory.ItemStack playerHeldItem = CraftItemStack.asCraftMirror(p_184795_3_);
++
++                Player bukkitPlayer = (Player) player.getBukkitEntity();
++                ArmorStand self = (ArmorStand) this.getBukkitEntity();
++
++                EquipmentSlot slot = CraftEquipmentSlot.getSlot(p_184795_2_);
++                PlayerArmorStandManipulateEvent armorStandManipulateEvent = new PlayerArmorStandManipulateEvent(bukkitPlayer, self, playerHeldItem, armorStandItem, slot);
++                this.world.getServer().getPluginManager().callEvent(armorStandManipulateEvent);
++
++                if (armorStandManipulateEvent.isCancelled()) {
++                    return;
++                }
+                 if (player.capabilities.isCreativeMode && itemstack.isEmpty() && !p_184795_3_.isEmpty())
+                 {
+                     ItemStack itemstack2 = p_184795_3_.copy();
+@@ -484,11 +511,14 @@
+ 
+     public boolean attackEntityFrom(DamageSource source, float amount)
+     {
++        if (org.bukkit.craftbukkit.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, source, amount)) {
++            return false;
++        }
+         if (!this.world.isRemote && !this.isDead)
+         {
+             if (DamageSource.OUT_OF_WORLD.equals(source))
+             {
+-                this.setDead();
++                this.onKillCommand();
+                 return false;
+             }
+             else if (!this.isEntityInvulnerable(source) && !this.canInteract && !this.hasMarker())
+@@ -496,7 +526,7 @@
+                 if (source.isExplosion())
+                 {
+                     this.dropContents();
+-                    this.setDead();
++                    this.onKillCommand();
+                     return false;
+                 }
+                 else if (DamageSource.IN_FIRE.equals(source))
+@@ -541,7 +571,7 @@
+                         {
+                             this.playBrokenSound();
+                             this.playParticles();
+-                            this.setDead();
++                            this.onKillCommand();
+                             return false;
+                         }
+                         else
+@@ -557,7 +587,7 @@
+                             {
+                                 this.dropBlock();
+                                 this.playParticles();
+-                                this.setDead();
++                                this.onKillCommand();
+                             }
+ 
+                             return false;
+@@ -623,7 +653,7 @@
+         if (f <= 0.5F)
+         {
+             this.dropContents();
+-            this.setDead();
++            this.onKillCommand();
+         }
+         else
+         {
+@@ -633,7 +663,8 @@
+ 
+     private void dropBlock()
+     {
+-        Block.spawnAsEntity(this.world, new BlockPos(this), new ItemStack(Items.ARMOR_STAND));
++//        Block.spawnAsEntity(this.world, new BlockPos(this), new ItemStack(Items.ARMOR_STAND));
++        drops.add(org.bukkit.craftbukkit.inventory.CraftItemStack.asBukkitCopy(new ItemStack(Items.ARMOR_STAND))); // CraftBukkit - add to drops
+         this.dropContents();
+     }
+ 
+@@ -647,7 +678,8 @@
+ 
+             if (!itemstack.isEmpty())
+             {
+-                Block.spawnAsEntity(this.world, (new BlockPos(this)).up(), itemstack);
++//                Block.spawnAsEntity(this.world, (new BlockPos(this)).up(), itemstack);
++                drops.add(org.bukkit.craftbukkit.inventory.CraftItemStack.asBukkitCopy(itemstack)); // CraftBukkit - add to drops
+                 this.handItems.set(i, ItemStack.EMPTY);
+             }
+         }
+@@ -658,7 +690,8 @@
+ 
+             if (!itemstack1.isEmpty())
+             {
+-                Block.spawnAsEntity(this.world, (new BlockPos(this)).up(), itemstack1);
++//                Block.spawnAsEntity(this.world, (new BlockPos(this)).up(), itemstack1);
++                drops.add(org.bukkit.craftbukkit.inventory.CraftItemStack.asBukkitCopy(itemstack1)); // CraftBukkit - add to drops
+                 this.armorItems.set(j, ItemStack.EMPTY);
+             }
+         }
+@@ -791,7 +824,14 @@
+ 
+     public void onKillCommand()
+     {
++        org.bukkit.craftbukkit.event.CraftEventFactory.callEntityDeathEvent(this, drops); // CraftBukkit - call event
+         this.setDead();
++        // CatServer start
++        for (EntityItem item : capturedDrops)
++        {
++            world.spawnEntity(item);
++        }
++        // CatServer end
+     }
+ 
+     public boolean isImmuneToExplosions()
+@@ -804,7 +844,7 @@
+         return this.hasMarker() ? EnumPushReaction.IGNORE : super.getPushReaction();
+     }
+ 
+-    private void setSmall(boolean small)
++    public void setSmall(boolean small)
+     {
+         this.dataManager.set(STATUS, Byte.valueOf(this.setBit(((Byte)this.dataManager.get(STATUS)).byteValue(), 1, small)));
+         this.setSize(0.5F, 1.975F);
+@@ -815,7 +855,7 @@
+         return (((Byte)this.dataManager.get(STATUS)).byteValue() & 1) != 0;
+     }
+ 
+-    private void setShowArms(boolean showArms)
++    public void setShowArms(boolean showArms)
+     {
+         this.dataManager.set(STATUS, Byte.valueOf(this.setBit(((Byte)this.dataManager.get(STATUS)).byteValue(), 4, showArms)));
+     }
+@@ -825,7 +865,7 @@
+         return (((Byte)this.dataManager.get(STATUS)).byteValue() & 4) != 0;
+     }
+ 
+-    private void setNoBasePlate(boolean noBasePlate)
++    public void setNoBasePlate(boolean noBasePlate)
+     {
+         this.dataManager.set(STATUS, Byte.valueOf(this.setBit(((Byte)this.dataManager.get(STATUS)).byteValue(), 8, noBasePlate)));
+     }
+@@ -835,7 +875,7 @@
+         return (((Byte)this.dataManager.get(STATUS)).byteValue() & 8) != 0;
+     }
+ 
+-    private void setMarker(boolean marker)
++    public void setMarker(boolean marker)
+     {
+         this.dataManager.set(STATUS, Byte.valueOf(this.setBit(((Byte)this.dataManager.get(STATUS)).byteValue(), 16, marker)));
+         this.setSize(0.5F, 1.975F);

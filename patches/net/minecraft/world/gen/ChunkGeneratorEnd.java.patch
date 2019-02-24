@@ -1,0 +1,73 @@
+--- ../src-base/minecraft/net/minecraft/world/gen/ChunkGeneratorEnd.java
++++ ../src-work/minecraft/net/minecraft/world/gen/ChunkGeneratorEnd.java
+@@ -43,6 +43,9 @@
+     double[] ar;
+     double[] br;
+     private final WorldGenEndIsland endIslands = new WorldGenEndIsland();
++    // temporary variables used during event handling
++    private int chunkX = 0;
++    private int chunkZ = 0;
+ 
+     public ChunkGeneratorEnd(World p_i47241_1_, boolean p_i47241_2_, long p_i47241_3_, BlockPos p_i47241_5_)
+     {
+@@ -56,6 +59,17 @@
+         this.noiseGen5 = new NoiseGeneratorOctaves(this.rand, 10);
+         this.noiseGen6 = new NoiseGeneratorOctaves(this.rand, 16);
+         this.islandNoise = new NoiseGeneratorSimplex(this.rand);
++
++        net.minecraftforge.event.terraingen.InitNoiseGensEvent.ContextEnd ctx =
++                new net.minecraftforge.event.terraingen.InitNoiseGensEvent.ContextEnd(lperlinNoise1, lperlinNoise2, perlinNoise1, noiseGen5, noiseGen6, islandNoise);
++        ctx = net.minecraftforge.event.terraingen.TerrainGen.getModdedNoiseGenerators(p_i47241_1_, this.rand, ctx);
++        this.lperlinNoise1 = ctx.getLPerlin1();
++        this.lperlinNoise2 = ctx.getLPerlin2();
++        this.perlinNoise1 = ctx.getPerlin();
++        this.noiseGen5 = ctx.getDepth();
++        this.noiseGen6 = ctx.getScale();
++        this.islandNoise = ctx.getIsland();
++        this.endCityGen = (MapGenEndCity) net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(this.endCityGen, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.END_CITY);
+     }
+ 
+     public void setBlocksInChunk(int x, int z, ChunkPrimer primer)
+@@ -128,6 +142,7 @@
+ 
+     public void buildSurfaces(ChunkPrimer primer)
+     {
++        if (!net.minecraftforge.event.ForgeEventFactory.onReplaceBiomeBlocks(this, this.chunkX, this.chunkZ, primer, this.world)) return;
+         for (int i = 0; i < 16; ++i)
+         {
+             for (int j = 0; j < 16; ++j)
+@@ -173,6 +188,7 @@
+ 
+     public Chunk generateChunk(int x, int z)
+     {
++        this.chunkX = x; this.chunkZ = z;
+         this.rand.setSeed((long)x * 341873128712L + (long)z * 132897987541L);
+         ChunkPrimer chunkprimer = new ChunkPrimer();
+         this.biomesForGeneration = this.world.getBiomeProvider().getBiomes(this.biomesForGeneration, x * 16, z * 16, 16, 16);
+@@ -254,6 +270,10 @@
+ 
+     private double[] getHeights(double[] p_185963_1_, int p_185963_2_, int p_185963_3_, int p_185963_4_, int p_185963_5_, int p_185963_6_, int p_185963_7_)
+     {
++        net.minecraftforge.event.terraingen.ChunkGeneratorEvent.InitNoiseField event = new net.minecraftforge.event.terraingen.ChunkGeneratorEvent.InitNoiseField(this, p_185963_1_, p_185963_2_, p_185963_3_, p_185963_4_, p_185963_5_, p_185963_6_, p_185963_7_);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++        if (event.getResult() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY) return event.getNoisefield();
++
+         if (p_185963_1_ == null)
+         {
+             p_185963_1_ = new double[p_185963_5_ * p_185963_6_ * p_185963_7_];
+@@ -326,6 +346,7 @@
+     public void populate(int x, int z)
+     {
+         BlockFalling.fallInstantly = true;
++        net.minecraftforge.event.ForgeEventFactory.onChunkPopulate(true, this, this.world, this.rand, x, z, false);
+         BlockPos blockpos = new BlockPos(x * 16, 0, z * 16);
+ 
+         if (this.mapFeaturesEnabled)
+@@ -394,6 +415,7 @@
+             }
+         }
+ 
++        net.minecraftforge.event.ForgeEventFactory.onChunkPopulate(false, this, this.world, this.rand, x, z, false);
+         BlockFalling.fallInstantly = false;
+     }
+ 

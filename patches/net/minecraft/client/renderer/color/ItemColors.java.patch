@@ -1,0 +1,49 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/color/ItemColors.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/color/ItemColors.java
+@@ -26,7 +26,8 @@
+ @SideOnly(Side.CLIENT)
+ public class ItemColors
+ {
+-    private final ObjectIntIdentityMap<IItemColor> mapItemColors = new ObjectIntIdentityMap<IItemColor>(32);
++    // FORGE: Use RegistryDelegates as non-Vanilla item ids are not constant
++    private final java.util.Map<net.minecraftforge.registries.IRegistryDelegate<Item>, IItemColor> itemColorMap = com.google.common.collect.Maps.newHashMap();
+ 
+     public static ItemColors init(final BlockColors colors)
+     {
+@@ -137,12 +138,13 @@
+                 return tintIndex == 0 ? -1 : ItemMap.getColor(stack);
+             }
+         }, Items.FILLED_MAP);
++        net.minecraftforge.client.ForgeHooksClient.onItemColorsInit(itemcolors, colors);
+         return itemcolors;
+     }
+ 
+     public int colorMultiplier(ItemStack stack, int tintIndex)
+     {
+-        IItemColor iitemcolor = this.mapItemColors.getByValue(Item.REGISTRY.getIDForObject(stack.getItem()));
++        IItemColor iitemcolor = this.itemColorMap.get(stack.getItem().delegate);
+         return iitemcolor == null ? -1 : iitemcolor.colorMultiplier(stack, tintIndex);
+     }
+ 
+@@ -150,7 +152,9 @@
+     {
+         for (Block block : blocksIn)
+         {
+-            this.mapItemColors.put(itemColor, Item.getIdFromItem(Item.getItemFromBlock(block)));
++            if (block == null) throw new IllegalArgumentException("Block registered to item color handler cannot be null!");
++            if (block.getRegistryName() == null) throw new IllegalArgumentException("Block must be registered before assigning color handler.");
++            this.itemColorMap.put(Item.getItemFromBlock(block).delegate, itemColor);
+         }
+     }
+ 
+@@ -158,7 +162,9 @@
+     {
+         for (Item item : itemsIn)
+         {
+-            this.mapItemColors.put(itemColor, Item.getIdFromItem(item));
++            if (item == null) throw new IllegalArgumentException("Item registered to item color handler cannot be null!");
++            if (item.getRegistryName() == null) throw new IllegalArgumentException("Item must be registered before assigning color handler.");
++            this.itemColorMap.put(item.delegate, itemColor);
+         }
+     }
+ }

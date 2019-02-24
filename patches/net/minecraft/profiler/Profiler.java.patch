@@ -1,0 +1,139 @@
+--- ../src-base/minecraft/net/minecraft/profiler/Profiler.java
++++ ../src-work/minecraft/net/minecraft/profiler/Profiler.java
+@@ -13,15 +13,18 @@
+ 
+ public class Profiler
+ {
++    public static final boolean ENABLED = Boolean.getBoolean("enableDebugMethodProfiler"); // CraftBukkit - disable unless specified in JVM arguments
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final List<String> sectionList = Lists.<String>newArrayList();
+     private final List<Long> timestampList = Lists.<Long>newArrayList();
++    // TODO: Should we use profilingEnabled instead of ENABLED?
+     public boolean profilingEnabled;
+     private String profilingSection = "";
+     private final Map<String, Long> profilingMap = Maps.<String, Long>newHashMap();
+ 
+     public void clearProfiling()
+     {
++        if (!ENABLED) return;
+         this.profilingMap.clear();
+         this.profilingSection = "";
+         this.sectionList.clear();
+@@ -29,6 +32,7 @@
+ 
+     public void startSection(String name)
+     {
++        if (!ENABLED) return;
+         if (this.profilingEnabled)
+         {
+             if (!this.profilingSection.isEmpty())
+@@ -44,6 +48,7 @@
+ 
+     public void func_194340_a(Supplier<String> p_194340_1_)
+     {
++        if (!ENABLED) return;
+         if (this.profilingEnabled)
+         {
+             this.startSection(p_194340_1_.get());
+@@ -52,6 +57,7 @@
+ 
+     public void endSection()
+     {
++        if (!ENABLED) return;
+         if (this.profilingEnabled)
+         {
+             long i = System.nanoTime();
+@@ -77,17 +83,17 @@
+         }
+     }
+ 
+-    public List<Profiler.Result> getProfilingData(String profilerName)
++    public List<Result> getProfilingData(String profilerName)
+     {
+-        if (!this.profilingEnabled)
++        if (!ENABLED || !this.profilingEnabled)
+         {
+-            return Collections.<Profiler.Result>emptyList();
++            return Collections.<Result>emptyList();
+         }
+         else
+         {
+             long i = this.profilingMap.containsKey("root") ? ((Long)this.profilingMap.get("root")).longValue() : 0L;
+             long j = this.profilingMap.containsKey(profilerName) ? ((Long)this.profilingMap.get(profilerName)).longValue() : -1L;
+-            List<Profiler.Result> list = Lists.<Profiler.Result>newArrayList();
++            List<Result> list = Lists.<Result>newArrayList();
+ 
+             if (!profilerName.isEmpty())
+             {
+@@ -124,7 +130,7 @@
+                     double d0 = (double)l * 100.0D / (double)k;
+                     double d1 = (double)l * 100.0D / (double)i;
+                     String s2 = s1.substring(profilerName.length());
+-                    list.add(new Profiler.Result(s2, d0, d1));
++                    list.add(new Result(s2, d0, d1));
+                 }
+             }
+ 
+@@ -135,23 +141,25 @@
+ 
+             if ((float)k > f)
+             {
+-                list.add(new Profiler.Result("unspecified", (double)((float)k - f) * 100.0D / (double)k, (double)((float)k - f) * 100.0D / (double)i));
++                list.add(new Result("unspecified", (double)((float)k - f) * 100.0D / (double)k, (double)((float)k - f) * 100.0D / (double)i));
+             }
+ 
+             Collections.sort(list);
+-            list.add(0, new Profiler.Result(profilerName, 100.0D, (double)k * 100.0D / (double)i));
++            list.add(0, new Result(profilerName, 100.0D, (double)k * 100.0D / (double)i));
+             return list;
+         }
+     }
+ 
+     public void endStartSection(String name)
+     {
++        if (!ENABLED) return;
+         this.endSection();
+         this.startSection(name);
+     }
+ 
+     public String getNameOfLastSection()
+     {
++        if (!ENABLED) return "[DISABLED]";
+         return this.sectionList.isEmpty() ? "[UNKNOWN]" : (String)this.sectionList.get(this.sectionList.size() - 1);
+     }
+ 
+@@ -162,7 +170,7 @@
+         this.func_194340_a(p_194339_1_);
+     }
+ 
+-    public static final class Result implements Comparable<Profiler.Result>
++    public static final class Result implements Comparable<Result>
+         {
+             public double usePercentage;
+             public double totalUsePercentage;
+@@ -175,7 +183,7 @@
+                 this.totalUsePercentage = totalUsePercentage;
+             }
+ 
+-            public int compareTo(Profiler.Result p_compareTo_1_)
++            public int compareTo(Result p_compareTo_1_)
+             {
+                 if (p_compareTo_1_.usePercentage < this.usePercentage)
+                 {
+@@ -193,4 +201,16 @@
+                 return (this.profilerName.hashCode() & 11184810) + 4473924;
+             }
+         }
++
++    /**
++     * Forge: Fix for MC-117087, World.updateEntities is wasting time calling Class.getSimpleName() when the profiler is not active
++     */
++    @Deprecated // TODO: remove (1.13)
++    public void startSection(Class<?> profiledClass)
++    {
++        if (this.profilingEnabled)
++        {
++            startSection(profiledClass.getSimpleName());
++        }
++    }
+ }

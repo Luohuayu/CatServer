@@ -1,0 +1,347 @@
+--- ../src-base/minecraft/net/minecraft/entity/item/EntityBoat.java
++++ ../src-work/minecraft/net/minecraft/entity/item/EntityBoat.java
+@@ -36,6 +36,12 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
++import org.bukkit.Location;
++import org.bukkit.entity.Vehicle;
++import org.bukkit.event.vehicle.VehicleDamageEvent;
++import org.bukkit.event.vehicle.VehicleDestroyEvent;
++import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
++import org.bukkit.event.vehicle.VehicleMoveEvent;
+ 
+ public class EntityBoat extends Entity
+ {
+@@ -60,10 +66,16 @@
+     private boolean backInputDown;
+     private double waterLevel;
+     private float boatGlide;
+-    private EntityBoat.Status status;
+-    private EntityBoat.Status previousStatus;
++    private Status status;
++    private Status previousStatus;
+     private double lastYd;
+ 
++    // Some of these haven't worked since a few updates, and since 1.9 they are less and less applicable.
++    public double maxSpeed = 0.4D;
++    public double occupiedDeceleration = 0.2D;
++    public double unoccupiedDeceleration = -1;
++    public boolean landBoats = false;
++
+     public EntityBoat(World worldIn)
+     {
+         super(worldIn);
+@@ -94,7 +106,7 @@
+         this.dataManager.register(TIME_SINCE_HIT, Integer.valueOf(0));
+         this.dataManager.register(FORWARD_DIRECTION, Integer.valueOf(1));
+         this.dataManager.register(DAMAGE_TAKEN, Float.valueOf(0.0F));
+-        this.dataManager.register(BOAT_TYPE, Integer.valueOf(EntityBoat.Type.OAK.ordinal()));
++        this.dataManager.register(BOAT_TYPE, Integer.valueOf(Type.OAK.ordinal()));
+ 
+         for (DataParameter<Boolean> dataparameter : DATA_ID_PADDLE)
+         {
+@@ -138,6 +150,16 @@
+             }
+             else
+             {
++                Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++                org.bukkit.entity.Entity attacker = (source.getTrueSource() == null) ? null : source.getTrueSource().getBukkitEntity();
++
++                VehicleDamageEvent event = new VehicleDamageEvent(vehicle, attacker, (double) amount);
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    return true;
++                }
++                // amount = event.getDamage(); // TODO Why don't we do this?
+                 this.setForwardDirection(-this.getForwardDirection());
+                 this.setTimeSinceHit(10);
+                 this.setDamageTaken(this.getDamageTaken() + amount * 10.0F);
+@@ -146,6 +168,13 @@
+ 
+                 if (flag || this.getDamageTaken() > 40.0F)
+                 {
++                    VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, attacker);
++                    this.world.getServer().getPluginManager().callEvent(destroyEvent);
++
++                    if (destroyEvent.isCancelled()) {
++                        this.setDamageTaken(40F); // Maximize damage so this doesn't get triggered again right away
++                        return true;
++                    }
+                     if (!flag && this.world.getGameRules().getBoolean("doEntityDrops"))
+                     {
+                         this.dropItemWithOffset(this.getItemBoat(), 1, 0.0F);
+@@ -169,11 +198,23 @@
+         {
+             if (entityIn.getEntityBoundingBox().minY < this.getEntityBoundingBox().maxY)
+             {
++                VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), entityIn.getBukkitEntity());
++                this.world.getServer().getPluginManager().callEvent(event);
++
++                if (event.isCancelled()) {
++                    return;
++                }
+                 super.applyEntityCollision(entityIn);
+             }
+         }
+         else if (entityIn.getEntityBoundingBox().minY <= this.getEntityBoundingBox().minY)
+         {
++            VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), entityIn.getBukkitEntity());
++            this.world.getServer().getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return;
++            }
+             super.applyEntityCollision(entityIn);
+         }
+     }
+@@ -227,12 +268,13 @@
+         return this.getHorizontalFacing().rotateY();
+     }
+ 
++    private Location lastLocation;
+     public void onUpdate()
+     {
+         this.previousStatus = this.status;
+         this.status = this.getBoatStatus();
+ 
+-        if (this.status != EntityBoat.Status.UNDER_WATER && this.status != EntityBoat.Status.UNDER_FLOWING_WATER)
++        if (this.status != Status.UNDER_WATER && this.status != Status.UNDER_FLOWING_WATER)
+         {
+             this.outOfControlTicks = 0.0F;
+         }
+@@ -286,6 +328,20 @@
+             this.motionZ = 0.0D;
+         }
+ 
++        org.bukkit.Server server = this.world.getServer();
++        org.bukkit.World bworld = this.world.getWorld();
++
++        Location to = new Location(bworld, this.posX, this.posY, this.posZ, this.rotationYaw, this.rotationPitch);
++        Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++
++        server.getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleUpdateEvent(vehicle));
++
++        if (lastLocation != null && !lastLocation.equals(to)) {
++            VehicleMoveEvent event = new VehicleMoveEvent(vehicle, lastLocation, to);
++            server.getPluginManager().callEvent(event);
++        }
++        lastLocation = vehicle.getLocation();
++
+         for (int i = 0; i <= 1; ++i)
+         {
+             if (this.getPaddleState(i))
+@@ -382,9 +438,9 @@
+         return this.getPaddleState(side) ? (float)MathHelper.clampedLerp((double)this.paddlePositions[side] - 0.39269909262657166D, (double)this.paddlePositions[side], (double)limbSwing) : 0.0F;
+     }
+ 
+-    private EntityBoat.Status getBoatStatus()
++    private Status getBoatStatus()
+     {
+-        EntityBoat.Status entityboat$status = this.getUnderwaterStatus();
++        Status entityboat$status = this.getUnderwaterStatus();
+ 
+         if (entityboat$status != null)
+         {
+@@ -393,7 +449,7 @@
+         }
+         else if (this.checkInWater())
+         {
+-            return EntityBoat.Status.IN_WATER;
++            return Status.IN_WATER;
+         }
+         else
+         {
+@@ -402,11 +458,11 @@
+             if (f > 0.0F)
+             {
+                 this.boatGlide = f;
+-                return EntityBoat.Status.ON_LAND;
++                return Status.ON_LAND;
+             }
+             else
+             {
+-                return EntityBoat.Status.IN_AIR;
++                return Status.IN_AIR;
+             }
+         }
+     }
+@@ -508,7 +564,7 @@
+ 
+                                 if (!list.isEmpty())
+                                 {
+-                                    f += iblockstate.getBlock().slipperiness;
++                                    f += iblockstate.getBlock().getSlipperiness(iblockstate, this.world, blockpos$pooledmutableblockpos, this);
+                                     ++k1;
+                                 }
+ 
+@@ -598,7 +654,7 @@
+                         {
+                             if (((Integer)iblockstate.getValue(BlockLiquid.LEVEL)).intValue() != 0)
+                             {
+-                                EntityBoat.Status entityboat$status = EntityBoat.Status.UNDER_FLOWING_WATER;
++                                Status entityboat$status = Status.UNDER_FLOWING_WATER;
+                                 return entityboat$status;
+                             }
+ 
+@@ -613,7 +669,7 @@
+             blockpos$pooledmutableblockpos.release();
+         }
+ 
+-        return flag ? EntityBoat.Status.UNDER_WATER : null;
++        return flag ? Status.UNDER_WATER : null;
+     }
+ 
+     private void updateMotion()
+@@ -623,36 +679,36 @@
+         double d2 = 0.0D;
+         this.momentum = 0.05F;
+ 
+-        if (this.previousStatus == EntityBoat.Status.IN_AIR && this.status != EntityBoat.Status.IN_AIR && this.status != EntityBoat.Status.ON_LAND)
++        if (this.previousStatus == Status.IN_AIR && this.status != Status.IN_AIR && this.status != Status.ON_LAND)
+         {
+             this.waterLevel = this.getEntityBoundingBox().minY + (double)this.height;
+             this.setPosition(this.posX, (double)(this.getWaterLevelAbove() - this.height) + 0.101D, this.posZ);
+             this.motionY = 0.0D;
+             this.lastYd = 0.0D;
+-            this.status = EntityBoat.Status.IN_WATER;
++            this.status = Status.IN_WATER;
+         }
+         else
+         {
+-            if (this.status == EntityBoat.Status.IN_WATER)
++            if (this.status == Status.IN_WATER)
+             {
+                 d2 = (this.waterLevel - this.getEntityBoundingBox().minY) / (double)this.height;
+                 this.momentum = 0.9F;
+             }
+-            else if (this.status == EntityBoat.Status.UNDER_FLOWING_WATER)
++            else if (this.status == Status.UNDER_FLOWING_WATER)
+             {
+                 d1 = -7.0E-4D;
+                 this.momentum = 0.9F;
+             }
+-            else if (this.status == EntityBoat.Status.UNDER_WATER)
++            else if (this.status == Status.UNDER_WATER)
+             {
+                 d2 = 0.009999999776482582D;
+                 this.momentum = 0.45F;
+             }
+-            else if (this.status == EntityBoat.Status.IN_AIR)
++            else if (this.status == Status.IN_AIR)
+             {
+                 this.momentum = 0.9F;
+             }
+-            else if (this.status == EntityBoat.Status.ON_LAND)
++            else if (this.status == Status.ON_LAND)
+             {
+                 this.momentum = this.boatGlide;
+ 
+@@ -782,7 +838,7 @@
+     {
+         if (compound.hasKey("Type", 8))
+         {
+-            this.setBoatType(EntityBoat.Type.getTypeFromString(compound.getString("Type")));
++            this.setBoatType(Type.getTypeFromString(compound.getString("Type")));
+         }
+     }
+ 
+@@ -813,7 +869,7 @@
+             {
+                 if (this.fallDistance > 3.0F)
+                 {
+-                    if (this.status != EntityBoat.Status.ON_LAND)
++                    if (this.status != Status.ON_LAND)
+                     {
+                         this.fallDistance = 0.0F;
+                         return;
+@@ -823,19 +879,20 @@
+ 
+                     if (!this.world.isRemote && !this.isDead)
+                     {
+-                        this.setDead();
++                        Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++                        VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, null);
++                        this.world.getServer().getPluginManager().callEvent(destroyEvent);
++                        if (!destroyEvent.isCancelled()) {
++                            this.setDead();
++                            if (this.world.getGameRules().getBoolean("doEntityDrops")) {
++                                for (int i = 0; i < 3; ++i) {
++                                    this.entityDropItem(new ItemStack(Item.getItemFromBlock(Blocks.PLANKS), 1, this.getBoatType().getMetadata()), 0.0F);
++                                }
+ 
+-                        if (this.world.getGameRules().getBoolean("doEntityDrops"))
+-                        {
+-                            for (int i = 0; i < 3; ++i)
+-                            {
+-                                this.entityDropItem(new ItemStack(Item.getItemFromBlock(Blocks.PLANKS), 1, this.getBoatType().getMetadata()), 0.0F);
++                                for (int j = 0; j < 2; ++j) {
++                                    this.dropItemWithOffset(Items.STICK, 1, 0.0F);
++                                }
+                             }
+-
+-                            for (int j = 0; j < 2; ++j)
+-                            {
+-                                this.dropItemWithOffset(Items.STICK, 1, 0.0F);
+-                            }
+                         }
+                     }
+                 }
+@@ -884,14 +941,14 @@
+         return ((Integer)this.dataManager.get(FORWARD_DIRECTION)).intValue();
+     }
+ 
+-    public void setBoatType(EntityBoat.Type boatType)
++    public void setBoatType(Type boatType)
+     {
+         this.dataManager.set(BOAT_TYPE, Integer.valueOf(boatType.ordinal()));
+     }
+ 
+-    public EntityBoat.Type getBoatType()
++    public Type getBoatType()
+     {
+-        return EntityBoat.Type.byId(((Integer)this.dataManager.get(BOAT_TYPE)).intValue());
++        return Type.byId(((Integer)this.dataManager.get(BOAT_TYPE)).intValue());
+     }
+ 
+     protected boolean canFitPassenger(Entity passenger)
+@@ -957,7 +1014,7 @@
+             return this.name;
+         }
+ 
+-        public static EntityBoat.Type byId(int id)
++        public static Type byId(int id)
+         {
+             if (id < 0 || id >= values().length)
+             {
+@@ -967,7 +1024,7 @@
+             return values()[id];
+         }
+ 
+-        public static EntityBoat.Type getTypeFromString(String nameIn)
++        public static Type getTypeFromString(String nameIn)
+         {
+             for (int i = 0; i < values().length; ++i)
+             {
+@@ -980,4 +1037,20 @@
+             return values()[0];
+         }
+     }
++
++    // Forge: Fix MC-119811 by instantly completing lerp on board
++    @Override
++    protected void addPassenger(Entity passenger)
++    {
++        super.addPassenger(passenger);
++        if(this.canPassengerSteer() && this.lerpSteps > 0)
++        {
++            this.lerpSteps = 0;
++            this.posX = this.lerpX;
++            this.posY = this.lerpY;
++            this.posZ = this.lerpZ;
++            this.rotationYaw = (float)this.lerpYaw;
++            this.rotationPitch = (float)this.lerpPitch;
++        }
++    }
+ }

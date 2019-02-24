@@ -1,0 +1,99 @@
+--- ../src-base/minecraft/net/minecraft/world/gen/feature/WorldGenBigTree.java
++++ ../src-work/minecraft/net/minecraft/world/gen/feature/WorldGenBigTree.java
+@@ -27,7 +27,7 @@
+     int trunkSize = 1;
+     int heightLimitLimit = 12;
+     int leafDistanceLimit = 4;
+-    List<WorldGenBigTree.FoliageCoordinates> foliageCoords;
++    List<FoliageCoordinates> foliageCoords;
+ 
+     public WorldGenBigTree(boolean notify)
+     {
+@@ -52,8 +52,8 @@
+ 
+         int j = this.basePos.getY() + this.height;
+         int k = this.heightLimit - this.leafDistanceLimit;
+-        this.foliageCoords = Lists.<WorldGenBigTree.FoliageCoordinates>newArrayList();
+-        this.foliageCoords.add(new WorldGenBigTree.FoliageCoordinates(this.basePos.up(k), j));
++        this.foliageCoords = Lists.<FoliageCoordinates>newArrayList();
++        this.foliageCoords.add(new FoliageCoordinates(this.basePos.up(k), j));
+ 
+         for (; k >= 0; --k)
+         {
+@@ -80,7 +80,7 @@
+ 
+                         if (this.checkBlockLine(blockpos2, blockpos) == -1)
+                         {
+-                            this.foliageCoords.add(new WorldGenBigTree.FoliageCoordinates(blockpos, blockpos2.getY()));
++                            this.foliageCoords.add(new FoliageCoordinates(blockpos, blockpos2.getY()));
+                         }
+                     }
+                 }
+@@ -99,9 +99,9 @@
+                 if (Math.pow((double)Math.abs(j) + 0.5D, 2.0D) + Math.pow((double)Math.abs(k) + 0.5D, 2.0D) <= (double)(p_181631_2_ * p_181631_2_))
+                 {
+                     BlockPos blockpos = pos.add(j, 0, k);
+-                    Material material = this.world.getBlockState(blockpos).getMaterial();
++                    IBlockState state = this.world.getBlockState(blockpos);
+ 
+-                    if (material == Material.AIR || material == Material.LEAVES)
++                    if (state.getBlock().isAir(state, world, blockpos) || state.getBlock().isLeaves(state, world, blockpos))
+                     {
+                         this.setBlockAndNotifyAdequately(this.world, blockpos, p_181631_3_);
+                     }
+@@ -211,7 +211,7 @@
+ 
+     void generateLeaves()
+     {
+-        for (WorldGenBigTree.FoliageCoordinates worldgenbigtree$foliagecoordinates : this.foliageCoords)
++        for (FoliageCoordinates worldgenbigtree$foliagecoordinates : this.foliageCoords)
+         {
+             this.generateLeafNode(worldgenbigtree$foliagecoordinates);
+         }
+@@ -239,7 +239,7 @@
+ 
+     void generateLeafNodeBases()
+     {
+-        for (WorldGenBigTree.FoliageCoordinates worldgenbigtree$foliagecoordinates : this.foliageCoords)
++        for (FoliageCoordinates worldgenbigtree$foliagecoordinates : this.foliageCoords)
+         {
+             int i = worldgenbigtree$foliagecoordinates.getBranchBase();
+             BlockPos blockpos = new BlockPos(this.basePos.getX(), i, this.basePos.getZ());
+@@ -269,7 +269,7 @@
+             {
+                 BlockPos blockpos1 = posOne.add((double)(0.5F + (float)j * f), (double)(0.5F + (float)j * f1), (double)(0.5F + (float)j * f2));
+ 
+-                if (!this.canGrowInto(this.world.getBlockState(blockpos1).getBlock()))
++                if (!this.isReplaceable(world, blockpos1))
+                 {
+                     return j;
+                 }
+@@ -297,6 +297,7 @@
+ 
+         if (!this.validTreeLocation())
+         {
++            this.world = null; //Fix vanilla Mem leak, holds latest world
+             return false;
+         }
+         else
+@@ -305,15 +306,18 @@
+             this.generateLeaves();
+             this.generateTrunk();
+             this.generateLeafNodeBases();
++            this.world = null; //Fix vanilla Mem leak, holds latest world
+             return true;
+         }
+     }
+ 
+     private boolean validTreeLocation()
+     {
+-        Block block = this.world.getBlockState(this.basePos.down()).getBlock();
++        BlockPos down = this.basePos.down();
++        IBlockState state = this.world.getBlockState(down);
++        boolean isSoil = state.getBlock().canSustainPlant(state, this.world, down, net.minecraft.util.EnumFacing.UP, ((net.minecraft.block.BlockSapling)Blocks.SAPLING));
+ 
+-        if (block != Blocks.DIRT && block != Blocks.GRASS && block != Blocks.FARMLAND)
++        if (!isSoil)
+         {
+             return false;
+         }

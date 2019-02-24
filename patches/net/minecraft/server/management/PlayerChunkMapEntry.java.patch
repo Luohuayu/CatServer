@@ -1,0 +1,173 @@
+--- ../src-base/minecraft/net/minecraft/server/management/PlayerChunkMapEntry.java
++++ ../src-work/minecraft/net/minecraft/server/management/PlayerChunkMapEntry.java
+@@ -23,21 +23,30 @@
+ {
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final PlayerChunkMap playerChunkMap;
+-    private final List<EntityPlayerMP> players = Lists.<EntityPlayerMP>newArrayList();
++    public final List<EntityPlayerMP> players = Lists.<EntityPlayerMP>newArrayList();
+     private final ChunkPos pos;
+     private short[] changedBlocks = new short[64];
+     @Nullable
+-    private Chunk chunk;
++    public Chunk chunk;
+     private int changes;
+     private int changedSectionFilter;
+     private long lastUpdateInhabitedTime;
+     private boolean sentToPlayers;
++    private Runnable loadedRunnable = new Runnable()
++    {
++        public void run()
++        {
++            PlayerChunkMapEntry.this.chunk = PlayerChunkMapEntry.this.playerChunkMap.getWorldServer().getChunkProvider().loadChunk(PlayerChunkMapEntry.this.pos.x, PlayerChunkMapEntry.this.pos.z);
++            PlayerChunkMapEntry.this.loading = false;
++        }
++    };
++    private boolean loading = true;
+ 
+     public PlayerChunkMapEntry(PlayerChunkMap mapIn, int chunkX, int chunkZ)
+     {
+         this.playerChunkMap = mapIn;
+         this.pos = new ChunkPos(chunkX, chunkZ);
+-        this.chunk = mapIn.getWorldServer().getChunkProvider().loadChunk(chunkX, chunkZ);
++        mapIn.getWorldServer().getChunkProvider().loadChunk(chunkX, chunkZ, this.loadedRunnable);
+     }
+ 
+     public ChunkPos getPos()
+@@ -63,6 +72,8 @@
+             if (this.sentToPlayers)
+             {
+                 this.sendToPlayer(player);
++                // chunk watch event - the chunk is ready
++                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkWatchEvent.Watch(this.chunk, player));
+             }
+         }
+     }
+@@ -71,6 +82,20 @@
+     {
+         if (this.players.contains(player))
+         {
++            // If we haven't loaded yet don't load the chunk just so we can clean it up
++            if (this.chunk == null)
++            {
++                this.players.remove(player);
++
++                if (this.players.isEmpty())
++                {
++                    if (this.loading) net.minecraftforge.common.chunkio.ChunkIOExecutor.dropQueuedChunkLoad(this.playerChunkMap.getWorldServer(), this.pos.x, this.pos.z, this.loadedRunnable);
++                    this.playerChunkMap.removeEntry(this);
++                }
++
++                return;
++            }
++
+             if (this.sentToPlayers)
+             {
+                 player.connection.sendPacket(new SPacketUnloadChunk(this.pos.x, this.pos.z));
+@@ -78,6 +103,8 @@
+ 
+             this.players.remove(player);
+ 
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkWatchEvent.UnWatch(this.chunk, player));
++
+             if (this.players.isEmpty())
+             {
+                 this.playerChunkMap.removeEntry(this);
+@@ -87,6 +114,7 @@
+ 
+     public boolean providePlayerChunk(boolean canGenerate)
+     {
++        if (this.loading) return false;
+         if (this.chunk != null)
+         {
+             return true;
+@@ -125,12 +153,15 @@
+             this.changes = 0;
+             this.changedSectionFilter = 0;
+             this.sentToPlayers = true;
++            if (this.players.isEmpty()) return true; // Forge: fix MC-120780
+             Packet<?> packet = new SPacketChunkData(this.chunk, 65535);
+ 
+             for (EntityPlayerMP entityplayermp : this.players)
+             {
+                 entityplayermp.connection.sendPacket(packet);
+                 this.playerChunkMap.getWorldServer().getEntityTracker().sendLeashedEntitiesInChunk(entityplayermp, this.chunk);
++                // chunk watch event - delayed to here as the chunk wasn't ready in addPlayer
++                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkWatchEvent.Watch(this.chunk, entityplayermp));
+             }
+ 
+             return true;
+@@ -169,7 +200,7 @@
+ 
+             this.changedSectionFilter |= 1 << (y >> 4);
+ 
+-            if (this.changes < 64)
++            //Forge; Cache everything, so always run
+             {
+                 short short1 = (short)(x << 12 | z << 8 | y);
+ 
+@@ -180,7 +211,8 @@
+                         return;
+                     }
+                 }
+-
++                if (this.changes == this.changedBlocks.length)
++                    this.changedBlocks = java.util.Arrays.copyOf(this.changedBlocks, this.changedBlocks.length << 1);
+                 this.changedBlocks[this.changes++] = short1;
+             }
+         }
+@@ -197,6 +229,7 @@
+         }
+     }
+ 
++    @SuppressWarnings("unused")
+     public void update()
+     {
+         if (this.sentToPlayers && this.chunk != null)
+@@ -210,28 +243,32 @@
+                     int k = (this.changedBlocks[0] >> 8 & 15) + this.pos.z * 16;
+                     BlockPos blockpos = new BlockPos(i, j, k);
+                     this.sendPacket(new SPacketBlockChange(this.playerChunkMap.getWorldServer(), blockpos));
++                    net.minecraft.block.state.IBlockState state = this.playerChunkMap.getWorldServer().getBlockState(blockpos);
+ 
+-                    if (this.playerChunkMap.getWorldServer().getBlockState(blockpos).getBlock().hasTileEntity())
++                    if (state.getBlock().hasTileEntity(state))
+                     {
+                         this.sendBlockEntity(this.playerChunkMap.getWorldServer().getTileEntity(blockpos));
+                     }
+                 }
+-                else if (this.changes == 64)
++                else if (this.changes >= net.minecraftforge.common.ForgeModContainer.clumpingThreshold)
+                 {
+                     this.sendPacket(new SPacketChunkData(this.chunk, this.changedSectionFilter));
++                    //TODO: FDix Mojang's fuckup to modded by combining all TE data into the chunk data packet... seriously... packet size explosion!
+                 }
+                 else
+                 {
+                     this.sendPacket(new SPacketMultiBlockChange(this.changes, this.changedBlocks, this.chunk));
+-
++                //} Keep this in the else until we figure out a fix for mojang's derpitude on the data packet so we don't double send crap.
++                //{// Forge: Send only the tile entities that are updated, Adding this brace lets us keep the indent and the patch small
+                     for (int l = 0; l < this.changes; ++l)
+                     {
+                         int i1 = (this.changedBlocks[l] >> 12 & 15) + this.pos.x * 16;
+                         int j1 = this.changedBlocks[l] & 255;
+                         int k1 = (this.changedBlocks[l] >> 8 & 15) + this.pos.z * 16;
+                         BlockPos blockpos1 = new BlockPos(i1, j1, k1);
++                        net.minecraft.block.state.IBlockState state = this.playerChunkMap.getWorldServer().getBlockState(blockpos1);
+ 
+-                        if (this.playerChunkMap.getWorldServer().getBlockState(blockpos1).getBlock().hasTileEntity())
++                        if (state.getBlock().hasTileEntity(state))
+                         {
+                             this.sendBlockEntity(this.playerChunkMap.getWorldServer().getTileEntity(blockpos1));
+                         }
+@@ -311,4 +348,9 @@
+ 
+         return d0;
+     }
++
++    public List<EntityPlayerMP> getWatchingPlayers()
++    {
++        return isSentToPlayers() ? java.util.Collections.unmodifiableList(players) : java.util.Collections.emptyList();
++    }
+ }

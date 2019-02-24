@@ -1,0 +1,101 @@
+--- ../src-base/minecraft/net/minecraft/world/biome/BiomeHills.java
++++ ../src-work/minecraft/net/minecraft/world/biome/BiomeHills.java
+@@ -16,18 +16,18 @@
+ {
+     private final WorldGenerator silverfishSpawner = new WorldGenMinable(Blocks.MONSTER_EGG.getDefaultState().withProperty(BlockSilverfish.VARIANT, BlockSilverfish.EnumType.STONE), 9);
+     private final WorldGenTaiga2 spruceGenerator = new WorldGenTaiga2(false);
+-    private final BiomeHills.Type type;
++    private final Type type;
+ 
+-    public BiomeHills(BiomeHills.Type p_i46710_1_, Biome.BiomeProperties properties)
++    public BiomeHills(Type p_i46710_1_, BiomeProperties properties)
+     {
+         super(properties);
+ 
+-        if (p_i46710_1_ == BiomeHills.Type.EXTRA_TREES)
++        if (p_i46710_1_ == Type.EXTRA_TREES)
+         {
+             this.decorator.treesPerChunk = 3;
+         }
+ 
+-        this.spawnableCreatureList.add(new Biome.SpawnListEntry(EntityLlama.class, 5, 4, 6));
++        this.spawnableCreatureList.add(new SpawnListEntry(EntityLlama.class, 5, 4, 6));
+         this.type = p_i46710_1_;
+     }
+ 
+@@ -39,28 +39,21 @@
+     public void decorate(World worldIn, Random rand, BlockPos pos)
+     {
+         super.decorate(worldIn, rand, pos);
+-        int i = 3 + rand.nextInt(6);
+ 
+-        for (int j = 0; j < i; ++j)
+-        {
+-            int k = rand.nextInt(16);
+-            int l = rand.nextInt(28) + 4;
+-            int i1 = rand.nextInt(16);
+-            BlockPos blockpos = pos.add(k, l, i1);
++        net.minecraftforge.common.MinecraftForge.ORE_GEN_BUS.post(new net.minecraftforge.event.terraingen.OreGenEvent.Pre(worldIn, rand, pos));
++        WorldGenerator emeralds = new EmeraldGenerator();
++        if (net.minecraftforge.event.terraingen.TerrainGen.generateOre(worldIn, rand, emeralds, pos, net.minecraftforge.event.terraingen.OreGenEvent.GenerateMinable.EventType.EMERALD))
++            emeralds.generate(worldIn, rand, pos);
+ 
+-            if (worldIn.getBlockState(blockpos).getBlock() == Blocks.STONE)
+-            {
+-                worldIn.setBlockState(blockpos, Blocks.EMERALD_ORE.getDefaultState(), 2);
+-            }
+-        }
+-
+         for (int j1 = 0; j1 < 7; ++j1)
+         {
+             int k1 = rand.nextInt(16);
+             int l1 = rand.nextInt(64);
+             int i2 = rand.nextInt(16);
++            if (net.minecraftforge.event.terraingen.TerrainGen.generateOre(worldIn, rand, silverfishSpawner, pos.add(j1, k1, l1), net.minecraftforge.event.terraingen.OreGenEvent.GenerateMinable.EventType.SILVERFISH))
+             this.silverfishSpawner.generate(worldIn, rand, pos.add(k1, l1, i2));
+         }
++        net.minecraftforge.common.MinecraftForge.ORE_GEN_BUS.post(new net.minecraftforge.event.terraingen.OreGenEvent.Post(worldIn, rand, pos));
+     }
+ 
+     public void genTerrainBlocks(World worldIn, Random rand, ChunkPrimer chunkPrimerIn, int x, int z, double noiseVal)
+@@ -68,12 +61,12 @@
+         this.topBlock = Blocks.GRASS.getDefaultState();
+         this.fillerBlock = Blocks.DIRT.getDefaultState();
+ 
+-        if ((noiseVal < -1.0D || noiseVal > 2.0D) && this.type == BiomeHills.Type.MUTATED)
++        if ((noiseVal < -1.0D || noiseVal > 2.0D) && this.type == Type.MUTATED)
+         {
+             this.topBlock = Blocks.GRAVEL.getDefaultState();
+             this.fillerBlock = Blocks.GRAVEL.getDefaultState();
+         }
+-        else if (noiseVal > 1.0D && this.type != BiomeHills.Type.EXTRA_TREES)
++        else if (noiseVal > 1.0D && this.type != Type.EXTRA_TREES)
+         {
+             this.topBlock = Blocks.STONE.getDefaultState();
+             this.fillerBlock = Blocks.STONE.getDefaultState();
+@@ -88,4 +81,25 @@
+         EXTRA_TREES,
+         MUTATED;
+     }
++
++    private static class EmeraldGenerator extends WorldGenerator
++    {
++        @Override
++        public boolean generate(World worldIn, Random rand, BlockPos pos)
++        {
++            int count = 3 + rand.nextInt(6);
++            for (int i = 0; i < count; i++)
++            {
++                int offset = net.minecraftforge.common.ForgeModContainer.fixVanillaCascading ? 8 : 0; // MC-114332
++                BlockPos blockpos = pos.add(rand.nextInt(16) + offset, rand.nextInt(28) + 4, rand.nextInt(16) + offset);
++
++                net.minecraft.block.state.IBlockState state = worldIn.getBlockState(blockpos);
++                if (state.getBlock().isReplaceableOreGen(state, worldIn, blockpos, net.minecraft.block.state.pattern.BlockMatcher.forBlock(Blocks.STONE)))
++                {
++                    worldIn.setBlockState(blockpos, Blocks.EMERALD_ORE.getDefaultState(), 16 | 2);
++                }
++            }
++            return true;
++        }
++    }
+ }

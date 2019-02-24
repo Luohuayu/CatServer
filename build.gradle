@@ -1,0 +1,195 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            name = "forge"
+            url = "https://files.minecraftforge.net/maven"
+        }
+        maven {
+            name = "sonatype"
+            url = "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'net.minecraftforge.gradle.patcher'
+
+group = 'luohuayu.CatServer'
+version = 'Personal-' + getReleaseVersion()
+
+dependencies {
+    compile fileTree(dir: 'libraries', includes: ['*.jar'])
+}
+
+sourceSets { 
+    catserver.java.srcDirs = ['src/main/java', 'projects/Catserver/src/main/java']
+}
+
+minecraft.version = "1.12.2"
+minecraft {
+    mappings = 'snapshot_nodoc_20171003'
+    workspaceDir = "projects"
+    versionJson = "resources/jsons/${minecraft.version}-dev.json"
+    buildUserdev = true
+    buildInstaller = true
+    installerVersion = "1.5"
+
+    def common = {
+        patchPrefixOriginal "../src-base/minecraft"
+        patchPrefixChanged "../src-work/minecraft"
+        /*mainClassClient "net.minecraft.launchwrapper.Launch"
+        tweakClassClient "net.minecraftforge.fml.common.launcher.FMLTweaker"*/
+        mainClassServer "net.minecraft.launchwrapper.Launch"
+        tweakClassServer "net.minecraftforge.fml.common.launcher.FMLServerTweaker"
+    }
+
+    projects {
+
+        catserver {
+            rootDir "."
+            patchDir "patches/"
+            patchAfter "clean"
+            genPatchesFrom "clean"
+            genMcpPatches = true
+            applyMcpPatches = true
+            s2sKeepImports = true
+            //dchImports = true
+            //ignoreWhiteSpaces = false
+            with common
+        }
+    }
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+tasks.compileJava.enabled = false
+tasks.reobfuscate.setProperty("extraSrg",["PK: org/bukkit/craftbukkit org/bukkit/craftbukkit/v1_12_R1"])
+
+outputJar {
+    classifier = 'universal'
+    
+    manifest.attributes([
+            "Implementation-Title": rootProject.name,
+            "Implementation-Version": version,
+            "Main-Class": "net.minecraftforge.fml.relauncher.ServerLaunchWrapper",
+            "TweakClass": "net.minecraftforge.fml.common.launcher.FMLTweaker",
+            "Class-Path": getClassPath(),
+            //"libraries/authlib-1.5.25.jar libraries/jsr305-3.0.1.jar libraries/patchy-1.1.jar libraries/oshi-core-1.1.jar libraries/text2speech-1.10.3.jar libraries/java-objc-bridge-1.0.0.jar libraries/jna-4.4.0.jar libraries/platform-3.4.0.jar libraries/icu4j-core-mojang-51.2.jar libraries/launchwrapper-1.12.jar libraries/SpecialSource-1.7.4.jar libraries/jopt-simple-5.0.3.jar libraries/codecjorbis-20101023.jar libraries/codecwav-20101023.jar libraries/libraryjavasound-20101123.jar libraries/librarylwjglopenal-20100824.jar libraries/soundsystem-20120107.jar libraries/netty-all-4.1.9.Final.jar libraries/bungeecord-chat-1.12-SNAPSHOT.jar libraries/guava-21.0.jar libraries/maven-artifact-3.5.3.jar libraries/commons-lang3-3.5.jar libraries/commons-io-2.5.jar libraries/realms-1.10.21.jar libraries/httpclient-4.3.3.jar libraries/commons-codec-1.10.jar libraries/lwjgl_util-2.9.4-nightly-20150209.jar libraries/lwjgl-2.9.4-nightly-20150209.jar libraries/jinput-2.0.5.jar libraries/jutils-1.0.0.jar libraries/gson-2.8.0.jar libraries/commons-compress-1.8.1.jar libraries/commons-logging-1.1.3.jar libraries/httpcore-4.3.2.jar libraries/fastutil-7.1.0.jar libraries/log4j-core-2.8.1.jar libraries/log4j-api-2.8.1.jar libraries/jline-2.13.jar libraries/asm-debug-all-5.2.jar libraries/akka-actor_2.11-2.3.3.jar libraries/config-1.2.1.jar libraries/lzma-0.0.1.jar libraries/vecmath-1.5.2.jar libraries/trove4j-3.0.3.jar libraries/snakeyaml-1.19.jar libraries/json-simple-1.1.1.jar libraries/commons-lang-2.6.jar libraries/scala-parser-combinators_2.11-1.0.1.jar libraries/sqlite-jdbc-3.21.0.1.jar libraries/mysql-connector-java-5.1.45.jar libraries/jinput-platform-2.0.5-natives-linux.jar libraries/jinput-platform-2.0.5-natives-windows.jar libraries/jinput-platform-2.0.5-natives-osx.jar libraries/lwjgl-platform-2.9.4-nightly-20150209-natives-windows.jar libraries/lwjgl-platform-2.9.4-nightly-20150209-natives-linux.jar libraries/lwjgl-platform-2.9.4-nightly-20150209-natives-osx.jar libraries/jansi-1.11.jar libraries/scala-library-2.11.1.jar libraries/plexus-utils-3.1.0.jar libraries/junit-4.10.jar libraries/opencsv-2.3.jar libraries/hamcrest-core-1.1.jar minecraft_server.1.12.2.jar"
+            //configurations.compile.collect { 'libraries/' + it.getName() }.join(' '),
+    ])
+    into('configurations') {
+        from 'resources/configurations'
+    }
+    into('mappings') {
+        from 'resources/mappings'
+    }
+    into('META-INF') {
+        from 'resources/META-INF'
+    }
+}
+
+processJson {
+    releaseJson = "resources/jsons/${minecraft.version}-rel.json"
+    addReplacements([
+            "@minecraft_version@": project.minecraft.version,
+            "@version@": project.version,
+            "@project@": "CatServer",
+            "@artifact@": "luohuayu:project:${project.version}",
+            "@universal_jar@": { outputJar.archiveName },
+            "@timestamp@": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+    ])
+}
+
+extractCatserverSources { exclude "**/SideOnly.java", "**/Side.java" }
+extractCatserverResources { exclude "**/log4j2.xml" }
+
+genGradleProjects {
+    addRepo('forge', 'http://files.minecraftforge.net/maven/')
+    addRepo('sonatype', 'https://oss.sonatype.org/content/repositories/snapshots/')
+    addRepo('spigotmc-public', 'https://hub.spigotmc.org/nexus/content/groups/public/')
+    addCompileDep 'com.google.code.findbugs:jsr305:3.0.1'
+    addCompileDep 'com.mojang:patchy:1.1'
+    addCompileDep 'oshi-project:oshi-core:1.1'
+    addCompileDep 'net.java.dev.jna:jna:4.4.0'
+    addCompileDep 'net.java.dev.jna:platform:3.4.0'
+    addCompileDep 'com.ibm.icu:icu4j-core-mojang:51.2'
+    addCompileDep 'net.sf.jopt-simple:jopt-simple:5.0.3'
+    addCompileDep 'com.paulscode:codecjorbis:20101023'
+    addCompileDep 'com.paulscode:codecwav:20101023'
+    addCompileDep 'com.paulscode:libraryjavasound:20101123'
+    addCompileDep 'com.paulscode:librarylwjglopenal:20100824'
+    addCompileDep 'com.paulscode:soundsystem:20120107'
+    addCompileDep 'io.netty:netty-all:4.1.9.Final'
+    addCompileDep 'com.google.guava:guava:21.0'
+    addCompileDep 'org.apache.commons:commons-lang3:3.5'
+    addCompileDep 'commons-io:commons-io:2.5'
+    addCompileDep 'commons-codec:commons-codec:1.10'
+    addCompileDep 'net.java.jinput:jinput:2.0.5'
+    addCompileDep 'net.java.jutils:jutils:1.0.0'
+    addCompileDep 'com.google.code.gson:gson:2.8.0'
+    addCompileDep 'com.mojang:authlib:1.5.25'
+    addCompileDep 'com.mojang:realms:1.10.21'
+    addCompileDep 'org.apache.commons:commons-compress:1.8.1'
+    addCompileDep 'org.apache.httpcomponents:httpclient:4.3.3'
+    addCompileDep 'commons-logging:commons-logging:1.1.3'
+    addCompileDep 'org.apache.httpcomponents:httpcore:4.3.2'
+    addCompileDep 'it.unimi.dsi:fastutil:7.1.0'
+    addCompileDep 'org.apache.logging.log4j:log4j-api:2.8.1\'\r        ' +
+            'annotationProcessor \'org.apache.logging.log4j:log4j-core:2.8.1'
+    // log4j uses annotation processors 骚操作加入 annotationProcessor
+    addCompileDep 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    addCompileDep 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
+    addCompileDep 'com.mojang:text2speech:1.10.3'
+    addCompileDep 'net.minecraft:launchwrapper:1.12'
+    addCompileDep 'jline:jline:2.13'
+    addCompileDep 'org.ow2.asm:asm-debug-all:5.2'
+    addCompileDep 'com.typesafe.akka:akka-actor_2.11:2.3.3'
+    addCompileDep 'com.typesafe:config:1.2.1'
+    addCompileDep 'lzma:lzma:0.0.1'
+    addCompileDep 'java3d:vecmath:1.5.2'
+    addCompileDep 'net.sf.trove4j:trove4j:3.0.3'
+    addCompileDep 'org.apache.maven:maven-artifact:3.5.3'
+    addCompileDep 'org.yaml:snakeyaml:1.19'
+    addCompileDep 'com.googlecode.json-simple:json-simple:1.1.1'
+    addCompileDep 'commons-lang:commons-lang:2.6' // Is needed for plugin compatibility
+    addCompileDep 'net.md-5:SpecialSource:1.8.0'
+    addCompileDep 'org.xerial:sqlite-jdbc:3.21.0.1'
+    addCompileDep 'mysql:mysql-connector-java:5.1.45'
+    addCompileDep 'net.md-5:bungeecord-chat:1.12-SNAPSHOT'
+    addCompileDep 'org.scala-lang.plugins:scala-continuations-library_2.11:1.0.2'
+    addCompileDep 'org.scala-lang.plugins:scala-continuations-plugin_2.11.1:1.0.2'
+    addCompileDep 'org.scala-lang:scala-actors-migration_2.11:1.1.0'
+    addCompileDep 'org.scala-lang:scala-addCompileDepr:2.11.1'
+    addCompileDep 'org.scala-lang:scala-library:2.11.1'
+    addCompileDep 'org.scala-lang:scala-parser-combinators_2.11:1.0.1'
+    addCompileDep 'org.scala-lang:scala-reflect:2.11.1'
+    addCompileDep 'org.scala-lang:scala-swing_2.11:1.0.1'
+    addCompileDep 'org.scala-lang:scala-xml_2.11:1.0.2'
+    addTestCompileDep "junit:junit:4.12" // TODO update unit tests to junit 5 and remove this
+    addTestCompileDep "org.junit.jupiter:junit-jupiter-api:5.0.0"
+    addTestCompileDep "org.opentest4j:opentest4j:1.0.0" // needed for junit 5
+    addTestCompileDep "org.hamcrest:hamcrest-core:1.3"
+    filter { dep -> !dep.contains("scala") }
+}
+
+cleanBuildDir()
+static cleanBuildDir() {
+    for (File file : new File("build/distributions").listFiles()) file.delete()
+    for (File file : new File("build/libs").listFiles()) file.delete()
+}
+
+static getReleaseVersion() {
+    def version = 'git rev-parse --short HEAD'.execute().text.trim()
+    return version = '' ? String.format("%02x", new Date().time).substring(3) : version
+}
+
+static getClassPath() {
+    return new File("libraries").listFiles().toString().replace("[", "").replace("]", "").replace(",", "").replace("\\", "/") + " minecraft_server.1.12.2.jar"
+}

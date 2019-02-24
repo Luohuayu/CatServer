@@ -1,0 +1,120 @@
+--- ../src-base/minecraft/net/minecraft/world/gen/ChunkGeneratorHell.java
++++ ../src-work/minecraft/net/minecraft/world/gen/ChunkGeneratorHell.java
+@@ -77,6 +77,19 @@
+         this.scaleNoise = new NoiseGeneratorOctaves(this.rand, 10);
+         this.depthNoise = new NoiseGeneratorOctaves(this.rand, 16);
+         worldIn.setSeaLevel(63);
++
++        net.minecraftforge.event.terraingen.InitNoiseGensEvent.ContextHell ctx =
++                new net.minecraftforge.event.terraingen.InitNoiseGensEvent.ContextHell(lperlinNoise1, lperlinNoise2, perlinNoise1, slowsandGravelNoiseGen, netherrackExculsivityNoiseGen, scaleNoise, depthNoise);
++        ctx = net.minecraftforge.event.terraingen.TerrainGen.getModdedNoiseGenerators(worldIn, this.rand, ctx);
++        this.lperlinNoise1 = ctx.getLPerlin1();
++        this.lperlinNoise2 = ctx.getLPerlin2();
++        this.perlinNoise1 = ctx.getPerlin();
++        this.slowsandGravelNoiseGen = ctx.getPerlin2();
++        this.netherrackExculsivityNoiseGen = ctx.getPerlin3();
++        this.scaleNoise = ctx.getScale();
++        this.depthNoise = ctx.getDepth();
++        this.genNetherBridge = (MapGenNetherBridge)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(genNetherBridge, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.NETHER_BRIDGE);
++        this.genNetherCaves = net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(genNetherCaves, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.NETHER_CAVE);
+     }
+ 
+     public void prepareHeights(int p_185936_1_, int p_185936_2_, ChunkPrimer primer)
+@@ -155,6 +168,7 @@
+ 
+     public void buildSurfaces(int p_185937_1_, int p_185937_2_, ChunkPrimer primer)
+     {
++        if (!net.minecraftforge.event.ForgeEventFactory.onReplaceBiomeBlocks(this, p_185937_1_, p_185937_2_, primer, this.world)) return;
+         int i = this.world.getSeaLevel() + 1;
+         double d0 = 0.03125D;
+         this.slowsandNoise = this.slowsandGravelNoiseGen.generateNoiseOctaves(this.slowsandNoise, p_185937_1_ * 16, p_185937_2_ * 16, 0, 16, 16, 1, 0.03125D, 0.03125D, 1.0D);
+@@ -277,6 +291,10 @@
+             p_185938_1_ = new double[p_185938_5_ * p_185938_6_ * p_185938_7_];
+         }
+ 
++        net.minecraftforge.event.terraingen.ChunkGeneratorEvent.InitNoiseField event = new net.minecraftforge.event.terraingen.ChunkGeneratorEvent.InitNoiseField(this, p_185938_1_, p_185938_2_, p_185938_3_, p_185938_4_, p_185938_5_, p_185938_6_, p_185938_7_);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++        if (event.getResult() == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY) return event.getNoisefield();
++
+         double d0 = 684.412D;
+         double d1 = 2053.236D;
+         this.noiseData4 = this.scaleNoise.generateNoiseOctaves(this.noiseData4, p_185938_2_, p_185938_3_, p_185938_4_, p_185938_5_, 1, p_185938_7_, 1.0D, 0.0D, 1.0D);
+@@ -358,6 +376,7 @@
+     public void populate(int x, int z)
+     {
+         BlockFalling.fallInstantly = true;
++        net.minecraftforge.event.ForgeEventFactory.onChunkPopulate(true, this, this.world, this.rand, x, z, false);
+         int i = x * 16;
+         int j = z * 16;
+         BlockPos blockpos = new BlockPos(i, 0, j);
+@@ -365,16 +384,20 @@
+         ChunkPos chunkpos = new ChunkPos(x, z);
+         this.genNetherBridge.generateStructure(this.world, this.rand, chunkpos);
+ 
++        if (net.minecraftforge.event.terraingen.TerrainGen.populate(this, this.world, this.rand, x, z, false, net.minecraftforge.event.terraingen.PopulateChunkEvent.Populate.EventType.NETHER_LAVA))
+         for (int k = 0; k < 8; ++k)
+         {
+             this.hellSpringGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(120) + 4, this.rand.nextInt(16) + 8));
+         }
+ 
++        if (net.minecraftforge.event.terraingen.TerrainGen.populate(this, this.world, this.rand, x, z, false, net.minecraftforge.event.terraingen.PopulateChunkEvent.Populate.EventType.FIRE))
+         for (int i1 = 0; i1 < this.rand.nextInt(this.rand.nextInt(10) + 1) + 1; ++i1)
+         {
+             this.fireFeature.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(120) + 4, this.rand.nextInt(16) + 8));
+         }
+ 
++        if (net.minecraftforge.event.terraingen.TerrainGen.populate(this, this.world, this.rand, x, z, false, net.minecraftforge.event.terraingen.PopulateChunkEvent.Populate.EventType.GLOWSTONE))
++        {
+         for (int j1 = 0; j1 < this.rand.nextInt(this.rand.nextInt(10) + 1); ++j1)
+         {
+             this.lightGemGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(120) + 4, this.rand.nextInt(16) + 8));
+@@ -384,7 +407,13 @@
+         {
+             this.hellPortalGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(128), this.rand.nextInt(16) + 8));
+         }
++        }//Forge: End doGLowstone
+ 
++        net.minecraftforge.event.ForgeEventFactory.onChunkPopulate(false, this, this.world, this.rand, x, z, false);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.terraingen.DecorateBiomeEvent.Pre(this.world, this.rand, chunkpos));
++
++        if (net.minecraftforge.event.terraingen.TerrainGen.decorate(this.world, this.rand, chunkpos, net.minecraftforge.event.terraingen.DecorateBiomeEvent.Decorate.EventType.SHROOM))
++        {
+         if (this.rand.nextBoolean())
+         {
+             this.brownMushroomFeature.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(128), this.rand.nextInt(16) + 8));
+@@ -394,7 +423,10 @@
+         {
+             this.redMushroomFeature.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + 8, this.rand.nextInt(128), this.rand.nextInt(16) + 8));
+         }
++        }
+ 
++
++        if (net.minecraftforge.event.terraingen.TerrainGen.generateOre(this.world, this.rand, quartzGen, blockpos, net.minecraftforge.event.terraingen.OreGenEvent.GenerateMinable.EventType.QUARTZ))
+         for (int l1 = 0; l1 < 16; ++l1)
+         {
+             this.quartzGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16), this.rand.nextInt(108) + 10, this.rand.nextInt(16)));
+@@ -402,17 +434,23 @@
+ 
+         int i2 = this.world.getSeaLevel() / 2 + 1;
+ 
++        if (net.minecraftforge.event.terraingen.TerrainGen.populate(this, this.world, this.rand, x, z, false, net.minecraftforge.event.terraingen.PopulateChunkEvent.Populate.EventType.NETHER_MAGMA))
+         for (int l = 0; l < 4; ++l)
+         {
+             this.magmaGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16), i2 - 5 + this.rand.nextInt(10), this.rand.nextInt(16)));
+         }
+ 
++        if (net.minecraftforge.event.terraingen.TerrainGen.populate(this, this.world, this.rand, x, z, false, net.minecraftforge.event.terraingen.PopulateChunkEvent.Populate.EventType.NETHER_LAVA2))
+         for (int j2 = 0; j2 < 16; ++j2)
+         {
+-            this.lavaTrapGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16), this.rand.nextInt(108) + 10, this.rand.nextInt(16)));
++            int offset = net.minecraftforge.common.ForgeModContainer.fixVanillaCascading ? 8 : 0; // MC-117810
++            this.lavaTrapGen.generate(this.world, this.rand, blockpos.add(this.rand.nextInt(16) + offset, this.rand.nextInt(108) + 10, this.rand.nextInt(16) + offset));
+         }
+ 
+         biome.decorate(this.world, this.rand, new BlockPos(i, 0, j));
++
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.terraingen.DecorateBiomeEvent.Post(this.world, this.rand, blockpos));
++
+         BlockFalling.fallInstantly = false;
+     }
+ 

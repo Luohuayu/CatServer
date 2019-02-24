@@ -1,0 +1,101 @@
+--- ../src-base/minecraft/net/minecraft/client/renderer/ItemRenderer.java
++++ ../src-work/minecraft/net/minecraft/client/renderer/ItemRenderer.java
+@@ -216,7 +216,7 @@
+         bufferbuilder.pos(135.0D, -7.0D, 0.0D).tex(1.0D, 0.0D).endVertex();
+         bufferbuilder.pos(-7.0D, -7.0D, 0.0D).tex(0.0D, 0.0D).endVertex();
+         tessellator.draw();
+-        MapData mapdata = Items.FILLED_MAP.getMapData(stack, this.mc.world);
++        MapData mapdata = ((net.minecraft.item.ItemMap) stack.getItem()).getMapData(stack, this.mc.world);
+ 
+         if (mapdata != null)
+         {
+@@ -312,7 +312,7 @@
+         {
+             ItemStack itemstack = abstractclientplayer.getActiveItemStack();
+ 
+-            if (itemstack.getItem() == Items.BOW)
++            if (!itemstack.isEmpty() && itemstack.getItem() == Items.BOW) //Forge: Data watcher can desync and cause this to NPE...
+             {
+                 EnumHand enumhand1 = abstractclientplayer.getActiveHand();
+                 flag = enumhand1 == EnumHand.MAIN_HAND;
+@@ -329,6 +329,7 @@
+         {
+             float f3 = enumhand == EnumHand.MAIN_HAND ? f : 0.0F;
+             float f5 = 1.0F - (this.prevEquippedProgressMainHand + (this.equippedProgressMainHand - this.prevEquippedProgressMainHand) * partialTicks);
++            if(!net.minecraftforge.client.ForgeHooksClient.renderSpecificFirstPersonHand(EnumHand.MAIN_HAND, partialTicks, f1, f3, f5, this.itemStackMainHand))
+             this.renderItemInFirstPerson(abstractclientplayer, partialTicks, f1, EnumHand.MAIN_HAND, f3, this.itemStackMainHand, f5);
+         }
+ 
+@@ -336,6 +337,7 @@
+         {
+             float f4 = enumhand == EnumHand.OFF_HAND ? f : 0.0F;
+             float f6 = 1.0F - (this.prevEquippedProgressOffHand + (this.equippedProgressOffHand - this.prevEquippedProgressOffHand) * partialTicks);
++            if(!net.minecraftforge.client.ForgeHooksClient.renderSpecificFirstPersonHand(EnumHand.OFF_HAND, partialTicks, f1, f4, f6, this.itemStackOffHand))
+             this.renderItemInFirstPerson(abstractclientplayer, partialTicks, f1, EnumHand.OFF_HAND, f4, this.itemStackOffHand, f6);
+         }
+ 
+@@ -356,7 +358,7 @@
+                 this.renderArmFirstPerson(p_187457_7_, p_187457_5_, enumhandside);
+             }
+         }
+-        else if (stack.getItem() == Items.FILLED_MAP)
++        else if (stack.getItem() instanceof net.minecraft.item.ItemMap)
+         {
+             if (flag && this.itemStackOffHand.isEmpty())
+             {
+@@ -440,6 +442,7 @@
+         if (this.mc.player.isEntityInsideOpaqueBlock())
+         {
+             IBlockState iblockstate = this.mc.world.getBlockState(new BlockPos(this.mc.player));
++            BlockPos overlayPos = new BlockPos(this.mc.player);
+             EntityPlayer entityplayer = this.mc.player;
+ 
+             for (int i = 0; i < 8; ++i)
+@@ -453,11 +456,13 @@
+                 if (iblockstate1.causesSuffocation())
+                 {
+                     iblockstate = iblockstate1;
++                    overlayPos = blockpos;
+                 }
+             }
+ 
+             if (iblockstate.getRenderType() != EnumBlockRenderType.INVISIBLE)
+             {
++                if (!net.minecraftforge.event.ForgeEventFactory.renderBlockOverlay(mc.player, partialTicks, net.minecraftforge.client.event.RenderBlockOverlayEvent.OverlayType.BLOCK, iblockstate, overlayPos))
+                 this.renderBlockInHand(this.mc.getBlockRendererDispatcher().getBlockModelShapes().getTexture(iblockstate));
+             }
+         }
+@@ -466,11 +471,13 @@
+         {
+             if (this.mc.player.isInsideOfMaterial(Material.WATER))
+             {
++                if (!net.minecraftforge.event.ForgeEventFactory.renderWaterOverlay(mc.player, partialTicks))
+                 this.renderWaterOverlayTexture(partialTicks);
+             }
+ 
+             if (this.mc.player.isBurning())
+             {
++                if (!net.minecraftforge.event.ForgeEventFactory.renderFireOverlay(mc.player, partialTicks))
+                 this.renderFireInFirstPerson();
+             }
+         }
+@@ -592,8 +599,17 @@
+         else
+         {
+             float f = entityplayersp.getCooledAttackStrength(1.0F);
+-            this.equippedProgressMainHand += MathHelper.clamp((Objects.equals(this.itemStackMainHand, itemstack) ? f * f * f : 0.0F) - this.equippedProgressMainHand, -0.4F, 0.4F);
+-            this.equippedProgressOffHand += MathHelper.clamp((float)(Objects.equals(this.itemStackOffHand, itemstack1) ? 1 : 0) - this.equippedProgressOffHand, -0.4F, 0.4F);
++
++            boolean requipM = net.minecraftforge.client.ForgeHooksClient.shouldCauseReequipAnimation(this.itemStackMainHand, itemstack, entityplayersp.inventory.currentItem);
++            boolean requipO = net.minecraftforge.client.ForgeHooksClient.shouldCauseReequipAnimation(this.itemStackOffHand, itemstack1, -1);
++
++            if (!requipM && !Objects.equals(this.itemStackMainHand, itemstack))
++                this.itemStackMainHand = itemstack;
++            if (!requipM && !Objects.equals(this.itemStackOffHand, itemstack1))
++                this.itemStackOffHand = itemstack1;
++
++            this.equippedProgressMainHand += MathHelper.clamp((!requipM ? f * f * f : 0.0F) - this.equippedProgressMainHand, -0.4F, 0.4F);
++            this.equippedProgressOffHand += MathHelper.clamp((float)(!requipO ? 1 : 0) - this.equippedProgressOffHand, -0.4F, 0.4F);
+         }
+ 
+         if (this.equippedProgressMainHand < 0.1F)
