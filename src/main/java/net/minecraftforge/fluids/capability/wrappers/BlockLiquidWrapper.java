@@ -1,6 +1,6 @@
 /*
  * Minecraft Forge
- * Copyright (c) 2016.
+ * Copyright (c) 2016-2018.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -30,6 +30,7 @@ import net.minecraft.item.ItemBucket;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -102,7 +103,7 @@ public class BlockLiquidWrapper implements IFluidHandler
             {
                 if (doDrain)
                 {
-                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 11);
+                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Constants.BlockFlags.DEFAULT_AND_RERENDER);
                 }
                 return containedStack;
             }
@@ -128,7 +129,7 @@ public class BlockLiquidWrapper implements IFluidHandler
             {
                 if (doDrain)
                 {
-                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 11);
+                    world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), Constants.BlockFlags.DEFAULT_AND_RERENDER);
                 }
                 return containedStack;
             }

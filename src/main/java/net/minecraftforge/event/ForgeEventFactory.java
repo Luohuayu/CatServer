@@ -27,10 +27,7 @@ import java.util.Random;
 import net.minecraft.block.BlockPortal;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.entity.*;
 import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.monster.EntityZombie;
@@ -60,6 +57,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.text.ChatType;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.village.MerchantRecipeList;
 import net.minecraft.village.Village;
 import net.minecraft.world.*;
 import net.minecraft.world.biome.Biome;
@@ -101,7 +99,10 @@ import net.minecraftforge.event.entity.player.*;
 import net.minecraftforge.event.furnace.FurnaceFuelBurnTimeEvent;
 import net.minecraftforge.event.terraingen.ChunkGeneratorEvent;
 import net.minecraftforge.event.terraingen.PopulateChunkEvent;
+import net.minecraftforge.event.village.MerchantTradeOffersEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.BlockEvent.EntityMultiPlaceEvent;
+import net.minecraftforge.event.world.BlockEvent.EntityPlaceEvent;
 import net.minecraftforge.event.world.BlockEvent.CreateFluidSourceEvent;
 import net.minecraftforge.event.world.BlockEvent.MultiPlaceEvent;
 import net.minecraftforge.event.world.BlockEvent.NeighborNotifyEvent;
@@ -120,11 +121,28 @@ import javax.annotation.Nullable;
 public class ForgeEventFactory
 {
 
+    public static EntityMultiPlaceEvent onMultiBlockPlace(@Nullable Entity entity, List<BlockSnapshot> blockSnapshots, EnumFacing direction)
+    {
+        BlockSnapshot snap = blockSnapshots.get(0);
+        IBlockState placedAgainst = snap.getWorld().getBlockState(snap.getPos().offset(direction.getOpposite()));
+        EntityMultiPlaceEvent event = new EntityMultiPlaceEvent(blockSnapshots, placedAgainst, entity);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event;
+    }
+
     public static MultiPlaceEvent onPlayerMultiBlockPlace(EntityPlayer player, List<BlockSnapshot> blockSnapshots, EnumFacing direction, EnumHand hand)
     {
         BlockSnapshot snap = blockSnapshots.get(0);
         IBlockState placedAgainst = snap.getWorld().getBlockState(snap.getPos().offset(direction.getOpposite()));
         MultiPlaceEvent event = new MultiPlaceEvent(blockSnapshots, placedAgainst, player, hand);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event;
+    }
+
+    public static EntityPlaceEvent onBlockPlace(@Nullable Entity entity, @Nonnull BlockSnapshot blockSnapshot, @Nonnull EnumFacing direction)
+    {
+        IBlockState placedAgainst = blockSnapshot.getWorld().getBlockState(blockSnapshot.getPos().offset(direction.getOpposite()));
+        EntityPlaceEvent event = new BlockEvent.EntityPlaceEvent(blockSnapshot, placedAgainst, entity);
         MinecraftForge.EVENT_BUS.post(event);
         return event;
     }
@@ -776,5 +794,18 @@ public class ForgeEventFactory
     public static void onGameRuleChange(GameRules rules, String ruleName, MinecraftServer server)
     {
         MinecraftForge.EVENT_BUS.post(new GameRuleChangeEvent(rules, ruleName, server));
+    }
+
+    public static MerchantRecipeList listTradeOffers(IMerchant merchant, EntityPlayer player, @Nullable MerchantRecipeList list)
+    {
+        MerchantRecipeList dupeList = null;
+        if (list != null)
+        {
+            dupeList = new MerchantRecipeList();
+            dupeList.addAll(list);
+        }
+        MerchantTradeOffersEvent event = new MerchantTradeOffersEvent(merchant, player, dupeList);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event.getList();
     }
 }

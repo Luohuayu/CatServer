@@ -1,16 +1,31 @@
+/*
+ * Minecraft Forge
+ * Copyright (c) 2016-2018.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation version 2.1
+ * of the License.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 package net.minecraftforge.common.config;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import java.util.Set;
 
 import com.google.common.collect.Lists;
 
@@ -162,6 +177,12 @@ public abstract class FieldWrapper implements IFieldWrapper
         @Override
         public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart)
         {
+            this.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart, false);
+        }
+
+        @Override
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart, boolean hasSlidingControl)
+        {
             ConfigCategory confCat = cfg.getCategory(getCategory());
             confCat.setComment(desc);
             confCat.setLanguageKey(langKey);
@@ -184,6 +205,7 @@ public abstract class FieldWrapper implements IFieldWrapper
         {
             return StringUtils.replaceOnce(key, this.baseName, "");
         }
+
     }
 
     private static class EnumWrapper extends SingleValueFieldWrapper
@@ -235,22 +257,32 @@ public abstract class FieldWrapper implements IFieldWrapper
             }
         }
 
+        @Override
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart) {
+            this.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart,false);
+        }
+
         @SuppressWarnings({ "unchecked", "rawtypes" })
         @Override
-        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart)
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart, boolean hasSlidingControl)
         {
-            super.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart);
+            super.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart, hasSlidingControl);
 
             Property prop = cfg.getCategory(this.category).get(this.name); // Will be setup in general by ConfigManager
 
-            List<String> lst = Lists.newArrayList();
+            List<String> listValidValues = Lists.newArrayList();
+            List<String> listValidValuesDisplay = Lists.newArrayList();
             for (Enum e : ((Class<? extends Enum>) field.getType()).getEnumConstants())
-                lst.add(e.name());
+            {
+                listValidValues.add(e.name());
+                listValidValuesDisplay.add(e.toString());
+            }
 
-            prop.setValidationPattern(Pattern.compile(PIPE.join(lst)));
-            prop.setValidValues(lst.toArray(new String[0]));
+            prop.setValidationPattern(Pattern.compile(PIPE.join(listValidValues)));
+            prop.setValidValues(listValidValues.toArray(new String[0]));
+            prop.setValidValuesDisplay(listValidValuesDisplay.toArray(new String[0]));
 
-            String validValues = NEW_LINE.join(lst);
+            String validValues = NEW_LINE.join(listValidValues);
 
             if (desc != null)
                 prop.setComment(NEW_LINE.join(new String[] { desc, "Valid values:" }) + "\n" + validValues);
@@ -304,9 +336,14 @@ public abstract class FieldWrapper implements IFieldWrapper
         }
 
         @Override
-        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart)
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart) {
+            this.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart,false);
+        }
+
+        @Override
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart, boolean hasSlidingControl)
         {
-            super.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart);
+            super.setupConfiguration(cfg, desc, langKey, reqMCRestart, reqWorldRestart, hasSlidingControl);
 
             Property prop = cfg.getCategory(this.category).get(this.name);
 
@@ -319,6 +356,7 @@ public abstract class FieldWrapper implements IFieldWrapper
                     prop.setComment(NEW_LINE.join(new String[] { desc, "Min: " + ia.min(), "Max: " + ia.max() }));
                 else
                     prop.setComment(NEW_LINE.join(new String[] { "Min: " + ia.min(), "Max: " + ia.max() }));
+                prop.setHasSlidingControl(hasSlidingControl);
             }
 
             RangeDouble da = field.getAnnotation(RangeDouble.class);
@@ -330,6 +368,7 @@ public abstract class FieldWrapper implements IFieldWrapper
                     prop.setComment(NEW_LINE.join(new String[] { desc, "Min: " + da.min(), "Max: " + da.max() }));
                 else
                     prop.setComment(NEW_LINE.join(new String[] { "Min: " + da.min(), "Max: " + da.max() }));
+                prop.setHasSlidingControl(hasSlidingControl);
             }
         }
     }
@@ -360,7 +399,7 @@ public abstract class FieldWrapper implements IFieldWrapper
         }
 
         @Override
-        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart)
+        public void setupConfiguration(Configuration cfg, String desc, String langKey, boolean reqMCRestart, boolean reqWorldRestart, boolean hasSlidingControl)
         {
             Property prop = cfg.getCategory(this.category).get(this.name); // Will be setup in general by ConfigManager
 
@@ -368,6 +407,7 @@ public abstract class FieldWrapper implements IFieldWrapper
             prop.setLanguageKey(langKey);
             prop.setRequiresMcRestart(reqMCRestart);
             prop.setRequiresWorldRestart(reqWorldRestart);
+            prop.setHasSlidingControl(hasSlidingControl);
         }
 
         @Override

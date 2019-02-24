@@ -1,6 +1,44 @@
 --- ../src-base/minecraft/net/minecraft/world/chunk/storage/RegionFile.java
 +++ ../src-work/minecraft/net/minecraft/world/chunk/storage/RegionFile.java
-@@ -95,6 +95,12 @@
+@@ -19,6 +19,9 @@
+ 
+ public class RegionFile
+ {
++    // Minecraft is limited to 256 sections per chunk. So 1MB. This can easily be override.
++    // So we extend this to use the REAL size when the count is maxed by seeking to that section and reading the length.
++    private static final boolean FORGE_ENABLE_EXTENDED_SAVE = Boolean.parseBoolean(System.getProperty("forge.enableExtendedSave", "true"));
+     private static final byte[] EMPTY_SECTOR = new byte[4096];
+     private final File fileName;
+     private RandomAccessFile dataFile;
+@@ -74,13 +77,25 @@
+                 int k = this.dataFile.readInt();
+                 this.offsets[j1] = k;
+ 
+-                if (k != 0 && (k >> 8) + (k & 255) <= this.sectorFree.size())
++                int length = k & 255;
++                if (length == 255)
+                 {
+-                    for (int l = 0; l < (k & 255); ++l)
++                    if ((k >> 8) <= this.sectorFree.size()) { // We're maxed out, so we need to read the proper length from the section
++                        this.dataFile.seek((k >> 8) * 4096);
++                        length = (this.dataFile.readInt() + 4)/ 4096 + 1;
++                        this.dataFile.seek(j1 * 4 + 4); //Go back to where we were
++                    }
++                }
++                if (k != 0 && (k >> 8) + length <= this.sectorFree.size())
++                {
++                    for (int l = 0; l < length; ++l)
+                     {
+                         this.sectorFree.set((k >> 8) + l, Boolean.valueOf(false));
+                     }
+                 }
++                else if (length > 0)
++                    net.minecraftforge.fml.common.FMLLog.log.warn("Invalid chunk: ({}, {}) Offset: {} Length: {} runs off end file. {}", j1 % 32, (int)(j1 / 32), k >> 8, length, fileNameIn);
++
+             }
+ 
+             for (int k1 = 0; k1 < 1024; ++k1)
+@@ -95,6 +110,12 @@
          }
      }
  
@@ -13,7 +51,32 @@
      @Nullable
  
      public synchronized DataInputStream getChunkDataInputStream(int x, int z)
-@@ -169,7 +175,7 @@
+@@ -117,6 +138,11 @@
+                 {
+                     int j = i >> 8;
+                     int k = i & 255;
++                    if (k == 255)
++                    {
++                        this.dataFile.seek(j * 4096);
++                        k = (this.dataFile.readInt() + 4) / 4096 + 1;
++                    }
+ 
+                     if (j + k > this.sectorFree.size())
+                     {
+@@ -129,10 +155,12 @@
+ 
+                         if (l > 4096 * k)
+                         {
++                            net.minecraftforge.fml.common.FMLLog.log.warn("Invalid chunk: ({}, {}) Offset: {} Invalid Size: {}>{} {}", x, z, j, l, k * 4096, fileName);
+                             return null;
+                         }
+                         else if (l <= 0)
+                         {
++                            net.minecraftforge.fml.common.FMLLog.log.warn("Invalid chunk: ({}, {}) Offset: {} Invalid Size: {} {}", x, z, j, l, fileName);
+                             return null;
+                         }
+                         else
+@@ -169,7 +197,7 @@
      @Nullable
      public DataOutputStream getChunkDataOutputStream(int x, int z)
      {
@@ -22,3 +85,40 @@
      }
  
      protected synchronized void write(int x, int z, byte[] data, int length)
+@@ -179,11 +207,17 @@
+             int i = this.getOffset(x, z);
+             int j = i >> 8;
+             int k = i & 255;
++            if (k == 255)
++            {
++                this.dataFile.seek(j * 4096);
++                k = (this.dataFile.readInt() + 4) / 4096 + 1;
++            }
+             int l = (length + 5) / 4096 + 1;
+ 
+             if (l >= 256)
+             {
+-                return;
++                if (!FORGE_ENABLE_EXTENDED_SAVE) return;
++                net.minecraftforge.fml.common.FMLLog.log.warn("Large Chunk Detected: ({}, {}) Size: {} {}", x, z, l, fileName);
+             }
+ 
+             if (j != 0 && k == l)
+@@ -231,7 +265,7 @@
+                 if (j1 >= l)
+                 {
+                     j = l1;
+-                    this.setOffset(x, z, l1 << 8 | l);
++                    this.setOffset(x, z, l1 << 8 | (l > 255 ? 255 : l));
+ 
+                     for (int j2 = 0; j2 < l; ++j2)
+                     {
+@@ -253,7 +287,7 @@
+ 
+                     this.sizeDelta += 4096 * l;
+                     this.write(j, data, length);
+-                    this.setOffset(x, z, j << 8 | l);
++                    this.setOffset(x, z, j << 8 | (l > 255 ? 255 : l));
+                 }
+             }
+ 

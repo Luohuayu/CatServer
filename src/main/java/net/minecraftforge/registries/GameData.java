@@ -285,6 +285,15 @@ public class GameData
             this.identityMap.clear();
             this.objectList.clear();
         }
+
+        void remove(I key)
+        {
+            Integer prev = this.identityMap.remove(key);
+            if (prev != null)
+            {
+                this.objectList.set(prev, null);
+            }
+        }
     }
 
 
@@ -298,6 +307,14 @@ public class GameData
         {
             @SuppressWarnings("unchecked")
             ClearableObjectIntIdentityMap<IBlockState> blockstateMap = owner.getSlaveMap(BLOCKSTATE_TO_ID, ClearableObjectIntIdentityMap.class);
+
+            if (oldBlock != null)
+            {
+                for (IBlockState state : oldBlock.getBlockState().getValidStates())
+                {
+                    blockstateMap.remove(state);
+                }
+            }
 
             if ("minecraft:tripwire".equals(block.getRegistryName().toString())) //Tripwire is crap so we have to special case whee!
             {
@@ -384,6 +401,12 @@ public class GameData
         @Override
         public void onAdd(IForgeRegistryInternal<Item> owner, RegistryManager stage, int id, Item item, @Nullable Item oldItem)
         {
+            if (oldItem instanceof ItemBlock)
+            {
+                @SuppressWarnings("unchecked")
+                BiMap<Block, Item> blockToItem = owner.getSlaveMap(BLOCK_TO_ITEM, BiMap.class);
+                blockToItem.remove(((ItemBlock)oldItem).getBlock());
+            }
             if (item instanceof ItemBlock)
             {
                 @SuppressWarnings("unchecked")
@@ -487,6 +510,10 @@ public class GameData
             }
             @SuppressWarnings("unchecked")
             Map<Class<? extends Entity>, EntityEntry> map = owner.getSlaveMap(ENTITY_CLASS_TO_ENTRY, Map.class);
+            if (oldEntry != null)
+            {
+                map.remove(oldEntry.getEntityClass());
+            }
             map.put(entry.getEntityClass(), entry);
         }
         @Override
@@ -549,20 +576,23 @@ public class GameData
         RegistryManager.ACTIVE.registries.forEach((name, reg) -> reg.dump(name));
         RegistryManager.ACTIVE.registries.forEach((name, reg) -> reg.resetDelegates());
 
-        List<ResourceLocation> missingRegs = snapshot.keySet().stream().filter(name -> !RegistryManager.ACTIVE.registries.containsKey(name)).collect(Collectors.toList());
-        if (missingRegs.size() > 0)
+        if (isLocalWorld)
         {
-            String text = "Forge Mod Loader detected missing/unknown registrie(s).\n\n" +
-                    "There are " + missingRegs.size() + " missing registries in this save.\n" +
-                    "If you continue the missing registries will get removed.\n" +
-                    "This may cause issues, it is advised that you create a world backup before continuing.\n\n" +
-                    "Missing Registries:\n";
+            List<ResourceLocation> missingRegs = snapshot.keySet().stream().filter(name -> !RegistryManager.ACTIVE.registries.containsKey(name)).collect(Collectors.toList());
+            if (missingRegs.size() > 0)
+            {
+                String text = "Forge Mod Loader detected missing/unknown registrie(s).\n\n" +
+                        "There are " + missingRegs.size() + " missing registries in this save.\n" +
+                        "If you continue the missing registries will get removed.\n" +
+                        "This may cause issues, it is advised that you create a world backup before continuing.\n\n" +
+                        "Missing Registries:\n";
 
-            for (ResourceLocation s : missingRegs)
-                text += s.toString() + "\n";
+                for (ResourceLocation s : missingRegs)
+                    text += s.toString() + "\n";
 
-            if (!StartupQuery.confirm(text))
-                StartupQuery.abort();
+                if (!StartupQuery.confirm(text))
+                    StartupQuery.abort();
+            }
         }
 
         RegistryManager STAGING = new RegistryManager("STAGING");

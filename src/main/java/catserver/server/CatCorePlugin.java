@@ -1,12 +1,10 @@
 package catserver.server;
 
+import catserver.server.remapper.NetworkTransformer;
+import catserver.server.remapper.SideTransformer;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 
 import javax.annotation.Nullable;
-
-import catserver.server.remapper.NetworkTransformer;
-import catserver.server.remapper.SideTransformer;
-
 import java.util.Map;
 
 public class CatCorePlugin implements IFMLLoadingPlugin {

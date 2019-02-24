@@ -214,6 +214,12 @@ public class ConfigElement implements IConfigElement
     }
 
     @Override
+    public String[] getValidValuesDisplay()
+    {
+        return isProperty ? prop.getValidValuesDisplay() : null;
+    }
+
+    @Override
     public Object getDefault()
     {
         return isProperty ? prop.getDefault() : null;
@@ -360,7 +366,12 @@ public class ConfigElement implements IConfigElement
     {
         return isProperty ? prop.getMaxValue() : null;
     }
-    
+
+    @Override
+    public boolean hasSlidingControl() {
+        return prop.hasSlidingControl();
+    }
+
     /**
      * Provides a ConfigElement derived from the annotation-based config system
      * @param configClass the class which contains the configuration

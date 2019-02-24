@@ -1,6 +1,6 @@
 /*
  * Minecraft Forge
- * Copyright (c) 2016.
+ * Copyright (c) 2016-2018.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,6 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
 package net.minecraftforge.fml.client.config;
 
 import static net.minecraftforge.fml.client.config.GuiUtils.RESET_CHAR;
@@ -475,7 +476,13 @@ public class GuiConfigEntries extends GuiListExtended
         @Override
         public void updateValueButtonText()
         {
-            this.btnValue.displayString = I18n.format(configElement.getValidValues()[currentIndex]);
+            this.btnValue.displayString = I18n.format(getValidValueDisplay());
+        }
+
+        protected String getValidValueDisplay()
+        {
+            String[] validValuesDisplay = configElement.getValidValuesDisplay();
+            return validValuesDisplay != null && validValuesDisplay.length > 0 ? validValuesDisplay[currentIndex] : configElement.getValidValues()[currentIndex];
         }
 
         @Override
@@ -563,14 +570,14 @@ public class GuiConfigEntries extends GuiListExtended
         @Override
         public void drawEntry(int slotIndex, int x, int y, int listWidth, int slotHeight, int mouseX, int mouseY, boolean isSelected, float partial)
         {
-            this.btnValue.packedFGColour = GuiUtils.getColorCode(this.configElement.getValidValues()[currentIndex].charAt(0), true);
+            this.btnValue.packedFGColour = GuiUtils.getColorCode(getValidValueDisplay().charAt(0), true);
             super.drawEntry(slotIndex, x, y, listWidth, slotHeight, mouseX, mouseY, isSelected, partial);
         }
 
         @Override
         public void updateValueButtonText()
         {
-            this.btnValue.displayString = I18n.format(configElement.getValidValues()[currentIndex]) + " - " + I18n.format("fml.configgui.sampletext");
+            this.btnValue.displayString = I18n.format(getValidValueDisplay()) + " - " + I18n.format("fml.configgui.sampletext");
         }
     }
 
@@ -1232,7 +1239,7 @@ public class GuiConfigEntries extends GuiListExtended
         public boolean isDefault()
         {
             return configElement.getDefault() != null ? configElement.getDefault().toString().equals(this.textFieldValue.getText()) :
-                this.textFieldValue.getText().trim().isEmpty();
+                    this.textFieldValue.getText().trim().isEmpty();
         }
 
         @Override
