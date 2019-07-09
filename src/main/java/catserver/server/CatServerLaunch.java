@@ -97,7 +97,7 @@ public class CatServerLaunch {
             URLClassLoader cl = (URLClassLoader) ClassLoader.getSystemClassLoader();
             Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
             method.setAccessible(true);
-            method.invoke(cl, file.toURL());
+            method.invoke(cl, file.toURI().toURL());
         } catch (Exception e) {
             e.printStackTrace();
         }
