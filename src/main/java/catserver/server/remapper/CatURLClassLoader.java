@@ -25,7 +25,7 @@ public class CatURLClassLoader extends URLClassLoader
 {
 
     private JarMapping jarMapping;
-    private JarRemapper remapper;
+    private CatServerRemapper remapper;
     private final Map<String, Class<?>> classes;
 
     {
@@ -57,7 +57,7 @@ public class CatURLClassLoader extends URLClassLoader
     }
 
     private Class<?> findClass(final String name, final boolean checkGlobal) throws ClassNotFoundException {
-        if (name.startsWith("net.minecraft.server." + CatServer.getNativeVersion())) {
+        if (remapper.isNeedRemap(name)) {
             final String remappedClass = this.jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
             final Class<?> clazz = ((LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
             return clazz;

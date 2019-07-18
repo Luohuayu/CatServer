@@ -47,7 +47,7 @@ final class PluginClassLoader extends URLClassLoader {
     private JavaPlugin pluginInit;
     private IllegalStateException pluginState;
 
-    private JarRemapper remapper;
+    private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
     PluginClassLoader(final JavaPluginLoader loader, final ClassLoader parent, final PluginDescriptionFile description, final File dataFolder, final File file) throws IOException, InvalidPluginException, MalformedURLException {
@@ -98,7 +98,7 @@ final class PluginClassLoader extends URLClassLoader {
     }
 
     Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
-        if (name.startsWith("net.minecraft.server." + CatServer.getNativeVersion())) {
+        if (remapper.isNeedRemap(name)) {
             String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
             Class<?> clazz = ((net.minecraft.launchwrapper.LaunchClassLoader)MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
             return clazz;
