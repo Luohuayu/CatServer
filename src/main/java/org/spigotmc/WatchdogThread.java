@@ -5,6 +5,8 @@ import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import catserver.server.CatServer;
 import net.minecraft.server.MinecraftServer;
 import org.bukkit.Bukkit;
 
@@ -82,7 +84,7 @@ public class WatchdogThread extends Thread
 
                 if ( restart )
                 {
-                    MinecraftServer.getServerInst().primaryThread.suspend(); // CatServer - suspend server thread
+                    CatServer.watchdogForceExitTask();
                     RestartCommand.restart();
                 }
                 break;
