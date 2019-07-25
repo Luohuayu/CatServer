@@ -16,6 +16,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Scanner;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
@@ -28,7 +29,16 @@ public class CatServerLaunch {
     private static final GDiffPatcher PATCHER = new GDiffPatcher();
 
     public static void main(String[] args) throws Throwable {
-        String version = CatServerLaunch.class.getPackage().getImplementationVersion() != null ? CatServerLaunch.class.getPackage().getImplementationVersion() : "null";
+        System.out.println("\n" +
+                "   _____      _    _____                          \n" +
+                "  / ____|    | |  / ____|                         \n" +
+                " | |     __ _| |_| (___   ___ _ ____   _____ _ __ \n" +
+                " | |    / _` | __|\\___ \\ / _ \\ '__\\ \\ / / _ \\ '__|\n" +
+                " | |___| (_| | |_ ____) |  __/ |   \\ V /  __/ |   \n" +
+                "  \\_____\\__,_|\\__|_____/ \\___|_|    \\_/ \\___|_| \n");
+        checkEULA();
+
+
         InputStream in = ClassLoader.getSystemResourceAsStream("patchFiles.txt");
         if (in == null) {
             System.out.println("patchFiles.txt不存在,请勿直接运行服务端缓存文件!");
@@ -38,6 +48,8 @@ public class CatServerLaunch {
             System.out.println("minecraft_server.1.12.2.jar不存在,请将官服放到服务端目录!");
             Runtime.getRuntime().exit(0);
         }
+
+        String version = CatServerLaunch.class.getPackage().getImplementationVersion() != null ? CatServerLaunch.class.getPackage().getImplementationVersion() : "null";
         File patchedLib = new File("cache-patched-" + version + ".jar");
         if (!patchedLib.exists()) {
             System.out.println("正在生成服务端缓存,请耐心等待..");
@@ -51,6 +63,7 @@ public class CatServerLaunch {
             }
         }
         loadLibrary(patchedLib);
+
         Class.forName("net.minecraftforge.fml.relauncher.ServerLaunchWrapper").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
     }
 
@@ -113,5 +126,18 @@ public class CatServerLaunch {
 
     public static byte[] patch(byte[] cleanData, byte[] patchData) throws IOException {
         return patchData.length == 0 ? EMPTY_DATA : PATCHER.patch(cleanData, patchData);
+    }
+
+    private static void checkEULA() {
+        File eulaFile = new File(".eula");
+        if (!eulaFile.exists()) {
+            try {
+                System.out.println("你需要同意Mojang和CatServer的EULA才能使用,输入accept以同意EULA!");
+                Scanner sc = new Scanner(System.in);
+                while (!"accept".equalsIgnoreCase(sc.next()));
+                eulaFile.createNewFile();
+                sc.close();
+            } catch (Exception e) {}
+        }
     }
 }
