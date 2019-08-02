@@ -1,6 +1,7 @@
 package catserver.server;
 
 import catserver.server.delta.GDiffPatcher;
+import catserver.server.utils.LanguageUtils;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import org.apache.commons.io.IOUtils;
@@ -30,7 +31,7 @@ public class CatServerPatcher {
     public static void patch() {
         InputStream in = ClassLoader.getSystemResourceAsStream("patchFiles.txt");
         if (in == null) {
-            System.out.println("patchFiles.txt不存在,请勿直接运行服务端缓存文件!");
+            System.out.println(LanguageUtils.I18nToString("launch.patch_does_not_exist"));
             Runtime.getRuntime().exit(0);
             return;
         }
@@ -38,12 +39,12 @@ public class CatServerPatcher {
         String version = CatServerLaunch.class.getPackage().getImplementationVersion() != null ? CatServerLaunch.class.getPackage().getImplementationVersion() : "null";
         File patchedLib = new File("cache-patched-" + version + ".jar");
         if (!patchedLib.exists()) {
-            System.out.println("正在生成服务端缓存,请耐心等待..");
+            System.out.println(LanguageUtils.I18nToString("launch.patch_patching"));
             try {
                 List<String> patchFiles = IOUtils.readLines(in, StandardCharsets.UTF_8);
                 generatePatchCache(patchedLib, patchFiles);
             } catch (Exception e) {
-                System.out.println("生成服务端缓存发生错误!");
+                System.out.println(LanguageUtils.I18nToString("launch.patch_exception"));
                 e.printStackTrace();
                 Runtime.getRuntime().exit(0);
             }

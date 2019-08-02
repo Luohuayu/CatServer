@@ -1,5 +1,6 @@
 package catserver.server;
 
+import catserver.server.utils.LanguageUtils;
 import catserver.server.utils.Md5Utils;
 
 import java.io.*;
@@ -17,7 +18,7 @@ public class CatServerLaunch {
 
     public static void main(String[] args) throws Throwable {
         downloadLibraries();
-        if (update) System.out.println("服务端版本过旧请更新!");
+        if (update) System.out.println(LanguageUtils.I18nToString("launch.outdated"));
         if (disable) Runtime.getRuntime().exit(0);
         if (huanlin) checkEULA();
         CatServerPatcher.patch();
@@ -27,9 +28,9 @@ public class CatServerLaunch {
     private static void downloadLibraries() {
         File libListFile = new File("libraries.info");
         if (!libListFile.exists()){
-            System.out.println("首次运行服务端需要下载库文件才能运行,请耐心等待..");
+            System.out.println(LanguageUtils.I18nToString("launch.lib_need_download"));
             if (!tryDownload(libListFile, null)) {
-                System.out.println("库文件列表下载失败,请检查网络!");
+                System.out.println(LanguageUtils.I18nToString("launch.lib_failure_download_list"));
                 Runtime.getRuntime().exit(0);
                 return;
             }
@@ -60,7 +61,7 @@ public class CatServerLaunch {
             hasException = true;
         }
         if (hasException)
-            System.out.println("校验库文件时发生错误,请检查网络或手动下载,服务端将尝试继续启动!");
+            System.out.println(LanguageUtils.I18nToString("launch.lib_exception"));
     }
 
     private static void downloadLibrary(String type, String key, String value) throws IOException {
@@ -88,12 +89,12 @@ public class CatServerLaunch {
             try {
                 downloadFile(downloadUrl, file);
                 if (!file.exists() || (md5 != null && !Md5Utils.getFileMD5String(file).equals(md5))) {
-                    System.out.println(String.format("文件 %s 校验失败, 你也可以手动下载: %s", file.getName(), downloadUrl));
+                    System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_check"), file.getName(), downloadUrl));
                     continue;
                 }
                 return true;
             } catch (IOException e) {
-                System.out.println(String.format("下载文件失败(HTTP状态: %s), 你也可以手动下载: %s", e.toString(), downloadUrl));
+                System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download"), e.toString(), downloadUrl));
             }
         }
         return false;
@@ -104,7 +105,7 @@ public class CatServerLaunch {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
-        System.out.println(String.format("正在下载文件 %s 大小: %s", saveFile.getName(), getSize(connection.getContentLengthLong())));
+        System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_downloading"), saveFile.getName(), getSize(connection.getContentLengthLong())));
 
         ReadableByteChannel rbc = Channels.newChannel(url.openStream());
         FileOutputStream fos = new FileOutputStream(saveFile);
@@ -140,7 +141,7 @@ public class CatServerLaunch {
         if (!eulaFile.exists()) {
             try {
                 System.out.println("Mojang EULA: https://account.mojang.com/documents/minecraft_eula | CatServer EULA: https://catserver.cn/eula/");
-                System.out.println("你需要同意Mojang和CatServer的EULA才能使用,输入accept以同意EULA!");
+                System.out.println(LanguageUtils.I18nToString("launch.eula_need_accept"));
                 Scanner sc = new Scanner(System.in);
                 while (!"accept".equalsIgnoreCase(sc.next()));
                 eulaFile.createNewFile();
