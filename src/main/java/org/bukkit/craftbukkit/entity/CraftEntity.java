@@ -135,7 +135,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
             // Players
             if (entity instanceof EntityPlayer) {
                 if (entity instanceof EntityPlayerMP) { return new CraftPlayer(server, (EntityPlayerMP) entity); }
-                else { // CatServer -  support fake player classes from mods
+                else { // CatServer - support fake player classes from mods
                     return new CraftPlayer(server, FakePlayerFactory.get(DimensionManager.getWorld(entity.world.provider.getDimension()), ((EntityPlayer) entity).getGameProfile()));
                 }
             }
@@ -161,13 +161,15 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                     }
                     else if (entity instanceof EntitySheep) { return new CraftSheep(server, (EntitySheep) entity); }
                     else if (entity instanceof AbstractHorse) {
-                        if (entity instanceof AbstractChestHorse){
+                        if (entity instanceof AbstractChestHorse) {
                             if (entity instanceof EntityDonkey) { return new CraftDonkey(server, (EntityDonkey) entity); }
                             else if (entity instanceof EntityMule) { return new CraftMule(server, (EntityMule) entity); }
                             else if (entity instanceof EntityLlama) { return new CraftLlama(server, (EntityLlama) entity); }
+                            else { return new CraftAnimals(server, (EntityAnimal) entity); }
                         } else if (entity instanceof EntityHorse) { return new CraftHorse(server, (EntityHorse) entity); }
                         else if (entity instanceof EntitySkeletonHorse) { return new CraftSkeletonHorse(server, (EntitySkeletonHorse) entity); }
                         else if (entity instanceof EntityZombieHorse) { return new CraftZombieHorse(server, (EntityZombieHorse) entity); }
+                        else { return new CraftAnimals(server, (EntityAnimal) entity); }
                     }
                     else if (entity instanceof EntityRabbit) { return new CraftRabbit(server, (EntityRabbit) entity); }
                     else if (entity instanceof EntityPolarBear) { return new CraftPolarBear(server, (EntityPolarBear) entity); }
@@ -306,10 +308,8 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         else if (entity instanceof EntityAreaEffectCloud) { return new CraftAreaEffectCloud(server, (EntityAreaEffectCloud) entity); }
         else if (entity instanceof EntityEvokerFangs) { return new CraftEvokerFangs(server, (EntityEvokerFangs) entity); }
         else if (entity instanceof EntityLlamaSpit) { return new CraftLlamaSpit(server, (EntityLlamaSpit) entity); }
-        else if (entity != null) {
-            if (entity instanceof net.minecraft.entity.IProjectile) return new CraftCustomProjectile(server, entity);
-            return new CraftCustomEntity(server, entity);
-        }
+        else if (entity instanceof net.minecraft.entity.IProjectile) { return new CraftCustomProjectile(server, entity); }
+        else if (entity != null) { return new CraftCustomEntity(server, entity); }
         throw new AssertionError("Unknown entity " + (entity == null ? " is null" : entity.getClass() + ": " + entity));
     }
 
