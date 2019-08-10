@@ -49,6 +49,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
         }
         CraftMetaPotion potionMeta = (CraftMetaPotion) meta;
         this.type = potionMeta.type;
+        this.rawType = potionMeta.rawType;
         this.color = potionMeta.color;
         if (potionMeta.hasCustomEffects()) {
             this.customEffects = new ArrayList<PotionEffect>(potionMeta.customEffects);
