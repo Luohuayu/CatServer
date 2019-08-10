@@ -40,6 +40,8 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
     private List<PotionEffect> customEffects;
     private Color color;
 
+    private String rawType = null; // CatServer
+
     CraftMetaPotion(CraftMetaItem meta) {
         super(meta);
         if (!(meta instanceof CraftMetaPotion)) {
@@ -57,6 +59,8 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
         super(tag);
         if (tag.hasKey(DEFAULT_POTION.NBT)) {
             type = CraftPotionUtil.toBukkit(tag.getString(DEFAULT_POTION.NBT));
+            if (type.getType() == PotionType.UNCRAFTABLE)
+                rawType = tag.getString(DEFAULT_POTION.NBT);
         }
         if (tag.hasKey(POTION_COLOR.NBT)) {
             color = Color.fromRGB(tag.getInteger(POTION_COLOR.NBT));
@@ -85,6 +89,8 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
     CraftMetaPotion(Map<String, Object> map) {
         super(map);
         type = CraftPotionUtil.toBukkit(SerializableMeta.getString(map, DEFAULT_POTION.BUKKIT, true));
+        if (type.getType() == PotionType.UNCRAFTABLE)
+            rawType = SerializableMeta.getString(map, DEFAULT_POTION.BUKKIT + "-raw", true);
 
         Color color = SerializableMeta.getObject(Color.class, map, POTION_COLOR.BUKKIT, true);
         if (color != null) {
@@ -108,7 +114,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
     void applyToItem(NBTTagCompound tag) {
         super.applyToItem(tag);
 
-        tag.setString(DEFAULT_POTION.NBT, CraftPotionUtil.fromBukkit(type));
+        tag.setString(DEFAULT_POTION.NBT, type.getType() == PotionType.UNCRAFTABLE && rawType != null ? rawType : CraftPotionUtil.fromBukkit(type)); // CatServer
 
         if (hasColor()) {
             tag.setInteger(POTION_COLOR.NBT, color.asRGB());
@@ -136,7 +142,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
     }
 
     boolean isPotionEmpty() {
-        return (type.getType() == PotionType.UNCRAFTABLE) && !(hasCustomEffects() || hasColor());
+        return (type.getType() == PotionType.UNCRAFTABLE) && !(hasCustomEffects() || hasColor()) && rawType == null;
     }
 
     @Override
@@ -288,6 +294,8 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
         int hash = original = super.applyHash();
         if (type.getType() != PotionType.UNCRAFTABLE) {
             hash = 73 * hash + type.hashCode();
+        } else if (rawType != null) {
+            hash = 73 * hash + rawType.hashCode();
         }
         if (hasColor()) {
             hash = 73 * hash + color.hashCode();
@@ -323,6 +331,8 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
         super.serialize(builder);
         if (type.getType() != PotionType.UNCRAFTABLE) {
             builder.put(DEFAULT_POTION.BUKKIT, CraftPotionUtil.fromBukkit(type));
+        } else if (rawType != null) {
+            builder.put(DEFAULT_POTION.BUKKIT + "-raw", rawType);
         }
 
         if (hasColor()) {
