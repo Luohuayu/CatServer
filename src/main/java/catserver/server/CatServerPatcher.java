@@ -23,7 +23,8 @@ import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 
 public class CatServerPatcher {
-    private static String[] resFiles = new String[] {"forge_logo.png", "forge_at.cfg", "forge.srg", "forge.exc", "deobfuscation_data-1.12.2.lzma", "mcpmod.info", "mcplogo.png", "url.png", "mcp/MethodsReturnNonnullByDefault.class", "assets/forge/lang/en_US.lang"};
+    private static String[] ForgeResources = new String[] {"forge_at.cfg", "forge.srg", "forge.exc", "deobfuscation_data-1.12.2.lzma", "mcpmod.info", "mcp/MethodsReturnNonnullByDefault.class", "assets/forge/lang/en_US.lang", "Log4j-config.xsd", "Log4j-events.dtd", "Log4j-events.xsd", "Log4j-levels.xsd"};
+    private static String[] BukkitResources = new String[] {};
 
     private static final byte[] EMPTY_DATA = new byte[0];
     private static final GDiffPatcher PATCHER = new GDiffPatcher();
@@ -65,8 +66,15 @@ public class CatServerPatcher {
             jarOutput.closeEntry();
         }
 
-        for (String resFile : resFiles) {
+        for (String resFile : ForgeResources) {
             byte[] bytes = getCleanClass(forgeJarFile, resFile);
+            jarOutput.putNextEntry(new JarEntry(resFile));
+            jarOutput.write(bytes);
+            jarOutput.closeEntry();
+        }
+
+        for (String resFile : BukkitResources) {
+            byte[] bytes = getCleanClass(bukkitJarFile, resFile);
             jarOutput.putNextEntry(new JarEntry(resFile));
             jarOutput.write(bytes);
             jarOutput.closeEntry();
