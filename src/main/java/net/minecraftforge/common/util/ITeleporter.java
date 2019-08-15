@@ -23,6 +23,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.world.Teleporter;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
+import org.bukkit.craftbukkit.CraftTravelAgent;
 
 /**
  * Interface for handling the placement of entities during dimension change.
@@ -55,6 +56,6 @@ public interface ITeleporter
     // used internally to handle vanilla hardcoding
     default boolean isVanilla()
     {
-        return getClass() == Teleporter.class;
+        return getClass() == Teleporter.class || getClass() == CraftTravelAgent.class; // CatServer - CraftTravelAgent is Vanilla
     }
 }
