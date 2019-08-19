@@ -49,14 +49,6 @@ public class FMLTweaker implements ITweaker {
         {
             System.setProperty("java.net.preferIPv4Stack", "true");
         }
-        try
-        {
-            System.setSecurityManager(new FMLSecurityManager());
-        }
-        catch (SecurityException se)
-        {
-            throw new RuntimeException("FML was unable to install the security manager. The game will not start", se);
-        }
     }
     @SuppressWarnings("unchecked")
     @Override

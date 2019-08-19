@@ -72,7 +72,7 @@ public class TerminalTransformer implements IClassTransformer
                     clsName.startsWith("scala/sys/") ||
                     clsName.startsWith("net/minecraft/server/gui/MinecraftServerGui") ||
                     clsName.startsWith("com/sun/jna/")
-            ) && false; // CatServer
+            );
 
             return new MethodVisitor(Opcodes.ASM5, super.visitMethod(mAccess, mName, mDesc, mSignature, mExceptions))
             {

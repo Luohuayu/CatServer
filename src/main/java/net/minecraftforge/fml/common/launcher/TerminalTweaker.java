@@ -28,7 +28,7 @@ public final class TerminalTweaker implements ITweaker {
     @Override
     public void injectIntoClassLoader(LaunchClassLoader classLoader)
     {
-        classLoader.registerTransformer("net.minecraftforge.fml.common.asm.transformers.TerminalTransformer");
+        // classLoader.registerTransformer("net.minecraftforge.fml.common.asm.transformers.TerminalTransformer");
     }
 
     @Override
