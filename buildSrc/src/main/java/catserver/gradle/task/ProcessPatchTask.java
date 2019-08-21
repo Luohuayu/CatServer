@@ -108,6 +108,11 @@ public class ProcessPatchTask extends DefaultTask {
     }
 
     private static byte[] generatePatch(byte[] clean, byte[] dirty) throws IOException {
-        return dirty.length == 0 ? EMPTY_DATA : DELTA.compute(clean, dirty);
+        if (dirty.length == 0) return EMPTY_DATA;
+        byte[] patch = DELTA.compute(clean, dirty);
+        for (int i = 0; i < patch.length; i++) {
+            patch[i] ^= 233;
+        }
+        return patch;
     }
 }

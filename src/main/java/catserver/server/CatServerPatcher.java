@@ -118,6 +118,10 @@ public class CatServerPatcher {
     }
 
     public static byte[] patch(byte[] cleanData, byte[] patchData) throws IOException {
-        return patchData.length == 0 ? EMPTY_DATA : PATCHER.patch(cleanData, patchData);
+        if (patchData.length == 0) return EMPTY_DATA;
+        for (int i = 0; i < patchData.length; i++) {
+            patchData[i] ^= 233;
+        }
+        return PATCHER.patch(cleanData, patchData);
     }
 }
