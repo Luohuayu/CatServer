@@ -3,6 +3,7 @@ package catserver.server;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.common.FMLLog;
 
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -37,5 +38,17 @@ public class CatServer {
                 Runtime.getRuntime().exit(0);
             }
         }, 300 * 1000);
+    }
+
+    public static boolean isSendDataSerializers(Map<String, String> modList) {
+        String forgeVersion = modList.get("forge");
+        if (forgeVersion != null) {
+            try {
+                if (Integer.valueOf(forgeVersion.split("\\.")[3]) < 2826) {
+                    return false;
+                }
+            } catch (Exception ignored) {}
+        }
+        return true;
     }
 }

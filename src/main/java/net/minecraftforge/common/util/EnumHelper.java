@@ -251,6 +251,8 @@ public class EnumHelper
     {
         blankField(enumClass, "enumConstantDirectory");
         blankField(enumClass, "enumConstants");
+        //Open J9
+        blankField(enumClass, "enumVars");
     }
 
     @Nullable

@@ -19,6 +19,7 @@
 
 package net.minecraftforge.fml.common.network.handshake;
 
+import catserver.server.CatServer;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -91,6 +92,7 @@ enum FMLHandshakeServerState implements IHandshakeState<FMLHandshakeServerState>
                 while (itr.hasNext())
                 {
                     Entry<ResourceLocation, ForgeRegistry.Snapshot> e = itr.next();
+                    if ("minecraft:dataserializers".equals(e.getKey().toString()) && !CatServer.isSendDataSerializers(ctx.channel().attr(NetworkDispatcher.FML_DISPATCHER).get().getModList())) continue; // CatServe
                     ctx.writeAndFlush(new FMLHandshakeMessage.RegistryData(itr.hasNext(), e.getKey(), e.getValue())).addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
                 }
             }
