@@ -47,6 +47,7 @@ public class ReflectionTransformer {
         remapVirtualMethodToStatic.put("java/lang/Class;getMethod", DESC_ReflectionMethods);
         remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethod", DESC_ReflectionMethods);
         remapVirtualMethodToStatic.put("java/lang/Class;getSimpleName", DESC_ReflectionMethods);
+        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethods", DESC_ReflectionMethods);
         remapVirtualMethodToStatic.put("java/lang/reflect/Field;getName", DESC_ReflectionMethods);
         remapVirtualMethodToStatic.put("java/lang/reflect/Method;getName", DESC_ReflectionMethods);
         remapVirtualMethodToStatic.put("java/lang/ClassLoader;loadClass", DESC_ReflectionMethods);

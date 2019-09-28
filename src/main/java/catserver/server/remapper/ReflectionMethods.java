@@ -91,6 +91,15 @@ public class ReflectionMethods {
         return retn;
     }
 
+    // getDeclaredMethods
+    public static Method[] getDeclaredMethods(Class<?> inst) {
+        try {
+            return inst.getDeclaredMethods();
+        } catch (NoClassDefFoundError e) {
+            return new Method[]{};
+        }
+    }
+
     // ClassLoader.loadClass
     public static Class<?> loadClass(ClassLoader inst, String className) throws ClassNotFoundException {
         if (className.startsWith("net.minecraft."))
