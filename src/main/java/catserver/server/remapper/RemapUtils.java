@@ -3,6 +3,8 @@ package catserver.server.remapper;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.objectweb.asm.Type;
 
@@ -10,6 +12,9 @@ import catserver.server.CatServer;
 import net.md_5.specialsource.JarRemapper;
 
 public class RemapUtils {
+
+    private static Map<String, Boolean> classNeedRemap = new ConcurrentHashMap<>();
+
     // Classes
     public static String reverseMapExternal(Class<?> name) {
         return reverseMap(name).replace('$', '.').replace('/', '.');
@@ -130,9 +135,15 @@ public class RemapUtils {
     }
 
     public static boolean isClassNeedRemap(Class<?> clazz, boolean checkSuperClass) {
+        final String className = clazz.getName();
+        Boolean cache = classNeedRemap.get(className);
+        if (cache != null) return cache;
+
         while (clazz != null && clazz.getClassLoader() != null) {
-            if (clazz.getName().startsWith("net.minecraft."))
+            if (clazz.getName().startsWith("net.minecraft.")) {
+                classNeedRemap.put(className, true);
                 return true;
+            }
             if (checkSuperClass) {
                 for (Class<?> interfaceClass : clazz.getInterfaces()) {
                     if (isClassNeedRemap(interfaceClass, true))
@@ -143,6 +154,7 @@ public class RemapUtils {
                 return false;
             }
         }
+        classNeedRemap.put(className, false);
         return false;
     }
 }

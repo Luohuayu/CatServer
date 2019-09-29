@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit;
 
+import catserver.server.CatServer;
 import com.google.common.base.Preconditions;
 import java.io.File;
 import java.util.ArrayList;
@@ -337,7 +338,8 @@ public class CraftWorld implements World {
         }
 
         // If chunk had previously been queued to save, must do save to avoid loss of that data
-        return world.getChunkProvider().unloadChunk(chunk, chunk.mustSave || save);
+        world.getChunkProvider().queueUnload(chunk);
+        return chunk.unloadQueued;
     }
 
     public boolean regenerateChunk(int x, int z) {
@@ -1380,7 +1382,7 @@ public class CraftWorld implements World {
     }
 
     public boolean getKeepSpawnInMemory() {
-        return world.keepSpawnInMemory;
+        return (world.dimension == 0 || CatServer.keepSpawnInMemory) && world.keepSpawnInMemory; // CatServer
     }
 
     public void setKeepSpawnInMemory(boolean keepLoaded) {

@@ -20,6 +20,7 @@ import org.bukkit.ChunkSnapshot;
 public class CraftChunk implements Chunk {
     private WeakReference<net.minecraft.world.chunk.Chunk> weakChunk;
     private final WorldServer worldServer;
+    private final net.minecraft.world.World nmsWorld;
     private final int x;
     private final int z;
     private static final byte[] emptyData = new byte[2048];
@@ -28,14 +29,18 @@ public class CraftChunk implements Chunk {
 
     public CraftChunk(net.minecraft.world.chunk.Chunk chunk) {
         this.weakChunk = new WeakReference<net.minecraft.world.chunk.Chunk>(chunk);
-
-        worldServer = (WorldServer) getHandle().getWorld();
+        nmsWorld = getHandle().getWorld();
+        if (nmsWorld instanceof WorldServer) {
+            worldServer = (WorldServer) getHandle().getWorld();
+        }else {
+            worldServer = null;
+        }
         x = getHandle().x;
         z = getHandle().z;
     }
 
     public World getWorld() {
-        return worldServer.getWorld();
+        return nmsWorld.getWorld();
     }
 
     public CraftWorld getCraftWorld() {
@@ -46,7 +51,7 @@ public class CraftChunk implements Chunk {
         net.minecraft.world.chunk.Chunk c = weakChunk.get();
 
         if (c == null) {
-            c = worldServer.getChunkFromChunkCoords(x, z);
+            c = nmsWorld.getChunkFromChunkCoords(x, z);
 
             weakChunk = new WeakReference<>(c);
         }
@@ -111,7 +116,7 @@ public class CraftChunk implements Chunk {
             }
 
             BlockPos position = (BlockPos) obj;
-            entities[index++] = worldServer.getWorld().getBlockAt(position.getX(), position.getY(), position.getZ()).getState();
+            entities[index++] = nmsWorld.getWorld().getBlockAt(position.getX(), position.getY(), position.getZ()).getState();
         }
 
         return entities;

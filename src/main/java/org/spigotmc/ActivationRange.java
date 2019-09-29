@@ -161,6 +161,7 @@ public class ActivationRange
         {
             for ( Entity entity : slice )
             {
+                if (entity == null) continue; // CatServer - fix NPE
                 if ( MinecraftServer.currentTick > entity.activatedTick )
                 {
                     if ( entity.defaultActivationState )

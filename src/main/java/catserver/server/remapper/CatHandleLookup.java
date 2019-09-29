@@ -115,7 +115,6 @@ public class CatHandleLookup {
 
 
     public static void loadMappings(BufferedReader reader) throws IOException {
-
         String line;
         while ((line = reader.readLine()) != null) {
             int commentIndex = line.indexOf('#');

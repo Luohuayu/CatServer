@@ -1,6 +1,5 @@
 package catserver.server;
 
-import catserver.server.utils.LanguageUtils;
 import catserver.server.utils.Md5Utils;
 
 import java.io.*;
@@ -18,11 +17,11 @@ public class CatServerLaunch {
     }
 
     private static void downloadLibraries() {
-        File libListFile = new File("libraries.info");
+        File libListFile = new File("libraries_pro.info");
         if (!libListFile.exists()){
-            System.out.println(LanguageUtils.I18nToString("launch.lib_need_download"));
+            System.out.println("首次运行服务端需要下载库文件才能运行,请耐心等待..");
             if (!tryDownload(libListFile, null)) {
-                System.out.println(LanguageUtils.I18nToString("launch.lib_failure_download_list"));
+                System.out.println("库文件列表下载失败,请检查网络!");
                 Runtime.getRuntime().exit(0);
                 return;
             }
@@ -53,7 +52,7 @@ public class CatServerLaunch {
             hasException = true;
         }
         if (hasException)
-            System.out.println(LanguageUtils.I18nToString("launch.lib_exception"));
+            System.out.println("校验库文件时发生错误,请检查网络或手动下载,服务端将尝试继续启动!");
     }
 
     private static void downloadLibrary(String type, String key, String value) throws IOException {
@@ -79,12 +78,12 @@ public class CatServerLaunch {
             try {
                 downloadFile(downloadUrl, file);
                 if (!file.exists() || (md5 != null && !Md5Utils.getFileMD5String(file).equals(md5))) {
-                    System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_check"), file.getName(), downloadUrl));
+                    System.out.println(String.format("文件 %s 校验失败, 你也可以手动下载: %s", file.getName(), downloadUrl));
                     continue;
                 }
                 return true;
             } catch (IOException e) {
-                System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download"), e.toString(), downloadUrl));
+                System.out.println(String.format("下载文件失败(HTTP状态: %s), 你也可以手动下载: %s", e.toString(), downloadUrl));
                 if (e instanceof ConnectException || e instanceof SocketTimeoutException) iterator.remove();
             }
         }
@@ -97,7 +96,7 @@ public class CatServerLaunch {
         connection.setConnectTimeout(8000);
         connection.setRequestMethod("GET");
 
-        System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_downloading"), saveFile.getName(), getSize(connection.getContentLengthLong())));
+        System.out.println(String.format("正在下载文件 %s 大小: %s", saveFile.getName(), getSize(connection.getContentLengthLong())));
 
         ReadableByteChannel rbc = Channels.newChannel(connection.getInputStream());
         FileOutputStream fos = new FileOutputStream(saveFile);

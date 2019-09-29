@@ -173,9 +173,13 @@ public class EventBus implements IEventExceptionHandler
     {
         if (shutdown) return false;
 
-        // CatServer start - CatAPI implement
-        if (org.bukkit.Bukkit.getServer() != null)
-            org.bukkit.Bukkit.getPluginManager().callEvent(new catserver.api.bukkit.event.ForgeEvent(event));
+        // CatServer start - CatAPI implement - 由于是热点代码。尽量减少调用。
+        if (org.bukkit.Bukkit.getServer() != null) {
+            catserver.api.bukkit.event.ForgeEvent catEvent = new catserver.api.bukkit.event.ForgeEvent(event);
+            if (catEvent.getHandlers().getRegisteredListeners().length > 0) {
+                org.bukkit.Bukkit.getPluginManager().callEvent(catEvent);
+            }
+        }
         // CatServer end
 
         IEventListener[] listeners = event.getListenerList().getListeners(busID);

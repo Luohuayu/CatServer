@@ -119,6 +119,8 @@ public interface Server extends PluginMessageRecipient {
      */
     public Collection<? extends Player> getOnlinePlayers();
 
+    public Player[] getOnlinePlayers_1710();
+
     /**
      * Get the maximum amount of players which can login to this server.
      *

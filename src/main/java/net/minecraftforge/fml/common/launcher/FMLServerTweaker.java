@@ -20,13 +20,25 @@
 package net.minecraftforge.fml.common.launcher;
 
 import java.io.File;
+import java.lang.reflect.Method;
+import java.security.ProtectionDomain;
+import java.util.HashSet;
 import java.util.List;
 
+import io.netty.util.internal.ConcurrentSet;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraftforge.fml.relauncher.FMLLaunchHandler;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
 
 public class FMLServerTweaker extends FMLTweaker {
 
@@ -59,6 +71,20 @@ public class FMLServerTweaker extends FMLTweaker {
         classLoader.addClassLoaderExclusion("org.fusesource.");
         classLoader.addClassLoaderExclusion("net.minecraftforge.server.console.log4j.TerminalConsoleAppender");
 
+        ReflectionHelper.setPrivateValue(LaunchClassLoader.class, classLoader, new HashSet<String>() {
+            @Override
+            public boolean contains(Object o) {
+                return false;
+            }
+
+            @Override
+            public boolean add(String s) {
+                return true;
+            }
+        }, "invalidClasses");
+        ConcurrentSet<String> currSet = new ConcurrentSet<>();
+        currSet.addAll(ReflectionHelper.getPrivateValue(LaunchClassLoader.class, classLoader, "transformerExceptions"));
+        ReflectionHelper.setPrivateValue(LaunchClassLoader.class, classLoader, currSet, "transformerExceptions");
         FMLLaunchHandler.configureForServerLaunch(classLoader, this);
         FMLLaunchHandler.appendCoreMods();
     }

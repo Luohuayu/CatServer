@@ -619,7 +619,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     @Deprecated
     @Override
     public void updateInventory() {
-        if (getHandle().connection == null) return;
         getHandle().sendContainerToPlayer(getHandle().openContainer);
     }
 
@@ -1170,8 +1169,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     @Override
     public void sendPluginMessage(Plugin source, String channel, byte[] message) {
         StandardMessenger.validatePluginMessage(server.getMessenger(), source, channel, message);
-        if (getHandle().connection == null) return;
-
         if (channels.contains(channel) || org.spigotmc.SpigotConfig.bungee) { // CatServer - force send pluginmessage when bungeecord mode enable
             SPacketCustomPayload packet = new SPacketCustomPayload(channel, new PacketBuffer(Unpooled.wrappedBuffer(message)));
             getHandle().connection.sendPacket(packet);

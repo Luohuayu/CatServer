@@ -1,6 +1,16 @@
 --- ../src-base/minecraft/net/minecraft/tileentity/TileEntityHopper.java
 +++ ../src-work/minecraft/net/minecraft/tileentity/TileEntityHopper.java
-@@ -7,12 +7,14 @@
+@@ -1,18 +1,24 @@
+ package net.minecraft.tileentity;
+ 
+ import java.util.List;
++import java.util.concurrent.locks.Lock;
++import java.util.concurrent.locks.ReentrantLock;
+ import javax.annotation.Nullable;
++
++import catserver.server.CatServer;
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockChest;
  import net.minecraft.block.BlockHopper;
  import net.minecraft.entity.Entity;
  import net.minecraft.entity.item.EntityItem;
@@ -15,7 +25,7 @@
  import net.minecraft.inventory.ItemStackHelper;
  import net.minecraft.item.ItemStack;
  import net.minecraft.nbt.NBTTagCompound;
-@@ -28,12 +30,44 @@
+@@ -28,12 +34,45 @@
  import net.minecraft.util.math.MathHelper;
  import net.minecraft.world.World;
  
@@ -30,10 +40,14 @@
 +
  public class TileEntityHopper extends TileEntityLockableLoot implements IHopper, ITickable
  {
-     private NonNullList<ItemStack> inventory = NonNullList.<ItemStack>withSize(5, ItemStack.EMPTY);
-     private int transferCooldown = -1;
-     private long tickedGameTime;
+-    private NonNullList<ItemStack> inventory = NonNullList.<ItemStack>withSize(5, ItemStack.EMPTY);
+-    private int transferCooldown = -1;
+-    private long tickedGameTime;
 -
++    private NonNullList<ItemStack> inventory = NonNullList.<ItemStack>with(5, ItemStack.EMPTY, true);
++    public int transferCooldown = -1;
++    public long tickedGameTime;
++    public Lock lock = new ReentrantLock();
 +    // CraftBukkit start - add fields and methods
 +    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
 +    private int maxStack = MAX_STACK;
@@ -61,7 +75,29 @@
      public static void registerFixesHopper(DataFixer fixer)
      {
          fixer.registerWalker(FixTypes.BLOCK_ENTITY, new ItemStackDataLists(TileEntityHopper.class, new String[] {"Items"}));
-@@ -106,7 +140,7 @@
+@@ -90,12 +129,16 @@
+ 
+     public void setInventorySlotContents(int index, ItemStack stack)
+     {
+-        this.fillWithLoot((EntityPlayer)null);
+-        this.getItems().set(index, stack);
++        lock.lock();
++        try {
++            this.fillWithLoot((EntityPlayer) null);
++            this.getItems().set(index, stack);
+ 
+-        if (stack.getCount() > this.getInventoryStackLimit())
+-        {
+-            stack.setCount(this.getInventoryStackLimit());
++            if (stack.getCount() > this.getInventoryStackLimit()) {
++                stack.setCount(this.getInventoryStackLimit());
++            }
++        }finally {
++            lock.unlock();
+         }
+     }
+ 
+@@ -106,25 +149,34 @@
  
      public int getInventoryStackLimit()
      {
@@ -70,7 +106,43 @@
      }
  
      public void update()
-@@ -144,7 +178,7 @@
+     {
+-        if (this.world != null && !this.world.isRemote)
+-        {
+-            --this.transferCooldown;
+-            this.tickedGameTime = this.world.getTotalWorldTime();
+-
+-            if (!this.isOnTransferCooldown())
++        if (CatServer.hopperAsync) {
++            this.world.addHopperQueue(this);
++        } else {
++            if (!this.world.isRemote)
+             {
+-                this.setTransferCooldown(0);
+-                this.updateHopper();
++                --this.transferCooldown;
++                this.tickedGameTime = this.world.getTotalWorldTime();
++
++                if (!this.isOnTransferCooldown())
++                {
++                    this.setTransferCooldown(0);
++                    this.lock.lock();
++                    try {
++                        this.updateHopper();
++                    }finally {
++                        this.lock.unlock();
++                    }
++                }
+             }
+         }
+     }
+ 
+-    protected boolean updateHopper()
++    public boolean updateHopper()
+     {
+         if (this.world != null && !this.world.isRemote)
+         {
+@@ -144,7 +196,7 @@
  
                  if (flag)
                  {
@@ -79,7 +151,7 @@
                      this.markDirty();
                      return true;
                  }
-@@ -191,6 +225,7 @@
+@@ -191,6 +243,7 @@
  
      private boolean transferItemsOut()
      {
@@ -87,7 +159,7 @@
          IInventory iinventory = this.getInventoryForHopperTransfer();
  
          if (iinventory == null)
-@@ -297,6 +332,8 @@
+@@ -297,6 +350,8 @@
  
      public static boolean pullItems(IHopper hopper)
      {
@@ -96,7 +168,7 @@
          IInventory iinventory = getSourceInventory(hopper);
  
          if (iinventory != null)
-@@ -348,6 +385,7 @@
+@@ -348,6 +403,7 @@
          return false;
      }
  
@@ -104,7 +176,7 @@
      private static boolean pullItemFromSlot(IHopper hopper, IInventory inventoryIn, int index, EnumFacing direction)
      {
          ItemStack itemstack = inventoryIn.getStackInSlot(index);
-@@ -355,14 +393,47 @@
+@@ -355,14 +411,47 @@
          if (!itemstack.isEmpty() && canExtractItemFromSlot(inventoryIn, itemstack, index, direction))
          {
              ItemStack itemstack1 = itemstack.copy();
@@ -155,7 +227,7 @@
              inventoryIn.setInventorySlotContents(index, itemstack1);
          }
  
-@@ -379,6 +450,11 @@
+@@ -379,6 +468,11 @@
          }
          else
          {
@@ -167,7 +239,7 @@
              ItemStack itemstack = entity.getItem().copy();
              ItemStack itemstack1 = putStackInInventoryAllSlots(source, destination, itemstack, (EnumFacing)null);
  
-@@ -396,6 +472,12 @@
+@@ -396,6 +490,12 @@
          }
      }
  
@@ -180,7 +252,7 @@
      public static ItemStack putStackInInventoryAllSlots(IInventory source, IInventory destination, ItemStack stack, @Nullable EnumFacing direction)
      {
          if (destination instanceof ISidedInventory && direction != null)
-@@ -482,7 +564,7 @@
+@@ -482,7 +582,7 @@
                              }
                          }
  
@@ -189,7 +261,7 @@
                      }
                  }
  
-@@ -516,9 +598,11 @@
+@@ -516,9 +616,11 @@
          int j = MathHelper.floor(y);
          int k = MathHelper.floor(z);
          BlockPos blockpos = new BlockPos(i, j, k);
@@ -203,7 +275,16 @@
          {
              TileEntity tileentity = worldIn.getTileEntity(blockpos);
  
-@@ -611,4 +695,6 @@
+@@ -586,7 +688,7 @@
+         this.transferCooldown = ticks;
+     }
+ 
+-    private boolean isOnTransferCooldown()
++    public boolean isOnTransferCooldown()
+     {
+         return this.transferCooldown > 0;
+     }
+@@ -611,4 +713,6 @@
      {
          return this.inventory;
      }

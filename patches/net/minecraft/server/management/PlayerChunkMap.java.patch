@@ -1,19 +1,49 @@
 --- ../src-base/minecraft/net/minecraft/server/management/PlayerChunkMap.java
 +++ ../src-work/minecraft/net/minecraft/server/management/PlayerChunkMap.java
-@@ -10,9 +10,12 @@
- import java.util.Collections;
- import java.util.Comparator;
- import java.util.Iterator;
-+import java.util.LinkedList;
- import java.util.List;
- import java.util.Set;
+@@ -1,18 +1,20 @@
+ package net.minecraft.server.management;
+ 
++import catserver.server.CatServer;
++import catserver.server.utils.ThreadSafeList;
+ import com.google.common.base.Predicate;
+ import com.google.common.collect.AbstractIterator;
+ import com.google.common.collect.ComparisonChain;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
++import io.netty.util.internal.ConcurrentSet;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Set;
++
++import java.util.*;
  import javax.annotation.Nullable;
 +
 +import net.minecraft.entity.player.EntityPlayer;
  import net.minecraft.entity.player.EntityPlayerMP;
  import net.minecraft.util.math.BlockPos;
  import net.minecraft.util.math.ChunkPos;
-@@ -52,7 +55,7 @@
+@@ -40,11 +42,11 @@
+     private final WorldServer world;
+     private final List<EntityPlayerMP> players = Lists.<EntityPlayerMP>newArrayList();
+     private final Long2ObjectMap<PlayerChunkMapEntry> entryMap = new Long2ObjectOpenHashMap<PlayerChunkMapEntry>(4096);
+-    private final Set<PlayerChunkMapEntry> dirtyEntries = Sets.<PlayerChunkMapEntry>newHashSet();
+-    private final List<PlayerChunkMapEntry> pendingSendToPlayers = Lists.<PlayerChunkMapEntry>newLinkedList();
+-    private final List<PlayerChunkMapEntry> entriesWithoutChunks = Lists.<PlayerChunkMapEntry>newLinkedList();
+-    private final List<PlayerChunkMapEntry> entries = Lists.<PlayerChunkMapEntry>newArrayList();
+-    private int playerViewRadius;
++    private final Set<PlayerChunkMapEntry> dirtyEntries = new ConcurrentSet<>(); // CatServer - Async comp
++    private final List<PlayerChunkMapEntry> pendingSendToPlayers = new ThreadSafeList<>(true); // CatServer - Async comp
++    private final List<PlayerChunkMapEntry> entriesWithoutChunks = new ThreadSafeList<>(true); // CatServer - Async comp
++    private final List<PlayerChunkMapEntry> entries = new ThreadSafeList<>(true); // CatServer - Async comp
++    public int playerViewRadius;
+     private long previousTotalWorldTime;
+     private boolean sortMissingChunks = true;
+     private boolean sortSendToPlayers = true;
+@@ -52,7 +54,7 @@
      public PlayerChunkMap(WorldServer serverWorld)
      {
          this.world = serverWorld;
@@ -22,7 +52,16 @@
      }
  
      public WorldServer getWorldServer()
-@@ -183,6 +186,9 @@
+@@ -155,7 +157,7 @@
+ 
+         if (!this.entriesWithoutChunks.isEmpty())
+         {
+-            long l = System.nanoTime() + 50000000L;
++            long l = System.nanoTime() + CatServer.worldGenMaxTickTime;
+             int k = 49;
+             Iterator<PlayerChunkMapEntry> iterator = this.entriesWithoutChunks.iterator();
+ 
+@@ -183,6 +185,9 @@
                              break;
                          }
                      }
@@ -32,7 +71,7 @@
                  }
              }
          }
-@@ -257,6 +263,14 @@
+@@ -257,6 +262,14 @@
          return playerchunkmapentry;
      }
  
@@ -47,7 +86,7 @@
      public void markBlockForUpdate(BlockPos pos)
      {
          int i = pos.getX() >> 4;
-@@ -276,14 +290,22 @@
+@@ -276,14 +289,22 @@
          player.managedPosX = player.posX;
          player.managedPosZ = player.posZ;
  
@@ -71,7 +110,7 @@
          this.players.add(player);
          this.markSortPending();
      }
-@@ -341,6 +363,8 @@
+@@ -341,6 +362,8 @@
              int j1 = i - k;
              int k1 = j - l;
  
@@ -80,7 +119,7 @@
              if (j1 != 0 || k1 != 0)
              {
                  for (int l1 = i - i1; l1 <= i + i1; ++l1)
-@@ -349,7 +373,8 @@
+@@ -349,7 +372,8 @@
                      {
                          if (!this.overlaps(l1, i2, k, l, i1))
                          {
@@ -90,7 +129,7 @@
                          }
  
                          if (!this.overlaps(l1 - j1, i2 - k1, i, j, i1))
-@@ -367,6 +392,12 @@
+@@ -367,6 +391,12 @@
                  player.managedPosX = player.posX;
                  player.managedPosZ = player.posZ;
                  this.markSortPending();
@@ -103,7 +142,7 @@
              }
          }
      }
-@@ -458,9 +489,52 @@
+@@ -458,9 +488,52 @@
          this.entriesWithoutChunks.remove(entry);
          Chunk chunk = entry.getChunk();
  

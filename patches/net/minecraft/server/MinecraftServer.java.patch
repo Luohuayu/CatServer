@@ -1,14 +1,18 @@
 --- ../src-base/minecraft/net/minecraft/server/MinecraftServer.java
 +++ ../src-work/minecraft/net/minecraft/server/MinecraftServer.java
-@@ -2,6 +2,7 @@
+@@ -1,7 +1,10 @@
+ package net.minecraft.server;
  
++import catserver.api.bukkit.I18nManager;
++import catserver.server.command.CommandManager;
++import catserver.server.mcauth.CatProxyAuthenticationService;
  import com.google.common.collect.Lists;
- import com.google.common.collect.Queues;
+-import com.google.common.collect.Queues;
 +import com.google.common.collect.Sets;
  import com.google.common.util.concurrent.Futures;
  import com.google.common.util.concurrent.ListenableFuture;
  import com.google.common.util.concurrent.ListenableFutureTask;
-@@ -9,6 +10,9 @@
+@@ -9,6 +12,9 @@
  import com.mojang.authlib.GameProfileRepository;
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
@@ -18,7 +22,7 @@
  import io.netty.buffer.ByteBuf;
  import io.netty.buffer.ByteBufOutputStream;
  import io.netty.buffer.Unpooled;
-@@ -23,19 +27,24 @@
+@@ -23,19 +29,24 @@
  import java.nio.charset.StandardCharsets;
  import java.security.KeyPair;
  import java.text.SimpleDateFormat;
@@ -44,7 +48,15 @@
  import net.minecraft.advancements.AdvancementManager;
  import net.minecraft.advancements.FunctionManager;
  import net.minecraft.command.CommandBase;
-@@ -55,6 +64,7 @@
+@@ -48,6 +59,7 @@
+ import net.minecraft.entity.player.EntityPlayer;
+ import net.minecraft.entity.player.EntityPlayerMP;
+ import net.minecraft.init.Bootstrap;
++import net.minecraft.network.NetHandlerPlayServer;
+ import net.minecraft.network.NetworkSystem;
+ import net.minecraft.network.ServerStatusResponse;
+ import net.minecraft.network.play.server.SPacketTimeUpdate;
+@@ -55,6 +67,7 @@
  import net.minecraft.profiler.Profiler;
  import net.minecraft.profiler.Snooper;
  import net.minecraft.server.dedicated.DedicatedServer;
@@ -52,7 +64,7 @@
  import net.minecraft.server.management.PlayerList;
  import net.minecraft.server.management.PlayerProfileCache;
  import net.minecraft.util.IProgressUpdate;
-@@ -73,39 +83,47 @@
+@@ -73,39 +86,47 @@
  import net.minecraft.world.MinecraftException;
  import net.minecraft.world.ServerWorldEventHandler;
  import net.minecraft.world.World;
@@ -106,7 +118,7 @@
      private PlayerList playerList;
      private boolean serverRunning = true;
      private boolean serverStopped;
-@@ -123,11 +141,11 @@
+@@ -123,11 +144,11 @@
      private int buildLimit;
      private int maxPlayerIdleMinutes;
      public final long[] tickTimeArray = new long[100];
@@ -120,7 +132,7 @@
      private String worldName;
      private boolean isDemo;
      private boolean enableBonusChest;
-@@ -143,26 +161,71 @@
+@@ -143,26 +164,72 @@
      private final GameProfileRepository profileRepo;
      private final PlayerProfileCache profileCache;
      private long nanoTimeSinceStatusRefresh;
@@ -150,6 +162,7 @@
 +    public final double[] recentTps = new double[ 3 ];
 +    public final SlackActivityAccountant slackActivityAccountant = new SlackActivityAccountant();
 +    // Spigot end
++    public Thread nativeThread;
  
 -    public MinecraftServer(File anvilFileIn, Proxy proxyIn, DataFixer dataFixerIn, YggdrasilAuthenticationService authServiceIn, MinecraftSessionService sessionServiceIn, GameProfileRepository profileRepoIn, PlayerProfileCache profileCacheIn)
 +    public MinecraftServer(OptionSet options, Proxy proxyIn, DataFixer dataFixerIn, YggdrasilAuthenticationService authServiceIn, MinecraftSessionService sessionServiceIn, GameProfileRepository profileRepoIn, PlayerProfileCache profileCacheIn)
@@ -197,7 +210,7 @@
      public ServerCommandManager createCommandManager()
      {
          return new ServerCommandManager(this);
-@@ -220,83 +283,109 @@
+@@ -220,83 +287,110 @@
  
      public void loadAllWorlds(String saveName, String worldNameIn, long seed, WorldType type, String generatorOptions)
      {
@@ -301,6 +314,7 @@
 +                    BukkitInjector.registerEnchantments();
 +                    BukkitInjector.registerPotions();
 +                    BukkitInjector.initializedBukkit = true;
++                    I18nManager.loadI18n();
                  }
 -                else
 -                {
@@ -360,7 +374,7 @@
      }
  
      public void initialWorldChunkLoad()
-@@ -308,28 +397,37 @@
+@@ -308,28 +402,37 @@
          int i1 = 0;
          this.setUserMessage("menu.generatingTerrain");
          int j1 = 0;
@@ -414,7 +428,7 @@
          this.clearCurrentTask();
      }
  
-@@ -379,7 +477,7 @@
+@@ -379,7 +482,7 @@
  
      public void saveAllWorlds(boolean isSilent)
      {
@@ -423,7 +437,7 @@
          {
              if (worldserver != null)
              {
-@@ -400,10 +498,22 @@
+@@ -400,10 +503,22 @@
          }
      }
  
@@ -448,7 +462,7 @@
          if (this.getNetworkSystem() != null)
          {
              this.getNetworkSystem().terminateEndpoints();
-@@ -414,6 +524,7 @@
+@@ -414,6 +529,7 @@
              LOGGER.info("Saving players");
              this.playerList.saveAllPlayerData();
              this.playerList.removeAllPlayers();
@@ -456,7 +470,7 @@
          }
  
          if (this.worlds != null)
-@@ -430,19 +541,37 @@
+@@ -430,19 +546,37 @@
  
              this.saveAllWorlds(false);
  
@@ -495,7 +509,7 @@
      }
  
      public boolean isServerRunning()
-@@ -455,62 +584,69 @@
+@@ -455,62 +589,72 @@
          this.serverRunning = false;
      }
  
@@ -513,6 +527,9 @@
              if (this.init())
              {
 +                net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerStarted();
++                // CatServer start
++                CommandManager.logToFile();
++                // CatServer end
                  this.currentTime = getCurrentTimeMillis();
                  long i = 0L;
                  this.statusResponse.setServerDescription(new TextComponentString(this.motd));
@@ -594,7 +611,7 @@
          catch (Throwable throwable1)
          {
              LOGGER.error("Encountered an unexpected exception", throwable1);
-@@ -536,13 +672,13 @@
+@@ -536,13 +680,13 @@
                  LOGGER.error("We were unable to save this crash report to disk.");
              }
  
@@ -609,7 +626,7 @@
                  this.stopServer();
              }
              catch (Throwable throwable)
-@@ -551,6 +687,14 @@
+@@ -551,6 +695,14 @@
              }
              finally
              {
@@ -624,7 +641,7 @@
                  this.systemExitNow();
              }
          }
-@@ -577,6 +721,7 @@
+@@ -577,6 +729,7 @@
                  ImageIO.write(bufferedimage, "PNG", new ByteBufOutputStream(bytebuf));
                  ByteBuf bytebuf1 = Base64.encode(bytebuf);
                  response.setFavicon("data:image/png;base64," + bytebuf1.toString(StandardCharsets.UTF_8));
@@ -632,7 +649,7 @@
              }
              catch (Exception exception)
              {
-@@ -617,7 +762,9 @@
+@@ -617,7 +770,9 @@
  
      public void tick()
      {
@@ -642,7 +659,7 @@
          ++this.tickCounter;
  
          if (this.startProfiling)
-@@ -644,14 +791,17 @@
+@@ -644,14 +799,17 @@
  
              Collections.shuffle(Arrays.asList(agameprofile));
              this.statusResponse.getPlayers().setPlayers(agameprofile);
@@ -661,7 +678,7 @@
          }
  
          this.profiler.startSection("tallying");
-@@ -671,87 +821,135 @@
+@@ -671,87 +829,136 @@
  
          this.profiler.endSection();
          this.profiler.endSection();
@@ -813,6 +830,7 @@
 +            this.profiler.endSection();
 +            worldserver.explosionDensityCache.clear(); // Paper - Optimize explosions
 +
++            if (worldTickTimes.get(id) != null) // CatServer - check world in tickTime list
 +            worldTickTimes.get(id)[this.tickCounter % 100] = System.nanoTime() - i;
          }
  
@@ -841,7 +859,7 @@
  
          this.profiler.endSection();
      }
-@@ -763,8 +961,11 @@
+@@ -763,8 +970,11 @@
  
      public void startServerThread()
      {
@@ -854,7 +872,7 @@
      }
  
      public File getFile(String fileName)
-@@ -779,16 +980,20 @@
+@@ -779,16 +989,20 @@
  
      public WorldServer getWorld(int dimension)
      {
@@ -881,7 +899,7 @@
      public String getMinecraftVersion()
      {
          return "1.12.2";
-@@ -816,7 +1021,8 @@
+@@ -816,7 +1030,8 @@
  
      public String getServerModName()
      {
@@ -891,7 +909,7 @@
      }
  
      public CrashReport addServerInfoToCrashReport(CrashReport report)
-@@ -845,7 +1051,7 @@
+@@ -845,7 +1060,7 @@
  
      public List<String> getTabCompletions(ICommandSender sender, String input, @Nullable BlockPos pos, boolean hasTargetBlock)
      {
@@ -900,7 +918,7 @@
          boolean flag = input.startsWith("/");
  
          if (flag)
-@@ -862,11 +1068,9 @@
+@@ -862,11 +1077,9 @@
              {
                  if (CommandBase.doesStringStartWith(s2, s1))
                  {
@@ -913,7 +931,7 @@
          }
          else
          {
-@@ -879,22 +1083,24 @@
+@@ -879,22 +1092,24 @@
                  {
                      if (flag1 && !hasTargetBlock)
                      {
@@ -943,7 +961,7 @@
      }
  
      public String getName()
-@@ -947,13 +1153,11 @@
+@@ -947,13 +1162,11 @@
          this.folderName = name;
      }
  
@@ -957,7 +975,7 @@
      public String getWorldName()
      {
          return this.worldName;
-@@ -966,7 +1170,7 @@
+@@ -966,7 +1179,7 @@
  
      public void setDifficultyForAllWorlds(EnumDifficulty difficulty)
      {
@@ -966,7 +984,7 @@
          {
              if (worldserver1 != null)
              {
-@@ -1048,9 +1252,9 @@
+@@ -1048,9 +1261,9 @@
          playerSnooper.addClientStat("avg_tick_ms", Integer.valueOf((int)(MathHelper.average(this.tickTimeArray) * 1.0E-6D)));
          int l = 0;
  
@@ -978,7 +996,7 @@
              {
                  if (worldserver1 != null)
                  {
-@@ -1088,7 +1292,8 @@
+@@ -1088,7 +1301,8 @@
  
      public boolean isServerInOnlineMode()
      {
@@ -988,7 +1006,7 @@
      }
  
      public void setOnlineMode(boolean online)
-@@ -1182,7 +1387,7 @@
+@@ -1182,7 +1396,7 @@
  
      public void setGameType(GameType gameMode)
      {
@@ -997,7 +1015,7 @@
          {
              worldserver1.getWorldInfo().setGameType(gameMode);
          }
-@@ -1285,7 +1490,7 @@
+@@ -1285,7 +1499,7 @@
      @Nullable
      public Entity getEntityFromUuid(UUID uuid)
      {
@@ -1006,7 +1024,7 @@
          {
              if (worldserver1 != null)
              {
-@@ -1311,6 +1516,13 @@
+@@ -1311,6 +1525,13 @@
          return this;
      }
  
@@ -1020,7 +1038,7 @@
      public int getMaxWorldSize()
      {
          return 29999984;
-@@ -1320,15 +1532,14 @@
+@@ -1320,15 +1541,14 @@
      {
          Validate.notNull(callable);
  
@@ -1041,7 +1059,7 @@
          }
          else
          {
-@@ -1409,120 +1620,46 @@
+@@ -1409,120 +1629,46 @@
      }
  
      @SideOnly(Side.SERVER)
@@ -1128,7 +1146,8 @@
 -                }
 -            }
 -
-             YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY, UUID.randomUUID().toString());
+-            YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY, UUID.randomUUID().toString());
++            YggdrasilAuthenticationService yggdrasilauthenticationservice = new CatProxyAuthenticationService(Proxy.NO_PROXY, UUID.randomUUID().toString());
              MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
              GameProfileRepository gameprofilerepository = yggdrasilauthenticationservice.createProfileRepository();
              PlayerProfileCache playerprofilecache = new PlayerProfileCache(gameprofilerepository, new File(s1, USER_CACHE_FILE.getName()));
@@ -1186,7 +1205,7 @@
          }
          catch (Exception exception)
          {
-@@ -1539,7 +1676,8 @@
+@@ -1539,7 +1685,8 @@
      @SideOnly(Side.SERVER)
      public boolean isDebuggingEnabled()
      {
@@ -1196,7 +1215,7 @@
      }
  
      @SideOnly(Side.SERVER)
-@@ -1598,4 +1736,9 @@
+@@ -1598,4 +1745,9 @@
      {
          return this.serverThread;
      }

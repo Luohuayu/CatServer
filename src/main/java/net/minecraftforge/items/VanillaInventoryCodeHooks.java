@@ -23,7 +23,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockDropper;
 import net.minecraft.block.BlockHopper;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.InventoryLargeChest;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.IHopper;
 import net.minecraft.tileentity.TileEntity;
@@ -109,7 +108,7 @@ public class VanillaInventoryCodeHooks
             CraftItemStack oitemstack = CraftItemStack.asCraftMirror(stack.copy().splitStack(1));
 
             TileEntity te = (TileEntity) destination;
-            Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.inventoryFromForge(itemHandler);
+            Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
             
             InventoryMoveItemEvent event = new InventoryMoveItemEvent(dropper.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
             if (destinationInventory != null) world.getServer().getPluginManager().callEvent(event);
@@ -164,7 +163,7 @@ public class VanillaInventoryCodeHooks
                         CraftItemStack remainder = CraftItemStack.asCraftMirror(hopper.decrStackSize(i, hopper.world.spigotConfig.hopperAmount)); // Spigot
 
                         TileEntity te = (TileEntity) destination;
-                        Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.inventoryFromForge(itemHandler);
+                        Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
 
                         InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopper.getOwner().getInventory(), remainder.clone(), destinationInventory, true);
                         if (destinationInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); //CatServer

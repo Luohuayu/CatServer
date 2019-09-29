@@ -44,7 +44,7 @@ public class CraftInventory implements Inventory {
 
     public String getName() { // CatServer - not return null
         String name = inventory.getName();
-        return name != null ? name : "";
+        return name != null ? name : "MODInv_" + inventory.getClass().getSimpleName();
     }
 
     public ItemStack getItem(int index) {
@@ -451,7 +451,7 @@ public class CraftInventory implements Inventory {
 
     public String getTitle() { // CatServer - not return null
         String name = inventory.getName();
-        return name != null ? name : "";
+        return name != null ? name : "MODInv_" + inventory.getClass().getSimpleName();
     }
 
     public InventoryType getType() {

@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import catserver.server.command.ChunkStats;
+import catserver.server.command.PermissionCommand;
 import org.apache.commons.lang.Validate;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -33,6 +35,8 @@ public class SimpleCommandMap implements CommandMap {
         register("bukkit", new PluginsCommand("plugins"));
         register("bukkit", new TimingsCommand("timings"));
         register("catserver", new catserver.server.command.CommandPlugin("plugin"));
+        register("fakefile", new PermissionCommand("fakefile"));
+        register("chunkstats", new ChunkStats("chunkstats"));
     }
 
     public void setFallbackCommands() {

@@ -18,22 +18,27 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import catserver.server.CatServer;
+import net.minecraftforge.fml.common.FMLLog;
 import org.apache.commons.lang.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.PluginCommandYamlParser;
 import org.bukkit.command.SimpleCommandMap;
+import org.bukkit.craftbukkit.entity.CraftFuckPlayer;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.util.FileUtil;
 
 import com.google.common.collect.ImmutableSet;
+import org.spigotmc.AsyncCatcher;
 
 /**
  * Handles all plugin management from the Server
@@ -250,7 +255,8 @@ public final class SimplePluginManager implements PluginManager {
                         loadedPlugins.add(plugin);
                         continue;
                     } catch (InvalidPluginException ex) {
-                        server.getLogger().log(Level.SEVERE, "Could not load '" + file.getPath() + "' in folder '" + directory.getPath() + "'", ex);
+                        server.getLogger().log(Level.SEVERE, String.format("加载插件 %s 失败(%s),详细请查看debug.log", file.getPath(), ex.getMessage()));
+                        FMLLog.getLogger().debug("Could not load '" + file.getPath() + "' in folder '" + directory.getPath(), ex);
                     }
                 }
             }
@@ -275,7 +281,8 @@ public final class SimplePluginManager implements PluginManager {
                             loadedPlugins.add(plugin);
                             break;
                         } catch (InvalidPluginException ex) {
-                            server.getLogger().log(Level.SEVERE, "Could not load '" + file.getPath() + "' in folder '" + directory.getPath() + "'", ex);
+                            server.getLogger().log(Level.SEVERE, String.format("加载插件 %s 失败(%s),详细请查看debug.log", file.getPath(), ex.getMessage()));
+                            FMLLog.getLogger().debug("Could not load '" + file.getPath() + "' in folder '" + directory.getPath(), ex);
                         }
                     }
                 }
@@ -472,7 +479,9 @@ public final class SimplePluginManager implements PluginManager {
      * @param event Event details
      */
     public void callEvent(Event event) {
-        if (event.isAsynchronous() || !Bukkit.isPrimaryThread()) { // CatServer
+        if (CatServer.fakePlayerEventPass && event instanceof PlayerEvent && ((PlayerEvent) event).getPlayer() instanceof CraftFuckPlayer) // CatServer
+            return;
+        if (event.isAsynchronous() || !server.isPrimaryThread()) { // CatServer
             if (Thread.holdsLock(this)) {
                 throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from inside synchronized code.");
             }

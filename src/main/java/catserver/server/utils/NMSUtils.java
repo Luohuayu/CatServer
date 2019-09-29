@@ -1,5 +1,6 @@
 package catserver.server.utils;
 
+import net.minecraft.util.math.BlockPos;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -19,5 +20,12 @@ public class NMSUtils {
 
     public static Entity toNMS(org.bukkit.entity.Entity entity) {
         return ((CraftEntity) entity).getHandle();
+    }
+
+    public static int getIntPosOffset(BlockPos pos) {
+        final int xOffset = pos.getX() % 16;
+        final int y = pos.getY();
+        final int zOffset = pos.getZ() % 16;
+        return (xOffset << 16) + (y << 8) + zOffset;
     }
 }

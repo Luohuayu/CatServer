@@ -24,7 +24,7 @@ import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.util.math.BlockPos;
 
 public class ModCustomCommand extends Command {
-    private final ICommand vanillaCommand;
+    public final ICommand vanillaCommand;
 
     public ModCustomCommand(ICommand command)
     {

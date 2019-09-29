@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import net.minecraft.launchwrapper.LaunchClassLoader;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import org.apache.commons.lang.Validate;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -124,7 +126,23 @@ final class PluginClassLoader extends URLClassLoader {
                 }
     
                 if (result == null) {
-                    throw new ClassNotFoundException(name);
+                    LaunchClassLoader lw = ((LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader());
+                    try {
+                        result = lw.findClass(name);
+                    }catch (Throwable throwable) {
+                        try {
+                            lw.addTransformerExclusion(name);
+                            result = lw.findClass(name);
+                        }catch (Throwable throwable1) {
+                            result = null;
+                        }finally {
+                            Set<String> set = ReflectionHelper.getPrivateValue(LaunchClassLoader.class, lw, "transformerExceptions");
+                            set.remove(name);
+                        }
+                    }
+                    if (result == null) {
+                        throw new ClassNotFoundException(name);
+                    }
                 }
 
                 classes.put(name, result);
@@ -200,7 +218,7 @@ final class PluginClassLoader extends URLClassLoader {
 
     // CatServer - can't get the package because no class below the package, remap it
     protected Package getPackage(String name) {
-        if (name == "org.bukkit.craftbukkit")
+        if ("org.bukkit.craftbukkit".equals(name))
             name = "org.bukkit.craftbukkit." + CatServer.getNativeVersion();
         return super.getPackage(name);
     }
