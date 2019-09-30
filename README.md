@@ -3,4 +3,5 @@
 分支1.12.2为稳定版,1.12.2-async为多线程异步版<br><br>
 
 QQ群: 675080<br>
-Telegram: https://t.me/CatServer
+Telegram: https://t.me/CatServer<br>
+下载地址: http://catserver.moe
