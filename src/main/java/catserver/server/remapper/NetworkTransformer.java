@@ -12,8 +12,11 @@ import net.minecraft.launchwrapper.IClassTransformer;
 public class NetworkTransformer implements IClassTransformer {
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
+        if (basicClass == null) return null;
+
         if (transformedName.equals("net.minecraftforge.fml.common.network.handshake.NetworkDispatcher$1"))
             basicClass = transformClass(basicClass);
+
         return basicClass;
 
     }
