@@ -18,7 +18,7 @@ public class CatServerLaunch {
     }
 
     private static void downloadLibraries() {
-        File libListFile = new File("libraries.info");
+        File libListFile = new File("libraries_v2.info");
         if (!libListFile.exists()){
             System.out.println(LanguageUtils.I18nToString("launch.lib_need_download"));
             if (!tryDownload(libListFile, null)) {
