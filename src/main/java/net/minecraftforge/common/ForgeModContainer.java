@@ -106,7 +106,7 @@ public class ForgeModContainer extends DummyModContainer implements WorldAccessC
 {
     public static final String VERSION_CHECK_CAT = "version_checking";
     public static int clumpingThreshold = 64;
-    public static final boolean removeErroringEntities = true;
+    public static boolean removeErroringEntities = false;
     public static boolean removeErroringTileEntities = false;
     public static boolean fullBoundingBoxLadders = false;
     public static double zombieSummonBaseChance = 0.1;
@@ -254,7 +254,7 @@ public class ForgeModContainer extends DummyModContainer implements WorldAccessC
         prop = config.get(Configuration.CATEGORY_GENERAL, "removeErroringEntities", false);
         prop.setComment("Set this to true to remove any Entity that throws an error in its update method instead of closing the server and reporting a crash log. BE WARNED THIS COULD SCREW UP EVERYTHING USE SPARINGLY WE ARE NOT RESPONSIBLE FOR DAMAGES.");
         prop.setLanguageKey("forge.configgui.removeErroringEntities").setRequiresWorldRestart(true);
-        //removeErroringEntities = prop.getBoolean(false);
+        removeErroringEntities = prop.getBoolean(false);
         propOrder.add(prop.getName());
 
         if (removeErroringEntities)

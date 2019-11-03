@@ -119,7 +119,9 @@ public interface Server extends PluginMessageRecipient {
      */
     public Collection<? extends Player> getOnlinePlayers();
 
-    public Player[] getOnlinePlayers_1710();
+    // CatServer - Compatible with plugins before 1.8 version
+    @Deprecated
+    public Player[] getOnlinePlayers_Array();
 
     /**
      * Get the maximum amount of players which can login to this server.

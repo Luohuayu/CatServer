@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.entity;
 
 import catserver.server.PlayerDataFixer;
+import catserver.server.entity.CraftFakePlayer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -102,8 +103,6 @@ import org.bukkit.World;
 import org.bukkit.block.PistonMoveReaction;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
-import org.bukkit.entity.ChestedHorse;
-import org.bukkit.entity.EntityType;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.metadata.MetadataValue;
@@ -137,11 +136,11 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                 if (entity instanceof EntityPlayerMP) {
                     // CatServer start - support fake player
                     if (entity instanceof FakePlayer)
-                        return new CraftFuckPlayer(server, (FakePlayer) entity);
+                        return new CraftFakePlayer(server, (FakePlayer) entity);
                     return new CraftPlayer(server, (EntityPlayerMP) entity);
                 }
-                else { // CatServer -  support fake player classes from mods
-                    return new CraftFuckPlayer(server, FakePlayerFactory.get(DimensionManager.getWorld(entity.world.provider.getDimension()), ((EntityPlayer) entity).getGameProfile()));
+                else { // CatServer - support fake player classes from mods
+                    return new CraftFakePlayer(server, FakePlayerFactory.get(DimensionManager.getWorld(entity.world.provider.getDimension()), ((EntityPlayer) entity).getGameProfile()));
                 }
                 // CatServer end - support fake player
             }

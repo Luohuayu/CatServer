@@ -1,17 +1,18 @@
-package org.bukkit.craftbukkit.entity;
+package catserver.server.entity;
 
 import catserver.server.CatServer;
 import net.minecraftforge.common.util.FakePlayer;
 import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.Plugin;
 
 // FIXME: THIS CLASS IS BY CatServer
-public class CraftFuckPlayer extends CraftPlayer {
+public class CraftFakePlayer extends CraftPlayer {
     private Player realPlayer = null;
 
-    public CraftFuckPlayer(CraftServer server, FakePlayer entity) {
+    public CraftFakePlayer(CraftServer server, FakePlayer entity) {
         super(server, entity);
         realPlayer = getRealPlayer();
     }
@@ -63,7 +64,7 @@ public class CraftFuckPlayer extends CraftPlayer {
             realPlayer = null;
         final String myName = getHandle().getName();
         final Player getRealPlayer = server.getPlayer(myName);
-        if (getRealPlayer instanceof CraftFuckPlayer)
+        if (getRealPlayer instanceof CraftFakePlayer)
             return null;
         if (getRealPlayer != null)
             realPlayer = getRealPlayer;
