@@ -63,7 +63,7 @@ public class Metrics {
     private final List<CustomChart> charts = new ArrayList<>();
 
     private final String pluginName = "CatServer";
-    private final String pluginVersion = "1.12.2-pro";
+    private final String pluginVersion = "1.12.2-stable";
 
     /**
      * Class constructor.
