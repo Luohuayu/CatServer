@@ -142,7 +142,8 @@ public final class Bukkit {
     }
 
     // CatServer - Compatible with plugins before 1.8 version
-    public static Player[] getOnlinePlayers_1710() {
+    @Deprecated
+    public static Player[] getOnlinePlayers_Array() {
         Collection<? extends Player> players = server.getOnlinePlayers();
         return players.toArray(new Player[0]);
     }

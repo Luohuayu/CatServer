@@ -200,7 +200,7 @@ final class PluginClassLoader extends URLClassLoader {
 
     // CatServer - can't get the package because no class below the package, remap it
     protected Package getPackage(String name) {
-        if (name == "org.bukkit.craftbukkit")
+        if ("org.bukkit.craftbukkit".equals(name))
             name = "org.bukkit.craftbukkit." + CatServer.getNativeVersion();
         return super.getPackage(name);
     }
