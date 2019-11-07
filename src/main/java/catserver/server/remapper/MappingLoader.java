@@ -30,7 +30,8 @@ public class MappingLoader {
             jarMapping.packages.put(org_bukkit_craftbukkit + "/libs/it/unimi/dsi/fastutil", "it/unimi/dsi/fastutil");
             jarMapping.packages.put(org_bukkit_craftbukkit + "/libs/jline", "jline");
             jarMapping.packages.put(org_bukkit_craftbukkit + "/libs/joptsimple", "joptsimple");
-            jarMapping.methods.put("org/bukkit/Bukkit/getOnlinePlayers ()[Lorg/bukkit/entity/Player;", "getOnlinePlayers_1710");
+            jarMapping.methods.put("org/bukkit/Bukkit/getOnlinePlayers ()[Lorg/bukkit/entity/Player;", "getOnlinePlayers_Array");
+            jarMapping.methods.put("org/bukkit/Server/getOnlinePlayers ()[Lorg/bukkit/entity/Player;", "getOnlinePlayers_Array");
 
             loadNmsMappings(jarMapping, CatServer.getNativeVersion());
         } catch (Exception e) {

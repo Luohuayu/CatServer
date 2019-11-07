@@ -48,7 +48,7 @@ public class CatCustomInventory implements InventoryHolder{
 
     // TODO: support all types
     @Nullable
-    public static InventoryHolder holderFromForge(IItemHandler handler) {
+    public static InventoryHolder getHolderFromForge(IItemHandler handler) {
         if (handler == null) return null;
         if (handler instanceof ItemStackHandler) return new CatCustomInventory((ItemStackHandler) handler);
         if (handler instanceof SlotItemHandler) return new CatCustomInventory(((SlotItemHandler) handler).inventory);
@@ -59,8 +59,8 @@ public class CatCustomInventory implements InventoryHolder{
     }
 
     @Nullable
-    public static Inventory inventoryFromForge(IItemHandler handler) {
-        InventoryHolder holder = holderFromForge(handler);
+    public static Inventory getInventoryFromForge(IItemHandler handler) {
+        InventoryHolder holder = getHolderFromForge(handler);
         return holder != null ? holder.getInventory() : null;
     }
 

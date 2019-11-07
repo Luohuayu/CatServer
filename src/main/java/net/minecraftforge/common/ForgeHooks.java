@@ -112,6 +112,7 @@ import net.minecraft.world.storage.loot.LootTable;
 import net.minecraft.world.storage.loot.LootTableManager;
 import net.minecraft.world.storage.loot.conditions.LootCondition;
 import net.minecraftforge.common.crafting.CraftingHelper;
+import net.minecraftforge.common.crafting.JsonContext;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.AnvilUpdateEvent;
@@ -799,9 +800,8 @@ public class ForgeHooks
             link.getStyle().setUnderlined(true);
             link.getStyle().setColor(TextFormatting.BLUE);
             if (ichat == null)
-                ichat = link;
-            else
-                ichat.appendSibling(link);
+                ichat = new TextComponentString("");
+            ichat.appendSibling(link);
         }
 
         // Append the rest of the message.
@@ -1391,13 +1391,18 @@ public class ForgeHooks
     {
         boolean errored = false;
         setActiveModContainer(null);
-        //Loader.instance().getActiveModList().forEach((mod) -> loadFactories(mod));
+        Loader.instance().getActiveModList().forEach(ForgeHooks::loadFactories);
         for (ModContainer mod : Loader.instance().getActiveModList())
         {
             errored |= !loadAdvancements(map, mod);
         }
         setActiveModContainer(null);
         return errored;
+    }
+
+    private static void loadFactories(ModContainer mod)
+    {
+        CraftingHelper.loadFactories(mod, "assets/" + mod.getModId() + "/advancements", CraftingHelper.CONDITIONS);
     }
 
     @Nullable
@@ -1420,6 +1425,8 @@ public class ForgeHooks
 
     private static boolean loadAdvancements(Map<ResourceLocation, Advancement.Builder> map, ModContainer mod)
     {
+        JsonContext ctx = new JsonContext(mod.getModId());
+
         return CraftingHelper.findFiles(mod, "assets/" + mod.getModId() + "/advancements", null,
             (root, file) ->
             {
@@ -1438,7 +1445,11 @@ public class ForgeHooks
                     try
                     {
                         reader = Files.newBufferedReader(file);
-                        Advancement.Builder builder = JsonUtils.fromJson(AdvancementManager.GSON, reader, Advancement.Builder.class);
+                        String contents = IOUtils.toString(reader);
+                        JsonObject json = JsonUtils.gsonDeserialize(CraftingHelper.GSON, contents, JsonObject.class);
+                        if (!CraftingHelper.processConditions(json, "conditions", ctx))
+                            return true;
+                        Advancement.Builder builder = JsonUtils.gsonDeserialize(AdvancementManager.GSON, contents, Advancement.Builder.class);
                         map.put(key, builder);
                     }
                     catch (JsonParseException jsonparseexception)

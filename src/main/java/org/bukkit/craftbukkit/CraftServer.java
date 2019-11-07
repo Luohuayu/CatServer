@@ -458,6 +458,12 @@ public final class CraftServer implements Server {
 
     @Override
     @Deprecated
+    public Player[] getOnlinePlayers_Array() {
+        return getOnlinePlayers().toArray(new Player[0]);
+    }
+
+    @Override
+    @Deprecated
     public Player getPlayer(final String name) {
         Validate.notNull(name, "Name cannot be null");
 

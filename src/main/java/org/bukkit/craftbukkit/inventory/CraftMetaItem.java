@@ -343,6 +343,12 @@ class CraftMetaItem implements ItemMeta, Repairable {
                 unhandledTags.put(key, tag.getTag(key));
             }
         }
+
+        // CatServer start - handle mod custom nbt
+        if (tag.hasKey(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT) && getClass() == CraftMetaItem.class) {
+            unhandledTags.put(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, tag.getTag(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT));
+        }
+        // CatServer end
     }
 
     static Map<Enchantment, Integer> buildEnchantments(NBTTagCompound tag, ItemMetaKey key) {
