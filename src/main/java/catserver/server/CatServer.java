@@ -91,7 +91,7 @@ public class CatServer {
             }
         }
         hopperAsync = getOrWriteBooleanConfig("async.hopper", hopperAsync);
-        entityMoveAsync = getOrWriteBooleanConfig("async.entityMove", hopperAsync);
+        entityMoveAsync = getOrWriteBooleanConfig("async.entityMove", entityMoveAsync);
         threadLag = getOrWriteBooleanConfig("check.threadLag", threadLag);
         chunkGenAsync = getOrWriteBooleanConfig("async.chunkGen", chunkGenAsync);
         keepSpawnInMemory = getOrWriteBooleanConfig("world.keepSpawnInMemory", keepSpawnInMemory);
