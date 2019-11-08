@@ -12,7 +12,9 @@ import org.bukkit.command.CommandException;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.SimpleCommandMap;
-import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.command.CraftBlockCommandSender;
+import org.bukkit.craftbukkit.command.CraftRemoteConsoleCommandSender;
+import org.bukkit.craftbukkit.entity.CraftEntity;
 
 public class CraftSimpleCommandMap extends SimpleCommandMap {
 
@@ -41,17 +43,19 @@ public class CraftSimpleCommandMap extends SimpleCommandMap {
         }
         try {
             // CatServer start - if command is a mod command, check permissions and route through vanilla
-            if (target instanceof ModCustomCommand)
-            {
+            if (target instanceof ModCustomCommand) {
                 if (!target.testPermission(sender)) return true;
-                if (sender instanceof ConsoleCommandSender)
-                {
+                if (sender instanceof ConsoleCommandSender || sender instanceof CraftRemoteConsoleCommandSender) {
                     FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(this.vanillaConsoleSender, commandLine);
+                } else if (sender instanceof CraftEntity) {
+                    FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(((CraftEntity) sender).getHandle(), commandLine);
+                } else if (sender instanceof CraftBlockCommandSender) {
+                    FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(((CraftBlockCommandSender) sender).getTileEntity(), commandLine);
+                } else {
+                    throw new CommandException("Unknown sender type: " + sender.getClass().getName());
                 }
-                else FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(((CraftPlayer)sender).getHandle(), commandLine);
-            }
-            else {
-            // CatServer end
+            } else {
+                // CatServer end
                 // Note: we don't return the result of target.execute as thats success / failure, we return handled (true) or not handled (false)
                 target.execute(sender, sentCommandLabel, Arrays.copyOfRange(args, 1, args.length));
             }
@@ -66,8 +70,7 @@ public class CraftSimpleCommandMap extends SimpleCommandMap {
     }
 
     // CatServer start - sets the vanilla console sender
-    public void setVanillaConsoleSender(ICommandSender console)
-    {
+    public void setVanillaConsoleSender(ICommandSender console) {
         this.vanillaConsoleSender = console;
     }
     // CatServer end
