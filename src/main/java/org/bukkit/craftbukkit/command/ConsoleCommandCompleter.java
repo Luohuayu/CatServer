@@ -25,7 +25,7 @@ public class ConsoleCommandCompleter implements Completer {
             @Override
             protected List<String> evaluate() {
                 List<String> offers1 = server.getCommandMap().tabComplete(server.getConsoleSender(), buffer);
-                List<String> offers2 = server.getCommandMap().tabComplete(server.getConsoleSender(), buffer);
+                List<String> offers2 = server.getCraftCommandMap().tabComplete(server.getConsoleSender(), buffer);
                 List<String> offers = new ArrayList<>(Sets.union(offers1 == null ? Collections.EMPTY_SET : Sets.newHashSet(offers1), offers2 == null ? Collections.EMPTY_SET : Sets.newHashSet(offers2)));
 
                 TabCompleteEvent tabEvent = new TabCompleteEvent(server.getConsoleSender(), buffer, offers);
