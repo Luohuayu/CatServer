@@ -13,4 +13,4 @@ Telegram: https://t.me/CatServer<br>
 Website: http://catserver.moe<br><br>
 
 投食方式(赞助将使项目开发得更完善)<br>
-<img src="https://s2.ax1x.com/2019/11/13/M86zJU.png">
+<img src="http://cdn.catserver.moe/Donation.png">
