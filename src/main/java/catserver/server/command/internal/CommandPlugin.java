@@ -1,4 +1,4 @@
-package catserver.server.command;
+package catserver.server.command.internal;
 
 import java.io.File;
 import java.util.Iterator;
