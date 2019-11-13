@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
+import catserver.api.bukkit.event.ForgeEvent;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
@@ -38,6 +39,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
+import org.bukkit.Bukkit;
 
 public class EventBus implements IEventExceptionHandler
 {
@@ -174,8 +176,9 @@ public class EventBus implements IEventExceptionHandler
         if (shutdown) return false;
 
         // CatServer start - CatAPI implement
-        if (org.bukkit.Bukkit.getServer() != null)
-            org.bukkit.Bukkit.getPluginManager().callEvent(new catserver.api.bukkit.event.ForgeEvent(event));
+        if (Bukkit.getServer() != null && ForgeEvent.getHandlerList().getRegisteredListeners().length > 0) {
+            Bukkit.getPluginManager().callEvent(new ForgeEvent(event));
+        }
         // CatServer end
 
         IEventListener[] listeners = event.getListenerList().getListeners(busID);
