@@ -122,6 +122,7 @@ public class LibraryManager
             return new File(LIBRARY_DIRECTORY_OVERRIDE);
         }
 
+        /*
         CodeSource source = ArtifactVersion.class.getProtectionDomain().getCodeSource();
         if (source == null)
         {
@@ -153,6 +154,7 @@ public class LibraryManager
         {
             FMLLog.log.error(FMLLog.log.getMessageFactory().newMessage("Unable to determine file for {}. Using default libraries directory.", ArtifactVersion.class.getName()), e);
         }
+        */
 
         return new File(minecraftHome, "libraries"); //Everything else failed, return the default.
     }
