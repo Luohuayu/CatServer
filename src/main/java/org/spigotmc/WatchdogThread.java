@@ -84,7 +84,7 @@ public class WatchdogThread extends Thread
 
                 if ( restart )
                 {
-                    CatServer.watchdogForceExitTask();
+                    CatServer.runWatchdogForceExitTask();
                     RestartCommand.restart();
                 }
                 break;
