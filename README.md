@@ -10,7 +10,4 @@
 
 QQ群: 675080<br>
 Telegram: https://t.me/CatServer<br>
-Website: http://catserver.moe<br><br>
-
-投食方式(赞助将使项目开发得更完善)<br>
-<img src="http://cdn.catserver.moe/Donation.png">
+Website: http://catserver.moe
