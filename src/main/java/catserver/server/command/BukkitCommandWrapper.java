@@ -4,18 +4,16 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.command.CraftBlockCommandSender;
-import org.bukkit.craftbukkit.command.CraftRemoteConsoleCommandSender;
+import org.bukkit.craftbukkit.CraftServer;
 
 import com.google.common.collect.ImmutableList;
 
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommand;
 import net.minecraft.command.ICommandSender;
-import net.minecraft.entity.Entity;
-import net.minecraft.network.rcon.RConConsoleSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.CommandBlockBaseLogic;
 import net.minecraft.util.math.BlockPos;
@@ -82,20 +80,14 @@ public class BukkitCommandWrapper implements ICommand {
 
     @Nullable
     public static BukkitCommandWrapper toNMSCommand(ICommandSender sender, String name) {
-        Command command;
+        Command command = ((CraftServer) Bukkit.getServer()).getCommandMap().getCommand(name);
         CommandSender bukkitSender;
-        if ((command = MinecraftServer.getServerInst().server.getCommandMap().getCommand(name)) != null && (bukkitSender = toBukkitSender(sender)) != null) {
-            return new BukkitCommandWrapper(bukkitSender, name, command);
-        }
-        return null;
-    }
+        try {
+            if (command != null && (bukkitSender = CommandBlockBaseLogic.unwrapSender(sender)) != null) {
+                return new BukkitCommandWrapper(bukkitSender, name, command);
+            }
+        } catch (RuntimeException ignored) {}
 
-    @Nullable
-    public static CommandSender toBukkitSender(ICommandSender sender) {
-        if (sender instanceof MinecraftServer) return MinecraftServer.getServerInst().console;
-        if (sender instanceof RConConsoleSource) return new CraftRemoteConsoleCommandSender((RConConsoleSource) sender);
-        if (sender instanceof CommandBlockBaseLogic) return new CraftBlockCommandSender(sender);
-        if (sender instanceof Entity) return ((Entity) sender).getBukkitEntity();
         return null;
     }
 }
