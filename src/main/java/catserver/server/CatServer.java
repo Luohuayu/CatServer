@@ -19,10 +19,6 @@ public class CatServer {
         return native_version;
     }
 
-    public static boolean isDev() {
-        return System.getProperty("net.minecraftforge.gradle.GradleStart.srg.srg-mcp") != null;
-    }
-
     public static boolean asyncCatch(String reason) {
         if (Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
             FMLLog.getLogger().debug("Try to asynchronously " + reason + ", caught!", new RuntimeException());
