@@ -44,11 +44,7 @@ import com.google.gson.JsonParseException;
 
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementManager;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockDoor;
-import net.minecraft.block.BlockLiquid;
-import net.minecraft.block.BlockMushroom;
-import net.minecraft.block.BlockSapling;
+import net.minecraft.block.*;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -68,17 +64,7 @@ import net.minecraft.init.Items;
 import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCrafting;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemAxe;
-import net.minecraft.item.ItemBucket;
-import net.minecraft.item.ItemDye;
-import net.minecraft.item.ItemEnchantedBook;
-import net.minecraft.item.ItemMonsterPlacer;
-import net.minecraft.item.ItemPickaxe;
-import net.minecraft.item.ItemPotion;
-import net.minecraft.item.ItemSpade;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemTippedArrow;
+import net.minecraft.item.*;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -1026,7 +1012,14 @@ public class ForgeHooks
                         }
                     }
                 }
-            }
+
+                // SPIGOT-1288 - play sound stripped from ItemBlock
+                if (itemstack.item instanceof ItemBlock) {
+                    IBlockState iblockstate = world.getBlockState(pos);
+                    SoundType soundeffecttype = iblockstate.getBlock().getSoundType(iblockstate, world, pos, player);
+                    world.playSound(player, pos, soundeffecttype.getPlaceSound(), SoundCategory.BLOCKS, (soundeffecttype.getVolume() + 1.0F) / 2.0F, soundeffecttype.getPitch() * 0.8F);
+                }
+    }
         }
         world.capturedBlockSnapshots.clear();
 
