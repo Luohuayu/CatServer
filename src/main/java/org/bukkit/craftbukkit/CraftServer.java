@@ -404,6 +404,7 @@ public final class CraftServer implements Server {
     private void setVanillaCommands(boolean first) { // Spigot
         Map<String, ICommand> commands = console.getCommandManager().getCommands();
         for (ICommand cmd : commands.values()) {
+            if (!(cmd instanceof CommandBase)) continue;
             // Spigot start
             VanillaCommandWrapper wrapper = new VanillaCommandWrapper((CommandBase) cmd, I18n.translateToLocal(cmd.getUsage(null)));
             if (org.spigotmc.SpigotConfig.replaceCommands.contains(wrapper.getName())) {
