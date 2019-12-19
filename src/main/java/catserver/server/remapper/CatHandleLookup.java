@@ -8,7 +8,6 @@ import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
@@ -33,29 +32,17 @@ public class CatHandleLookup {
     public static MethodHandle findVirtual(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType oldType) throws NoSuchMethodException, IllegalAccessException {
         if (refc.getName().startsWith("net.minecraft.")) {
             name = RemapUtils.mapMethod(refc, name, oldType.parameterArray());
-        } else if (refc.getName().equals("java.lang.Class") || refc.getName().equals("java.lang.ClassLoader")) {
-            switch (name) {
-                case "getField":
-                case "getDeclaredField":
-                case "getMethod":
-                case "getDeclaredMethod":
-                case "getSimpleName":
-                case "getName":
-                case "loadClass":
-                    Class<?>[] newParArr = new Class<?>[oldType.parameterArray().length + 1];
+        } else {
+            Class<?> remappedClass = ReflectionTransformer.remapVirtualMethodToStatic.get((refc.getName().replace(".", "/") + ";" + name));
+            if (remappedClass != null) {
+                Class<?>[] newParArr = new Class<?>[oldType.parameterArray().length + 1];
+                newParArr[0] = refc;
+                System.arraycopy(oldType.parameterArray(), 0 , newParArr, 1, oldType.parameterArray().length);
 
-                    if (refc.getName().equals("java.lang.Class"))
-                        newParArr[0] = Class.class;
-                    else
-                        newParArr[0] = ClassLoader.class;
+                MethodType newType = MethodType.methodType(oldType.returnType(), newParArr);
+                MethodHandle handle = lookup.findStatic(remappedClass, name, newType);
 
-                    System.arraycopy(oldType.parameterArray(), 0 , newParArr, 1, oldType.parameterArray().length);
-
-                    MethodType newType = MethodType.methodType(oldType.returnType(), newParArr);
-
-
-                    MethodHandle handle = lookup.findStatic(ReflectionMethods.class, name, newType);
-                    return handle;
+                return handle;
             }
         }
         return lookup.findVirtual(refc, name, oldType);
@@ -64,8 +51,11 @@ public class CatHandleLookup {
     public static MethodHandle findStatic(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
         if (refc.getName().startsWith("net.minecraft.")) {
             name = RemapUtils.mapMethod(refc, name, type.parameterArray());
-        } else if (refc.getName().equals("java.lang.Class") && name.equals("forName")) {
-            refc = ReflectionMethods.class;
+        } else {
+            Class<?> remappedClass = ReflectionTransformer.remapStaticMethod.get((refc.getName().replace(".", "/") + ";" + name));
+            if (remappedClass != null) {
+                refc = remappedClass;
+            }
         }
         return lookup.findStatic(refc, name, type);
     }
@@ -76,41 +66,25 @@ public class CatHandleLookup {
     }
 
     public static MethodHandle unreflect(MethodHandles.Lookup lookup, Method m) throws IllegalAccessException {
-        if (m.getDeclaringClass().getName().equals("java.lang.Class")) {
-            switch (m.getName()) {
-                case "forName":
-                    return getClassReflectionMethod(lookup, m.getName(), String.class);
-                case "getField":
-                case "getDeclaredField":
-                    return getClassReflectionMethod(lookup, m.getName(), Class.class, String.class);
-                case "getMethod":
-                case "getDeclaredMethod":
-                    return getClassReflectionMethod(lookup, m.getName(), Class.class, String.class, Class[].class);
-                case "getSimpleName":
-                    return getClassReflectionMethod(lookup, m.getName(), Class.class);
+        Class<?> remappedClass = ReflectionTransformer.remapVirtualMethodToStatic.get((m.getDeclaringClass().getName().replace(".", "/") + ";" + m.getName()));
+        if (remappedClass != null) {
+            try {
+                return lookup.unreflect(getClassReflectionMethod(lookup, remappedClass, m));
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
             }
-        } else if (m.getName().equals("getName")) {
-
-            if (m.getDeclaringClass().getName().equals("java.lang.reflect.Field")) {
-                return getClassReflectionMethod(lookup, m.getName(), Field.class);
-            } else if (m.getDeclaringClass().getName().equals("java.lang.reflect.Method")) {
-                return getClassReflectionMethod(lookup, m.getName(), Method.class);
-            }
-
-        } else if (m.getName().equals("loadClass") && m.getDeclaringClass().getName().equals("java.lang.ClassLoader")) {
-            return getClassReflectionMethod(lookup, m.getName(), ClassLoader.class, String.class);
         }
 
         return lookup.unreflect(m);
     }
 
-    private static MethodHandle getClassReflectionMethod(MethodHandles.Lookup lookup, String name, Class<?>... p) {
-        try {
-            return lookup.unreflect(ReflectionMethods.class.getMethod(name, p));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
+    private static Method getClassReflectionMethod(MethodHandles.Lookup lookup, Class<?> remappedClass, Method originalMethod) throws NoSuchMethodException {
+        Class<?>[] oldParArr = originalMethod.getParameterTypes();
+        Class<?>[] newParArr = new Class<?>[oldParArr.length + 1];
+        newParArr[0] = originalMethod.getDeclaringClass();
+        System.arraycopy(oldParArr, 0 , newParArr, 1, oldParArr.length);
+
+        return ReflectionMethods.class.getMethod(originalMethod.getName(), newParArr);
     }
 
 
