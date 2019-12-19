@@ -84,7 +84,7 @@ public class CatHandleLookup {
         newParArr[0] = originalMethod.getDeclaringClass();
         System.arraycopy(oldParArr, 0 , newParArr, 1, oldParArr.length);
 
-        return ReflectionMethods.class.getMethod(originalMethod.getName(), newParArr);
+        return remappedClass.getMethod(originalMethod.getName(), newParArr);
     }
 
 
