@@ -20,15 +20,10 @@ import net.md_5.specialsource.provider.JointProvider;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 public class ReflectionTransformer {
-    private static final String DESC_ReflectionMethods = Type.getInternalName(ReflectionMethods.class);
-    private static final String DESC_RemapMethodHandle = Type.getInternalName(CatHandleLookup.class);
-    private static final String DESC_CatURLClassLoader = Type.getInternalName(CatURLClassLoader.class);
-    private static final String DESC_CatClassLoader = Type.getInternalName(CatClassLoader.class);
-
-    private static Map<String, String> remapStaticMethod = Maps.newHashMap();
-    private static Map<String, String> remapVirtualMethod = Maps.newHashMap();
-    private static Map<String, String> remapVirtualMethodToStatic = Maps.newHashMap();
-    private static Map<String, String> remapSuperClass = Maps.newHashMap();
+    protected static Map<String, Class> remapStaticMethod = Maps.newHashMap();
+    protected static Map<String, Class> remapVirtualMethod = Maps.newHashMap();
+    protected static Map<String, Class> remapVirtualMethodToStatic = Maps.newHashMap();
+    protected static Map<String, Class> remapSuperClass = Maps.newHashMap();
 
     public static JarMapping jarMapping;
     public static CatServerRemapper remapper;
@@ -39,25 +34,25 @@ public class ReflectionTransformer {
     public static final Multimap<String, String> methodFastMapping = ArrayListMultimap.create();
 
     static {
-        remapStaticMethod.put("java/lang/Class;forName", DESC_ReflectionMethods);
-        remapStaticMethod.put("java/lang/invoke/MethodType;fromMethodDescriptorString", DESC_RemapMethodHandle);
+        remapStaticMethod.put("java/lang/Class;forName", ReflectionMethods.class);
+        remapStaticMethod.put("java/lang/invoke/MethodType;fromMethodDescriptorString", CatHandleLookup.class);
 
-        remapVirtualMethodToStatic.put("java/lang/Class;getField", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredField", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/Class;getMethod", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethod", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/Class;getSimpleName", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethods", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/reflect/Field;getName", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/reflect/Method;getName", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/ClassLoader;loadClass", DESC_ReflectionMethods);
-        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findVirtual", DESC_RemapMethodHandle);
-        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findStatic", DESC_RemapMethodHandle);
-        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findSpecial", DESC_RemapMethodHandle);
-        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;unreflect", DESC_RemapMethodHandle);
+        remapVirtualMethodToStatic.put("java/lang/Class;getField", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredField", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/Class;getMethod", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethod", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/Class;getSimpleName", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/Class;getDeclaredMethods", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/reflect/Field;getName", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/reflect/Method;getName", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/ClassLoader;loadClass", ReflectionMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findVirtual", CatHandleLookup.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findStatic", CatHandleLookup.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findSpecial", CatHandleLookup.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;unreflect", CatHandleLookup.class);
 
-        remapSuperClass.put("java/net/URLClassLoader", DESC_CatURLClassLoader);
-        remapSuperClass.put("java/lang/ClassLoader", DESC_CatClassLoader);
+        remapSuperClass.put("java/net/URLClassLoader", CatURLClassLoader.class);
+        remapSuperClass.put("java/lang/ClassLoader", CatClassLoader.class);
     }
 
     public static void init() {
@@ -88,10 +83,10 @@ public class ReflectionTransformer {
         reader.accept(node, 0); // Visit using ClassNode
 
         boolean remapCL = false;
-        String remappedSuperClass = remapSuperClass.get(node.superName);
+        Class<?> remappedSuperClass = remapSuperClass.get(node.superName);
         if (remappedSuperClass != null) {
-            if (remappedSuperClass.equals(DESC_CatClassLoader)) remapVirtualMethod.put(node.name + ";defineClass", DESC_CatClassLoader);
-            node.superName = remappedSuperClass;
+            if (remappedSuperClass == CatClassLoader.class) remapVirtualMethod.put(node.name + ";defineClass", CatClassLoader.class);
+            node.superName = Type.getInternalName(remappedSuperClass);
             remapCL = true;
         }
 
@@ -102,9 +97,9 @@ public class ReflectionTransformer {
 
                 if (next instanceof TypeInsnNode && next.getOpcode() == Opcodes.NEW) { // remap new URLClassLoader
                     TypeInsnNode insn = (TypeInsnNode) next;
-                    String remappedClass = remapSuperClass.get(insn.desc);
+                    Class<?> remappedClass = remapSuperClass.get(insn.desc);
                     if (remappedClass != null) {
-                        insn.desc = remappedClass;
+                        insn.desc = Type.getInternalName(remappedClass);
                         remapCL = true;
                     }
                 }
@@ -139,37 +134,37 @@ public class ReflectionTransformer {
 
     public static void remapStatic(AbstractInsnNode insn) {
         MethodInsnNode method = (MethodInsnNode) insn;
-        String owner = remapStaticMethod.get((method.owner + ";" + method.name));
-        if (owner != null) {
-            method.owner = owner;
+        Class<?> remappedClass = remapStaticMethod.get((method.owner + ";" + method.name));
+        if (remappedClass != null) {
+            method.owner = Type.getInternalName(remappedClass);
         }
     }
 
     public static void remapVirtual(AbstractInsnNode insn) {
         MethodInsnNode method = (MethodInsnNode) insn;
-        String owner = remapVirtualMethodToStatic.get((method.owner + ";" + method.name));
-        if (owner != null) {
+        Class<?> remappedClass = remapVirtualMethodToStatic.get((method.owner + ";" + method.name));
+        if (remappedClass != null) {
             Type returnType = Type.getReturnType(method.desc);
             ArrayList<Type> args = new ArrayList<>();
             args.add(Type.getObjectType(method.owner));
             args.addAll(Arrays.asList(Type.getArgumentTypes(method.desc)));
 
             method.setOpcode(Opcodes.INVOKESTATIC);
-            method.owner = owner;
+            method.owner = Type.getInternalName(remappedClass);
             method.desc = Type.getMethodDescriptor(returnType, args.toArray(new Type[0]));
         } else {
-            owner = remapVirtualMethod.get((method.owner + ";" + method.name));
-            if (owner != null) {
+            remappedClass = remapVirtualMethod.get((method.owner + ";" + method.name));
+            if (remappedClass != null) {
                 method.name += "Remap";
-                method.owner = owner;
+                method.owner = Type.getInternalName(remappedClass);
             }
         }
     }
 
     private static void remapSuperClass(MethodInsnNode method) {
-        String remappedClass = remapSuperClass.get(method.owner);
+        Class<?> remappedClass = remapSuperClass.get(method.owner);
         if (remappedClass != null && method.name.equals("<init>")) {
-            method.owner = remappedClass;
+            method.owner = Type.getInternalName(remappedClass);
         }
     }
 }
