@@ -1,15 +1,10 @@
 package catserver.server.remapper;
 
-import catserver.server.CatServer;
 import net.md_5.specialsource.JarMapping;
-import net.md_5.specialsource.JarRemapper;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
 import net.md_5.specialsource.repo.RuntimeRepo;
 import net.minecraft.launchwrapper.LaunchClassLoader;
-import net.minecraft.server.MinecraftServer;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.configuration.serialization.ConfigurationSerialization;
 
 import java.io.InputStream;
 import java.net.JarURLConnection;
@@ -26,9 +21,11 @@ public class CatURLClassLoader extends URLClassLoader
 
     private JarMapping jarMapping;
     private CatServerRemapper remapper;
-    private final Map<String, Class<?>> classes;
+    private final Map<String, Class<?>> classes = new HashMap<>();
+    private LaunchClassLoader launchClassLoader;
 
     {
+        this.launchClassLoader = (LaunchClassLoader) getClass().getClassLoader();
         this.jarMapping = MappingLoader.loadMapping();
         final JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());
@@ -39,43 +36,47 @@ public class CatURLClassLoader extends URLClassLoader
 
     public CatURLClassLoader(final URL[] urls, final ClassLoader parent) {
         super(urls, parent);
-        this.classes = new HashMap<>();
     }
 
     public CatURLClassLoader(final URL[] urls) {
         super(urls);
-        this.classes = new HashMap<>();
     }
 
     public CatURLClassLoader(final URL[] urls, final ClassLoader parent, final URLStreamHandlerFactory factory) {
         super(urls, parent, factory);
-        this.classes = new HashMap<>();
     }
 
     protected Class<?> findClass(final String name) throws ClassNotFoundException {
-        return this.findClass(name, true);
-    }
-
-    private Class<?> findClass(final String name, final boolean checkGlobal) throws ClassNotFoundException {
         if (remapper.isNeedRemap(name)) {
             final String remappedClass = this.jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
-            final Class<?> clazz = ((LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
-            return clazz;
+            return launchClassLoader.findClass(remappedClass);
         }
+
         Class<?> result = this.classes.get(name);
         synchronized (name.intern()) {
             if (result == null) {
                 result = this.remappedFindClass(name);
-                if (result != null) {
-                    this.setClass(name, result);
-                }
+
                 if (result == null) {
                     try {
                         result = super.findClass(name);
-                    }catch (ClassNotFoundException e) {
-                        result = ((LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(name);
+                    } catch (ClassNotFoundException ignored) { }
+                }
+
+                if (result == null) {
+                    try {
+                        result = launchClassLoader.findClass(name);
+                    } catch (ClassNotFoundException ignored) { }
+                }
+
+                if (result == null) {
+                    try {
+                        result = launchClassLoader.getClass().getClassLoader().loadClass(name);
+                    } catch (Throwable throwable) {
+                        throw new ClassNotFoundException(name, throwable);
                     }
                 }
+
                 if (result == null) throw new ClassNotFoundException(name);
                 this.classes.put(name, result);
             }
@@ -108,15 +109,5 @@ public class CatURLClassLoader extends URLClassLoader
             throw new ClassNotFoundException("Failed to remap class " + name, t);
         }
         return result;
-    }
-
-    void setClass(final String name, final Class<?> clazz) {
-        if (!this.classes.containsKey(name)) {
-            this.classes.put(name, clazz);
-            if (ConfigurationSerializable.class.isAssignableFrom(clazz)) {
-                final Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
-                ConfigurationSerialization.registerClass(serializable);
-            }
-        }
     }
 }
