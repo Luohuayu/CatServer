@@ -872,6 +872,8 @@ public class ForgeHooks
             nbt = itemstack.getTagCompound().copy();
         }
 
+        boolean oldBlockReplaceable = world.getBlockState(pos).getMaterial().isReplaceable();
+
         if (!(itemstack.getItem() instanceof ItemBucket)) // if not bucket
         {
             world.captureBlockSnapshots = true;
@@ -884,8 +886,6 @@ public class ForgeHooks
             }
             // CraftBukkit end
         }
-
-        boolean oldBlockReplaceable = world.getBlockState(pos).getMaterial().isReplaceable();
 
         EnumActionResult ret = itemstack.getItem().onItemUse(player, world, pos, hand, side, hitX, hitY, hitZ);
         world.captureBlockSnapshots = false;
