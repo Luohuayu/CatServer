@@ -885,17 +885,19 @@ public class ForgeHooks
             // CraftBukkit end
         }
 
+        boolean oldBlockReplaceable = world.getBlockState(pos).getMaterial().isReplaceable();
+
         EnumActionResult ret = itemstack.getItem().onItemUse(player, world, pos, hand, side, hitX, hitY, hitZ);
         world.captureBlockSnapshots = false;
-
-        List<BlockState> blocks = new ArrayList();
-        for (net.minecraftforge.common.util.BlockSnapshot snapshot : (List<net.minecraftforge.common.util.BlockSnapshot>) world.capturedBlockSnapshots.clone()) {
-            blocks.add(new CraftBlockState(snapshot));
-        }
 
         // CraftBukkit start
         int newCount = itemstack.getCount();
         if (ret == EnumActionResult.SUCCESS && world.captureTreeGeneration && world.capturedBlockSnapshots.size() > 0) {
+            List<BlockState> blocks = new ArrayList();
+            for (net.minecraftforge.common.util.BlockSnapshot snapshot : world.capturedBlockSnapshots) {
+                blocks.add(new CraftBlockState(snapshot));
+            }
+
             world.captureTreeGeneration = false;
             Location location = new Location(world.getWorld(), pos.getX(), pos.getY(), pos.getZ());
             TreeType treeType = BlockSapling.treeType;
@@ -998,7 +1000,7 @@ public class ForgeHooks
 
                 if (itemstack.item == Items.SKULL) { // Special case skulls to allow wither spawns to be cancelled
                     BlockPos bp = pos;
-                    if (!world.getBlockState(pos).getMaterial().isReplaceable()) {
+                    if (!oldBlockReplaceable) {
                         if (!world.getBlockState(pos).getMaterial().isSolid()) {
                             bp = null;
                         } else {
