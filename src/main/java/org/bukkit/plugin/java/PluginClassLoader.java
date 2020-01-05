@@ -16,6 +16,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 import net.minecraft.launchwrapper.LaunchClassLoader;
+import net.minecraft.server.MinecraftServer;
 import org.apache.commons.lang.Validate;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -62,7 +63,7 @@ final class PluginClassLoader extends URLClassLoader {
         this.manifest = jar.getManifest();
         this.url = file.toURI().toURL();
 
-        this.launchClassLoader = (LaunchClassLoader)parent;
+        this.launchClassLoader = parent instanceof LaunchClassLoader ? (LaunchClassLoader)parent : (LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader();
         this.jarMapping = MappingLoader.loadMapping();
         JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());

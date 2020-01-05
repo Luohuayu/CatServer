@@ -5,6 +5,7 @@ import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
 import net.md_5.specialsource.repo.RuntimeRepo;
 import net.minecraft.launchwrapper.LaunchClassLoader;
+import net.minecraft.server.MinecraftServer;
 
 import java.io.InputStream;
 import java.net.JarURLConnection;
@@ -25,7 +26,7 @@ public class CatURLClassLoader extends URLClassLoader
     private LaunchClassLoader launchClassLoader;
 
     {
-        this.launchClassLoader = (LaunchClassLoader) getClass().getClassLoader();
+        this.launchClassLoader = (LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader();
         this.jarMapping = MappingLoader.loadMapping();
         final JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());
