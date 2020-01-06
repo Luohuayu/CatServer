@@ -19,6 +19,8 @@ public class CatServerConfig {
     public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
     public boolean fakePlayerEventPass = false;
 
+    public boolean disableFMLHandshake = false;
+
     public CatServerConfig(String file) {
         this.configFile = new File(file);
     }
@@ -33,6 +35,8 @@ public class CatServerConfig {
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
+        // general
+        disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
         // save config
         try {
             config.save(configFile);
