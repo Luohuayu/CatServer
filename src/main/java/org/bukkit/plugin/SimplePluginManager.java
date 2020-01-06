@@ -21,7 +21,6 @@ import java.util.regex.Pattern;
 import catserver.server.CatServer;
 import catserver.server.entity.CraftFakePlayer;
 import org.apache.commons.lang.Validate;
-import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.PluginCommandYamlParser;
@@ -476,7 +475,7 @@ public final class SimplePluginManager implements PluginManager {
      */
     public void callEvent(Event event) {
         if (CatServer.getConfig().fakePlayerEventPass && event instanceof PlayerEvent && ((PlayerEvent) event).getPlayer() instanceof CraftFakePlayer) return; // CatServer
-        if (event.isAsynchronous() || !Bukkit.isPrimaryThread()) { // CatServer
+        if (event.isAsynchronous() || !server.isPrimaryThread()) { // CatServer
             if (Thread.holdsLock(this)) {
                 throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from inside synchronized code.");
             }

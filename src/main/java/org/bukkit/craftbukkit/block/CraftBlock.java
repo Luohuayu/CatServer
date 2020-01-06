@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import catserver.server.inventory.CraftCustomContainer;
 import net.minecraft.block.BlockCocoa;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.BlockRedstoneWire;
@@ -284,8 +285,12 @@ public class CraftBlock implements Block {
         if (material == null) {
             TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
             if (tileEntity != null) {
+                // block with IInventory
+                if (tileEntity instanceof IInventory) {
+                    return new CraftCustomContainer(this);
+                }
                 // block with unhandled TileEntity:
-                return new CraftBlockEntityState<TileEntity>(this, (Class<TileEntity>) tileEntity.getClass());
+                return new CraftBlockEntityState<>(this, tileEntity.getClass());
             } else {
                 // Block without TileEntity:
                 return new CraftBlockState(this);
@@ -367,8 +372,12 @@ public class CraftBlock implements Block {
         default:
             TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
             if (tileEntity != null) {
+                // block with IInventory
+                if (tileEntity instanceof IInventory) {
+                    return new CraftCustomContainer(this);
+                }
                 // block with unhandled TileEntity:
-                return new CraftBlockEntityState<TileEntity>(this, (Class<TileEntity>) tileEntity.getClass());
+                return new CraftBlockEntityState<>(this, tileEntity.getClass());
             } else {
                 // Block without TileEntity:
                 return new CraftBlockState(this);
