@@ -17,7 +17,7 @@ public class CatServerConfig {
     public long worldGenMaxTickTime = 15000000L;
 
     public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
-    public static boolean fakePlayerEventPass = false;
+    public boolean fakePlayerEventPass = false;
 
     public CatServerConfig(String file) {
         this.configFile = new File(file);
