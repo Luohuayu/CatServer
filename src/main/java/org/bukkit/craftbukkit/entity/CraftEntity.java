@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.entity;
 
 import catserver.server.PlayerDataFixer;
+import catserver.server.entity.CraftFakePlayer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -134,10 +135,13 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         if (entity instanceof EntityLivingBase) {
             // Players
             if (entity instanceof EntityPlayer) {
-                if (entity instanceof EntityPlayerMP) { return new CraftPlayer(server, (EntityPlayerMP) entity); }
-                else { // CatServer - support fake player classes from mods
-                    return new CraftPlayer(server, FakePlayerFactory.get(DimensionManager.getWorld(entity.world.provider.getDimension()), ((EntityPlayer) entity).getGameProfile()));
+                // CatServer start - support fake player
+                if (entity instanceof EntityPlayerMP) {
+                    if (entity instanceof FakePlayer) { return new CraftFakePlayer(server, (FakePlayer) entity); }
+                    else { return new CraftPlayer(server, (EntityPlayerMP) entity); }
                 }
+                else { return new CraftFakePlayer(server, FakePlayerFactory.get(DimensionManager.getWorld(entity.world.provider.getDimension()), ((EntityPlayer) entity).getGameProfile())); }
+                // CatServer end
             }
             // Water Animals
             else if (entity instanceof EntityWaterMob) {
