@@ -30,7 +30,7 @@ public class CatServerConfig {
         enableSkipEntityTick = getOrWriteBooleanConfig("world.enableSkipEntityTick", enableSkipEntityTick);
         enableSkipTileEntityTick = getOrWriteBooleanConfig("world.enableSkipTileEntityTick", enableSkipTileEntityTick);
         worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", 15) * 1000000;
-        // general
+        // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
         // save config
