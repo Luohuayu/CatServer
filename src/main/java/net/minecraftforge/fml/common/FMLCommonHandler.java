@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
+import catserver.server.CatServer;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.item.EntityItem;
@@ -652,7 +653,7 @@ public class FMLCommonHandler
             return false;
         }
 
-        manager.channel().attr(NetworkRegistry.FML_MARKER).set(packet.hasFMLMarker());
+        manager.channel().attr(NetworkRegistry.FML_MARKER).set((!CatServer.getConfig().disableFMLHandshake || !NetworkRegistry.INSTANCE.isVanillaAccepted(Side.CLIENT)) && packet.hasFMLMarker());
         return true;
     }
 

@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import net.minecraft.launchwrapper.LaunchClassLoader;
+import net.minecraft.server.MinecraftServer;
 import org.apache.commons.lang.Validate;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -25,11 +27,9 @@ import catserver.server.remapper.ClassInheritanceProvider;
 import catserver.server.remapper.MappingLoader;
 import catserver.server.remapper.ReflectionTransformer;
 import net.md_5.specialsource.JarMapping;
-import net.md_5.specialsource.JarRemapper;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
 import net.md_5.specialsource.repo.RuntimeRepo;
-import net.minecraft.server.MinecraftServer;
 
 /**
  * A ClassLoader for plugins, to allow shared classes across multiple plugins
@@ -47,6 +47,7 @@ final class PluginClassLoader extends URLClassLoader {
     private JavaPlugin pluginInit;
     private IllegalStateException pluginState;
 
+    private LaunchClassLoader launchClassLoader;
     private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
@@ -62,12 +63,13 @@ final class PluginClassLoader extends URLClassLoader {
         this.manifest = jar.getManifest();
         this.url = file.toURI().toURL();
 
-        jarMapping = MappingLoader.loadMapping();
+        this.launchClassLoader = parent instanceof LaunchClassLoader ? (LaunchClassLoader)parent : (LaunchClassLoader) MinecraftServer.getServerInst().getClass().getClassLoader();
+        this.jarMapping = MappingLoader.loadMapping();
         JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());
         provider.add(new ClassLoaderProvider(this));
-        jarMapping.setFallbackInheritanceProvider(provider);
-        remapper = new CatServerRemapper(jarMapping);
+        this.jarMapping.setFallbackInheritanceProvider(provider);
+        this.remapper = new CatServerRemapper(jarMapping);
 
         try {
             Class<?> jarClass;
@@ -100,8 +102,7 @@ final class PluginClassLoader extends URLClassLoader {
     Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
         if (remapper.isNeedRemap(name)) {
             String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
-            Class<?> clazz = ((net.minecraft.launchwrapper.LaunchClassLoader)MinecraftServer.getServerInst().getClass().getClassLoader()).findClass(remappedClass);
-            return clazz;
+            return launchClassLoader.findClass(remappedClass);
         }
 
         if (name.startsWith("org.bukkit.")) {
@@ -122,7 +123,15 @@ final class PluginClassLoader extends URLClassLoader {
                         loader.setClass(name, result);
                     }
                 }
-    
+
+                if (result == null) {
+                    try {
+                        result = launchClassLoader.getClass().getClassLoader().loadClass(name);
+                    } catch (Throwable throwable) {
+                        throw new ClassNotFoundException(name, throwable);
+                    }
+                }
+
                 if (result == null) {
                     throw new ClassNotFoundException(name);
                 }

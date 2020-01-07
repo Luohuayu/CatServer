@@ -11,6 +11,8 @@ public class CatServer {
 	private static final String version = "2.0.0";
 	private static final String native_version = "v1_12_R1";
 
+    private static CatServerConfig config = new CatServerConfig("catserver.yml");
+
 	public static String getVersion(){
 		return version;
 	}
@@ -46,5 +48,9 @@ public class CatServer {
             } catch (Exception ignored) {}
         }
         return true;
+    }
+
+    public static CatServerConfig getConfig() {
+        return config;
     }
 }
