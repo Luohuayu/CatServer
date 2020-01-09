@@ -6,10 +6,6 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import net.minecraftforge.registries.GameData;
-import org.bukkit.NamespacedKey;
-import org.bukkit.craftbukkit.util.CraftNamespacedKey;
-
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.registry.RegistryNamespaced;
@@ -57,7 +53,7 @@ public class CatEntityRegistry<K, V> extends RegistryNamespaced<K, V> {
     public Iterator<V> iterator()
     {
         List<V> list = new ArrayList<>();
-        for (EntityEntry value : GameData.getEntityRegistry().getValues()) list.add((V) value);
+        for (EntityEntry value : net.minecraftforge.registries.GameData.getEntityRegistry().getValues()) list.add((V) value);
         for (V value : REGISTRY) list.add(value);
         return list.iterator();
     }
