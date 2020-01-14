@@ -10,9 +10,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class LibrariesManager {
     private static List<String> librariesSources = new ArrayList<>();
@@ -24,7 +22,8 @@ public class LibrariesManager {
         InputStream listStream = ClassLoader.getSystemResourceAsStream("libraries.info");
         if (listStream == null) return;
 
-        boolean hasException = false;
+        Map<File, String> librariesNeedDownload = new HashMap<>();
+
         try {
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(listStream));
             String str = null;
@@ -32,42 +31,43 @@ public class LibrariesManager {
             {
                 String[] args = str.split("\\|");
                 if (args.length == 3) {
-                    try {
-                        checkAndDownloadLibrary(args[0], args[1], args[2]);
-                    } catch (IOException e2) {
-                        System.out.println(e2.toString());
-                        hasException = true;
+                    String type = args[0];
+                    String key = args[1];
+                    String value = args[2];
+
+                    switch (type) {
+                        case "source": {
+                            librariesSources.add(key);
+                            break;
+                        }
+                        case "lib": {
+                            try {
+                                File file = new File(key);
+                                if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value)) {
+                                    librariesNeedDownload.put(file, value);
+                                }
+                            } catch (IOException e) {
+                                System.out.println(e.toString());
+                            }
+                            break;
+                        }
                     }
                 }
             }
             bufferedReader.close();
         } catch (IOException e) {
             System.out.println(e.toString());
-            hasException = true;
         }
-        if (hasException) {
-            System.out.println(LanguageUtils.I18nToString("launch.lib_exception"));
-        }
-    }
 
-    private static void checkAndDownloadLibrary(String type, String key, String value) throws IOException {
-        switch (type) {
-            case "source": {
-                librariesSources.add(key);
-                break;
-            }
-            case "lib": {
-                File file = new File(key);
-                if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value))
-                {
-                    tryDownload(file, value);
-                }
-                break;
+        if (librariesNeedDownload.size() > 0) {
+            System.out.println(LanguageUtils.I18nToString("launch.lib_missing"));
+            for (Map.Entry<File, String> entry : librariesNeedDownload.entrySet()) {
+                tryDownload(entry.getKey(), entry.getValue());
             }
         }
     }
 
-    private static boolean tryDownload(File file, String md5) {
+    private static void tryDownload(File file, String md5) {
         Iterator<String> iterator = librariesSources.iterator();
         while(iterator.hasNext()) {
             String downloadUrl = iterator.next() + file.getName();
@@ -76,15 +76,13 @@ public class LibrariesManager {
 
                 if (!file.exists() || (md5 != null && !Md5Utils.getFileMD5String(file).equals(md5))) {
                     System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_check"), file.getName(), downloadUrl));
-                    continue;
                 }
-                return true;
+                return;
             } catch (IOException e) {
                 System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download"), e.toString(), downloadUrl));
                 if (e instanceof ConnectException || e instanceof SocketTimeoutException) iterator.remove();
             }
         }
-        return false;
     }
 
     static class Downloader {

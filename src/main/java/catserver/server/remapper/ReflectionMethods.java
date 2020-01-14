@@ -8,9 +8,9 @@ import catserver.server.CatServer;
 
 public class ReflectionMethods {
 
-    private final static ConcurrentHashMap<String, String> fieldGetNameCache = new ConcurrentHashMap<>();
-    private final static ConcurrentHashMap<String, String> methodGetNameCache = new ConcurrentHashMap<>();
-    private final static ConcurrentHashMap<String, String> simpleNameGetNameCache = new ConcurrentHashMap<>();
+    private final static ConcurrentHashMap<Field, String> fieldGetNameCache = new ConcurrentHashMap<>();
+    private final static ConcurrentHashMap<Method, String> methodGetNameCache = new ConcurrentHashMap<>();
+    private final static ConcurrentHashMap<Class<?>, String> simpleNameGetNameCache = new ConcurrentHashMap<>();
 
     // Class.forName
     public static Class<?> forName(String className) throws ClassNotFoundException {
@@ -61,33 +61,30 @@ public class ReflectionMethods {
     // getName
     public static String getName(Field field) {
         if (!RemapUtils.isClassNeedRemap(field.getDeclaringClass(), false)) return field.getName();
-        String hash = String.valueOf(field.hashCode());
-        String cache = fieldGetNameCache.get(hash);
+        String cache = fieldGetNameCache.get(field);
         if (cache != null) return cache;
         String retn = RemapUtils.demapFieldName(field);
-        fieldGetNameCache.put(hash, retn);
+        fieldGetNameCache.put(field, retn);
         return retn;
     }
 
     public static String getName(Method method) {
         if (!RemapUtils.isClassNeedRemap(method.getDeclaringClass(), true)) return method.getName();
-        String hash = String.valueOf(method.hashCode());
-        String cache = methodGetNameCache.get(hash);
+        String cache = methodGetNameCache.get(method);
         if (cache != null) return cache;
         String retn = RemapUtils.demapMethodName(method);
-        methodGetNameCache.put(hash, retn);
+        methodGetNameCache.put(method, retn);
         return retn;
     }
 
     // getSimpleName
     public static String getSimpleName(Class<?> inst) {
         if (!RemapUtils.isClassNeedRemap(inst, false)) return inst.getSimpleName();
-        String hash = String.valueOf(inst.hashCode());
-        String cache = simpleNameGetNameCache.get(hash);
+        String cache = simpleNameGetNameCache.get(inst);
         if (cache != null) return cache;
         String[] name = RemapUtils.reverseMapExternal(inst).split("\\.");
         String retn = name[name.length - 1];
-        simpleNameGetNameCache.put(hash, retn);
+        simpleNameGetNameCache.put(inst, retn);
         return retn;
     }
 
