@@ -14,7 +14,7 @@ Like CatServer, ParrotMC supports Forge mods, Spigot and Sponge plugins stably.
 - Put Sponge plugins in the `mods/plugins` directory
 
 # Next Fatures
-**WARNING: These features will be present in the first release of this projet**
+**WARNING: These features will be present in the first ParrotMC release. They aren't included in CatServer releases**
 ## Feather-Lightweight
 ParrotMC use Graal's `native-image` tool to produce lightweight native images for Linux, Windows and Mac OS.
 
