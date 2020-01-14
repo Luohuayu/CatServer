@@ -1,13 +1,38 @@
-# CatServer
+# ParrotMC - IN DEVELOPMENT
 ![](https://img.shields.io/badge/Minecraft-1.12.2-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Forge-14.23.5.2847-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
+![](https://img.shields.io/badge/CatSever-20.01.11-brightgreen)
 
-开源免费的高版本Forge+Bukkit+Spigot服务端<br>
-分支1.12.2为稳定版,1.12.2-async为多线程版<br>
-稳定版(universal): 兼容性和稳定性较好,服务器单核性能高推荐使用<br>
-多线程版(async): 能利用多核运行提高TPS,但可能存在兼容稳定问题<br><br>
+ParrotMC is a fork of [CatServer](https://github.com/Luohuayu/CatServer) using Graal technology.
 
-QQ群: 675080<br>
-Telegram: https://t.me/CatServer<br>
-Website: http://catserver.moe
+# Features
+## Spigot, Forge and Sponge APIs support
+Like CatServer, ParrotMC supports Forge mods, Spigot and Sponge plugins stably.
+- Put Forge mods in the `mods` directory
+- Put Spigot plugins in the `plugins` directory
+- Put Sponge plugins in the `mods/plugins` directory
+
+# Next Fatures
+**WARNING: These features will be present in the first release of this projet**
+## Feather-Lightweight
+ParrotMC use Graal's `native-image` tool to produce lightweight native images for Linux, Windows and Mac OS.
+
+Generated images consume less memory and start faster.
+
+![Graal vs HotSpot](https://pbs.twimg.com/media/DgOjz4hVQAAWwil.png)
+*Graal vs Java HotSpot startup performances*
+
+## Polyglots mods and plugins
+ParrotMC allow you to load and execute polyglots mods and plugins using GraalVM. You can add your own language by editing/forking [Graal's Truffle Framework](https://github.com/oracle/graal/tree/master/truffle).
+
+The default Truffle implementation supports:
+- JVM languages (Java, Kotlin, Scala, Groovy...)
+- JavaScript & NodeJS
+- Ruby
+- R
+- Python
+- grCUDA
+- C++
+- C
+- Rust
