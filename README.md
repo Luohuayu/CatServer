@@ -18,10 +18,9 @@ Like CatServer, ParrotMC supports Forge mods, Spigot and Sponge plugins stably.
 ## Feather-Lightweight
 ParrotMC use Graal's `native-image` tool to produce lightweight native images for Linux, Windows and Mac OS.
 
-Generated images consume less memory and start faster.
-
+Generated images consume less memory and start faster. Graal is also able to compile Just In Time plugins and mods faster than the Java HotSpot VM
 ![Graal vs HotSpot](https://pbs.twimg.com/media/DgOjz4hVQAAWwil.png)
-*Graal vs Java HotSpot startup performances*
+*Graal vs Java HotSpot performances*
 
 ## Polyglots mods and plugins
 ParrotMC allow you to load and execute polyglots mods and plugins using GraalVM. You can add your own language by editing/forking [Graal's Truffle Framework](https://github.com/oracle/graal/tree/master/truffle).
