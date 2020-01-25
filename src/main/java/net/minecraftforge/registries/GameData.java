@@ -99,6 +99,7 @@ public class GameData
     public static final ResourceLocation RECIPES      = new ResourceLocation("minecraft:recipes");
     public static final ResourceLocation PROFESSIONS  = new ResourceLocation("minecraft:villagerprofessions");
     public static final ResourceLocation SERIALIZERS  = new ResourceLocation("minecraft:dataserializers");
+
     private static final int MAX_BLOCK_ID = 4095;
     private static final int MIN_ITEM_ID = MAX_BLOCK_ID + 1;
     private static final int MAX_ITEM_ID = 31999;
@@ -117,6 +118,7 @@ public class GameData
     private static final ResourceLocation BLOCKSTATE_TO_ID      = new ResourceLocation("minecraft:blockstatetoid");
     private static final ResourceLocation ENTITY_CLASS_TO_ENTRY = new ResourceLocation("forge:entity_class_to_entry");
     private static final ResourceLocation SERIALIZER_TO_ENTRY   = new ResourceLocation("forge:serializer_to_entry");
+
     private static boolean hasInit = false;
     private static final boolean DISABLE_VANILLA_REGISTRIES = Boolean.parseBoolean(System.getProperty("forge.disableVanillaGameData", "false")); // Use for unit tests/debugging
     private static final BiConsumer<ResourceLocation, ForgeRegistry<?>> LOCK_VANILLA = (name, reg) -> reg.slaves.values().stream().filter(o -> o instanceof ILockableRegistry).forEach(o -> ((ILockableRegistry)o).lock());
@@ -540,8 +542,7 @@ public class GameData
         }
     }
 
-    private static class
-    SerializerCallbacks implements IForgeRegistry.AddCallback<DataSerializerEntry>, IForgeRegistry.ClearCallback<DataSerializerEntry>, IForgeRegistry.CreateCallback<DataSerializerEntry>
+    private static class SerializerCallbacks implements IForgeRegistry.AddCallback<DataSerializerEntry>, IForgeRegistry.ClearCallback<DataSerializerEntry>, IForgeRegistry.CreateCallback<DataSerializerEntry>
     {
         static final SerializerCallbacks INSTANCE = new SerializerCallbacks();
 
