@@ -1,4 +1,8 @@
 # CatServer
+![Minecraft Version](https://camo.githubusercontent.com/c0e3577c768e5e75babe16439b3103451e74da0d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4d696e6563726166742d312e31322e322d627269676874677265656e2e7376673f636f6c6f72423d343639433030)
+![Forge Version](https://camo.githubusercontent.com/b6425e7a30e2455617fb01349e2bc40c41d024ca/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f466f7267652d31342e32332e352e323834372d627269676874677265656e2e7376673f636f6c6f72423d343639433030)
+![Spigot Version](https://camo.githubusercontent.com/150a941bd9e0f7cf2e88dc4c7e0e83b1c7f40b34/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f537069676f742d312e31322e322532306c61746573742d627269676874677265656e2e7376673f636f6c6f72423d343639433030)
+
 CatServer is a Minecraft server software supporting plugins and mods.
 
 # Features
@@ -29,3 +33,7 @@ See also:
 You can contribute to this project by:
 - Opening issues when you find a bug/missing feature
 - Forking it and send pull requests
+
+# More informations
+- Telegram: https://t.me/CatServer
+- Website: http://catserver.moe
