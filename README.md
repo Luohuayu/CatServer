@@ -1,37 +1,31 @@
-# ParrotMC - IN DEVELOPMENT
-![](https://img.shields.io/badge/Minecraft-1.12.2-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/Forge-14.23.5.2847-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/CatSever-20.01.11-brightgreen)
-
-ParrotMC is a fork of [CatServer](https://github.com/Luohuayu/CatServer) using Graal technology.
+# CatServer
+CatServer is a Minecraft server software supporting plugins and mods.
 
 # Features
-## Spigot, Forge and Sponge APIs support
-Like CatServer, ParrotMC supports Forge mods, Spigot and Sponge plugins stably.
-- Put Forge mods in the `mods` directory
-- Put Spigot plugins in the `plugins` directory
-- Put Sponge plugins in the `mods/plugins` directory
+## Multiples APIs support
+CatServer supports these APIs:
+- Spigot (plugins)
+- Forge (mods)
+- Sponge throught SpongeForge (plugins)
 
-# Next Fatures
-**WARNING: These features will be present in the first ParrotMC release. They aren't included in CatServer releases**
-## Feather-Lightweight
-ParrotMC use Graal's `native-image` tool to produce lightweight native images for Linux, Windows and Mac OS.
+## Multithreaded
+CatServer has a multithreaded version named `async` using multiples threads unlike Forge/Spigot/Vanilla servers. It allow your server to do resources-intensives tasks without blocking it entirely.
 
-Generated images consume less memory and start faster. Graal is also able to compile Just In Time plugins and mods faster than the Java HotSpot VM
-![Graal vs HotSpot](https://pbs.twimg.com/media/DgOjz4hVQAAWwil.png)
-*Graal vs Java HotSpot performances*
+Note this version is less-stable than the `universal` one.
 
-## Polyglots mods and plugins
-ParrotMC allow you to load and execute polyglots mods and plugins using GraalVM. You can add your own language by editing/forking [Graal's Truffle Framework](https://github.com/oracle/graal/tree/master/truffle).
+# Install
+This software requires Java 8 or later. Note Java is retrocompatible.
 
-The default Truffle implementation supports:
-- JVM languages (Java, Kotlin, Scala, Groovy...)
-- JavaScript & NodeJS
-- Ruby
-- R
-- Python
-- grCUDA
-- C++
-- C
-- Rust
+[Download](https://github.com/Luohuayu/CatServer/releases) and place the server jar in an empty directory. Now launch it using the `java` command:
+```sh
+java -jar yourJar.jar
+```
+See also:
+- [Configuring JVM arguments](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html)
+- [Spigot configuration](https://www.spigotmc.org/wiki/spigot-configuration/)
+- [Vanilla server's properties](https://www.spigotmc.org/wiki/spigot-configuration-server-properties/)
+
+# Contribute
+You can contribute to this project by:
+- Opening issues when you find a bug/missing feature
+- Forking it and send pull requests
