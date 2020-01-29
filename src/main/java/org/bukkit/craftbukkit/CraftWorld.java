@@ -1014,7 +1014,7 @@ public class CraftWorld implements World {
         Validate.isTrue(material.isBlock(), "Material must be a block");
 
         EntityFallingBlock entity = new EntityFallingBlock(world, location.getX(), location.getY(), location.getZ(), CraftMagicNumbers.getBlock(material).getStateFromMeta(data));
-        entity.ticksExisted = 1;
+        entity.fallTime = 1;
 
         world.addEntity(entity, SpawnReason.CUSTOM);
         return (FallingBlock) entity.getBukkitEntity();

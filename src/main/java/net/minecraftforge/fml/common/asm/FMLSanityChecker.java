@@ -55,6 +55,7 @@ public class FMLSanityChecker implements IFMLCallHook
     @Override
     public Void call() throws Exception
     {
+        if (true) return null; // CatServer
         CodeSource codeSource = getClass().getProtectionDomain().getCodeSource();
         boolean goodFML = false;
         boolean fmlIsJar = false;

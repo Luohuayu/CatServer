@@ -1016,12 +1016,14 @@ public class ForgeHooks
                 }
 
                 // SPIGOT-1288 - play sound stripped from ItemBlock
-                if (itemstack.item instanceof ItemBlock) {
-                    IBlockState iblockstate = world.getBlockState(pos);
-                    SoundType soundeffecttype = iblockstate.getBlock().getSoundType(iblockstate, world, pos, player);
-                    world.playSound(player, pos, soundeffecttype.getPlaceSound(), SoundCategory.BLOCKS, (soundeffecttype.getVolume() + 1.0F) / 2.0F, soundeffecttype.getPitch() * 0.8F);
+                if (itemstack.item instanceof ItemBlock && ((ItemBlock)itemstack.item).playAfter) {
+                    BlockPos bp = !oldBlockReplaceable ? pos.offset(side) : pos;
+                    IBlockState iblockstate = world.getBlockState(bp);
+                    SoundType soundeffecttype = iblockstate.getBlock().getSoundType(iblockstate, world, bp, player);
+                    world.playSound(player, bp, soundeffecttype.getPlaceSound(), SoundCategory.BLOCKS, (soundeffecttype.getVolume() + 1.0F) / 2.0F, soundeffecttype.getPitch() * 0.8F);
+                    ((ItemBlock) itemstack.item).playAfter = false;
                 }
-    }
+            }
         }
         world.capturedBlockSnapshots.clear();
 
