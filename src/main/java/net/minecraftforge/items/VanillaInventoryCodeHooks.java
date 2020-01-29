@@ -39,6 +39,7 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.inventory.Inventory;
 
 import catserver.server.inventory.CatCustomInventory;
+import org.bukkit.inventory.InventoryHolder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -107,8 +108,8 @@ public class VanillaInventoryCodeHooks
             // CatServer start
             CraftItemStack oitemstack = CraftItemStack.asCraftMirror(stack.copy().splitStack(1));
 
-            TileEntity te = (TileEntity) destination;
-            Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
+            InventoryHolder owner = ((TileEntity) destination).getOwner();
+            Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
             
             InventoryMoveItemEvent event = new InventoryMoveItemEvent(dropper.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
             if (destinationInventory != null) world.getServer().getPluginManager().callEvent(event);
@@ -163,7 +164,8 @@ public class VanillaInventoryCodeHooks
                         CraftItemStack remainder = CraftItemStack.asCraftMirror(hopper.decrStackSize(i, hopper.world.spigotConfig.hopperAmount)); // Spigot
 
                         TileEntity te = (TileEntity) destination;
-                        Inventory destinationInventory = te.getOwner() != null ? te.getOwner().getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
+                        InventoryHolder owner = te.getOwner();
+                        Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
 
                         InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopper.getOwner().getInventory(), remainder.clone(), destinationInventory, true);
                         if (destinationInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); //CatServer
