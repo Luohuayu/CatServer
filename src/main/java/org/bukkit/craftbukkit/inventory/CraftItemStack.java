@@ -6,6 +6,7 @@ import static org.bukkit.craftbukkit.inventory.CraftMetaItem.ENCHANTMENTS_LVL;
 
 import java.util.Map;
 
+import catserver.server.inventory.CatForgeItemCap;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.item.Item;
 
@@ -40,7 +41,7 @@ public final class CraftItemStack extends ItemStack {
             return net.minecraft.item.ItemStack.EMPTY;
         }
 
-        net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(item, original.getAmount(), original.getDurability());
+        net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(item, original.getAmount(), original.getDurability(), original.hasForgeItemCap() ? original.getForgeItemCap().getItemCap() : null);
         if (original.hasItemMeta()) {
             setItemMeta(stack, original.getItemMeta());
         }
@@ -64,6 +65,7 @@ public final class CraftItemStack extends ItemStack {
         if (hasItemMeta(original)) {
             stack.setItemMeta(getItemMeta(original));
         }
+        CatForgeItemCap.setItemCap(original, stack); // CatServer
         return stack;
     }
 
@@ -94,6 +96,7 @@ public final class CraftItemStack extends ItemStack {
      */
     private CraftItemStack(net.minecraft.item.ItemStack item) {
         this.handle = item;
+        CatForgeItemCap.setItemCap(item, this);
     }
 
     private CraftItemStack(ItemStack item) {
