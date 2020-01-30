@@ -21,6 +21,7 @@ public class CatServerConfig {
     public boolean fakePlayerEventPass = false;
 
     public boolean disableFMLHandshake = false;
+    public boolean disableFMLStatusModInfo = false;
 
     public CatServerConfig(String file) {
         this.configFile = new File(file);
@@ -39,6 +40,7 @@ public class CatServerConfig {
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
         // general
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
+        disableFMLStatusModInfo = getOrWriteBooleanConfig("disableFMLStatusModInfo", disableFMLStatusModInfo);
         // save config
         try {
             config.save(configFile);
