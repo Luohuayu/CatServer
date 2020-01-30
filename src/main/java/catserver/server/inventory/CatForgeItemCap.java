@@ -22,6 +22,7 @@ public class CatForgeItemCap implements Cloneable {
         return capNBT.copy();
     }
 
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -30,7 +31,12 @@ public class CatForgeItemCap implements Cloneable {
             return false;
         }
 
-        return capNBT.equals(((CatForgeItemCap) obj).capNBT);
+        return this.capNBT.equals(((CatForgeItemCap) obj).capNBT);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.capNBT.hashCode();
     }
 
     @Override
