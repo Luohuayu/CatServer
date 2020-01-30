@@ -1,7 +1,15 @@
 package catserver.server.inventory;
 
+import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
+import org.apache.commons.codec.binary.Base64;
 import org.bukkit.inventory.ItemStack;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class CatForgeItemCap implements Cloneable {
     protected NBTTagCompound capNBT;
@@ -41,5 +49,29 @@ public class CatForgeItemCap implements Cloneable {
                 bukkitItemStack.setForgeItemCap(new CatForgeItemCap(capNBT));
             }
         }
+    }
+
+    public String serializeNBT() {
+        try {
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            CompressedStreamTools.writeCompressed(capNBT, buf);
+            return Base64.encodeBase64String(buf.toByteArray());
+        } catch (IOException ex) {
+            Logger.getLogger(CatForgeItemCap.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
+    public static CatForgeItemCap deserializeNBT(String serializedNBT) {
+        if (serializedNBT != null) {
+            ByteArrayInputStream buf = new ByteArrayInputStream(Base64.decodeBase64(serializedNBT));
+            try {
+                NBTTagCompound capNBT = CompressedStreamTools.readCompressed(buf);
+                return new CatForgeItemCap(capNBT);
+            } catch (IOException ex) {
+                Logger.getLogger(CatForgeItemCap.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return null;
     }
 }

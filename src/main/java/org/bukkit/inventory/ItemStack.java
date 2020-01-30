@@ -520,6 +520,10 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
             result.put("meta", meta);
         }
 
+        if (hasForgeItemCap()) {
+            result.put("forgeCapNBT", forgeItemCap.serializeNBT());
+        }
+
         return result;
     }
 
@@ -564,6 +568,10 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
             if (raw instanceof ItemMeta) {
                 result.setItemMeta((ItemMeta) raw);
             }
+        }
+
+        if (args.containsKey("forgeCapNBT")) {
+            result.setForgeItemCap(CatForgeItemCap.deserializeNBT((String) args.get("forgeCapNBT")));
         }
 
         return result;
