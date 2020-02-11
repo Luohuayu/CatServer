@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 
+import catserver.server.inventory.CatInventoryUtils;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IInventory;
 
@@ -25,7 +26,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.Material;
-import org.bukkit.block.BlockState;
 
 public class CraftInventory implements Inventory {
     protected final IInventory inventory;
@@ -75,13 +75,7 @@ public class CraftInventory implements Inventory {
     }
 
     public ItemStack[] getContents() {
-        // CatServer start - fix AbstractMethodError
-        List<net.minecraft.item.ItemStack> mcItems = null;
-        try {
-            mcItems = getInventory().getContents();
-        } catch (AbstractMethodError e) {
-            return new ItemStack[0]; // return empty list
-        }
+        List<net.minecraft.item.ItemStack> mcItems = CatInventoryUtils.getContents(getInventory()); // CatServer - fix AbstractMethodError
         return asCraftMirror(mcItems);
     }
 
@@ -442,11 +436,7 @@ public class CraftInventory implements Inventory {
     }
 
     public List<HumanEntity> getViewers() {
-        try {
-            return this.inventory.getViewers();
-        } catch (AbstractMethodError e) {
-            return new java.util.ArrayList<HumanEntity>();
-        }
+        return CatInventoryUtils.getViewers(this.inventory); // CatServer - fix AbstractMethodError
     }
 
     public String getTitle() { // CatServer - not return null
@@ -490,19 +480,7 @@ public class CraftInventory implements Inventory {
     }
 
     public InventoryHolder getHolder() {
-        // CatServer start - fix AbstractMethodError
-        try {
-            return inventory.getOwner();
-        } catch (AbstractMethodError e) {
-            if (inventory instanceof net.minecraft.tileentity.TileEntity) {
-                net.minecraft.tileentity.TileEntity tileentity = (net.minecraft.tileentity.TileEntity) inventory;
-                BlockState state = tileentity.getWorld().getWorld().getBlockAt(tileentity.getPos().getX(), tileentity.getPos().getY(), tileentity.getPos().getZ()).getState();
-                return (state instanceof InventoryHolder ? (InventoryHolder) state : null);
-            }else{
-                return null;
-            }
-        }
-        // CatServer end
+        return CatInventoryUtils.getOwner(inventory); // CatServer - fix AbstractMethodError
     }
 
     public int getMaxStackSize() {
@@ -510,7 +488,7 @@ public class CraftInventory implements Inventory {
     }
 
     public void setMaxStackSize(int size) {
-        inventory.setMaxStackSize(size);
+        CatInventoryUtils.setMaxStackSize(inventory, size); // CatServer - fix AbstractMethodError
     }
 
     @Override
@@ -525,6 +503,6 @@ public class CraftInventory implements Inventory {
 
     @Override
     public Location getLocation() {
-        return inventory.getLocation();
+        return CatInventoryUtils.getLocation(inventory); // CatServer - fix AbstractMethodError
     }
 }

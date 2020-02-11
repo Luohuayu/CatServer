@@ -31,10 +31,10 @@ public class RecipeIterator implements Iterator<Recipe> {
             // CatServer - handle custom recipe classes without Bukkit API equivalents
             IRecipe recipe = recipes.next();
             try {
-                return recipe.toBukkitRecipe();
+                return recipe == null ? null : recipe.toBukkitRecipe();
             } catch (AbstractMethodError ex) {
                 // No Bukkit wrapper provided
-                return recipe == null ? null :new CustomModRecipe(recipe, recipe.getRegistryName());
+                return new CustomModRecipe(recipe, recipe.getRegistryName());
             }
         } else {
             net.minecraft.item.ItemStack item;
