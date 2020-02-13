@@ -6,6 +6,7 @@
 [Download](https://github.com/Luohuayu/CatServer/releases)
 [bStats](https://bstats.org/plugin/bukkit/CatServer)
 [Website](http://catserver.moe)
+[Discord](https://discord.gg/wvBJN4d)
 
 开源免费的高版本Forge+Bukkit+Spigot服务端<br>
 分支1.12.2为稳定版,1.12.2-async为多线程版<br>
@@ -14,5 +15,6 @@
 
 QQ群: [675080](https://jq.qq.com/?_wv=1027&k=541nx1s)<br>
 Telegram: [@CatServer](https://t.me/CatServer)<br><br>
+Discord: https://discord.gg/wvBJN4d
 
 <img src="https://bstats.org/signatures/bukkit/CatServer.svg">
