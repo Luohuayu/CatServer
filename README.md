@@ -13,6 +13,7 @@
 多线程版(async): 能利用多核运行提高TPS,但可能存在兼容稳定问题<br><br>
 
 QQ群: [675080](https://jq.qq.com/?_wv=1027&k=541nx1s)<br>
-Telegram: [@CatServer](https://t.me/CatServer)<br><br>
+Telegram: [@CatServer](https://t.me/CatServer)<br>
+Discord: [Click to join](https://discord.gg/wvBJN4d)<br><br>
 
 <img src="https://bstats.org/signatures/bukkit/CatServer.svg">
