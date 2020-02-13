@@ -118,6 +118,8 @@ import org.bukkit.scoreboard.Scoreboard;
 
 import javax.annotation.Nullable;
 
+import catserver.server.entity.CraftFakePlayer;
+
 @DelegateDeserialization(CraftOfflinePlayer.class)
 public class CraftPlayer extends CraftHumanEntity implements Player {
     private long firstPlayed = 0;
@@ -1733,4 +1735,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         return spigot;
     }
     // Spigot end
+
+    // CatServer start
+    public boolean isFakePlayer() {
+        return (this instanceof CraftFakePlayer);
+    }
+    // CatServer end
 }

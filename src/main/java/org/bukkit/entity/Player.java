@@ -1549,4 +1549,8 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
     @Override
     Spigot spigot();
     // Spigot end
+
+    // CatServer start
+    public boolean isFakePlayer();
+    // CatServer end
 }

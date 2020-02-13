@@ -31,6 +31,8 @@ import com.mojang.authlib.GameProfile;
 
 import net.minecraft.world.WorldServer;
 
+import catserver.api.bukkit.event.FakePlayerJoinEvent;
+
 //To be expanded for generic Mod fake players?
 public class FakePlayerFactory
 {
@@ -75,6 +77,7 @@ public class FakePlayerFactory
             username = new GameProfile(UUID.nameUUIDFromBytes(("OfflinePlayer:" + username.getName()).getBytes(StandardCharsets.UTF_8)), username.getName()); // Create new GameProfile with offline UUID
         }
         fakePlayers.put(username, fakePlayer);
+        world.getServer().getPluginManager().callEvent(new FakePlayerJoinEvent(fakePlayer.getBukkitEntity(), world.getWorld()));
 
         return fakePlayers.get(username);
     }
