@@ -1,5 +1,7 @@
 package catserver.server.patcher;
 
+import catserver.server.patcher.plugin.DynmapPacher;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -7,7 +9,7 @@ public class PatcherManager {
     private static Map<String, IPatcher> pluginPatcher = new HashMap<>();
 
     static {
-        // registerPluginPatcher("CatTestPlugin", new TestPatcher());
+        registerPluginPatcher("dynmap", new DynmapPacher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {
