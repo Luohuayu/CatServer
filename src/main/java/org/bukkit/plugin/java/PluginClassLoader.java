@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import catserver.server.patcher.IPatcher;
+import catserver.server.patcher.PatcherManager;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraft.server.MinecraftServer;
 import org.apache.commons.lang.Validate;
@@ -51,6 +53,8 @@ final class PluginClassLoader extends URLClassLoader {
     private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
+    private IPatcher patcher;
+
     PluginClassLoader(final JavaPluginLoader loader, final ClassLoader parent, final PluginDescriptionFile description, final File dataFolder, final File file) throws IOException, InvalidPluginException, MalformedURLException {
         super(new URL[] {file.toURI().toURL()}, parent);
         Validate.notNull(loader, "Loader cannot be null");
@@ -70,6 +74,8 @@ final class PluginClassLoader extends URLClassLoader {
         provider.add(new ClassLoaderProvider(this));
         this.jarMapping.setFallbackInheritanceProvider(provider);
         this.remapper = new CatServerRemapper(jarMapping);
+
+        this.patcher = PatcherManager.getPluginPatcher(description.getName());
 
         try {
             Class<?> jarClass;
@@ -182,6 +188,7 @@ final class PluginClassLoader extends URLClassLoader {
 
                     // Remap the classes
                     bytecode = remapper.remapClassFile(stream, RuntimeRepo.getInstance());
+                    if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
                     bytecode = ReflectionTransformer.transform(bytecode);
 
                     // Define (create) the class using the modified byte code

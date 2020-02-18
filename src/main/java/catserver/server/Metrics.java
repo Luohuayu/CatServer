@@ -63,6 +63,7 @@ public class Metrics {
     private final List<CustomChart> charts = new ArrayList<>();
 
     private final String pluginName = "CatServer";
+    private final int pluginId = 5714;
     private final String pluginVersion = "1.12.2-stable";
 
     /**
@@ -161,6 +162,7 @@ public class Metrics {
         JSONObject data = new JSONObject();
 
         data.put("pluginName", pluginName); // Append the name of the plugin
+        data.put("id", pluginId); // Append the id of the plugin
         data.put("pluginVersion", pluginVersion); // Append the version of the plugin
         JSONArray customCharts = new JSONArray();
         for (CustomChart customChart : charts) {

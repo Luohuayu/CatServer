@@ -8,14 +8,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class CatServer {
-	private static final String version = "2.0.0";
-	private static final String native_version = "v1_12_R1";
+    private static final String version = "2.1.0";
+    private static final String native_version = "v1_12_R1";
 
     private static CatServerConfig config = new CatServerConfig("catserver.yml");
 
-	public static String getVersion(){
-		return version;
-	}
+    public static String getVersion(){
+        return version;
+    }
 
     public static String getNativeVersion() {
         return native_version;
@@ -52,5 +52,9 @@ public class CatServer {
 
     public static CatServerConfig getConfig() {
         return config;
+    }
+
+    public static void postPrimaryThread(Runnable runnable) {
+        MinecraftServer.getServerInst().addScheduledTask(runnable);
     }
 }

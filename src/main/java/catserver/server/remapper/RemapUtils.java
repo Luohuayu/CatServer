@@ -92,12 +92,13 @@ public class RemapUtils {
     public static final String NMS_VERSION = CatServer.getNativeVersion();
 
     public static String mapClass(String className) {
-        String tRemapped = JarRemapper.mapTypeName(className, ReflectionTransformer.jarMapping.packages, ReflectionTransformer.jarMapping.classes, className);
-        if (tRemapped.equals(className) && className.startsWith(NMS_PREFIX) && !className.contains(NMS_VERSION)) {
-            String tNewClassStr = NMS_PREFIX + NMS_VERSION + "/" + className.substring(NMS_PREFIX.length());
-            return JarRemapper.mapTypeName(tNewClassStr, ReflectionTransformer.jarMapping.packages, ReflectionTransformer.jarMapping.classes, className);
+        String remapped = JarRemapper.mapTypeName(className, ReflectionTransformer.jarMapping.packages, ReflectionTransformer.jarMapping.classes, className);
+        if (remapped.equals(className) && className.startsWith(NMS_PREFIX) && !className.contains(NMS_VERSION)) {
+            // Try fix package
+            String[] splitStr = className.split("/");
+            return JarRemapper.mapTypeName(NMS_PREFIX + NMS_VERSION + "/" + splitStr[splitStr.length - 1], ReflectionTransformer.jarMapping.packages, ReflectionTransformer.jarMapping.classes, className);
         }
-        return tRemapped;
+        return remapped;
     }
 
     public static String demapFieldName(Field field) {

@@ -849,11 +849,8 @@ public class CraftEventFactory {
 
         CraftServer server = player.world.getServer();
         CraftPlayer craftPlayer = player.getBukkitEntity();
-        try {
-            player.openContainer.transferTo(container, craftPlayer);
-        } catch (AbstractMethodError e) {
-            // do nothing
-        }
+        player.openContainer.transferTo(container, craftPlayer);
+
         InventoryOpenEvent event = new InventoryOpenEvent(container.getBukkitView());
         event.setCancelled(cancelled);
         if (container.getBukkitView() != null) server.getPluginManager().callEvent(event); // CatServer - mods bypass

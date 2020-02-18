@@ -123,7 +123,7 @@ public class CraftInventoryCrafting extends CraftInventory implements CraftingIn
             return recipe == null ? null : recipe.toBukkitRecipe();
         } catch (AbstractMethodError ex) {
             // No Bukkit wrapper provided
-            return recipe == null ? null : new CustomModRecipe(recipe, recipe.getRegistryName());
+            return new CustomModRecipe(recipe, recipe.getRegistryName());
         }
     }
 }

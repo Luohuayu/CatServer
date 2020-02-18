@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -105,21 +106,22 @@ public class CommandPlugin extends Command {
 
 
     private void loadPlugin(String pluginName, CommandSender sender) {
+        PluginManager manager = Bukkit.getServer().getPluginManager();
+        File pluginFile = new File("plugins", pluginName + ".jar");
+
+        if (!pluginFile.exists() || !pluginFile.isFile()) {
+            sender.sendMessage(ChatColor.GREEN + "Error loading " + pluginName + ".jar, no plugin with that name was found.");
+            return;
+        }
+
         try {
-            PluginManager manager = Bukkit.getServer().getPluginManager();
-            File pluginFile = new File("plugins", pluginName + ".jar");
-
-            if (!pluginFile.exists() || !pluginFile.isFile()) {
-                sender.sendMessage(ChatColor.GREEN + "Error loading " + pluginName + ".jar, no plugin with that name was found.");
-                return;
-            }
-
             Plugin plugin = manager.loadPlugin(pluginFile);
             plugin.onLoad();
             manager.enablePlugin(plugin);
 
             sender.sendMessage(ChatColor.GREEN + "Loaded " + pluginName + " successfully!");
-        } catch (Exception e) {
+        } catch (Exception ex) {
+            Bukkit.getLogger().log(Level.SEVERE, "Could not load '" + pluginFile.getPath() + "' in folder '" + pluginFile.getParentFile().getPath() + "'", ex);
             sender.sendMessage(ChatColor.GREEN + "Error loading " + pluginName + ".jar, this plugin must be reloaded by restarting the server.");
         }
     }

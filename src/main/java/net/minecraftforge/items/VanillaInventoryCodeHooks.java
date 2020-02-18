@@ -19,6 +19,7 @@
 
 package net.minecraftforge.items;
 
+import catserver.server.inventory.CatInventoryUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockDropper;
 import net.minecraft.block.BlockHopper;
@@ -108,7 +109,7 @@ public class VanillaInventoryCodeHooks
             // CatServer start
             CraftItemStack oitemstack = CraftItemStack.asCraftMirror(stack.copy().splitStack(1));
 
-            InventoryHolder owner = ((TileEntity) destination).getOwner();
+            InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
             Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
             
             InventoryMoveItemEvent event = new InventoryMoveItemEvent(dropper.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
@@ -164,7 +165,7 @@ public class VanillaInventoryCodeHooks
                         CraftItemStack remainder = CraftItemStack.asCraftMirror(hopper.decrStackSize(i, hopper.world.spigotConfig.hopperAmount)); // Spigot
 
                         TileEntity te = (TileEntity) destination;
-                        InventoryHolder owner = te.getOwner();
+                        InventoryHolder owner = CatInventoryUtils.getOwner(te);
                         Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
 
                         InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopper.getOwner().getInventory(), remainder.clone(), destinationInventory, true);
