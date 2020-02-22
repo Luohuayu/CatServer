@@ -5,6 +5,7 @@ import java.util.Map;
 import org.apache.logging.log4j.Level;
 import org.bukkit.Material;
 import org.bukkit.block.Biome;
+import org.bukkit.block.banner.PatternType;
 import org.bukkit.entity.EntityType;
 import org.bukkit.potion.PotionEffectType;
 
@@ -14,7 +15,9 @@ import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.Item;
 import net.minecraft.potion.Potion;
+import net.minecraft.tileentity.BannerPattern;
 import net.minecraft.util.ResourceLocation;
+
 import net.minecraftforge.common.util.EnumHelper;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
@@ -101,5 +104,19 @@ public class BukkitInjector {
             org.bukkit.potion.PotionEffectType.registerPotionEffectType(new org.bukkit.craftbukkit.potion.CraftPotionEffectType((Potion) effect));
         }
         PotionEffectType.stopAcceptingRegistrations();
+    }
+
+    public static void registerBannerPatterns() {
+        Map<String, PatternType> PATTERN_MAP = ReflectionHelper.getPrivateValue(PatternType.class, null, "byString");
+        for (BannerPattern bannerPattern : BannerPattern.values()) {
+            String bannerPatternName = bannerPattern.name();
+            String bannerPatterKey = bannerPattern.getHashname();
+            if (PatternType.getByIdentifier(bannerPatterKey) == null) {
+                PatternType patternType = EnumHelper.addEnum(PatternType.class, bannerPatternName, new Class[]{String.class}, new Object[]{bannerPatterKey});
+                if (patternType != null) {
+                    PATTERN_MAP.put(bannerPatterKey, patternType);
+                }
+            }
+        }
     }
 }
