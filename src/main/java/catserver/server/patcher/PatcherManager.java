@@ -1,5 +1,6 @@
 package catserver.server.patcher;
 
+import catserver.server.patcher.plugin.CoreProtectPatcher;
 import catserver.server.patcher.plugin.DisablePluginPatcher;
 import catserver.server.patcher.plugin.DynmapPacher;
 
@@ -11,6 +12,7 @@ public class PatcherManager {
 
     static {
         registerPluginPatcher("dynmap", new DynmapPacher());
+        registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
         registerPluginPatcher("AntiPayloadHax", new DisablePluginPatcher("It will break MOD network channel"));
     }
 
