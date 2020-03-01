@@ -4,10 +4,7 @@ import catserver.server.utils.LanguageUtils;
 import catserver.server.utils.Md5Utils;
 
 import java.io.*;
-import java.net.ConnectException;
-import java.net.HttpURLConnection;
-import java.net.SocketTimeoutException;
-import java.net.URL;
+import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.*;
@@ -16,7 +13,9 @@ public class LibrariesManager {
     private static List<String> librariesSources = new ArrayList<>();
 
     public static void checkLibraries() {
-        File libDir = new File("libraries");
+        File jarDir = findJarDir();
+
+        File libDir = new File(jarDir, "libraries");
         if (!libDir.exists()) libDir.mkdir();
 
         InputStream listStream = ClassLoader.getSystemResourceAsStream("libraries.info");
@@ -42,7 +41,7 @@ public class LibrariesManager {
                         }
                         case "lib": {
                             try {
-                                File file = new File(key);
+                                File file = new File(jarDir, key);
                                 if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value)) {
                                     librariesNeedDownload.put(file, value);
                                 }
@@ -65,6 +64,17 @@ public class LibrariesManager {
                 tryDownload(entry.getKey(), entry.getValue());
             }
         }
+    }
+
+    public static File findJarDir() {
+        try {
+            URL jarUrl = LibrariesManager.class.getProtectionDomain().getCodeSource().getLocation();
+            File jarFile = new File(URLDecoder.decode(jarUrl.getPath(), "UTF-8"));
+            if (jarFile.isFile()) {
+                return jarFile.getParentFile().getAbsoluteFile();
+            }
+        } catch (Exception ignored) { }
+        return new File(".");
     }
 
     private static void tryDownload(File file, String md5) {

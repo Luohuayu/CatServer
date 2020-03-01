@@ -545,6 +545,7 @@ public enum Material {
     private static Material[] byId = new Material[32000];
     private static Material[] blockById = new Material[32000];
     private final static Map<String, Material> BY_NAME = Maps.newHashMap();
+    private final static Map<String, Material> BLOCK_BY_NAME = Maps.newHashMap();
     private final int maxStack;
     private final short durability;
 
@@ -1476,6 +1477,8 @@ public enum Material {
     public static Material addBlockMaterial(Material material) {
         if (blockById[material.id] == null) {
             blockById[material.id] = material;
+            BLOCK_BY_NAME.put(material.name().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", ""), material);
+            BLOCK_BY_NAME.put("X" + String.valueOf(material.id), material);
             return material;
         }
         return null;
@@ -1487,6 +1490,10 @@ public enum Material {
         } else {
             return null;
         }
+    }
+
+    public static Material getBlockMaterial(final String name) {
+        return BLOCK_BY_NAME.get(name);
     }
     // CatServer end
 }
