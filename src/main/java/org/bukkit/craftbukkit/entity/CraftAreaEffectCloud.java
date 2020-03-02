@@ -218,9 +218,9 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
 
     public void setSource(ProjectileSource shooter) {
         if (shooter instanceof CraftLivingEntity) {
-            getHandle().setOwner((EntityLiving) ((CraftLivingEntity) shooter).getHandle());
+            getHandle().setOwner((EntityLivingBase) ((CraftLivingEntity) shooter).getHandle());
         } else {
-            getHandle().setOwner((EntityLiving) null);
+            getHandle().setOwner((EntityLivingBase) null);
         }
     }
 }
