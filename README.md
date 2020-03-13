@@ -7,6 +7,8 @@
 [bStats](https://bstats.org/plugin/bukkit/CatServer)
 [Website](http://catserver.moe)
 
+[English version](README_en.md)
+
 开源免费的高版本Forge+Bukkit+Spigot服务端<br>
 分支1.12.2为稳定版,1.12.2-async为多线程版<br>
 稳定版(universal): 兼容性和稳定性较好,服务器单核性能高推荐使用<br>
