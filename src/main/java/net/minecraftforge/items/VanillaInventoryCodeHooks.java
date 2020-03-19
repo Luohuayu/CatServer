@@ -112,7 +112,7 @@ public class VanillaInventoryCodeHooks
             InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
             Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
             
-            InventoryMoveItemEvent event = new InventoryMoveItemEvent(dropper.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
+            InventoryMoveItemEvent event = new InventoryMoveItemEvent(CatInventoryUtils.getBukkitInventory(dropper), oitemstack.clone(), destinationInventory, true);
             if (destinationInventory != null) world.getServer().getPluginManager().callEvent(event);
 
             if (event.isCancelled()) {
@@ -168,7 +168,7 @@ public class VanillaInventoryCodeHooks
                         InventoryHolder owner = CatInventoryUtils.getOwner(te);
                         Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
 
-                        InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopper.getOwner().getInventory(), remainder.clone(), destinationInventory, true);
+                        InventoryMoveItemEvent event = new InventoryMoveItemEvent(CatInventoryUtils.getBukkitInventory(hopper), remainder.clone(), destinationInventory, true);
                         if (destinationInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); //CatServer
 
                         if (event.isCancelled()) {
