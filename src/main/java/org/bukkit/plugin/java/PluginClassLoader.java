@@ -12,13 +12,16 @@ import java.security.CodeSource;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 import catserver.server.patcher.IPatcher;
 import catserver.server.patcher.PatcherManager;
+import io.netty.util.internal.ConcurrentSet;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraft.server.MinecraftServer;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import org.apache.commons.lang.Validate;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -54,6 +57,8 @@ final class PluginClassLoader extends URLClassLoader {
     private JarMapping jarMapping;
 
     private IPatcher patcher;
+
+    private ConcurrentSet<Package> fixedPackages = new ConcurrentSet<Package>();
 
     PluginClassLoader(final JavaPluginLoader loader, final ClassLoader parent, final PluginDescriptionFile description, final File dataFolder, final File file) throws IOException, InvalidPluginException, MalformedURLException {
         super(new URL[] {file.toURI().toURL()}, parent);
@@ -184,13 +189,6 @@ final class PluginClassLoader extends URLClassLoader {
             if (url != null) {
                 InputStream stream = url.openStream();
                 if (stream != null) {
-                    byte[] bytecode = null;
-
-                    // Remap the classes
-                    bytecode = remapper.remapClassFile(stream, RuntimeRepo.getInstance());
-                    if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
-                    bytecode = ReflectionTransformer.transform(bytecode);
-
                     // Define (create) the class using the modified byte code
                     // The top-child class loader is used for this to prevent access violations
                     // Set the codesource to the jar, not within the jar, for compatibility with
@@ -198,8 +196,24 @@ final class PluginClassLoader extends URLClassLoader {
                     // instead of using getResourceAsStream - see https://github.com/MinecraftPortCentral/Cauldron-Plus/issues/75
                     JarURLConnection jarURLConnection = (JarURLConnection) url.openConnection(); // parses only
                     URL jarURL = jarURLConnection.getJarFileURL();
-                    CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
 
+                    // Remap the classes
+                    byte[] bytecode = remapper.remapClassFile(stream, RuntimeRepo.getInstance());
+                    if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
+                    bytecode = ReflectionTransformer.transform(bytecode);
+
+                    // Fix the package
+                    int dot = name.lastIndexOf('.');
+                    if (dot != -1) {
+                        String pkgName = name.substring(0, dot);
+                        Package pkg = getPackage(pkgName);
+                        if (pkg != null && manifest != null) {
+                            fixPackage(pkg);
+                        }
+                    }
+
+                    // Define the classes
+                    CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
                     result = this.defineClass(name, bytecode, 0, bytecode.length, codeSource);
                     if (result != null) {
                         // Resolve it - sets the class loader of the class
@@ -214,10 +228,28 @@ final class PluginClassLoader extends URLClassLoader {
         return result;
     }
 
-    // CatServer - can't get the package because no class below the package, remap it
+    // CatServer - remap package
     protected Package getPackage(String name) {
         if ("org.bukkit.craftbukkit".equals(name))
             name = "org.bukkit.craftbukkit." + CatServer.getNativeVersion();
         return super.getPackage(name);
+    }
+
+    private void fixPackage(Package pkg) {
+        if (!fixedPackages.contains(pkg)) {
+            Attributes attr = manifest.getMainAttributes();
+            if (attr != null) {
+                try {
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_TITLE), "specTitle");
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VERSION), "specVersion");
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VENDOR), "specVendor");
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_TITLE), "implTitle");
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VERSION), "implVersion");
+                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VENDOR), "implVendor");
+                } catch (Exception ignored) {}
+            }
+
+            fixedPackages.add(pkg);
+        }
     }
 }
