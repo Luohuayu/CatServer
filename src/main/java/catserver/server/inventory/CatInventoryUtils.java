@@ -8,6 +8,7 @@ import org.bukkit.Location;
 import org.bukkit.craftbukkit.block.CraftBlockEntityState;
 import org.bukkit.craftbukkit.entity.CraftHumanEntity;
 import org.bukkit.entity.HumanEntity;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
 import java.util.Collections;
@@ -92,5 +93,10 @@ public class CatInventoryUtils {
                 return new CatCustomInventory((IInventory) te);
         }
         return null;
+    }
+
+    public static Inventory getBukkitInventory(IInventory inventory) {
+        InventoryHolder owner = CatInventoryUtils.getOwner(inventory);
+        return (owner == null ? new CatCustomInventory(inventory).getInventory() : owner.getInventory());
     }
 }

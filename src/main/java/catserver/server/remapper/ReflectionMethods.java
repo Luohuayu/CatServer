@@ -18,7 +18,7 @@ public class ReflectionMethods {
     }
 
     public static Class<?> forName(String className, boolean initialize, ClassLoader classLoader) throws ClassNotFoundException {
-        if (className.startsWith("net.minecraft.server." + CatServer.getNativeVersion()))
+        if (className.startsWith("net.minecraft.server." + CatServer.getNativeVersion()) || className.startsWith("org.bukkit.craftbukkit."))
             className = ReflectionTransformer.jarMapping.classes.getOrDefault(className.replace('.', '/'), className).replace('/', '.');
         return Class.forName(className, initialize, classLoader);
     }
