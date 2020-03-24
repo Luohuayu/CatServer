@@ -89,6 +89,7 @@ public class FMLNetworkHandler
 
     public static void openGui(EntityPlayer entityPlayer, Object mod, int modGuiId, World world, int x, int y, int z)
     {
+        if (catserver.server.CatServer.asyncCatch("open gui", () -> openGui(entityPlayer, mod, modGuiId, world, x, y, z))) return; // CatServer - prevent crash caused by async open gui
         ModContainer mc = FMLCommonHandler.instance().findContainerFor(mod);
         if (entityPlayer instanceof EntityPlayerMP && !(entityPlayer instanceof FakePlayer))
         {
