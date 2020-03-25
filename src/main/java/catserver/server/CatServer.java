@@ -27,7 +27,7 @@ public class CatServer {
 
     public static boolean asyncCatch(String reason) {
         if (AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
-            log.debug(new IllegalStateException("Try to asynchronously " + reason + ", caught!"));
+            log.debug("Try to asynchronously " + reason + ", caught!", new RuntimeException());
             return true;
         }
         return false;
