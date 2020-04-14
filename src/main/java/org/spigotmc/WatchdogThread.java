@@ -82,7 +82,12 @@ public class WatchdogThread extends Thread
 
                 if ( restart )
                 {
-                    CatServer.runWatchdogForceExitTask();
+                    MinecraftServer.getServerInst().primaryThread.suspend();
+                    new java.util.Timer("WatchdogForceExitTask").schedule(new java.util.TimerTask() {
+                        public void run() {
+                            System.exit(0);
+                        }
+                    }, 300 * 1000);
                     RestartCommand.restart();
                 }
                 break;

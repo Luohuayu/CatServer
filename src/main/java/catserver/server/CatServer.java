@@ -3,12 +3,9 @@ package catserver.server;
 import net.minecraft.server.MinecraftServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bukkit.Bukkit;
 import org.spigotmc.AsyncCatcher;
 
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class CatServer {
     public static final Logger log = LogManager.getLogger("CatServer");
@@ -39,15 +36,6 @@ public class CatServer {
             return true;
         }
         return false;
-    }
-
-    public static void runWatchdogForceExitTask() {
-        MinecraftServer.getServerInst().primaryThread.suspend();
-        new Timer("WatchdogForceExitTask").schedule(new TimerTask() {
-            public void run() {
-                Runtime.getRuntime().exit(0);
-            }
-        }, 300 * 1000);
     }
 
     public static boolean isSendDataSerializers(Map<String, String> modList) {
