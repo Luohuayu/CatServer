@@ -59,6 +59,7 @@ public class WatchdogThread extends Thread
                 Logger log = Bukkit.getServer().getLogger();
                 log.log( Level.SEVERE, "The server has stopped responding!" );
                 log.log( Level.SEVERE, "Spigot version: " + Bukkit.getServer().getVersion() );
+                log.log( Level.SEVERE, "Memory using: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576) + "MB/" + (Runtime.getRuntime().totalMemory() / 1048576) + "MB/" + (Runtime.getRuntime().maxMemory() / 1048576) + "MB" );
                 //
                 if(net.minecraft.world.World.haveWeSilencedAPhysicsCrash)
                 {
@@ -82,7 +83,12 @@ public class WatchdogThread extends Thread
 
                 if ( restart )
                 {
-                    CatServer.runWatchdogForceExitTask();
+                    MinecraftServer.getServerInst().primaryThread.suspend();
+                    new java.util.Timer("WatchdogForceExitTask").schedule(new java.util.TimerTask() {
+                        public void run() {
+                            System.exit(0);
+                        }
+                    }, 300 * 1000);
                     RestartCommand.restart();
                 }
                 break;
