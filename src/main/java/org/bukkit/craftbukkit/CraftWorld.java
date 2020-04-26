@@ -697,6 +697,7 @@ public class CraftWorld implements World {
     }
 
     public void setEnvironment(Environment env) {
+        if (env == null) return; // CatServer
         if (environment != env) {
             environment = env;
             world.provider = net.minecraft.world.WorldProvider.getProviderForDimension(environment.getId());

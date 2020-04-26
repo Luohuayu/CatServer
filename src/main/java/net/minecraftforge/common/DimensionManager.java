@@ -154,7 +154,7 @@ public class DimensionManager
             usedIds.add(id);
         }
         // CatServer - register Environment to Bukkit
-        if (id >= -1 && id <= 1) // ignore vanilla
+        if (id < -1 || id > 1) // ignore vanilla
         {
             registerBukkitDimension(id, type.getName());
         }
@@ -574,6 +574,21 @@ public class DimensionManager
             registerDimension(dim, type);
             addBukkitDimension(dim);
         }
+
+        if (env == null) {
+            try {
+                env = Environment.getEnvironment(DimensionManager.createProviderFor(dim).getDimension());
+            }
+            catch (Exception e)
+            {
+                // do nothing
+            }
+
+            if (env == null) {
+                env = Environment.NORMAL;
+            }
+        }
+
         ChunkGenerator gen = creator.generator();
         if (mcServer instanceof DedicatedServer) {
             worldSettings.setGeneratorOptions(((DedicatedServer) mcServer).getStringProperty("generator-settings", ""));
