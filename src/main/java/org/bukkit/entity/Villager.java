@@ -123,7 +123,11 @@ public interface Villager extends Ageable, NPC, InventoryHolder, Merchant {
          * @deprecated Unused
          */
         @Deprecated
-        HUSK(true);
+        HUSK(true),
+        /**
+         * MOD Custom
+         */
+        MOD_CUSTOM(false); // CatServer
         private final boolean zombie;
 
         private Profession(boolean zombie) {
