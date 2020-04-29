@@ -5,8 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spigotmc.AsyncCatcher;
 
-import java.util.Map;
-
 public class CatServer {
     public static final Logger log = LogManager.getLogger("CatServer");
     private static final String version = "2.1.0";
@@ -36,18 +34,6 @@ public class CatServer {
             return true;
         }
         return false;
-    }
-
-    public static boolean isSendDataSerializers(Map<String, String> modList) {
-        String forgeVersion = modList.get("forge");
-        if (forgeVersion != null) {
-            try {
-                if (Integer.parseInt(forgeVersion.split("\\.")[3]) < 2826) {
-                    return false;
-                }
-            } catch (Exception ignored) {}
-        }
-        return true;
     }
 
     public static CatServerConfig getConfig() {
