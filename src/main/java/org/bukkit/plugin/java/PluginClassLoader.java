@@ -16,8 +16,6 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import catserver.server.patcher.IPatcher;
-import catserver.server.patcher.PatcherManager;
 import io.netty.util.internal.ConcurrentSet;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraft.server.MinecraftServer;
@@ -27,10 +25,10 @@ import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
 
 import catserver.server.CatServer;
-import catserver.server.remapper.CatServerRemapper;
-import catserver.server.remapper.ClassInheritanceProvider;
-import catserver.server.remapper.MappingLoader;
-import catserver.server.remapper.ReflectionTransformer;
+import catserver.server.patcher.IPatcher;
+import catserver.server.patcher.PatcherManager;
+import catserver.server.remapper.*;
+
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
@@ -111,7 +109,7 @@ final class PluginClassLoader extends URLClassLoader {
     }
 
     Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
-        if (remapper.isNeedRemap(name)) {
+        if (RemapRules.isNMSPackage(name)) {
             String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
             return launchClassLoader.findClass(remappedClass);
         }

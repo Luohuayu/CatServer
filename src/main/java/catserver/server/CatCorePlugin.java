@@ -1,7 +1,7 @@
 package catserver.server;
 
-import catserver.server.remapper.MethodTransformer;
-import catserver.server.remapper.SideTransformer;
+import catserver.server.asm.MethodTransformer;
+import catserver.server.asm.SideTransformer;
 import net.minecraftforge.fml.relauncher.FMLLaunchHandler;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 

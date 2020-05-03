@@ -1,4 +1,4 @@
-package catserver.server.remapper;
+package catserver.server.asm;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;

@@ -1,4 +1,4 @@
-package catserver.server.remapper;
+package catserver.server.asm;
 
 import java.util.function.Predicate;
 
