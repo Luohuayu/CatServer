@@ -23,8 +23,7 @@ public class LibrariesManager {
 
         Map<File, String> librariesNeedDownload = new HashMap<>();
 
-        try {
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(listStream));
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(listStream))) {
             String str = null;
             while((str = bufferedReader.readLine()) != null)
             {
@@ -53,7 +52,6 @@ public class LibrariesManager {
                     }
                 }
             }
-            bufferedReader.close();
         } catch (IOException e) {
             System.out.println(e.toString());
         }
