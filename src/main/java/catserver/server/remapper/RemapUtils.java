@@ -25,7 +25,7 @@ public class RemapUtils {
     }
 
     public static String reverseMap(String check) {
-        return ReflectionTransformer.classDeMapping.getOrDefault(check, check);
+        return ReflectionTransformer.classReverseMapping.getOrDefault(check, check);
     }
 
     // Methods
@@ -91,7 +91,7 @@ public class RemapUtils {
     public static final String NMS_PREFIX = "net/minecraft/server/";
     public static final String NMS_VERSION = CatServer.getNativeVersion();
 
-    public static String mapClass(String className) {
+    public static String fixPackageAndMapClass(String className) {
         String remapped = JarRemapper.mapTypeName(className, ReflectionTransformer.jarMapping.packages, ReflectionTransformer.jarMapping.classes, className);
         if (remapped.equals(className) && className.startsWith(NMS_PREFIX) && !className.contains(NMS_VERSION)) {
             // Try fix package
@@ -101,11 +101,11 @@ public class RemapUtils {
         return remapped;
     }
 
-    public static String demapFieldName(Field field) {
+    public static String reverseFiled(Field field) {
         String name = field.getName();
         String match = reverseMap(field.getDeclaringClass()) + "/";
 
-        Collection<String> colls = ReflectionTransformer.fieldDeMapping.get(name);
+        Collection<String> colls = ReflectionTransformer.fieldReverseMapping.get(name);
 
         for (String value : colls) {
             if (value.startsWith(match)) {
@@ -118,16 +118,16 @@ public class RemapUtils {
         return name;
     }
 
-    public static String demapMethodName(Method method) {
+    public static String reverseMethodName(Method method) {
         String name = method.getName();
         String match = reverseMap(method.getDeclaringClass()) + "/";
 
-        Collection<String> colls = ReflectionTransformer.methodDeMapping.get(name);
+        Collection<String> colls = ReflectionTransformer.methodReverseMapping.get(name);
 
         for (String value : colls) {
             if (value.startsWith(match)) {
                 String[] matched = value.split("\\s+")[0].split("\\/");
-                String rtr =  matched[matched.length - 1];
+                String rtr = matched[matched.length - 1];
                 return rtr;
             }
         }
@@ -135,7 +135,7 @@ public class RemapUtils {
         return name;
     }
 
-    public static boolean isClassNeedRemap(Class<?> clazz, boolean checkSuperClass) {
+    public static boolean isNeedRemapClass(Class<?> clazz, boolean checkSuperClass) {
         final String className = clazz.getName();
         Boolean cache = classNeedRemap.get(className);
         if (cache != null) return cache;
@@ -147,7 +147,7 @@ public class RemapUtils {
             }
             if (checkSuperClass) {
                 for (Class<?> interfaceClass : clazz.getInterfaces()) {
-                    if (isClassNeedRemap(interfaceClass, true))
+                    if (isNeedRemapClass(interfaceClass, true))
                         return true;
                 }
                 clazz = clazz.getSuperclass();

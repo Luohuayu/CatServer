@@ -13,7 +13,6 @@ public class PatcherManager {
     static {
         registerPluginPatcher("dynmap", new DynmapPacher());
         registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
-        registerPluginPatcher("AntiPayloadHax", new DisablePluginPatcher("It will break MOD network channel"));
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {

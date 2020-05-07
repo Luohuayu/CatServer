@@ -86,7 +86,7 @@ public class WatchdogThread extends Thread
                     MinecraftServer.getServerInst().primaryThread.suspend();
                     new java.util.Timer("WatchdogForceExitTask").schedule(new java.util.TimerTask() {
                         public void run() {
-                            System.exit(0);
+                            Runtime.getRuntime().halt(0);
                         }
                     }, 300 * 1000);
                     RestartCommand.restart();

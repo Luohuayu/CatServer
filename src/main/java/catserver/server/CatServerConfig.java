@@ -17,6 +17,7 @@ public class CatServerConfig {
     public long worldGenMaxTickTime = 15000000L;
     public List<String> disableForgeGenerateWorlds = Arrays.asList("ExampleCustomWorld");
     public boolean preventBlockLoadChunk = false;
+    public List<Integer> autoUnloadDimensions = Arrays.asList(99999999);
 
     public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
     public boolean fakePlayerEventPass = false;
@@ -38,6 +39,7 @@ public class CatServerConfig {
         worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", 15) * 1000000;
         disableForgeGenerateWorlds = getOrWriteStringListConfig("world.disableForgeGenerateWorlds", disableForgeGenerateWorlds);
         preventBlockLoadChunk = getOrWriteBooleanConfig("world.preventBlockLoadChunk", preventBlockLoadChunk);
+        autoUnloadDimensions = getOrWriteIntegerListConfig("world.autoUnloadDimensions", autoUnloadDimensions);
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
@@ -72,6 +74,14 @@ public class CatServerConfig {
     private List<String> getOrWriteStringListConfig(String path, List<String> def) {
         if (config.contains(path)) {
             return config.getStringList(path);
+        }
+        config.set(path, def);
+        return def;
+    }
+
+    private List<Integer> getOrWriteIntegerListConfig(String path, List<Integer> def) {
+        if (config.contains(path)) {
+            return config.getIntegerList(path);
         }
         config.set(path, def);
         return def;
