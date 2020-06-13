@@ -21,10 +21,12 @@ public class CraftBanner extends CraftBlockEntityState<TileEntityBanner> impleme
 
     public CraftBanner(final Block block) {
         super(block, TileEntityBanner.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftBanner(final Material material, final TileEntityBanner te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override

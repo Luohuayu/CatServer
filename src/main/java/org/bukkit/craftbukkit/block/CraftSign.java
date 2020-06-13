@@ -14,10 +14,12 @@ public class CraftSign extends CraftBlockEntityState<TileEntitySign> implements 
 
     public CraftSign(final Block block) {
         super(block, TileEntitySign.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftSign(final Material material, final TileEntitySign te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override

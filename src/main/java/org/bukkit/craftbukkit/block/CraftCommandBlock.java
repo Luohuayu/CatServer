@@ -12,10 +12,12 @@ public class CraftCommandBlock extends CraftBlockEntityState<TileEntityCommandBl
 
     public CraftCommandBlock(Block block) {
         super(block, TileEntityCommandBlock.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftCommandBlock(final Material material, final TileEntityCommandBlock te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override

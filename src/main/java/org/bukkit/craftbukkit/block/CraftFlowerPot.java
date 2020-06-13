@@ -14,10 +14,12 @@ public class CraftFlowerPot extends CraftBlockEntityState<TileEntityFlowerPot> i
 
     public CraftFlowerPot(Block block) {
         super(block, TileEntityFlowerPot.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftFlowerPot(Material material, TileEntityFlowerPot te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override

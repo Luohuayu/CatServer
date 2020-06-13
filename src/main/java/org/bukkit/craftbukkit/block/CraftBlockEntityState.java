@@ -17,9 +17,10 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
     private boolean isSnapshotInit = false;
     private final NBTTagCompound nbtSnapshot;
 
-    private void initSnapshotFromNbt() {
+    protected void initSnapshotFromNbt() {
         if (!isSnapshotInit) {
             this.snapshot = nbtSnapshot != null ? (T) TileEntity.create(tileEntity.getWorld(), nbtSnapshot) : null;
+            load(snapshot);
             isSnapshotInit = true;
         }
     }
@@ -106,7 +107,6 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
 
     // copies the data of the given tile entity to this block state
     protected void load(T tileEntity) {
-        initSnapshotFromNbt(); // CatServer
         if (tileEntity != null && tileEntity != snapshot) {
             copyData(tileEntity, snapshot);
         }
