@@ -22,10 +22,12 @@ public class CraftSkull extends CraftBlockEntityState<TileEntitySkull> implement
 
     public CraftSkull(final Block block) {
         super(block, TileEntitySkull.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftSkull(final Material material, final TileEntitySkull te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override

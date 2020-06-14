@@ -30,6 +30,7 @@ public class InventoryMoveItemEvent extends Event implements Cancellable {
     private final Inventory destinationInventory;
     private ItemStack itemStack;
     private final boolean didSourceInitiate;
+    public boolean isCallSetItem = false; // CatServer
 
     public InventoryMoveItemEvent(final Inventory sourceInventory, final ItemStack itemStack, final Inventory destinationInventory, final boolean didSourceInitiate) {
         Validate.notNull(itemStack, "ItemStack cannot be null");
@@ -68,6 +69,7 @@ public class InventoryMoveItemEvent extends Event implements Cancellable {
     public void setItem(ItemStack itemStack) {
         Validate.notNull(itemStack, "ItemStack cannot be null.  Cancel the event if you want nothing to be transferred.");
         this.itemStack = itemStack.clone();
+        this.isCallSetItem = true; // CatServer - record set item
     }
 
     /**
@@ -104,5 +106,9 @@ public class InventoryMoveItemEvent extends Event implements Cancellable {
 
     public static HandlerList getHandlerList() {
         return handlers;
+    }
+
+    public ItemStack getRawItem() {
+        return this.itemStack;
     }
 }

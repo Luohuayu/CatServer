@@ -11,7 +11,20 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
 
     private final Class<T> tileEntityClass;
     private final T tileEntity;
-    private final T snapshot;
+    private T snapshot; // CatServer - remove final
+
+    // CatServer start
+    private boolean isSnapshotInit = false;
+    private final NBTTagCompound nbtSnapshot;
+
+    protected void initSnapshotFromNbt() {
+        if (!isSnapshotInit) {
+            this.snapshot = nbtSnapshot != null ? (T) TileEntity.create(tileEntity.getWorld(), nbtSnapshot) : null;
+            load(snapshot);
+            isSnapshotInit = true;
+        }
+    }
+    // CatServer end
 
     public CraftBlockEntityState(Block block, Class<T> tileEntityClass) {
         super(block);
@@ -22,9 +35,12 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
         CraftWorld world = (CraftWorld) this.getWorld();
         this.tileEntity = tileEntityClass.cast(world.getTileEntityAt(this.getX(), this.getY(), this.getZ()));
 
+        nbtSnapshot = tileEntity != null ? tileEntity.writeToNBT(new NBTTagCompound()) : null; // CatServer
+        /*
         // copy tile entity data:
         this.snapshot = this.createSnapshot(tileEntity);
         this.load(snapshot);
+        */
     }
 
     public CraftBlockEntityState(Material material, T tileEntity) {
@@ -33,9 +49,12 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
         this.tileEntityClass = (Class<T>) tileEntity.getClass();
         this.tileEntity = tileEntity;
 
+        nbtSnapshot = tileEntity != null ? tileEntity.writeToNBT(new NBTTagCompound()) : null; // CatServer
+        /*
         // copy tile entity data:
         this.snapshot = this.createSnapshot(tileEntity);
         this.load(snapshot);
+        */
     }
 
     private T createSnapshot(T tileEntity) {
@@ -66,6 +85,7 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
 
     // gets the cloned TileEntity which is used to store the captured data
     protected T getSnapshot() {
+        initSnapshotFromNbt(); // CatServer
         return snapshot;
     }
 
@@ -78,6 +98,7 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
 
     // gets the NBT data of the TileEntity represented by this block state
     public NBTTagCompound getSnapshotNBT() {
+        initSnapshotFromNbt(); // CatServer
         // update snapshot
         applyTo(snapshot);
 
@@ -93,6 +114,7 @@ public class CraftBlockEntityState<T extends TileEntity> extends CraftBlockState
 
     // applies the TileEntity data of this block state to the given TileEntity
     protected void applyTo(T tileEntity) {
+        initSnapshotFromNbt(); // CatServer
         if (tileEntity != null && tileEntity != snapshot) {
             copyData(snapshot, tileEntity);
         }

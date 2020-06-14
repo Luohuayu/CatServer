@@ -14,10 +14,12 @@ public class CraftBed extends CraftBlockEntityState<TileEntityBed> implements Be
 
     public CraftBed(Block block) {
         super(block, TileEntityBed.class);
+        initSnapshotFromNbt(); // CatServer
     }
 
     public CraftBed(Material material, TileEntityBed te) {
         super(material, te);
+        initSnapshotFromNbt(); // CatServer
     }
 
     @Override
