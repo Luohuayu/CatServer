@@ -1,5 +1,6 @@
 package catserver.server;
 
+import catserver.server.threads.RealtimeThread;
 import net.minecraft.server.MinecraftServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,12 +13,18 @@ public class CatServer {
 
     private static CatServerConfig config = new CatServerConfig("catserver.yml");
 
+    private static final RealtimeThread realtimeThread = new RealtimeThread();
+
     public static String getVersion(){
         return version;
     }
 
     public static String getNativeVersion() {
         return native_version;
+    }
+
+    public static void onServerStart() {
+        realtimeThread.start();
     }
 
     public static boolean asyncCatch(String reason) {
@@ -42,5 +49,9 @@ public class CatServer {
 
     public static void postPrimaryThread(Runnable runnable) {
         MinecraftServer.getServerInst().addScheduledTask(runnable);
+    }
+
+    public static int getCurrentTick() {
+        return getConfig().enableRealtime ? RealtimeThread.currentTick : MinecraftServer.currentTick;
     }
 }

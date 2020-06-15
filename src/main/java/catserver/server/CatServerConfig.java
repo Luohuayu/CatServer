@@ -18,6 +18,7 @@ public class CatServerConfig {
     public List<String> disableForgeGenerateWorlds = Arrays.asList("ExampleCustomWorld");
     public boolean preventBlockLoadChunk = false;
     public List<Integer> autoUnloadDimensions = Arrays.asList(99999999);
+    public boolean enableRealtime = false;
 
     public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
     public boolean fakePlayerEventPass = false;
@@ -40,6 +41,7 @@ public class CatServerConfig {
         disableForgeGenerateWorlds = getOrWriteStringListConfig("world.disableForgeGenerateWorlds", disableForgeGenerateWorlds);
         preventBlockLoadChunk = getOrWriteBooleanConfig("world.preventBlockLoadChunk", preventBlockLoadChunk);
         autoUnloadDimensions = getOrWriteIntegerListConfig("world.autoUnloadDimensions", autoUnloadDimensions);
+        enableRealtime = getOrWriteBooleanConfig("world.enableRealtime", enableRealtime);
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
