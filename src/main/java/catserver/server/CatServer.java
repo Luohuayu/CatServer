@@ -57,7 +57,7 @@ public class CatServer {
     }
 
     public static void forceSaveWorlds() {
-        log.info("Force saving worlds..");
+        log.info("Force save worlds:");
         boolean oldAsyncCatcher = AsyncCatcher.enabled;
         AsyncCatcher.enabled = false;
 
