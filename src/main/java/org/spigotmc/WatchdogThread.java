@@ -89,6 +89,7 @@ public class WatchdogThread extends Thread
                             Runtime.getRuntime().halt(0);
                         }
                     }, 300 * 1000);
+                    if (CatServer.getConfig().forceSaveOnWatchdog) CatServer.forceSaveWorlds();
                     RestartCommand.restart();
                 }
                 break;

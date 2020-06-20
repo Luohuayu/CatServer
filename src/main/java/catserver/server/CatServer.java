@@ -2,6 +2,7 @@ package catserver.server;
 
 import catserver.server.threads.RealtimeThread;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spigotmc.AsyncCatcher;
@@ -53,5 +54,31 @@ public class CatServer {
 
     public static int getCurrentTick() {
         return getConfig().enableRealtime ? RealtimeThread.currentTick : MinecraftServer.currentTick;
+    }
+
+    public static void forceSaveWorlds() {
+        log.info("Force saving worlds..");
+        boolean oldAsyncCatcher = AsyncCatcher.enabled;
+        AsyncCatcher.enabled = false;
+
+        try {
+            log.info("Force saving players..");
+            MinecraftServer.getServerInst().getPlayerList().saveAllPlayerData();
+
+            log.info("Force saving chunks..");
+            for (WorldServer worldServer : MinecraftServer.getServerInst().worldServerList) {
+                try {
+                    worldServer.saveAllChunks(true, null);
+                    worldServer.flushToDisk();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        AsyncCatcher.enabled = oldAsyncCatcher;
+        log.info("Force save complete!");
     }
 }
