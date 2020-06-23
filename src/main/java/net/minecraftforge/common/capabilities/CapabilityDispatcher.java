@@ -21,10 +21,7 @@ package net.minecraftforge.common.capabilities;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.List;
 import java.util.Map;
-
-import com.google.common.collect.Lists;
 
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
@@ -44,9 +41,8 @@ import net.minecraftforge.common.util.INBTSerializable;
  */
 public final class CapabilityDispatcher implements INBTSerializable<NBTTagCompound>, ICapabilityProvider
 {
-    private ICapabilityProvider[] caps;
-    private INBTSerializable<NBTBase>[] writers;
-    private String[] names;
+    private final FastCapability[] fastCapabilities;
+    private int writerCount = 0;
 
     public CapabilityDispatcher(Map<ResourceLocation, ICapabilityProvider> list)
     {
@@ -56,42 +52,43 @@ public final class CapabilityDispatcher implements INBTSerializable<NBTTagCompou
     @SuppressWarnings("unchecked")
     public CapabilityDispatcher(Map<ResourceLocation, ICapabilityProvider> list, @Nullable ICapabilityProvider parent)
     {
-        List<ICapabilityProvider> lstCaps = Lists.newArrayList();
-        List<INBTSerializable<NBTBase>> lstWriters = Lists.newArrayList();
-        List<String> lstNames = Lists.newArrayList();
+        int indexOffset = 0;
+        fastCapabilities = new FastCapability[parent != null ? list.size() + 1 : list.size()];
 
         if (parent != null) // Parents go first!
         {
-            lstCaps.add(parent);
+            FastCapability fastCapability = new FastCapability(parent);
             if (parent instanceof INBTSerializable)
             {
-                lstWriters.add((INBTSerializable<NBTBase>)parent);
-                lstNames.add("Parent");
+                fastCapability.writer = (INBTSerializable<NBTBase>)parent;
+                fastCapability.name = "Parent";
+                writerCount++;
             }
+
+            fastCapabilities[indexOffset++] = fastCapability;
         }
 
         for (Map.Entry<ResourceLocation, ICapabilityProvider> entry : list.entrySet())
         {
             ICapabilityProvider prov = entry.getValue();
-            lstCaps.add(prov);
+
+            FastCapability fastCapability = new FastCapability(prov);
             if (prov instanceof INBTSerializable)
             {
-                lstWriters.add((INBTSerializable<NBTBase>)prov);
-                lstNames.add(entry.getKey().toString());
+                fastCapability.writer = (INBTSerializable<NBTBase>)prov;
+                fastCapability.name = entry.getKey().toString();
+                writerCount++;
             }
+            fastCapabilities[indexOffset++] = fastCapability;
         }
-
-        caps = lstCaps.toArray(new ICapabilityProvider[0]);
-        writers = lstWriters.toArray(new INBTSerializable[0]);
-        names = lstNames.toArray(new String[0]);
     }
 
     @Override
     public boolean hasCapability(@Nonnull Capability<?> capability, @Nullable EnumFacing facing)
     {
-        for (ICapabilityProvider cap : caps)
+        for (FastCapability fastCapability : fastCapabilities)
         {
-            if (cap.hasCapability(capability, facing))
+            if (fastCapability.cap.hasCapability(capability, facing))
             {
                 return true;
             }
@@ -103,9 +100,9 @@ public final class CapabilityDispatcher implements INBTSerializable<NBTTagCompou
     @Nullable
     public <T> T getCapability(@Nonnull Capability<T> capability, @Nullable EnumFacing facing)
     {
-        for (ICapabilityProvider cap : caps)
+        for (FastCapability fastCapability : fastCapabilities)
         {
-            T ret = cap.getCapability(capability, facing);
+            T ret = fastCapability.cap.getCapability(capability, facing);
             if (ret != null)
             {
                 return ret;
@@ -118,9 +115,10 @@ public final class CapabilityDispatcher implements INBTSerializable<NBTTagCompou
     public NBTTagCompound serializeNBT()
     {
         NBTTagCompound nbt = new NBTTagCompound();
-        for (int x = 0; x < writers.length; x++)
+        for (FastCapability fastCapability : fastCapabilities)
         {
-            nbt.setTag(names[x], writers[x].serializeNBT());
+            if (fastCapability.writer == null) continue;
+            nbt.setTag(fastCapability.name, fastCapability.writer.serializeNBT());
         }
         return nbt;
     }
@@ -128,19 +126,30 @@ public final class CapabilityDispatcher implements INBTSerializable<NBTTagCompou
     @Override
     public void deserializeNBT(NBTTagCompound nbt)
     {
-        for (int x = 0; x < writers.length; x++)
+        for (FastCapability fastCapability : fastCapabilities)
         {
-            if (nbt.hasKey(names[x]))
+            if (fastCapability.writer == null) continue;
+            if (nbt.hasKey(fastCapability.name))
             {
-                writers[x].deserializeNBT(nbt.getTag(names[x]));
+                fastCapability.writer.deserializeNBT(nbt.getTag(fastCapability.name));
             }
         }
     }
 
     public boolean areCompatible(CapabilityDispatcher other) //Called from ItemStack to compare equality.
     {                                                        // Only compares serializeable caps.
-        if (other == null) return this.writers.length == 0;  // Done this way so we can do some pre-checks before doing the costly NBT serialization and compare
-        if (this.writers.length == 0) return other.writers.length == 0;
+        if (other == null) return this.writerCount == 0;  // Done this way so we can do some pre-checks before doing the costly NBT serialization and compare
+        if (this.writerCount == 0) return other.writerCount == 0;
         return this.serializeNBT().equals(other.serializeNBT());
+    }
+
+    static class FastCapability {
+        public ICapabilityProvider cap;
+        public INBTSerializable<NBTBase> writer;
+        public String name;
+
+        public FastCapability(ICapabilityProvider cap) {
+            this.cap = cap;
+        }
     }
 }
