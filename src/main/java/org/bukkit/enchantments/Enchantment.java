@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.bukkit.inventory.ItemStack;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+
 /**
  * The various type of enchantments that may be added to armour or weapons
  */
@@ -160,7 +162,7 @@ public abstract class Enchantment {
      */
     public static final Enchantment VANISHING_CURSE = new EnchantmentWrapper(71);
 
-    private static final Map<Integer, Enchantment> byId = new HashMap<Integer, Enchantment>();
+    private static final Map<Integer, Enchantment> byId = new Int2ObjectLinkedOpenHashMap<Enchantment>();
     private static final Map<String, Enchantment> byName = new HashMap<String, Enchantment>();
     private static boolean acceptingNew = true;
     private final int id;
