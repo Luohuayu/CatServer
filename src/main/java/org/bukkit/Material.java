@@ -67,8 +67,6 @@ import org.bukkit.material.Observer;
 
 import javax.annotation.Nullable;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-
 /**
  * An enum of all material IDs accepted by the official server and client
  */
@@ -544,8 +542,8 @@ public enum Material {
 
     private final int id;
     private final Constructor<? extends MaterialData> ctor;
-    private static Map<Integer, Material> byId = new Int2ObjectLinkedOpenHashMap<Material>();
-    private static Map<Integer, Material> blockById = new Int2ObjectLinkedOpenHashMap<Material>();
+    private static Material[] byId = new Material[32000];
+    private static Material[] blockById = new Material[32000];
     private final static Map<String, Material> BY_NAME = Maps.newHashMap();
     private final static Map<String, Material> BLOCK_BY_NAME = Maps.newHashMap();
     private final int maxStack;
@@ -655,7 +653,10 @@ public enum Material {
      * @return true if this material is a block
      */
     public boolean isBlock() {
-        return blockById.containsValue(this);
+        for (Material material : blockById) {
+            if (this == material) return true;
+        }
+        return false;
     }
 
     /**
@@ -710,8 +711,8 @@ public enum Material {
      */
     @Deprecated
     public static Material getMaterial(final int id) {
-        if (id >= 0) {
-            return byId.get(id);
+        if (byId.length > id && id >= 0) {
+            return byId[id];
         } else {
             return null;
         }
@@ -763,7 +764,12 @@ public enum Material {
 
     static {
         for (Material material : values()) {
-            byId.put(material.id, material);
+            if (byId.length > material.id) {
+                byId[material.id] = material;
+            } else {
+                byId = Arrays.copyOfRange(byId, 0, material.id + 2);
+                byId[material.id] = material;
+            }
             BY_NAME.put(material.name(), material);
         }
     }
@@ -1458,8 +1464,8 @@ public enum Material {
     // CatServer start
 	@Nullable
     public static Material addMaterial(Material material) {
-        if (byId.get(material.id) == null) {
-            byId.put(material.id, material);
+        if (byId[material.id] == null) {
+            byId[material.id] = material;
             BY_NAME.put(material.name().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", ""), material);
             BY_NAME.put("X" + String.valueOf(material.id), material);
             return material;
@@ -1469,8 +1475,8 @@ public enum Material {
 
 	@Nullable
     public static Material addBlockMaterial(Material material) {
-        if (blockById.get(material.id) == null) {
-            blockById.put(material.id, material);
+        if (blockById[material.id] == null) {
+            blockById[material.id] = material;
             BLOCK_BY_NAME.put(material.name().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", ""), material);
             BLOCK_BY_NAME.put("X" + String.valueOf(material.id), material);
             return material;
@@ -1479,8 +1485,8 @@ public enum Material {
     }
 
     public static Material getBlockMaterial(final int id) {
-        if (id >= 0) {
-            return blockById.get(id);
+        if (blockById.length > id && id >= 0) {
+            return blockById[id];
         } else {
             return null;
         }
