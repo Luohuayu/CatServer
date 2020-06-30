@@ -230,7 +230,7 @@ public abstract class PotionEffectType {
         return "PotionEffectType[" + id + ", " + getName() + "]";
     }
 
-    private static final PotionEffectType[] byId = new PotionEffectType[255];
+    private static PotionEffectType[] byId = new PotionEffectType[255];
     private static final Map<String, PotionEffectType> byName = new HashMap<String, PotionEffectType>();
     // will break on updates.
     private static boolean acceptingNew = true;
@@ -268,6 +268,12 @@ public abstract class PotionEffectType {
      * @param type PotionType to register
      */
     public static void registerPotionEffectType(PotionEffectType type) {
+        if (type.id > byId.length - 1) {
+            PotionEffectType[] newById = new PotionEffectType[(int) (byId.length / 0.75)];
+            System.arraycopy(byId, 0, newById, 0, byId.length);
+            byId = newById;
+        }
+
         if (byId[type.id] != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH))) {
             throw new IllegalArgumentException("Cannot set already-set type");
         } else if (!acceptingNew) {

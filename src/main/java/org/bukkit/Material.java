@@ -1464,6 +1464,11 @@ public enum Material {
     // CatServer start
 	@Nullable
     public static Material addMaterial(Material material) {
+        if (material.id > byId.length - 1) {
+            Material[] newById = new Material[(int) (byId.length / 0.75)];
+            System.arraycopy(byId, 0, newById, 0, byId.length);
+            byId = newById;
+        }
         if (byId[material.id] == null) {
             byId[material.id] = material;
             BY_NAME.put(material.name().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", ""), material);
@@ -1475,6 +1480,11 @@ public enum Material {
 
 	@Nullable
     public static Material addBlockMaterial(Material material) {
+        if (material.id > blockById.length - 1) {
+            Material[] newBlockById = new Material[(int) (blockById.length / 0.75)];
+            System.arraycopy(blockById, 0, newBlockById, 0, blockById.length);
+            blockById = newBlockById;
+        }
         if (blockById[material.id] == null) {
             blockById[material.id] = material;
             BLOCK_BY_NAME.put(material.name().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", ""), material);
