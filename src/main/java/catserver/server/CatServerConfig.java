@@ -24,6 +24,11 @@ public class CatServerConfig {
     public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
     public boolean fakePlayerEventPass = false;
 
+    public boolean fixPlayBossSoundToOtherWorld = true;
+    public boolean fixLessCrystalRespawnDragon = false;
+    public boolean preventPistonPushRail = false;
+    public boolean preventPistonPushSlimeBlock = false;
+
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
     public boolean disableFMLStatusModInfo = false;
@@ -47,6 +52,11 @@ public class CatServerConfig {
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
+        // vanilla
+        fixPlayBossSoundToOtherWorld = getOrWriteBooleanConfig("vanilla.fixPlayBossSoundToOtherWorld", fixPlayBossSoundToOtherWorld);
+        fixLessCrystalRespawnDragon = getOrWriteBooleanConfig("vanilla.fixLessCrystalRespawnDragon", fixLessCrystalRespawnDragon);
+        preventPistonPushRail = getOrWriteBooleanConfig("vanilla.preventPistonPushRail", preventPistonPushRail);
+        preventPistonPushSlimeBlock = getOrWriteBooleanConfig("vanilla.preventPistonPushSlimeBlock", preventPistonPushRail);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
