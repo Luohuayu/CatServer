@@ -23,7 +23,6 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
-import catserver.server.CatServer;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementRewards;
@@ -171,8 +170,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
 import com.mojang.authlib.GameProfile;
 
-import catserver.server.command.CraftSimpleCommandMap;
-import catserver.server.remapper.ReflectionTransformer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
@@ -182,6 +179,10 @@ import jline.console.ConsoleReader;
 import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.event.server.TabCompleteEvent;
+
+import catserver.server.CatServer;
+import catserver.server.command.CraftSimpleCommandMap;
+import catserver.server.remapper.ReflectionTransformer;
 
 public final class CraftServer implements Server {
     private final String serverName = "CatServer";
@@ -682,6 +683,7 @@ public final class CraftServer implements Server {
 
     // NOTE: Should only be called from DedicatedServer.ah()
     public boolean dispatchServerCommand(CommandSender sender, PendingCommand serverCommand) {
+
         if (sender instanceof Conversable) {
             Conversable conversable = (Conversable) sender;
 
@@ -703,6 +705,7 @@ public final class CraftServer implements Server {
 
     @Override
     public boolean dispatchCommand(CommandSender sender, String commandLine) {
+        if (CatServer.asyncCatch("dispatch command")) return CatServer.postPrimaryThread(() -> dispatchCommand(sender, commandLine));
         Validate.notNull(sender, "Sender cannot be null");
         Validate.notNull(commandLine, "CommandLine cannot be null");
 
