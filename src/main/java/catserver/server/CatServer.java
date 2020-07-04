@@ -1,11 +1,18 @@
 package catserver.server;
 
 import catserver.server.threads.RealtimeThread;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bukkit.craftbukkit.util.Waitable;
 import org.spigotmc.AsyncCatcher;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 public class CatServer {
     public static final Logger log = LogManager.getLogger("CatServer");
@@ -14,6 +21,7 @@ public class CatServer {
 
     private static CatServerConfig config = new CatServerConfig("catserver.yml");
 
+    private static final Executor asyncExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("CatServer Async Task Handler Thread - %1$d").build());
     private static final RealtimeThread realtimeThread = new RealtimeThread();
 
     public static String getVersion(){
@@ -36,20 +44,27 @@ public class CatServer {
         return false;
     }
 
-    public static boolean asyncCatch(String reason, Runnable runnable) {
-        if (asyncCatch(reason)) {
-            postPrimaryThread(runnable);
-            return true;
-        }
-        return false;
-    }
-
     public static CatServerConfig getConfig() {
         return config;
     }
 
     public static void postPrimaryThread(Runnable runnable) {
-        MinecraftServer.getServerInst().addScheduledTask(runnable);
+        postPrimaryThread(() -> { runnable.run(); return null; });
+    }
+
+    public static <T> T postPrimaryThread(Supplier<T> runnable) {
+        Waitable<T> wait = new Waitable<T>() {
+            @Override
+            protected T evaluate() {
+                return runnable.get();
+            }
+        };
+        MinecraftServer.getServerInst().processQueue.add(wait);
+        try {
+            return wait.get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static int getCurrentTick() {
@@ -80,5 +95,9 @@ public class CatServer {
 
         AsyncCatcher.enabled = oldAsyncCatcher;
         log.info("Force save complete!");
+    }
+
+    public static void scheduleAsyncTask(Runnable runnable) {
+        asyncExecutor.execute(runnable);
     }
 }
