@@ -31,6 +31,15 @@
          this.gson = gsonbuilder.create();
          this.load();
      }
+@@ -118,7 +118,7 @@
+         this.addEntry(gameProfile, (Date)null);
+     }
+ 
+-    private void addEntry(GameProfile gameProfile, Date expirationDate)
++    private synchronized void addEntry(GameProfile gameProfile, Date expirationDate) // Paper - synchronize
+     {
+         UUID uuid = gameProfile.getId();
+ 
 @@ -131,11 +131,11 @@
          }
  
@@ -38,10 +47,12 @@
 -        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = new PlayerProfileCache.ProfileEntry(gameProfile, expirationDate);
 +        ProfileEntry playerprofilecache$profileentry = new ProfileEntry(gameProfile, expirationDate);
  
-         if (this.uuidToProfileEntryMap.containsKey(uuid))
-         {
+-        if (this.uuidToProfileEntryMap.containsKey(uuid))
+-        {
 -            PlayerProfileCache.ProfileEntry playerprofilecache$profileentry1 = this.uuidToProfileEntryMap.get(uuid);
-+            ProfileEntry playerprofilecache$profileentry1 = this.uuidToProfileEntryMap.get(uuid);
++        // if (this.uuidToProfileEntryMap.containsKey(uuid)) { // Paper
++        ProfileEntry playerprofilecache$profileentry1 = this.uuidToProfileEntryMap.get(uuid);
++        if (playerprofilecache$profileentry1 != null) { // Paper
              this.usernameToProfileEntryMap.remove(playerprofilecache$profileentry1.getGameProfile().getName().toLowerCase(Locale.ROOT));
              this.gameProfiles.remove(gameProfile);
          }
@@ -54,7 +65,8 @@
      }
  
      @Nullable
-     public GameProfile getGameProfileForUsername(String username)
+-    public GameProfile getGameProfileForUsername(String username)
++    public synchronized GameProfile getGameProfileForUsername(String username) // Paper - synchronize
      {
          String s = username.toLowerCase(Locale.ROOT);
 -        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.usernameToProfileEntryMap.get(s);
@@ -62,7 +74,7 @@
  
          if (playerprofilecache$profileentry != null && (new Date()).getTime() >= playerprofilecache$profileentry.expirationDate.getTime())
          {
-@@ -177,7 +177,7 @@
+@@ -177,26 +177,26 @@
              }
          }
  
@@ -71,9 +83,16 @@
          return playerprofilecache$profileentry == null ? null : playerprofilecache$profileentry.getGameProfile();
      }
  
-@@ -190,13 +190,13 @@
+-    public String[] getUsernames()
++    public synchronized String[] getUsernames() // Paper - synchronize
+     {
+         List<String> list = Lists.newArrayList(this.usernameToProfileEntryMap.keySet());
+         return (String[])list.toArray(new String[list.size()]);
+     }
+ 
      @Nullable
-     public GameProfile getProfileByUUID(UUID uuid)
+-    public GameProfile getProfileByUUID(UUID uuid)
++    public synchronized GameProfile getProfileByUUID(UUID uuid) // Paper - synchronize
      {
 -        PlayerProfileCache.ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
 +        ProfileEntry playerprofilecache$profileentry = this.uuidToProfileEntryMap.get(uuid);
@@ -105,17 +124,37 @@
                  {
                      if (playerprofilecache$profileentry != null)
                      {
-@@ -247,7 +247,7 @@
+@@ -245,9 +245,16 @@
+         }
+     }
  
++    // Paper start
      public void save()
      {
 -        String s = this.gson.toJson(this.getEntriesWithLimit(1000));
++        save(true);
++    }
++    public void save(boolean asyncSave)
++    {
++        // Paper end
 +        String s = this.gson.toJson(this.getEntriesWithLimit(org.spigotmc.SpigotConfig.userCacheCap)); // Spigot
++        Runnable save = () -> {
          BufferedWriter bufferedwriter = null;
  
          try
-@@ -270,13 +270,13 @@
+@@ -268,15 +275,24 @@
+         {
+             IOUtils.closeQuietly((Writer)bufferedwriter);
          }
++        // Paper start
++        };
++        if (asyncSave) {
++            catserver.server.CatServer.scheduleAsyncTask(save);
++        } else {
++            save.run();
++        }
++        // Paper end
++
      }
  
 -    private List<PlayerProfileCache.ProfileEntry> getEntriesWithLimit(int limitSize)
@@ -131,7 +170,7 @@
  
              if (playerprofilecache$profileentry != null)
              {
-@@ -309,13 +309,13 @@
+@@ -309,13 +325,13 @@
          }
      }
  
@@ -147,7 +186,7 @@
          {
              JsonObject jsonobject = new JsonObject();
              jsonobject.addProperty("name", p_serialize_1_.getGameProfile().getName());
-@@ -325,7 +325,7 @@
+@@ -325,7 +341,7 @@
              return jsonobject;
          }
  
