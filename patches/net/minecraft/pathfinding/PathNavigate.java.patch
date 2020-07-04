@@ -1,6 +1,14 @@
 --- ../src-base/minecraft/net/minecraft/pathfinding/PathNavigate.java
 +++ ../src-work/minecraft/net/minecraft/pathfinding/PathNavigate.java
-@@ -22,11 +22,11 @@
+@@ -8,6 +8,7 @@
+ import net.minecraft.entity.SharedMonsterAttributes;
+ import net.minecraft.entity.ai.attributes.IAttributeInstance;
+ import net.minecraft.init.Blocks;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.math.AxisAlignedBB;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.MathHelper;
+@@ -22,11 +23,11 @@
      @Nullable
      protected Path currentPath;
      protected double speed;
@@ -15,3 +23,40 @@
      private long timeoutTimer;
      private long lastTimeoutCheck;
      private double timeoutLimit;
+@@ -148,9 +149,27 @@
+ 
+     public boolean tryMoveToEntityLiving(Entity entityIn, double speedIn)
+     {
++        // Paper start - Pathfinding optimizations
++        if (this.pathfindFailures > 10 && this.currentPath == null && MinecraftServer.currentTick < this.lastFailure + 40) {
++            return false;
++        }
++
+         Path path = this.getPathToEntityLiving(entityIn);
+-        return path != null && this.setPath(path, speedIn);
++
++        if (path != null && this.setPath(path, speedIn)) {
++            this.lastFailure = 0;
++            this.pathfindFailures = 0;
++            return true;
++        } else {
++            this.pathfindFailures++;
++            this.lastFailure = MinecraftServer.currentTick;
++            return false;
++        }
++
+     }
++    private int lastFailure = 0;
++    private int pathfindFailures = 0;
++    // Paper end
+ 
+     public boolean setPath(@Nullable Path pathentityIn, double speedIn)
+     {
+@@ -317,6 +336,7 @@
+ 
+     public void clearPath()
+     {
++        this.pathfindFailures = 0; this.lastFailure = 0; // Paper - Pathfinding optimizations
+         this.currentPath = null;
+     }
+ 
