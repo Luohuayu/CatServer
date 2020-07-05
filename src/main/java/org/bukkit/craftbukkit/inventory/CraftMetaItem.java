@@ -417,6 +417,11 @@ class CraftMetaItem implements ItemMeta, Repairable {
                     if (!getHandledTags().contains(key)) {
                         unhandledTags.put(key, internalTag.getTag(key));
                     }
+                    // CatServer start - handle mod custom nbt
+                    else if (CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT.equals(key) && getClass() == CraftMetaItem.class) {
+                        unhandledTags.put(key, internalTag.getTag(key));
+                    }
+                    // CatServer end
                 }
             } catch (IOException ex) {
                 Logger.getLogger(CraftMetaItem.class.getName()).log(Level.SEVERE, null, ex);
