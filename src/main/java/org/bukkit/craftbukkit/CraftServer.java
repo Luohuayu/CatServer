@@ -683,7 +683,6 @@ public final class CraftServer implements Server {
 
     // NOTE: Should only be called from DedicatedServer.ah()
     public boolean dispatchServerCommand(CommandSender sender, PendingCommand serverCommand) {
-
         if (sender instanceof Conversable) {
             Conversable conversable = (Conversable) sender;
 
