@@ -19,12 +19,13 @@ import org.bukkit.plugin.SimplePluginManager;
 import com.google.common.collect.Lists;
 
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class CommandPlugin extends Command {
     public CommandPlugin(String name) {
         super(name);
         this.description = "Load or unload plugin";
-        this.usageMessage = "/plugin <load|unload> <name>";
+        this.usageMessage = "/plugin <load|unload|reload> <name>";
         setPermission("catserver.command.plugin");
     }
 
@@ -43,6 +44,8 @@ public class CommandPlugin extends Command {
                 unloadPlugin(pluginName, sender);
             } else if (action.equals("load")) {
                 loadPlugin(pluginName, sender);
+            } else if (action.equals("reload")) {
+                reloadPlugin(pluginName, sender);
             } else {
                 sender.sendMessage(ChatColor.GREEN + "Invalid action specified.");
             }
@@ -124,5 +127,50 @@ public class CommandPlugin extends Command {
             Bukkit.getLogger().log(Level.SEVERE, "Could not load '" + pluginFile.getPath() + "' in folder '" + pluginFile.getParentFile().getPath() + "'", ex);
             sender.sendMessage(ChatColor.GREEN + "Error loading " + pluginName + ".jar, this plugin must be reloaded by restarting the server.");
         }
+    }
+
+    private void reloadPlugin(String pluginName, CommandSender sender) {
+        SimplePluginManager manager = (SimplePluginManager) Bukkit.getServer().getPluginManager();
+
+        List<Plugin> plugins = ReflectionHelper.getPrivateValue(SimplePluginManager.class, manager, "plugins");
+        Map<String, Plugin> lookupNames = ReflectionHelper.getPrivateValue(SimplePluginManager.class, manager, "lookupNames");
+        SimpleCommandMap commandMap = ReflectionHelper.getPrivateValue(SimplePluginManager.class, manager, "commandMap");
+        Map<String, Command> knownCommands = ReflectionHelper.getPrivateValue(SimpleCommandMap.class, commandMap, "knownCommands");
+
+        for (Plugin plugin : manager.getPlugins()) {
+            if (!plugin.getDescription().getName().equalsIgnoreCase(pluginName)) continue;
+
+            manager.disablePlugin(plugin);
+            plugins.remove(plugin);
+            lookupNames.remove(pluginName);
+
+            Iterator<Map.Entry<String, Command>> it = knownCommands.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Command> entry = (Map.Entry) it.next();
+                if (!(entry.getValue() instanceof PluginCommand)) continue;
+                PluginCommand command = (PluginCommand) entry.getValue();
+                if (command.getPlugin() == plugin) {
+                    command.unregister(commandMap);
+                    it.remove();
+                }
+            }
+
+            File pluginFile = ReflectionHelper.getPrivateValue(JavaPlugin.class, (JavaPlugin)plugin, "file");
+
+            try {
+                plugin = manager.loadPlugin(pluginFile);
+                plugin.onLoad();
+                manager.enablePlugin(plugin);
+
+                sender.sendMessage(ChatColor.GREEN + "Reloaded " + pluginName + " successfully!");
+            } catch (Exception ex) {
+                Bukkit.getLogger().log(Level.SEVERE, "Could not load '" + pluginFile.getPath() + "' in folder '" + pluginFile.getParentFile().getPath() + "'", ex);
+                sender.sendMessage(ChatColor.GREEN + "Error loading " + pluginName + ".jar, this plugin must be reloaded by restarting the server.");
+            }
+
+            return;
+        }
+
+        sender.sendMessage(ChatColor.GREEN + "Can't found loaded plugin: " + pluginName);
     }
 }

@@ -826,6 +826,65 @@ public final class CraftServer implements Server {
         enablePlugins(PluginLoadOrder.POSTWORLD);
     }
 
+    public void reloadConfig() {
+        configuration = YamlConfiguration.loadConfiguration(getConfigFile());
+        commandsConfiguration = YamlConfiguration.loadConfiguration(getCommandsConfigFile());
+        PropertyManager config = new PropertyManager(console.options);
+
+        ((DedicatedServer) console).settings = config;
+
+        boolean animals = config.getBooleanProperty("spawn-animals", console.getCanSpawnAnimals());
+        boolean monsters = config.getBooleanProperty("spawn-monsters", console.worlds[0].getDifficulty() != EnumDifficulty.PEACEFUL);
+        EnumDifficulty difficulty = EnumDifficulty.getDifficultyEnum(config.getIntProperty("difficulty", console.worldServerList.get(0).getDifficulty().ordinal()));
+
+        online.value = config.getBooleanProperty("online-mode", console.isServerInOnlineMode());
+        console.setCanSpawnAnimals(config.getBooleanProperty("spawn-animals", console.getCanSpawnAnimals()));
+        console.setAllowPvp(config.getBooleanProperty("pvp", console.isPVPEnabled()));
+        console.setAllowFlight(config.getBooleanProperty("allow-flight", console.isFlightAllowed()));
+        console.setMOTD(config.getStringProperty("motd", console.getMOTD()));
+        monsterSpawn = configuration.getInt("spawn-limits.monsters");
+        animalSpawn = configuration.getInt("spawn-limits.animals");
+        waterAnimalSpawn = configuration.getInt("spawn-limits.water-animals");
+        ambientSpawn = configuration.getInt("spawn-limits.ambient");
+        warningState = WarningState.value(configuration.getString("settings.deprecated-verbose"));
+        printSaveWarning = false;
+        console.autosavePeriod = configuration.getInt("ticks-per.autosave");
+        chunkGCPeriod = configuration.getInt("chunk-gc.period-in-ticks");
+        chunkGCLoadThresh = configuration.getInt("chunk-gc.load-threshold");
+        loadIcon();
+
+        try {
+            playerList.getBannedIPs().readSavedFile();
+        } catch (IOException ex) {
+            logger.log(Level.WARNING, "Failed to load banned-ips.json, " + ex.getMessage());
+        }
+        try {
+            playerList.getBannedPlayers().readSavedFile();
+        } catch (IOException ex) {
+            logger.log(Level.WARNING, "Failed to load banned-players.json, " + ex.getMessage());
+        }
+
+        org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
+        for (WorldServer world : console.worlds) {
+            world.worldInfo.setDifficulty(difficulty);
+            world.setAllowedSpawnTypes(monsters, animals);
+            if (this.getTicksPerAnimalSpawns() < 0) {
+                world.ticksPerAnimalSpawns = 400;
+            } else {
+                world.ticksPerAnimalSpawns = this.getTicksPerAnimalSpawns();
+            }
+
+            if (this.getTicksPerMonsterSpawns() < 0) {
+                world.ticksPerMonsterSpawns = 1;
+            } else {
+                world.ticksPerMonsterSpawns = this.getTicksPerMonsterSpawns();
+            }
+            world.spigotConfig.init(); // Spigot
+        }
+
+        overrideAllCommandBlockCommands = commandsConfiguration.getStringList("command-block-overrides").contains("*");
+    }
+
     @Override
     public void reloadData() {
         console.reload();
