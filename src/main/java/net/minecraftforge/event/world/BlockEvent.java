@@ -24,17 +24,13 @@ import java.util.List;
 
 import net.minecraft.block.BlockPortal;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Enchantments;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
-import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.fml.common.eventhandler.Cancelable;
 import net.minecraftforge.fml.common.eventhandler.Event;
@@ -43,10 +39,6 @@ import com.google.common.collect.ImmutableList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import org.bukkit.craftbukkit.entity.CraftPlayer;
-import org.bukkit.craftbukkit.event.CraftEventFactory;
-import org.bukkit.event.block.BlockBreakEvent;
 
 public class BlockEvent extends Event
 {
@@ -129,18 +121,6 @@ public class BlockEvent extends Event
         {
             super(world, pos, state);
             this.player = player;
-            // CatSerer start - handle event on bukkit side
-            org.bukkit.event.block.BlockBreakEvent bukkitEvent = CraftEventFactory.callBlockBreakEvent(world, pos, state, (EntityPlayerMP) player);
-
-            if(bukkitEvent.isCancelled())
-            {
-                this.setCanceled(true);
-            }
-            else
-            {
-                this.exp = bukkitEvent.getExpToDrop();
-            }
-            // CatSerer end
         }
 
         public EntityPlayer getPlayer()
@@ -215,19 +195,10 @@ public class BlockEvent extends Event
     {
         private final EntityPlayer player;
         private final EnumHand hand;
-
         public PlaceEvent(@Nonnull BlockSnapshot blockSnapshot, @Nonnull IBlockState placedAgainst, @Nonnull EntityPlayer player, @Nonnull EnumHand hand) {
             super(blockSnapshot, placedAgainst, player);
             this.player = player;
             this.hand = hand;
-            // CatServer start - call BlockPlaceEvent
-            BlockPos pos = super.getPos();
-            org.bukkit.craftbukkit.block.CraftBlockState blockstate = org.bukkit.craftbukkit.block.CraftBlockState.getBlockState(getWorld(), pos.getX(), pos.getY(), pos.getZ());
-            org.bukkit.event.block.BlockPlaceEvent bukkitEvent = CraftEventFactory.callBlockPlaceEvent(getWorld(), player, hand , blockstate, pos.getX(), pos.getY(),pos.getZ());
-            if (bukkitEvent.isCancelled() || !bukkitEvent.canBuild()) {
-                this.setCanceled(true);
-            }
-            // CatServer end
             if (DEBUG)
             {
                 System.out.printf("Created PlaceEvent - [PlacedBlock: %s ][PlacedAgainst: %s ][ItemStack: %s ][Player: %s ][Hand: %s]\n", getPlacedBlock(), placedAgainst, player.getHeldItem(hand), player, hand);

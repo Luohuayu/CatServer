@@ -51,6 +51,7 @@ public class PlayerInteractEvent extends PlayerEvent
     @Nullable
     private final EnumFacing face;
     private EnumActionResult cancellationResult = EnumActionResult.PASS;
+    public boolean isVanilla = false;
 
     private PlayerInteractEvent(EntityPlayer player, EnumHand hand, BlockPos pos, @Nullable EnumFacing face)
     {
