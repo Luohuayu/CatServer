@@ -195,6 +195,7 @@ public class BlockEvent extends Event
     {
         private final EntityPlayer player;
         private final EnumHand hand;
+
         public PlaceEvent(@Nonnull BlockSnapshot blockSnapshot, @Nonnull IBlockState placedAgainst, @Nonnull EntityPlayer player, @Nonnull EnumHand hand) {
             super(blockSnapshot, placedAgainst, player);
             this.player = player;
