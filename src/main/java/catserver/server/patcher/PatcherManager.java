@@ -1,5 +1,6 @@
 package catserver.server.patcher;
 
+import catserver.server.CatServer;
 import catserver.server.patcher.plugin.CoreProtectPatcher;
 import catserver.server.patcher.plugin.DisablePluginPatcher;
 import catserver.server.patcher.plugin.DynmapPacher;
@@ -11,8 +12,8 @@ public class PatcherManager {
     private static Map<String, IPatcher> pluginPatcher = new HashMap<>();
 
     static {
-        registerPluginPatcher("dynmap", new DynmapPacher());
-        registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
+        if (CatServer.getConfig().enableDynmapCompatible) registerPluginPatcher("dynmap", new DynmapPacher());
+        if (CatServer.getConfig().enableCoreProtectModBlockCompatible) registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {

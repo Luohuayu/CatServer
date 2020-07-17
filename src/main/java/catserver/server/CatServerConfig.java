@@ -29,6 +29,9 @@ public class CatServerConfig {
     public boolean preventPistonPushRail = false;
     public boolean preventPistonPushSlimeBlock = false;
 
+    public boolean enableDynmapCompatible = true;
+    public boolean enableCoreProtectModBlockCompatible = true;
+
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
     public boolean disableFMLStatusModInfo = false;
@@ -57,6 +60,9 @@ public class CatServerConfig {
         fixLessCrystalRespawnDragon = getOrWriteBooleanConfig("vanilla.fixLessCrystalRespawnDragon", fixLessCrystalRespawnDragon);
         preventPistonPushRail = getOrWriteBooleanConfig("vanilla.preventPistonPushRail", preventPistonPushRail);
         preventPistonPushSlimeBlock = getOrWriteBooleanConfig("vanilla.preventPistonPushSlimeBlock", preventPistonPushRail);
+        // plugin
+        enableDynmapCompatible = getOrWriteBooleanConfig("plugin.patcher.enableDynmapCompatible", enableDynmapCompatible);
+        enableCoreProtectModBlockCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCoreProtectModBlockCompatible", enableCoreProtectModBlockCompatible);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
