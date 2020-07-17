@@ -35,7 +35,7 @@ public class BukkitInjector {
             Item item = entry.getValue();
             if(!key.getResourceDomain().equals("minecraft")) {
                 String materialName = key.toString().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
-                Material material = Material.addMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Integer.TYPE}, new Object[]{Item.getIdFromItem(item), item.getItemStackLimit()}));
+                Material material = Material.addMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Integer.TYPE, Material.MaterialType.class}, new Object[]{Item.getIdFromItem(item), item.getItemStackLimit(), Material.MaterialType.MOD_ITEM}));
                 if (material != null) {
                     FMLLog.log(Level.DEBUG, "Injected new Forge item material %s with ID %d.", material.name(), material.getId());
                 } else {
@@ -56,7 +56,7 @@ public class BukkitInjector {
             Block block = entry.getValue();
             if(!key.getResourceDomain().equals("minecraft")) {
                 String materialName = key.toString().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
-                Material material = Material.addBlockMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE}, new Object[]{Block.getIdFromBlock(block)}));
+                Material material = Material.addBlockMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Material.MaterialType.class}, new Object[]{Block.getIdFromBlock(block), Material.MaterialType.MOD_BLOCK}));
                 if (material != null) {
                     FMLLog.log(Level.DEBUG, "Injected new Forge block material %s with ID %d.", material.name(), material.getId());
                 } else {

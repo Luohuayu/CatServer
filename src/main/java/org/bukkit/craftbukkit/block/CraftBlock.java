@@ -139,6 +139,7 @@ public class CraftBlock implements Block {
 
     @Override
     public void setType(Material type, boolean applyPhysics) {
+        if (type.getMaterialType() == Material.MaterialType.MOD_ITEM) type = catserver.server.inventory.BukkitMaterialHelper.convertModItemMaterialToBlock(type); // CatServer
         setTypeId(type.getId(), applyPhysics);
     }
 

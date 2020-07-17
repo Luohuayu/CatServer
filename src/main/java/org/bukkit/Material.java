@@ -548,6 +548,7 @@ public enum Material {
     private final static Map<String, Material> BLOCK_BY_NAME = Maps.newHashMap();
     private final int maxStack;
     private final short durability;
+    private final MaterialType materialType; // CatServer
 
     private Material(final int id) {
         this(id, 64);
@@ -570,6 +571,11 @@ public enum Material {
     }
 
     private Material(final int id, final int stack, final int durability, final Class<? extends MaterialData> data) {
+    // CatServer start
+        this(id, stack, durability, data, MaterialType.VANILLA);
+    }
+
+    private Material(final int id, final int stack, final int durability, final Class<? extends MaterialData> data, final MaterialType materialType) {
         this.id = id;
         this.durability = (short) durability;
         this.maxStack = stack;
@@ -581,7 +587,17 @@ public enum Material {
         } catch (SecurityException ex) {
             throw new AssertionError(ex);
         }
+        this.materialType = materialType;
     }
+
+    private Material(final int id, final MaterialType materialType) {
+        this(id, 64, 0, MaterialData.class, materialType);
+    }
+
+    private Material(final int id, final int stack, final MaterialType materialType) {
+        this(id, stack, 0, MaterialData.class, materialType);
+    }
+    // CatServer end
 
     /**
      * Gets the item ID or block ID of this Material
@@ -1504,6 +1520,20 @@ public enum Material {
 
     public static Material getBlockMaterial(final String name) {
         return BLOCK_BY_NAME.get(name);
+    }
+
+    public static Material getItemOrBlockMaterial(final String name) {
+        return BY_NAME.getOrDefault(name, BLOCK_BY_NAME.get(name));
+    }
+
+    public MaterialType getMaterialType() {
+        return this.materialType;
+    }
+
+    public enum MaterialType {
+        VANILLA,
+        MOD_ITEM,
+        MOD_BLOCK
     }
     // CatServer end
 }

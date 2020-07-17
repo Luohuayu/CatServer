@@ -27,7 +27,9 @@ public class CoreProtectPatcher implements IPatcher {
                 AbstractInsnNode next = insnIterator.next();
                 if (next instanceof MethodInsnNode) {
                     MethodInsnNode methodInsnNode = (MethodInsnNode) next;
-                    if (methodInsnNode.owner.equals("org/bukkit/Material") && methodInsnNode.name.equals("getMaterial")) {
+                    if (methodInsnNode.owner.equals("org/bukkit/Material") && methodInsnNode.name.equals("getMaterial") && methodInsnNode.desc.equals("(Ljava/lang/String;)Lorg/bukkit/Material;")) {
+                        methodInsnNode.name = "getItemOrBlockMaterial";
+                    } else if (methodInsnNode.owner.equals("org/bukkit/Material") && methodInsnNode.name.equals("getMaterial") && methodInsnNode.desc.equals("(I)Lorg/bukkit/Material;")) {
                         methodInsnNode.name = "getBlockMaterial";
                     }
                 }

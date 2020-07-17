@@ -130,7 +130,8 @@ public class CraftBlockState implements BlockState {
         return data;
     }
 
-    public void setType(final Material type) {
+    public void setType(Material type) {
+        if (type.getMaterialType() == Material.MaterialType.MOD_ITEM) type = catserver.server.inventory.BukkitMaterialHelper.convertModItemMaterialToBlock(type); // CatServer
         setTypeId(type.getId());
     }
 
