@@ -35,6 +35,7 @@ public class CatServerConfig {
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
     public boolean disableFMLStatusModInfo = false;
+    public boolean versionCheck = true;
 
     public CatServerConfig(String file) {
         this.configFile = new File(file);
@@ -67,6 +68,7 @@ public class CatServerConfig {
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
         disableFMLStatusModInfo = getOrWriteBooleanConfig("disableFMLStatusModInfo", disableFMLStatusModInfo);
+        versionCheck = getOrWriteBooleanConfig("versionCheck", versionCheck);
         // save config
         try {
             config.save(configFile);

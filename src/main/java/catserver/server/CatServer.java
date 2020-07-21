@@ -1,6 +1,7 @@
 package catserver.server;
 
 import catserver.server.threads.RealtimeThread;
+import catserver.server.utils.VersionCheck;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -34,6 +35,8 @@ public class CatServer {
 
     public static void onServerStart() {
         realtimeThread.start();
+        new Metrics();
+        new VersionCheck();
     }
 
     public static boolean asyncCatch(String reason) {
