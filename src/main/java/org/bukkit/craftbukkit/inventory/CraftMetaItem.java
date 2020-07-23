@@ -224,6 +224,17 @@ class CraftMetaItem implements ItemMeta, Repairable {
     private boolean unbreakable;
 
     private static final Set<String> HANDLED_TAGS = Sets.newHashSet();
+    // CatServer start
+    private static final Set<String> CUSTOM_TAGS = Sets.newHashSet();
+    public static Set<String> getCustomTags() {
+        synchronized (CUSTOM_TAGS) {
+            if (CUSTOM_TAGS.isEmpty()) {
+                CUSTOM_TAGS.addAll(Arrays.asList(CraftMetaMap.MAP_SCALING.NBT, CraftMetaPotion.POTION_EFFECTS.NBT, CraftMetaPotion.DEFAULT_POTION.NBT, CraftMetaSkull.SKULL_OWNER.NBT, CraftMetaSkull.SKULL_PROFILE.NBT, CraftMetaSpawnEgg.ENTITY_TAG.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaBook.BOOK_TITLE.NBT, CraftMetaBook.BOOK_AUTHOR.NBT, CraftMetaBook.BOOK_PAGES.NBT, CraftMetaBook.RESOLVED.NBT, CraftMetaBook.GENERATION.NBT, CraftMetaFirework.FIREWORKS.NBT, CraftMetaEnchantedBook.STORED_ENCHANTMENTS.NBT, CraftMetaCharge.EXPLOSION.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaKnowledgeBook.BOOK_RECIPES.NBT));
+            }
+            return CUSTOM_TAGS;
+        }
+    }
+    // CatServer end
 
     private NBTTagCompound internalTag;
     private final Map<String, NBTBase> unhandledTags = new HashMap<String, NBTBase>();
@@ -342,13 +353,14 @@ class CraftMetaItem implements ItemMeta, Repairable {
             if (!getHandledTags().contains(key)) {
                 unhandledTags.put(key, tag.getTag(key));
             }
+            // CatServer start - handle mod custom nbt
+            else {
+                if (getClass() == CraftMetaItem.class && getCustomTags().contains(key)) {
+                    unhandledTags.put(key, tag.getTag(key));
+                }
+            }
+            // CatServer end
         }
-
-        // CatServer start - handle mod custom nbt
-        if (tag.hasKey(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT) && getClass() == CraftMetaItem.class) {
-            unhandledTags.put(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, tag.getTag(CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT));
-        }
-        // CatServer end
     }
 
     static Map<Enchantment, Integer> buildEnchantments(NBTTagCompound tag, ItemMetaKey key) {
@@ -418,8 +430,10 @@ class CraftMetaItem implements ItemMeta, Repairable {
                         unhandledTags.put(key, internalTag.getTag(key));
                     }
                     // CatServer start - handle mod custom nbt
-                    else if (CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT.equals(key) && getClass() == CraftMetaItem.class) {
-                        unhandledTags.put(key, internalTag.getTag(key));
+                    else {
+                        if (getClass() == CraftMetaItem.class && getCustomTags().contains(key)) {
+                            unhandledTags.put(key, internalTag.getTag(key));
+                        }
                     }
                     // CatServer end
                 }
