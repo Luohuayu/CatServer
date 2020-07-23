@@ -23,6 +23,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
     private EntityType spawnedType;
     private NBTTagCompound entityTag;
+    private String modId; // CatServer
 
     CraftMetaSpawnEgg(CraftMetaItem meta) {
         super(meta);
@@ -33,6 +34,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
         CraftMetaSpawnEgg egg = (CraftMetaSpawnEgg) meta;
         this.spawnedType = egg.spawnedType;
+        this.modId = egg.modId; // CatServer
     }
 
     CraftMetaSpawnEgg(NBTTagCompound tag) {
@@ -43,6 +45,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
             if (entityTag.hasKey(ENTITY_ID.NBT)) {
                 this.spawnedType = EntityType.fromName(new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getResourcePath());
+                this.modId = new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getResourceDomain(); // CatServer
             }
         }
     }
@@ -52,6 +55,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
         String entityType = SerializableMeta.getString(map, ENTITY_ID.BUKKIT, true);
         setSpawnedType(EntityType.fromName(entityType));
+        this.modId = SerializableMeta.getString(map, "modid", true); // CatServer
     }
 
     @Override
@@ -64,6 +68,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
             if (entityTag.hasKey(ENTITY_ID.NBT)) {
                 this.spawnedType = EntityType.fromName(new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getResourcePath());
+                this.modId = new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getResourceDomain(); // CatServer
             }
         }
     }
@@ -84,7 +89,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
         }
 
         if (hasSpawnedType()) {
-            entityTag.setString(ENTITY_ID.NBT, new ResourceLocation(spawnedType.getName()).toString());
+            entityTag.setString(ENTITY_ID.NBT, new ResourceLocation(this.modId, spawnedType.getName()).toString());
         }
 
         if (entityTag != null) {
@@ -157,6 +162,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
         if (entityTag != null) {
             hash = 73 * hash + entityTag.hashCode();
         }
+        if (modId != null && !"minecraft".equals(modId)) { hash = 73 * hash + modId.hashCode(); } // CatServer
 
         return original != hash ? CraftMetaSpawnEgg.class.hashCode() ^ hash : hash;
     }
@@ -167,6 +173,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
 
         if (hasSpawnedType()) {
             builder.put(ENTITY_ID.BUKKIT, spawnedType.getName());
+            builder.put("modid", modId); // CatServer
         }
 
         return builder;
@@ -180,6 +187,7 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
         if (entityTag != null) {
             clone.entityTag = entityTag.copy();
         }
+        if (modId != null) { clone.modId = modId; } // CatServer
 
         return clone;
     }
