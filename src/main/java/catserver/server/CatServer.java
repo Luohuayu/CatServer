@@ -10,9 +10,7 @@ import org.apache.logging.log4j.Logger;
 import org.bukkit.craftbukkit.util.Waitable;
 import org.spigotmc.AsyncCatcher;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 public class CatServer {
@@ -22,7 +20,7 @@ public class CatServer {
 
     private static CatServerConfig config = new CatServerConfig("catserver.yml");
 
-    private static final Executor asyncExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("CatServer Async Task Handler Thread - %1$d").build());
+    private static final ExecutorService asyncExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("CatServer Async Task Handler Thread - %1$d").build());
     private static final RealtimeThread realtimeThread = new RealtimeThread();
 
     public static String getVersion(){
@@ -37,6 +35,15 @@ public class CatServer {
         realtimeThread.start();
         new Metrics();
         new VersionCheck();
+    }
+
+    public static void onServerStop() {
+        try {
+            asyncExecutor.shutdown();
+            asyncExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static boolean asyncCatch(String reason) {
@@ -101,6 +108,10 @@ public class CatServer {
     }
 
     public static void scheduleAsyncTask(Runnable runnable) {
-        asyncExecutor.execute(runnable);
+        if (!asyncExecutor.isShutdown() && asyncExecutor.isTerminated()) {
+            asyncExecutor.execute(runnable);
+        } else {
+            runnable.run();
+        }
     }
 }
