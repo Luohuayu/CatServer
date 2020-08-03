@@ -108,7 +108,7 @@ public class CatServer {
     }
 
     public static void scheduleAsyncTask(Runnable runnable) {
-        if (!asyncExecutor.isShutdown() && asyncExecutor.isTerminated()) {
+        if (!asyncExecutor.isShutdown() && !asyncExecutor.isTerminated()) {
             asyncExecutor.execute(runnable);
         } else {
             runnable.run();
