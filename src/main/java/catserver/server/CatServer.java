@@ -10,6 +10,8 @@ import org.apache.logging.log4j.Logger;
 import org.bukkit.craftbukkit.util.Waitable;
 import org.spigotmc.AsyncCatcher;
 
+import java.io.FileOutputStream;
+import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
@@ -112,6 +114,16 @@ public class CatServer {
             asyncExecutor.execute(runnable);
         } else {
             runnable.run();
+        }
+    }
+
+    public static void acceptEula() {
+        try (FileOutputStream fileoutputstream = new FileOutputStream("eula.txt")) {
+            Properties properties = new Properties();
+            properties.setProperty("eula", "true");
+            properties.store(fileoutputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula).");
+        } catch (Exception e) {
+            log.warn(e.toString());
         }
     }
 }
