@@ -46,7 +46,7 @@ public class CraftAttributeInstance implements AttributeInstance {
     @Override
     public void addModifier(AttributeModifier modifier) {
         Preconditions.checkArgument(modifier != null, "modifier");
-        handle.removeModifier(convert(modifier));
+        handle.applyModifier(convert(modifier));
     }
 
     @Override
