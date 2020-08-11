@@ -165,10 +165,12 @@ public class VanillaInventoryCodeHooks
             }
             else
             {
+                boolean foundItem = false; // CatServer
                 for (int i = 0; i < hopper.getSizeInventory(); ++i)
                 {
                     if (!hopper.getStackInSlot(i).isEmpty())
                     {
+                        foundItem = true;
                         ItemStack originalSlotContents = hopper.getStackInSlot(i).copy();
                         // CatServer start - Optimized of call event when pushing items into other inventories
                         ItemStack originNMSStack = hopper.decrStackSize(i, hopper.world.spigotConfig.hopperAmount); // CatServer
@@ -176,7 +178,7 @@ public class VanillaInventoryCodeHooks
 
                         InventoryMoveItemEvent event = null;
                         if (!TileEntityHopper.skipHopperEvents) {
-                            CraftItemStack remainder = CraftItemStack.asCraftMirror(originNMSStack); // Spigot
+                            CraftItemStack remainder = CraftItemStack.asCraftMirror(originNMSStack);
 
                             InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
                             Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
@@ -210,7 +212,7 @@ public class VanillaInventoryCodeHooks
                         hopper.setInventorySlotContents(i, originalSlotContents);
                     }
                 }
-
+                if (foundItem) hopper.setTransferCooldown(hopper.getWorld().spigotConfig.hopperTransfer); // CatServer - Inventory was full - cooldown
                 return false;
             }
         }
