@@ -107,18 +107,19 @@ public class VanillaInventoryCodeHooks
             IItemHandler itemHandler = destinationResult.getKey();
             Object destination = destinationResult.getValue();
             // CatServer start
-            ItemStack originNMSStack = stack.copy().splitStack(1); // CatServer
+            ItemStack originNMSStack = stack.copy().splitStack(1);
             ItemStack resultNMSStack = originNMSStack;
 
             InventoryMoveItemEvent event = null;
-            if (!TileEntityHopper.skipHopperEvents) {
-                CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originNMSStack);
 
-                InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
-                Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
+            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originNMSStack);
 
+            InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
+            Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
+
+            if (destinationInventory != null) {
                 event = new InventoryMoveItemEvent(CatInventoryUtils.getBukkitInventory(dropper), oitemstack, destinationInventory, true);
-                if (destinationInventory != null) world.getServer().getPluginManager().callEvent(event);
+                world.getServer().getPluginManager().callEvent(event);
 
                 if (event.isCancelled()) {
                     return false;
@@ -169,7 +170,7 @@ public class VanillaInventoryCodeHooks
                     if (!hopper.getStackInSlot(i).isEmpty())
                     {
                         ItemStack originalSlotContents = hopper.getStackInSlot(i).copy();
-                        // CatServer start - Call event when pushing items into other inventories
+                        // CatServer start - Optimized of call event when pushing items into other inventories
                         ItemStack originNMSStack = hopper.decrStackSize(i, hopper.world.spigotConfig.hopperAmount); // CatServer
                         ItemStack resultNMSStack = originNMSStack;
 
@@ -180,16 +181,16 @@ public class VanillaInventoryCodeHooks
                             InventoryHolder owner = CatInventoryUtils.getOwner((TileEntity) destination);
                             Inventory destinationInventory = owner != null ? owner.getInventory() : CatCustomInventory.getInventoryFromForge(itemHandler);
 
-                            event = new InventoryMoveItemEvent(CatInventoryUtils.getBukkitInventory(hopper), remainder, destinationInventory, true);
-                            if (destinationInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); //CatServer
+                            if (destinationInventory != null) {
+                                event = new InventoryMoveItemEvent(CatInventoryUtils.getBukkitInventory(hopper), remainder, destinationInventory, true);
+                                hopper.getWorld().getServer().getPluginManager().callEvent(event); //CatServer
 
-                            if (event.isCancelled()) {
-                                hopper.setInventorySlotContents(i, originalSlotContents);
-                                hopper.setTransferCooldown(hopper.world.spigotConfig.hopperTransfer); // Spigot
-                                return true;
+                                if (event.isCancelled()) {
+                                    return true;
+                                }
+
+                                if (event.isCallSetItem) resultNMSStack = CraftItemStack.asNMSCopy(event.getRawItem());
                             }
-
-                            if (event.isCallSetItem) resultNMSStack = CraftItemStack.asNMSCopy(event.getRawItem());
                         }
 
                         int origCount = resultNMSStack.getCount();
@@ -202,10 +203,10 @@ public class VanillaInventoryCodeHooks
                             } else {
                                 hopper.setInventorySlotContents(i, originalSlotContents);
                             }
-                            // CatServer end
                             return true;
                         }
-                        originalSlotContents.shrink(origCount - itemstack1.getCount()); // Spigot
+                        originalSlotContents.shrink(origCount - itemstack1.getCount());
+                        // CatServer end
                         hopper.setInventorySlotContents(i, originalSlotContents);
                     }
                 }
