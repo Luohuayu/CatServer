@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import catserver.server.command.internal.CommandCatserver;
+import catserver.server.command.internal.CommandChunkStats;
 import catserver.server.command.internal.CommandPlugin;
 import org.apache.commons.lang.Validate;
 import org.bukkit.Location;
@@ -36,6 +37,7 @@ public class SimpleCommandMap implements CommandMap {
         register("bukkit", new TimingsCommand("timings"));
         register("catserver", new CommandPlugin("plugin"));
         register("catserver", new CommandCatserver("catserver"));
+        register("catserver", new CommandChunkStats("chunkstats"));
     }
 
     public void setFallbackCommands() {
