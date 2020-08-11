@@ -1,10 +1,10 @@
 package catserver.server;
 
+import com.google.common.collect.Lists;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 public class CatServerConfig {
@@ -15,13 +15,13 @@ public class CatServerConfig {
     public boolean enableSkipEntityTick = true;
     public boolean enableSkipTileEntityTick = false;
     public long worldGenMaxTickTime = 15000000L;
-    public List<String> disableForgeGenerateWorlds = Arrays.asList("ExampleCustomWorld");
+    public List<String> disableForgeGenerateWorlds = Lists.<String>newArrayList("ExampleCustomWorld");
     public boolean preventBlockLoadChunk = false;
-    public List<Integer> autoUnloadDimensions = Arrays.asList(99999999);
+    public List<Integer> autoUnloadDimensions = Lists.<Integer>newArrayList(99999999);
     public boolean enableRealtime = false;
     public boolean forceSaveOnWatchdog = true;
 
-    public List<String> fakePlayerPermissions = Arrays.asList("essentials.build");
+    public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
     public boolean fakePlayerEventPass = false;
 
     public boolean fixPlayBossSoundToOtherWorld = true;
@@ -32,6 +32,7 @@ public class CatServerConfig {
     public boolean enableDynmapCompatible = true;
     public boolean enableCoreProtectModBlockCompatible = true;
     public boolean enableEssentialsNewVersionCompatible = true;
+    public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
 
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
@@ -66,6 +67,7 @@ public class CatServerConfig {
         enableDynmapCompatible = getOrWriteBooleanConfig("plugin.patcher.enableDynmapCompatible", enableDynmapCompatible);
         enableCoreProtectModBlockCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCoreProtectModBlockCompatible", enableCoreProtectModBlockCompatible);
         enableEssentialsNewVersionCompatible = getOrWriteBooleanConfig("plugin.patcher.enableEssentialsNewVersionCompatible", enableEssentialsNewVersionCompatible);
+        disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);

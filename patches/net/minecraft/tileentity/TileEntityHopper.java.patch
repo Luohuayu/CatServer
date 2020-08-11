@@ -22,7 +22,7 @@
  import net.minecraft.inventory.ItemStackHelper;
  import net.minecraft.item.ItemStack;
  import net.minecraft.nbt.NBTTagCompound;
-@@ -28,12 +32,42 @@
+@@ -28,12 +32,45 @@
  import net.minecraft.util.math.MathHelper;
  import net.minecraft.world.World;
  
@@ -38,7 +38,6 @@
      private NonNullList<ItemStack> inventory = NonNullList.<ItemStack>withSize(5, ItemStack.EMPTY);
      private int transferCooldown = -1;
      private long tickedGameTime;
--
 +    // CraftBukkit start - add fields and methods
 +    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
 +    private int maxStack = MAX_STACK;
@@ -63,10 +62,13 @@
 +        maxStack = size;
 +    }
 +    // CraftBukkit end
+ 
++    public static boolean skipHopperEvents = false; // CatServer
++
      public static void registerFixesHopper(DataFixer fixer)
      {
          fixer.registerWalker(FixTypes.BLOCK_ENTITY, new ItemStackDataLists(TileEntityHopper.class, new String[] {"Items"}));
-@@ -106,7 +140,7 @@
+@@ -106,7 +143,7 @@
  
      public int getInventoryStackLimit()
      {
@@ -75,7 +77,7 @@
      }
  
      public void update()
-@@ -144,7 +178,7 @@
+@@ -144,7 +181,7 @@
  
                  if (flag)
                  {
@@ -84,7 +86,7 @@
                      this.markDirty();
                      return true;
                  }
-@@ -191,6 +225,7 @@
+@@ -191,6 +228,7 @@
  
      private boolean transferItemsOut()
      {
@@ -92,7 +94,7 @@
          IInventory iinventory = this.getInventoryForHopperTransfer();
  
          if (iinventory == null)
-@@ -297,6 +332,8 @@
+@@ -297,6 +335,8 @@
  
      public static boolean pullItems(IHopper hopper)
      {
@@ -101,7 +103,7 @@
          IInventory iinventory = getSourceInventory(hopper);
  
          if (iinventory != null)
-@@ -348,6 +385,7 @@
+@@ -348,6 +388,7 @@
          return false;
      }
  
@@ -109,7 +111,7 @@
      private static boolean pullItemFromSlot(IHopper hopper, IInventory inventoryIn, int index, EnumFacing direction)
      {
          ItemStack itemstack = inventoryIn.getStackInSlot(index);
-@@ -355,14 +393,48 @@
+@@ -355,14 +396,56 @@
          if (!itemstack.isEmpty() && canExtractItemFromSlot(inventoryIn, itemstack, index, direction))
          {
              ItemStack itemstack1 = itemstack.copy();
@@ -117,38 +119,46 @@
 +            // ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, inventoryIn.decrStackSize(index, 1), (EnumFacing)null);
 +            // CraftBukkit start - Call event on collection of items from inventories into the hopper
 +            ItemStack originNMSStack = inventoryIn.decrStackSize(index, hopper.getWorld().spigotConfig.hopperAmount); // CatServer
-+            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originNMSStack); // Spigot
++            ItemStack resultNMSStack = originNMSStack;
  
-+            Inventory sourceInventory;
-+            // Have to special case large chests as they work oddly
-+            if (inventoryIn instanceof InventoryLargeChest) {
-+                sourceInventory = new org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest((InventoryLargeChest) inventoryIn);
-+            } else {
-+                sourceInventory = CatInventoryUtils.getBukkitInventory(inventoryIn); // CatServer
-+            }
++            InventoryMoveItemEvent event = null;
++            if (!TileEntityHopper.skipHopperEvents) {
++                CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originNMSStack); // Spigot
 +
-+            InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, oitemstack, CatInventoryUtils.getBukkitInventory(hopper), false);
-+
-+            if (sourceInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); // CatServer
-+            if (event.isCancelled()) {
-+                inventoryIn.setInventorySlotContents(index, itemstack1);
-+
-+                if (hopper instanceof TileEntityHopper) {
-+                    ((TileEntityHopper) hopper).setTransferCooldown(hopper.getWorld().spigotConfig.hopperTransfer); // Spigot
-+                } else if (hopper instanceof EntityMinecartHopper) {
-+                    ((EntityMinecartHopper) hopper).setTransferTicker(hopper.getWorld().spigotConfig.hopperTransfer / 2); // Spigot
++                Inventory sourceInventory;
++                // Have to special case large chests as they work oddly
++                if (inventoryIn instanceof InventoryLargeChest) {
++                    sourceInventory = new org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest((InventoryLargeChest) inventoryIn);
++                } else {
++                    sourceInventory = CatInventoryUtils.getBukkitInventory(inventoryIn); // CatServer
 +                }
 +
-+                return false;
++                event = new InventoryMoveItemEvent(sourceInventory, oitemstack, CatInventoryUtils.getBukkitInventory(hopper), false);
++
++                if (sourceInventory != null) hopper.getWorld().getServer().getPluginManager().callEvent(event); // CatServer
++                if (event.isCancelled()) {
++                    inventoryIn.setInventorySlotContents(index, itemstack1);
++
++                    if (hopper instanceof TileEntityHopper) {
++                        ((TileEntityHopper) hopper).setTransferCooldown(hopper.getWorld().spigotConfig.hopperTransfer); // Spigot
++                    } else if (hopper instanceof EntityMinecartHopper) {
++                        ((EntityMinecartHopper) hopper).setTransferTicker(hopper.getWorld().spigotConfig.hopperTransfer / 2); // Spigot
++                    }
++
++                    return false;
++                }
++
++                if (event.isCallSetItem) resultNMSStack = CraftItemStack.asNMSCopy(event.getRawItem());
 +            }
-+            int origCount = event.getRawItem().getAmount(); // Spigot
-+            ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, event.isCallSetItem ? CraftItemStack.asNMSCopy(event.getRawItem()) : originNMSStack, null);
++
++            int origCount = resultNMSStack.getCount();
++            ItemStack itemstack2 = putStackInInventoryAllSlots(inventoryIn, hopper, resultNMSStack, null);
 +
              if (itemstack2.isEmpty())
              {
 -                inventoryIn.markDirty();
 +                // inventoryIn.markDirty();
-+                if (!event.isCallSetItem || event.getRawItem().equals(oitemstack)) {
++                if (event == null || !event.isCallSetItem || ItemStack.areItemStacksEqual(resultNMSStack, originNMSStack)) {
 +                    inventoryIn.markDirty();
 +                } else {
 +                    inventoryIn.setInventorySlotContents(index, itemstack1);
@@ -161,7 +171,7 @@
              inventoryIn.setInventorySlotContents(index, itemstack1);
          }
  
-@@ -379,6 +451,11 @@
+@@ -379,6 +462,11 @@
          }
          else
          {
@@ -173,7 +183,7 @@
              ItemStack itemstack = entity.getItem().copy();
              ItemStack itemstack1 = putStackInInventoryAllSlots(source, destination, itemstack, (EnumFacing)null);
  
-@@ -396,6 +473,12 @@
+@@ -396,6 +484,12 @@
          }
      }
  
@@ -186,7 +196,7 @@
      public static ItemStack putStackInInventoryAllSlots(IInventory source, IInventory destination, ItemStack stack, @Nullable EnumFacing direction)
      {
          if (destination instanceof ISidedInventory && direction != null)
-@@ -482,7 +565,7 @@
+@@ -482,7 +576,7 @@
                              }
                          }
  
@@ -195,7 +205,7 @@
                      }
                  }
  
-@@ -516,9 +599,11 @@
+@@ -516,9 +610,11 @@
          int j = MathHelper.floor(y);
          int k = MathHelper.floor(z);
          BlockPos blockpos = new BlockPos(i, j, k);
@@ -209,7 +219,7 @@
          {
              TileEntity tileentity = worldIn.getTileEntity(blockpos);
  
-@@ -611,4 +696,6 @@
+@@ -611,4 +707,6 @@
      {
          return this.inventory;
      }
