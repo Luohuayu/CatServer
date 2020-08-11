@@ -20,6 +20,7 @@ public class CatServerConfig {
     public List<Integer> autoUnloadDimensions = Lists.<Integer>newArrayList(99999999);
     public boolean enableRealtime = false;
     public boolean forceSaveOnWatchdog = true;
+    public int maxEntityCollision = 8;
 
     public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
     public boolean fakePlayerEventPass = false;
@@ -55,6 +56,7 @@ public class CatServerConfig {
         autoUnloadDimensions = getOrWriteIntegerListConfig("world.autoUnloadDimensions", autoUnloadDimensions);
         enableRealtime = getOrWriteBooleanConfig("world.enableRealtime", enableRealtime);
         forceSaveOnWatchdog = getOrWriteBooleanConfig("world.forceSaveOnWatchdog", forceSaveOnWatchdog);
+        maxEntityCollision = getOrWriteIntConfig("world.maxEntityCollision", maxEntityCollision);
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
