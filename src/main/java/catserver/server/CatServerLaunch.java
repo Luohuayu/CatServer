@@ -7,7 +7,9 @@ import java.net.URLClassLoader;
 public class CatServerLaunch {
     public static void main(String[] args) throws Throwable {
         checkJavaVersion();
-        LibrariesManager.checkLibraries();
+        String skip = System.getProperty("catserver.skipCheckLibraries");
+        if (!"true".equals(skip))
+            LibrariesManager.checkLibraries();
         Class.forName("net.minecraftforge.fml.relauncher.ServerLaunchWrapper").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
     }
 
