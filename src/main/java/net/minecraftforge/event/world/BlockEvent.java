@@ -195,6 +195,7 @@ public class BlockEvent extends Event
     {
         private final EntityPlayer player;
         private final EnumHand hand;
+        public EnumFacing direction;
 
         public PlaceEvent(@Nonnull BlockSnapshot blockSnapshot, @Nonnull IBlockState placedAgainst, @Nonnull EntityPlayer player, @Nonnull EnumHand hand) {
             super(blockSnapshot, placedAgainst, player);
@@ -205,6 +206,13 @@ public class BlockEvent extends Event
                 System.out.printf("Created PlaceEvent - [PlacedBlock: %s ][PlacedAgainst: %s ][ItemStack: %s ][Player: %s ][Hand: %s]\n", getPlacedBlock(), placedAgainst, player.getHeldItem(hand), player, hand);
             }
         }
+
+        // CatServer start
+        public PlaceEvent(@Nonnull BlockSnapshot blockSnapshot, @Nonnull IBlockState placedAgainst, @Nonnull EntityPlayer player, @Nonnull EnumHand hand, EnumFacing direction) {
+            this(blockSnapshot, placedAgainst, player, hand);
+            this.direction = direction;
+        }
+        // CatServer end
 
         public EntityPlayer getPlayer() { return player; }
         @Nonnull
@@ -268,6 +276,13 @@ public class BlockEvent extends Event
                 System.out.printf("Created MultiPlaceEvent - [PlacedAgainst: %s ][ItemInHand: %s ][Player: %s ]\n", placedAgainst, player.getHeldItem(hand), player);
             }
         }
+
+        // CatServer start - add direction
+        public MultiPlaceEvent(@Nonnull List<BlockSnapshot> blockSnapshots, @Nonnull IBlockState placedAgainst, @Nonnull EntityPlayer player, @Nonnull EnumHand hand, EnumFacing direction) {
+            this(blockSnapshots, placedAgainst, player, hand);
+            this.direction = direction;
+        }
+        // CatServer end
 
         /**
          * Gets a list of BlockSnapshots for all blocks which were replaced by the

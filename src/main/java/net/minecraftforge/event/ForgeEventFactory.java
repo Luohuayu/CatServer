@@ -134,7 +134,7 @@ public class ForgeEventFactory
     {
         BlockSnapshot snap = blockSnapshots.get(0);
         IBlockState placedAgainst = snap.getWorld().getBlockState(snap.getPos().offset(direction.getOpposite()));
-        MultiPlaceEvent event = new MultiPlaceEvent(blockSnapshots, placedAgainst, player, hand);
+        MultiPlaceEvent event = new MultiPlaceEvent(blockSnapshots, placedAgainst, player, hand, direction); // CatServer - add direction
         MinecraftForge.EVENT_BUS.post(event);
         return event;
     }
@@ -150,7 +150,7 @@ public class ForgeEventFactory
     public static PlaceEvent onPlayerBlockPlace(@Nonnull EntityPlayer player, @Nonnull BlockSnapshot blockSnapshot, @Nonnull EnumFacing direction, @Nonnull EnumHand hand)
     {
         IBlockState placedAgainst = blockSnapshot.getWorld().getBlockState(blockSnapshot.getPos().offset(direction.getOpposite()));
-        PlaceEvent event = new PlaceEvent(blockSnapshot, placedAgainst, player, hand);
+        PlaceEvent event = new PlaceEvent(blockSnapshot, placedAgainst, player, hand, direction); // CatServer - add direction
         MinecraftForge.EVENT_BUS.post(event);
         return event;
     }
