@@ -263,6 +263,7 @@ public class ActivationRange
      */
     public static boolean checkIfActive(Entity entity)
     {
+        if (!catserver.server.CatServer.getConfig().enableSkipEntityTick) return true; // CatServer
         SpigotTimings.checkIfActiveTimer.startTiming();
         // Never safe to skip fireworks or entities not yet added to chunk
         // PAIL: inChunk
