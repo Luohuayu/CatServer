@@ -282,7 +282,6 @@ public class DimensionManager
             return; // If a provider hasn't been registered then we can't hotload the dim
         }
         MinecraftServer mcServer = overworld.getMinecraftServer();
-        ISaveHandler savehandler = overworld.getSaveHandler();
         WorldSettings worldSettings = new WorldSettings(overworld.getWorldInfo());
         Environment env = Environment.getEnvironment(dim);
         if (dim >= -1 && dim <= 1)
@@ -301,8 +300,13 @@ public class DimensionManager
         if (mcServer instanceof DedicatedServer) {
             worldSettings.setGeneratorOptions(((DedicatedServer) mcServer).getStringProperty("generator-settings", ""));
         }
-        WorldInfo worldInfo = new WorldInfo(worldSettings, name);
-        WorldServer world = (dim == 0 ? overworld : (WorldServer)(new WorldServerMulti(mcServer, new AnvilSaveHandler(mcServer.server.getWorldContainer(), name, true, mcServer.getDataFixer()), dim, overworld, mcServer.profiler, worldInfo, env, gen).init()));
+        ISaveHandler saveHandler = new AnvilSaveHandler(mcServer.server.getWorldContainer(), name, true, mcServer.getDataFixer());
+        WorldInfo worldInfo = saveHandler.loadWorldInfo();
+        if (worldInfo == null) {
+            worldInfo = new WorldInfo(worldSettings, name);
+        }
+        WorldServer world = (dim == 0 ? overworld : (WorldServer)(new WorldServerMulti(mcServer, saveHandler, dim, overworld, mcServer.profiler, worldInfo, env, gen).init()));
+        worldInfo.setServerInitialized(true);
 
         mcServer.getPlayerList().setPlayerManager(mcServer.worldServerList.toArray(new WorldServer[0]));
         world.addEventListener(new ServerWorldEventHandler(mcServer, world));
