@@ -1,5 +1,8 @@
 package catserver.server.command.internal;
 
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
@@ -33,12 +36,16 @@ public class CommandChunkStats extends Command {
             return false;
         }
         if (args[0].equals("start")) {
-            chunks = new HashMap<>();
-            lastNanoTime = 0;
-            totalTick = 0;
-            enable = true;
+            if (!enable) {
+                chunks = new HashMap<>();
+                lastNanoTime = 0;
+                totalTick = 0;
+                enable = true;
 
-            sender.sendMessage("Chunk stats started!");
+                sender.sendMessage("Chunk stats started.");
+            } else {
+                sender.sendMessage("Already running!");
+            }
 
             return true;
         } else if (args[0].equals("stop")) {
@@ -69,13 +76,16 @@ public class CommandChunkStats extends Command {
 
                 sender.sendMessage("Chunks Time:");
                 for (ChunkTime chunkTime : chunkList) {
+                    int chunkX = chunkTime.chunk.x;
+                    int chunkZ = chunkTime.chunk.z;
+                    int posX = chunkX << 4;
+                    int posZ = chunkZ << 4;
                     int time = (int) (chunkTime.time / 1000 / 1000);
                     int avg = totalTick > 0 ? time / totalTick : 0;
-                    int x = chunkTime.chunk.x << 4;
-                    int z = chunkTime.chunk.z << 4;
-                    TextComponent component = new TextComponent(String.format("[%s: %d, %d] has running time: %d ms (Arg %d ms/tick)", chunkTime.chunk.world.getWorld().getName(), x, z, time, avg));
-                    component.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, String.format("/minecraft:tp %d 120 %d", x, z)));
-                    component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TextComponent[]{new TextComponent(String.format("Execute command: /minecraft:tp %d 120 %d", x, z))}));
+
+                    TextComponent component = new TextComponent(String.format("[%s: %d,%d at chunk %d,%d] has running time: %d ms (Arg %d ms/tick)", chunkTime.chunk.world.getWorld().getName(), posX, posZ, chunkX, chunkZ, time, avg));
+                    component.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, String.format("/minecraft:tp %d 128 %d", posX, posZ)));
+                    component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TextComponent[]{new TextComponent(String.format("Execute command: /minecraft:tp %d 128 %d", posX, posZ))}));
                     sender.spigot().sendMessage(component);
                 }
             } else {
