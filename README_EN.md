@@ -3,12 +3,14 @@
 ![](https://img.shields.io/badge/Forge-14.23.5.2854-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
-[Download](https://github.com/Luohuayu/CatServer/releases)
+[Website](https://catserver.moe/)
 [bStats](https://bstats.org/plugin/bukkit/CatServer)
-[Website](http://catserver.moe)
 
 CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
-The longest continuous update time, supporting most mods and plugins to run stably<br><br>
+The longest continuous update time, supporting most mods and plugins to run stably<br>
+
+[Download (Github)](https://github.com/Luohuayu/CatServer/releases)
+[Download (Mirror)](https://catserver.moe/download/universal)
 
 ### Features
 Use self-writing optimization and some Paper optimization to greatly improve performance<br>
@@ -24,9 +26,10 @@ Provide API to allow plugins to interact with mods easily<br>
 3. Wait for the libraries file download complete on the first startup<br>
 
 ### Building
-- Generate project: gradlew setup<br>
-- Generate patch: gradlew genPatches<br>
-- Build: gradlew build<br>
+- 1.Setup project: gradlew setup<br>
+  To import IDEA or Eclipse open: projects/Catserver/.project
+- 2.Generate patch: gradlew genPatches<br>
+- 3.Build: gradlew build<br>
 
 ### Chat
 Telegram: [@CatServer](https://t.me/CatServer)<br>
