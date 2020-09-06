@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class LibrariesManager {
@@ -28,27 +29,17 @@ public class LibrariesManager {
             while((str = bufferedReader.readLine()) != null)
             {
                 String[] args = str.split("\\|");
-                if (args.length == 3) {
-                    String type = args[0];
-                    String key = args[1];
-                    String value = args[2];
+                if (args.length == 2) {
+                    String key = args[0];
+                    String value = args[1];
 
-                    switch (type) {
-                        case "source": {
-                            librariesSources.add(key);
-                            break;
+                    try {
+                        File file = new File(jarDir, key);
+                        if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value)) {
+                            librariesNeedDownload.put(file, value);
                         }
-                        case "lib": {
-                            try {
-                                File file = new File(jarDir, key);
-                                if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value)) {
-                                    librariesNeedDownload.put(file, value);
-                                }
-                            } catch (IOException e) {
-                                System.out.println(e.toString());
-                            }
-                            break;
-                        }
+                    } catch (IOException e) {
+                        System.out.println(e.toString());
                     }
                 }
             }
@@ -58,13 +49,14 @@ public class LibrariesManager {
 
         if (librariesNeedDownload.size() > 0) {
             System.out.println(LanguageUtils.I18nToString("launch.lib_missing"));
+            loadDownloadSources();
             for (Map.Entry<File, String> entry : librariesNeedDownload.entrySet()) {
                 tryDownload(entry.getKey(), entry.getValue());
             }
         }
     }
 
-    public static File findJarDir() {
+    private static File findJarDir() {
         try {
             URL jarUrl = LibrariesManager.class.getProtectionDomain().getCodeSource().getLocation();
             File jarFile = new File(URLDecoder.decode(jarUrl.getPath(), "UTF-8"));
@@ -73,6 +65,25 @@ public class LibrariesManager {
             }
         } catch (Exception ignored) { }
         return new File(".");
+    }
+
+    private static void loadDownloadSources() {
+        try {
+            String str = sendRequest("https://catserver.moe/api/libraries_sources/");
+            for (String s : str.split("\\|")) {
+                if (s.startsWith("http://") || s.startsWith("https://")) {
+                    librariesSources.add(s);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println(e.toString());
+        }
+
+        if (librariesSources.size() == 0) {
+            librariesSources.add("http://sv.catserver.moe:8001/dl/");
+            librariesSources.add("http://sv2.catserver.moe:8001/dl/");
+            librariesSources.add("http://cdn.catserver.moe/dl/");
+        }
     }
 
     private static void tryDownload(File file, String md5) {
@@ -91,6 +102,23 @@ public class LibrariesManager {
                 if (e instanceof ConnectException || e instanceof SocketTimeoutException) iterator.remove();
             }
         }
+    }
+
+    private static String sendRequest(String url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestProperty("Accept", "*/*");
+        connection.setRequestProperty("Connection", "Close");
+        connection.connect();
+
+        String result = "";
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = in.readLine()) != null) {
+                result += line;
+            }
+        }
+
+        return result;
     }
 
     static class Downloader {
