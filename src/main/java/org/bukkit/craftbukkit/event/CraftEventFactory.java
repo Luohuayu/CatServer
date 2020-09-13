@@ -842,7 +842,7 @@ public class CraftEventFactory {
     }
 
     public static Container callInventoryOpenEvent(EntityPlayerMP player, Container container, boolean cancelled) {
-        if (CatServer.asyncCatch("call InventoryOpenEvent")) return CatServer.postPrimaryThread(() -> callInventoryOpenEvent(player, container, cancelled));
+        if (CatServer.asyncCatch("call InventoryOpenEvent")) return CatServer.postPrimaryThread(() -> callInventoryOpenEvent(player, container, cancelled)); // CatServer
         if (player.openContainer != player.inventoryContainer) { // fire INVENTORY_CLOSE if one already open
             player.connection.processCloseWindow(new CPacketCloseWindow(player.openContainer.windowId));
         }
@@ -981,7 +981,7 @@ public class CraftEventFactory {
     }
 
     public static void handleInventoryCloseEvent(EntityPlayer human) {
-        if (CatServer.asyncCatch("call InventoryCloseEvent")) { CatServer.postPrimaryThread(() -> handleInventoryCloseEvent(human)); return; };
+        if (CatServer.asyncCatch("call InventoryCloseEvent")) { CatServer.postPrimaryThread(() -> handleInventoryCloseEvent(human)); return; }; // CatServer
         InventoryCloseEvent event = new InventoryCloseEvent(human.openContainer.getBukkitView());
         if(human.openContainer.getBukkitView() != null) human.world.getServer().getPluginManager().callEvent(event); // CatServer - mods bypass
         human.openContainer.transferTo(human.inventoryContainer, human.getBukkitEntity());

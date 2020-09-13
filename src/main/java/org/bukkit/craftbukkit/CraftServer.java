@@ -704,7 +704,7 @@ public final class CraftServer implements Server {
 
     @Override
     public boolean dispatchCommand(CommandSender sender, String commandLine) {
-        if (CatServer.asyncCatch("dispatch command")) return CatServer.postPrimaryThread(() -> dispatchCommand(sender, commandLine));
+        if (CatServer.asyncCatch("dispatch command")) return CatServer.postPrimaryThread(() -> dispatchCommand(sender, commandLine)); // CatServer
         Validate.notNull(sender, "Sender cannot be null");
         Validate.notNull(commandLine, "CommandLine cannot be null");
 
