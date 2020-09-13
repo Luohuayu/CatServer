@@ -49,16 +49,18 @@ public class CatServer {
         }
     }
 
+    public static CatServerConfig getConfig() {
+        return config;
+    }
+
     public static boolean asyncCatch(String reason) {
         if (AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
-            log.debug("Try to asynchronously " + reason + ", caught!", new RuntimeException());
+            log.info("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
+            log.info("Please check the stack in debug.log and report the author.");
+            log.debug("Try to async " + reason, new RuntimeException());
             return true;
         }
         return false;
-    }
-
-    public static CatServerConfig getConfig() {
-        return config;
     }
 
     public static void postPrimaryThread(Runnable runnable) {
