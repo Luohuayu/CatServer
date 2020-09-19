@@ -303,6 +303,7 @@ public class FMLCommonHandler
     {
         Loader.instance().serverStarted();
         sidedDelegate.allowLogins();
+        catserver.server.utils.ModFixUtils.fixNetherex(); // CatServer
     }
 
     public void handleServerStopping()
