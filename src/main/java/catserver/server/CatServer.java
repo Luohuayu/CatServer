@@ -55,8 +55,10 @@ public class CatServer {
 
     public static boolean asyncCatch(String reason) {
         if (AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
-            log.info("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
-            log.info("Please check the stacktrace in debug.log and report the author.");
+            if (!CatServer.getConfig().disableAsyncCatchWarn) {
+                log.warn("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
+                log.warn("Please check the stacktrace in debug.log and report the author.");
+            }
             log.debug("Try to async " + reason, new RuntimeException());
             return true;
         }
