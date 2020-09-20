@@ -11,20 +11,17 @@ public class RealtimeThread extends Thread {
 
     @Override
     public void run() {
-        long lastTick = System.nanoTime(), catchupTime = 0, curTime, wait;
+        long lastTick = System.nanoTime(), curTime, wait;
         while (MinecraftServer.getServerInst().isServerRunning()) {
             curTime = System.nanoTime();
-            wait = MinecraftServer.TICK_TIME - (curTime - lastTick) - catchupTime;
+            wait = MinecraftServer.TICK_TIME - (curTime - lastTick);
             if (wait > 0) {
                 try {
                     Thread.sleep(wait / 1000000);
                 } catch (InterruptedException e) {
                     ;
                 }
-                catchupTime = 0;
                 continue;
-            } else {
-                catchupTime = Math.min(1000000000, Math.abs(wait));
             }
 
             currentTick++;
