@@ -55,7 +55,7 @@ public class CatServer {
 
     public static boolean asyncCatch(String reason) {
         if (AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
-            if (!CatServer.getConfig().disableAsyncCatchWarn) {
+            if (!getConfig().disableAsyncCatchWarn) {
                 log.warn("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
                 log.warn("Please check the stacktrace in debug.log and report the author.");
             }
@@ -84,36 +84,6 @@ public class CatServer {
         }
     }
 
-    public static int getCurrentTick() {
-        return getConfig().enableRealtime ? RealtimeThread.currentTick : MinecraftServer.currentTick;
-    }
-
-    public static void forceSaveWorlds() {
-        log.info("Force save worlds:");
-        boolean oldAsyncCatcher = AsyncCatcher.enabled;
-        AsyncCatcher.enabled = false;
-
-        try {
-            log.info("Force saving players..");
-            MinecraftServer.getServerInst().getPlayerList().saveAllPlayerData();
-
-            log.info("Force saving chunks..");
-            for (WorldServer worldServer : MinecraftServer.getServerInst().worldServerList) {
-                try {
-                    worldServer.saveAllChunks(true, null);
-                    worldServer.flushToDisk();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        AsyncCatcher.enabled = oldAsyncCatcher;
-        log.info("Force save complete!");
-    }
-
     public static void scheduleAsyncTask(Runnable runnable) {
         if (!asyncExecutor.isShutdown() && !asyncExecutor.isTerminated()) {
             asyncExecutor.execute(runnable);
@@ -122,20 +92,7 @@ public class CatServer {
         }
     }
 
-    public static void acceptEula() {
-        Properties properties = new Properties();
-        try (FileInputStream fileinputstream = new FileInputStream("eula.txt")) {
-            properties.load(fileinputstream);
-        } catch (Exception e) {
-            log.warn(e.toString());
-        }
-        if (!"true".equals(properties.getProperty("eula"))) {
-            try (FileOutputStream fileoutputstream = new FileOutputStream("eula.txt")) {
-                properties.setProperty("eula", "true");
-                properties.store(fileoutputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula).");
-            } catch (Exception e) {
-                log.warn(e.toString());
-            }
-        }
+    public static int getCurrentTick() {
+        return getConfig().enableRealtime ? RealtimeThread.currentTick : MinecraftServer.currentTick;
     }
 }
