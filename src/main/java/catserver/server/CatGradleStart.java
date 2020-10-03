@@ -39,7 +39,12 @@ public class CatGradleStart {
         extras = null;
 
         System.gc();
-        Class.forName("net.minecraft.launchwrapper.Launch").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
+        try {
+            Class.forName("net.minecraft.launchwrapper.Launch").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+            catserver.server.utils.Log4jUitls.flush(); // CatServer - flush error to console
+        }
     }
 
     private String[] getArgs()
