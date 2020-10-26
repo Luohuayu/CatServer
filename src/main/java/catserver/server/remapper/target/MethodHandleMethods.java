@@ -25,13 +25,20 @@ public class MethodHandleMethods {
         }
     }
 
-    public static MethodHandle findSpecial(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType type, Class<?> specialCaller) throws NoSuchMethodException, IllegalAccessException {
+    // MethodHandles$Lookup.findStatic
+    public static MethodHandle findStatic(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
         if (refc.getName().startsWith("net.minecraft.")) {
             name = RemapUtils.mapMethod(refc, name, type.parameterArray());
+        } else {
+            Class<?> remappedClass = RemapRules.getStaticMethodTarget((refc.getName().replace(".", "/") + ";" + name));
+            if (remappedClass != null) {
+                refc = remappedClass;
+            }
         }
-        return lookup.findSpecial(refc, name, type, specialCaller);
+        return lookup.findStatic(refc, name, type);
     }
 
+    // MethodHandles$Lookup.findVirtual
     public static MethodHandle findVirtual(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType oldType) throws NoSuchMethodException, IllegalAccessException {
         if (refc.getName().startsWith("net.minecraft.")) {
             name = RemapUtils.mapMethod(refc, name, oldType.parameterArray());
@@ -51,23 +58,53 @@ public class MethodHandleMethods {
         return lookup.findVirtual(refc, name, oldType);
     }
 
-    public static MethodHandle findStatic(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
+    // MethodHandles$Lookup.findSpecial
+    public static MethodHandle findSpecial(MethodHandles.Lookup lookup, Class<?> refc, String name, MethodType type, Class<?> specialCaller) throws NoSuchMethodException, IllegalAccessException {
         if (refc.getName().startsWith("net.minecraft.")) {
             name = RemapUtils.mapMethod(refc, name, type.parameterArray());
-        } else {
-            Class<?> remappedClass = RemapRules.getStaticMethodTarget((refc.getName().replace(".", "/") + ";" + name));
-            if (remappedClass != null) {
-                refc = remappedClass;
-            }
         }
-        return lookup.findStatic(refc, name, type);
+        return lookup.findSpecial(refc, name, type, specialCaller);
     }
 
-    public static MethodType fromMethodDescriptorString(String descriptor, ClassLoader loader) {
+    // MethodHandles$Lookup.findGetter
+    public static MethodHandle findGetter(MethodHandles.Lookup lookup, Class<?> refc, String name, Class<?> type) throws NoSuchFieldException, IllegalAccessException {
+        if (refc.getName().startsWith("net.minecraft.")) {
+            name = RemapUtils.mapFieldName(refc, name);
+        }
+        return lookup.findGetter(refc, name, type);
+    }
+
+    // MethodHandles$Lookup.findSetter
+    public static MethodHandle findSetter(MethodHandles.Lookup lookup, Class<?> refc, String name, Class<?> type) throws NoSuchFieldException, IllegalAccessException {
+        if (refc.getName().startsWith("net.minecraft.")) {
+            name = RemapUtils.mapFieldName(refc, name);
+        }
+        return lookup.findSetter(refc, name, type);
+    }
+
+    // MethodHandles$Lookup.findStaticGetter
+    public static MethodHandle findStaticGetter(MethodHandles.Lookup lookup, Class<?> refc, String name, Class<?> type) throws NoSuchFieldException, IllegalAccessException {
+        if (refc.getName().startsWith("net.minecraft.")) {
+            name = RemapUtils.mapFieldName(refc, name);
+        }
+        return lookup.findStaticGetter(refc, name, type);
+    }
+
+    // MethodHandles$Lookup.findStaticSetter
+    public static MethodHandle findStaticSetter(MethodHandles.Lookup lookup, Class<?> refc, String name, Class<?> type) throws NoSuchFieldException, IllegalAccessException {
+        if (refc.getName().startsWith("net.minecraft.")) {
+            name = RemapUtils.mapFieldName(refc, name);
+        }
+        return lookup.findStaticSetter(refc, name, type);
+    }
+
+    // MethodType.fromMethodDescriptorString
+    private static MethodType fromMethodDescriptorString(String descriptor, ClassLoader loader) {
         String remapDesc = map.getOrDefault(descriptor, descriptor);
         return MethodType.fromMethodDescriptorString(remapDesc, loader);
     }
 
+    // MethodHandles$Lookup.unreflect
     public static MethodHandle unreflect(MethodHandles.Lookup lookup, Method m) throws IllegalAccessException {
         Class<?> remappedClass = RemapRules.getVirtualMethodToStaticTarget((m.getDeclaringClass().getName().replace(".", "/") + ";" + m.getName()));
         if (remappedClass != null) {
@@ -90,9 +127,7 @@ public class MethodHandleMethods {
         return remappedClass.getMethod(originalMethod.getName(), newParArr);
     }
 
-
-    public static void loadMappings(BufferedReader reader) throws IOException {
-
+    private static void loadMappings(BufferedReader reader) throws IOException {
         String line;
         while ((line = reader.readLine()) != null) {
             int commentIndex = line.indexOf('#');
@@ -108,5 +143,4 @@ public class MethodHandleMethods {
             map.put(firDesc, secDesc);
         }
     }
-
 }

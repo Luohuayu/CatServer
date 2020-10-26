@@ -37,9 +37,13 @@ public class RemapRules {
         remapVirtualMethodToStatic.put("java/lang/reflect/Field;getName", ReflectionMethods.class);
         remapVirtualMethodToStatic.put("java/lang/reflect/Method;getName", ReflectionMethods.class);
         remapVirtualMethodToStatic.put("java/lang/ClassLoader;loadClass", ReflectionMethods.class);
-        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findVirtual", MethodHandleMethods.class);
         remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findStatic", MethodHandleMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findVirtual", MethodHandleMethods.class);
         remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findSpecial", MethodHandleMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findGetter", MethodHandleMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findSetter", MethodHandleMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findStaticGetter", MethodHandleMethods.class);
+        remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;findStaticSetter", MethodHandleMethods.class);
         remapVirtualMethodToStatic.put("java/lang/invoke/MethodHandles$Lookup;unreflect", MethodHandleMethods.class);
 
         remapSuperClass.put("java/net/URLClassLoader", CatURLClassLoader.class);
