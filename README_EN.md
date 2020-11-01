@@ -5,6 +5,7 @@
 
 [Website](https://catserver.moe/)
 [bStats](https://bstats.org/plugin/bukkit/CatServer)
+[Sponsor](https://paypal.me/LuohuayuMeow)
 
 CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
 The longest continuous update time, supporting most mods and plugins to run stably<br>
