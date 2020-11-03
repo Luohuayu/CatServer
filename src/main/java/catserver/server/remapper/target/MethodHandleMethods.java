@@ -99,7 +99,7 @@ public class MethodHandleMethods {
     }
 
     // MethodType.fromMethodDescriptorString
-    private static MethodType fromMethodDescriptorString(String descriptor, ClassLoader loader) {
+    public static MethodType fromMethodDescriptorString(String descriptor, ClassLoader loader) {
         String remapDesc = map.getOrDefault(descriptor, descriptor);
         return MethodType.fromMethodDescriptorString(remapDesc, loader);
     }
