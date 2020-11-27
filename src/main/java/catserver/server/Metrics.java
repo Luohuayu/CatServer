@@ -110,7 +110,7 @@ public class Metrics {
         logSentData = config.getBoolean("logSentData", false);
         logResponseStatusText = config.getBoolean("logResponseStatusText", false);
 
-        if (true || enabled) {
+        if (enabled) {
             startSubmitting();
         }
     }
