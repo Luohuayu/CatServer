@@ -19,7 +19,7 @@ public class LanguageUtils {
         CN.put("versioncheck.failure", "CatServer更新检查失败, 请检查网络: %s");
 
         EN.put("launch.java_wrong", "Current Java version (%s) is not supported, please replace to Java8");
-        EN.put("launch.lib_missing", "Missing libraries file, downloading..");
+        EN.put("launch.lib_missing", "Missing libraries file, downloading.. (Add -Dcatserver.skipCheckLibraries=true to the jvm flag to skip it)");
         EN.put("launch.lib_failure_check", "File %s verification failed, URL: %s");
         EN.put("launch.lib_failure_download", "File download failed(HTTP Status: %s), URL: %s");
         EN.put("launch.lib_downloading", "Downloading %s Size: %s");
