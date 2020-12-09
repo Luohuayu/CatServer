@@ -4,7 +4,6 @@
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
 [官网](https://catserver.moe/)
-[统计](https://bstats.org/plugin/bukkit/CatServer)
 [赞助](https://afdian.net/@Luohuayu)
 [English](README_EN.md)
 
@@ -37,6 +36,3 @@ CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
 QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW)<br>
 Telegram: [@CatServer](https://t.me/CatServer)<br>
 Discord: [点击加入](https://discord.gg/wvBJN4d)<br>
-
-### 使用统计
-<img src="https://bstats.org/signatures/bukkit/CatServer.svg"><br>

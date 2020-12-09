@@ -36,7 +36,6 @@ public class CatServer {
 
     public static void onServerStart() {
         realtimeThread.start();
-        new Metrics();
         new VersionCheck();
     }
 

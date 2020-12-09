@@ -4,7 +4,6 @@
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
 [Website](https://catserver.moe/)
-[bStats](https://bstats.org/plugin/bukkit/CatServer)
 [Sponsor](https://paypal.me/LuohuayuMeow)
 
 CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
@@ -35,6 +34,3 @@ Provide API to allow plugins to interact with mods easily<br>
 ### Chat
 Telegram: [@CatServer](https://t.me/CatServer)<br>
 Discord: [Click to join](https://discord.gg/wvBJN4d)<br>
-
-### Statistic
-<img src="https://bstats.org/signatures/bukkit/CatServer.svg"><br><br>
