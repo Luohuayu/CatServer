@@ -242,7 +242,7 @@ public class ASMTransformerWrapper
         {
             try
             {
-                this.parent = (IClassTransformer)this.getClass().getClassLoader().loadClass(getParentClass()).newInstance();
+                this.parent = catserver.server.asm.proxy.TransformerProxyRules.getTarget((IClassTransformer)this.getClass().getClassLoader().loadClass(getParentClass()).newInstance()); // CatServer - try to find proxy
             }
             catch(Exception e)
             {
