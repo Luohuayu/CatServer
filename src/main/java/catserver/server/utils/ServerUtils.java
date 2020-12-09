@@ -40,9 +40,8 @@ public class ServerUtils {
         Properties properties = new Properties();
         try (FileInputStream fileinputstream = new FileInputStream("eula.txt")) {
             properties.load(fileinputstream);
-        } catch (Exception e) {
-            CatServer.log.warn(e.toString());
-        }
+        } catch (Exception ignored) { }
+
         if (!"true".equals(properties.getProperty("eula"))) {
             try (FileOutputStream fileoutputstream = new FileOutputStream("eula.txt")) {
                 properties.setProperty("eula", "true");
