@@ -10,6 +10,7 @@ public class TransformerProxyRules {
 
     static {
         transformerProxyRules.put("com.teamwizardry.librarianlib.asm.LibLibTransformer", LibrarianLibTransformerProxy.class);
+        transformerProxyRules.put("me.paulf.wings.server.asm.WingsRuntimePatcher", WingsTransformerProxy.class);
     }
 
     public static IClassTransformer getTarget(IClassTransformer originTransformer) {
