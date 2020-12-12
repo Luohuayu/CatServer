@@ -4,7 +4,7 @@
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
 [Website](https://catserver.moe/)
-[Sponsor](https://paypal.me/LuohuayuMeow)
+[Sponsor](https://paypal.me/LHYCAT)
 
 CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
 The longest continuous update time, supporting most mods and plugins to run stably<br>
