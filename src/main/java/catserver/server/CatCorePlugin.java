@@ -1,6 +1,7 @@
 package catserver.server;
 
 import catserver.server.asm.MethodTransformer;
+import catserver.server.asm.ModsCompatibleTransformer;
 import catserver.server.asm.SideTransformer;
 import net.minecraftforge.fml.relauncher.FMLLaunchHandler;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
@@ -13,7 +14,8 @@ public class CatCorePlugin implements IFMLLoadingPlugin {
     public String[] getASMTransformerClass() {
         return !FMLLaunchHandler.isDeobfuscatedEnvironment() ? new String[] {
                 MethodTransformer.class.getCanonicalName(),
-                SideTransformer.class.getCanonicalName()
+                SideTransformer.class.getCanonicalName(),
+                ModsCompatibleTransformer.class.getCanonicalName()
         } : null;
     }
 
