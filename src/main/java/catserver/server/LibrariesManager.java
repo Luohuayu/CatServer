@@ -22,6 +22,8 @@ public class LibrariesManager {
         InputStream listStream = ClassLoader.getSystemResourceAsStream("libraries.info");
         if (listStream == null) return;
 
+        updateMCServerJar(jarDir, libDir);
+
         Map<File, String> librariesNeedDownload = new HashMap<>();
 
         try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(listStream))) {
@@ -119,6 +121,22 @@ public class LibrariesManager {
         }
 
         return result;
+    }
+
+    private static void updateMCServerJar(File currentJarPath, File librariesPath) {
+        File oldMCServerJar = new File(currentJarPath, "minecraft_server.1.12.2.jar");
+        File targetMCServerJar = new File(librariesPath, "minecraft_server.1.12.2.jar");
+        try {
+            if (oldMCServerJar.exists()) {
+                if (!targetMCServerJar.exists()) {
+                    oldMCServerJar.renameTo(targetMCServerJar);
+                } else {
+                    oldMCServerJar.delete();
+                }
+            }
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
     }
 
     static class Downloader {
