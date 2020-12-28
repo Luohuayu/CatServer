@@ -66,7 +66,7 @@
  
  public abstract class PlayerList
  {
-@@ -76,15 +99,15 @@
+@@ -76,7 +99,7 @@
      private static final Logger LOGGER = LogManager.getLogger();
      private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
      private final MinecraftServer mcServer;
@@ -75,18 +75,16 @@
      private final Map<UUID, EntityPlayerMP> uuidToPlayerMap = Maps.<UUID, EntityPlayerMP>newHashMap();
      private final UserListBans bannedPlayers;
      private final UserListIPBans bannedIPs;
-     private final UserListOps ops;
+@@ -84,7 +107,7 @@
      private final UserListWhitelist whiteListedPlayers;
--    private final Map<UUID, StatisticsManagerServer> playerStatFiles;
--    private final Map<UUID, PlayerAdvancements> advancements;
+     private final Map<UUID, StatisticsManagerServer> playerStatFiles;
+     private final Map<UUID, PlayerAdvancements> advancements;
 -    private IPlayerFileData playerDataManager;
-+    // private final Map<UUID, StatisticsManagerServer> playerStatFiles;
-+    // private final Map<UUID, PlayerAdvancements> advancements;
 +    public IPlayerFileData playerDataManager;
      private boolean whiteListEnforced;
      protected int maxPlayers;
      private int viewDistance;
-@@ -92,22 +115,44 @@
+@@ -92,6 +115,8 @@
      private boolean commandsAllowedForAll;
      private int playerPingIndex;
  
@@ -95,16 +93,7 @@
      public PlayerList(MinecraftServer server)
      {
          this.bannedPlayers = new UserListBans(FILE_PLAYERBANS);
-         this.bannedIPs = new UserListIPBans(FILE_IPBANS);
-         this.ops = new UserListOps(FILE_OPS);
-         this.whiteListedPlayers = new UserListWhitelist(FILE_WHITELIST);
--        this.playerStatFiles = Maps.<UUID, StatisticsManagerServer>newHashMap();
--        this.advancements = Maps.<UUID, PlayerAdvancements>newHashMap();
-+        // this.playerStatFiles = Maps.<UUID, StatisticsManagerServer>newHashMap();
-+        // this.advancements = Maps.<UUID, PlayerAdvancements>newHashMap();
-         this.mcServer = server;
-         this.bannedPlayers.setLanServer(false);
-         this.bannedIPs.setLanServer(false);
+@@ -106,8 +131,28 @@
          this.maxPlayers = 8;
      }
  
@@ -292,7 +281,7 @@
          }
          else
          {
-@@ -313,17 +404,33 @@
+@@ -313,8 +404,24 @@
          return nbttagcompound1;
      }
  
@@ -315,19 +304,8 @@
 +        if (playerIn.connection == null) return;
 +
          this.playerDataManager.writePlayerData(playerIn);
--        StatisticsManagerServer statisticsmanagerserver = this.playerStatFiles.get(playerIn.getUniqueID());
-+        StatisticsManagerServer statisticsmanagerserver = playerIn.getStatFile();
+         StatisticsManagerServer statisticsmanagerserver = this.playerStatFiles.get(playerIn.getUniqueID());
  
-         if (statisticsmanagerserver != null)
-         {
-             statisticsmanagerserver.saveStatFile();
-         }
- 
--        PlayerAdvancements playeradvancements = this.advancements.get(playerIn.getUniqueID());
-+        PlayerAdvancements playeradvancements = playerIn.getAdvancements();
- 
-         if (playeradvancements != null)
-         {
 @@ -343,19 +450,90 @@
              playerIn.connection.sendPacket(new SPacketPlayerListItem(SPacketPlayerListItem.Action.ADD_PLAYER, new EntityPlayerMP[] {this.playerEntityList.get(i)}));
          }
@@ -428,14 +406,8 @@
  
          worldserver.removeEntity(playerIn);
          worldserver.getPlayerChunkMap().removePlayer(playerIn);
-@@ -387,11 +566,27 @@
-         if (entityplayermp == playerIn)
-         {
-             this.uuidToPlayerMap.remove(uuid);
--            this.playerStatFiles.remove(uuid);
--            this.advancements.remove(uuid);
-+            // this.playerStatFiles.remove(uuid);
-+            // this.advancements.remove(uuid);
+@@ -391,7 +570,23 @@
+             this.advancements.remove(uuid);
          }
  
 -        this.sendPacketToAllPlayers(new SPacketPlayerListItem(SPacketPlayerListItem.Action.REMOVE_PLAYER, new EntityPlayerMP[] {playerIn}));
@@ -1266,55 +1238,24 @@
      }
  
      public void sendMessage(ITextComponent component)
-@@ -1022,10 +1719,19 @@
+@@ -1022,6 +1719,7 @@
          this.sendMessage(component, true);
      }
  
--    public StatisticsManagerServer getPlayerStatsFile(EntityPlayer playerIn)
 +    @Nullable
-+    public StatisticsManagerServer getPlayerStatsFile(EntityPlayer playerIn) {
-+        if (playerIn instanceof EntityPlayerMP) {
-+            return this.getPlayerStatsFile((EntityPlayerMP) playerIn);
-+        } else {
-+            return null;
-+        }
-+    }
-+
-+    public StatisticsManagerServer getPlayerStatsFile(EntityPlayerMP playerIn)
+     public StatisticsManagerServer getPlayerStatsFile(EntityPlayer playerIn)
      {
          UUID uuid = playerIn.getUniqueID();
--        StatisticsManagerServer statisticsmanagerserver = uuid == null ? null : (StatisticsManagerServer)this.playerStatFiles.get(uuid);
-+        StatisticsManagerServer statisticsmanagerserver = uuid == null ? null : (StatisticsManagerServer)playerIn.getStatFile();
- 
-         if (statisticsmanagerserver == null)
-         {
-@@ -1044,7 +1750,7 @@
- 
-             statisticsmanagerserver = new StatisticsManagerServer(this.mcServer, file2);
-             statisticsmanagerserver.readStatFile();
--            this.playerStatFiles.put(uuid, statisticsmanagerserver);
-+            // this.playerStatFiles.put(uuid, statisticsmanagerserver);
-         }
- 
+@@ -1050,6 +1748,8 @@
          return statisticsmanagerserver;
-@@ -1053,14 +1759,14 @@
+     }
+ 
++    public StatisticsManagerServer getStatisticManager(EntityPlayerMP playerIn) { return getPlayerStatsFile(playerIn); } // CatServer - Add CraftBukkit method
++
      public PlayerAdvancements getPlayerAdvancements(EntityPlayerMP p_192054_1_)
      {
          UUID uuid = p_192054_1_.getUniqueID();
--        PlayerAdvancements playeradvancements = this.advancements.get(uuid);
-+        PlayerAdvancements playeradvancements = p_192054_1_.getAdvancements();
- 
-         if (playeradvancements == null)
-         {
-             File file1 = new File(this.mcServer.getWorld(0).getSaveHandler().getWorldDirectory(), "advancements");
-             File file2 = new File(file1, uuid + ".json");
-             playeradvancements = new PlayerAdvancements(this.mcServer, file2, p_192054_1_);
--            this.advancements.put(uuid, playeradvancements);
-+            // this.advancements.put(uuid, playeradvancements);
-         }
- 
-         playeradvancements.setPlayer(p_192054_1_);
-@@ -1073,7 +1779,7 @@
+@@ -1073,7 +1773,7 @@
  
          if (this.mcServer.worlds != null)
          {
@@ -1323,16 +1264,3 @@
              {
                  if (worldserver != null)
                  {
-@@ -1101,9 +1807,10 @@
- 
-     public void reloadResources()
-     {
--        for (PlayerAdvancements playeradvancements : this.advancements.values())
-+        for (EntityPlayerMP entityPlayerMP : this.playerEntityList)
-         {
--            playeradvancements.reload();
-+            entityPlayerMP.getAdvancements().reload();
-+            entityPlayerMP.getAdvancements().flushDirty(entityPlayerMP); // CraftBukkit - trigger immediate flush of advancements
-         }
-     }
- 
