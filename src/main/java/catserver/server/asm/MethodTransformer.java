@@ -20,6 +20,8 @@ public class MethodTransformer implements IClassTransformer {
             return patchEntity(basicClass);
         } else if ("net.minecraft.entity.player.EntityPlayer".equals(transformedName)) {
             return patchEntityPlayer(basicClass);
+        } else if ("com.typesafe.config.impl.SimpleConfigOrigin".equals(transformedName)) {
+            return patchSimpleConfigOrigin(basicClass);
         }
 
         return basicClass;
@@ -89,6 +91,31 @@ public class MethodTransformer implements IClassTransformer {
         mv.visitMethodInsn(INVOKEVIRTUAL, "net/minecraft/entity/player/EntityPlayer", "func_146103_bH", "()Lcom/mojang/authlib/GameProfile;", false);
         mv.visitInsn(ARETURN);
         mv.visitEnd();
+
+        classNode.accept(classWriter);
+        return classWriter.toByteArray();
+    }
+
+    private byte[] patchSimpleConfigOrigin(byte[] basicClass) {
+        ClassNode classNode = new ClassNode();
+        new ClassReader(basicClass).accept(classNode, 0);
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+
+        MethodVisitor mv1 = classWriter.visitMethod(ACC_PUBLIC, "setComments", "(Ljava/util/List;)Lcom/typesafe/config/impl/SimpleConfigOrigin;", "(Ljava/util/List<Ljava/lang/String;>;)Lcom/typesafe/config/impl/SimpleConfigOrigin;", null);
+        mv1.visitCode();
+        mv1.visitVarInsn(ALOAD, 0);
+        mv1.visitVarInsn(ALOAD, 1);
+        mv1.visitMethodInsn(INVOKEVIRTUAL, "com/typesafe/config/impl/SimpleConfigOrigin", "withComments", "(Ljava/util/List;)Lcom/typesafe/config/impl/SimpleConfigOrigin;", false);
+        mv1.visitInsn(ARETURN);
+        mv1.visitEnd();
+
+        MethodVisitor mv2 = classWriter.visitMethod(ACC_PUBLIC, "setLineNumber", "(I)Lcom/typesafe/config/impl/SimpleConfigOrigin;", null, null);
+        mv2.visitCode();
+        mv2.visitVarInsn(ALOAD, 0);
+        mv2.visitVarInsn(ILOAD, 1);
+        mv2.visitMethodInsn(INVOKEVIRTUAL, "com/typesafe/config/impl/SimpleConfigOrigin", "withLineNumber", "(I)Lcom/typesafe/config/impl/SimpleConfigOrigin;", false);
+        mv2.visitInsn(ARETURN);
+        mv2.visitEnd();
 
         classNode.accept(classWriter);
         return classWriter.toByteArray();
