@@ -363,6 +363,7 @@ public final class JavaPluginLoader implements PluginLoader {
                 for (String name : names) {
                     removeClass(name);
                 }
+                if (net.minecraft.server.MinecraftServer.getServerInst().isServerStopping()) return; // CatServer - Prevent shutdown hooks error
                 // Paper start - close Class Loader on disable
                 try {
                     loader.close();
