@@ -1,7 +1,7 @@
 # CatServer
 ![](https://img.shields.io/badge/Minecraft-1.12.2-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/Forge-14.23.5.2854-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
+![](https://img.shields.io/badge/Forge-14.23.5.2855-brightgreen.svg?colorB=469C00)
+![](https://img.shields.io/badge/Spigot-1.12.2-brightgreen.svg?colorB=469C00)
 
 [官网](https://catserver.moe/)
 [赞助](https://afdian.net/@Luohuayu)
