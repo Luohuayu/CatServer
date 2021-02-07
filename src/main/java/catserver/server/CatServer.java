@@ -4,17 +4,10 @@ import catserver.server.threads.RealtimeThread;
 import catserver.server.utils.VersionCheck;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bukkit.craftbukkit.util.Waitable;
-import org.spigotmc.AsyncCatcher;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.Properties;
 import java.util.concurrent.*;
-import java.util.function.Supplier;
 
 public class CatServer {
     public static final Logger log = LogManager.getLogger("CatServer");
@@ -53,34 +46,11 @@ public class CatServer {
     }
 
     public static boolean asyncCatch(String reason) {
-        if (AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
-            if (!getConfig().disableAsyncCatchWarn) {
-                log.warn("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
-                log.warn("Please check the stacktrace in debug.log and report the author.");
-            }
-            log.debug("Try to async " + reason, new RuntimeException());
-            return true;
-        }
-        return false;
+        return AsyncCatcher.checkAsync(reason);
     }
 
     public static void postPrimaryThread(Runnable runnable) {
-        postPrimaryThread(() -> { runnable.run(); return null; });
-    }
-
-    public static <T> T postPrimaryThread(Supplier<T> runnable) {
-        Waitable<T> wait = new Waitable<T>() {
-            @Override
-            protected T evaluate() {
-                return runnable.get();
-            }
-        };
-        MinecraftServer.getServerInst().processQueue.add(wait);
-        try {
-            return wait.get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
-        }
+        MinecraftServer.getServerInst().processQueue.add(runnable);
     }
 
     public static void scheduleAsyncTask(Runnable runnable) {
