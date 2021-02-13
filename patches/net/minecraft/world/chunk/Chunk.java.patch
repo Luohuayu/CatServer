@@ -58,7 +58,7 @@
      private boolean isTerrainPopulated;
      private boolean isLightPopulated;
      private boolean ticked;
-@@ -68,7 +77,46 @@
+@@ -68,7 +77,95 @@
      private int queuedLightChecks;
      private final ConcurrentLinkedQueue<BlockPos> tileEntityPosQueue;
      public boolean unloadQueued;
@@ -102,10 +102,59 @@
 +
 +    private boolean loadingTileentity = false; // CatServer - prevent modification of tileentity list when chunk loading
 +
++    // CatServer start
++    private void handleSpigotEntityAdd(Entity entityIn) {
++        // Spigot start - increment creature type count
++        // Keep this synced up with World.a(Class)
++        if (entityIn instanceof EntityLiving) {
++            EntityLiving entityinsentient = (EntityLiving) entityIn;
++            if (entityinsentient.canDespawn() && entityinsentient.isNoDespawnRequired()) {
++                return;
++            }
++        }
++        for ( EnumCreatureType creatureType : EnumCreatureType.values() )
++        {
++            if ( creatureType.getCreatureClass().isAssignableFrom( entityIn.getClass() ) )
++            {
++                this.entityCount.adjustOrPutValue( creatureType.getCreatureClass(), 1, 1 );
++            }
++        }
++        // Spigot end
++    }
++
++    private void handleSpigotEntityRemove(Entity entityIn) {
++        // Spigot start - decrement creature type count
++        // Keep this synced up with World.a(Class)
++        if (entityIn instanceof EntityLiving) {
++            EntityLiving entityinsentient = (EntityLiving) entityIn;
++            if (entityinsentient.canDespawn() && entityinsentient.isNoDespawnRequired()) {
++                return;
++            }
++        }
++        for ( EnumCreatureType creatureType : EnumCreatureType.values() )
++        {
++            if ( creatureType.getCreatureClass().isAssignableFrom( entityIn.getClass() ) )
++            {
++                this.entityCount.adjustValue( creatureType.getCreatureClass(), -1 );
++            }
++        }
++        // Spigot end
++    }
++
++    private void handleSpigotOnLoaded() {
++        this.entityCount.clear();
++        for (ClassInheritanceMultiMap<Entity> entityList : entityLists) {
++            for (Entity entity : entityList) {
++                handleSpigotEntityAdd(entity);
++            }
++        }
++    }
++    // CatServer end
++
      public Chunk(World worldIn, int x, int z)
      {
          this.storageArrays = new ExtendedBlockStorage[16];
-@@ -91,8 +139,14 @@
+@@ -91,8 +188,14 @@
  
          Arrays.fill(this.precipitationHeightMap, -999);
          Arrays.fill(this.blockBiomeArray, (byte) - 1);
@@ -120,7 +169,7 @@
      public Chunk(World worldIn, ChunkPrimer primer, int x, int z)
      {
          this(worldIn, x, z);
-@@ -179,7 +233,7 @@
+@@ -179,7 +282,7 @@
                  {
                      IBlockState iblockstate = this.getBlockState(j, l - 1, k);
  
@@ -129,7 +178,7 @@
                      {
                          this.heightMap[k << 4 | j] = l;
  
-@@ -452,12 +506,13 @@
+@@ -452,12 +555,13 @@
  
      public int getBlockLightOpacity(BlockPos pos)
      {
@@ -145,7 +194,7 @@
      }
  
      public IBlockState getBlockState(BlockPos pos)
-@@ -539,6 +594,7 @@
+@@ -539,6 +643,7 @@
          {
              Block block = state.getBlock();
              Block block1 = iblockstate.getBlock();
@@ -153,7 +202,7 @@
              ExtendedBlockStorage extendedblockstorage = this.storageArrays[j >> 4];
              boolean flag = false;
  
-@@ -556,14 +612,19 @@
+@@ -556,14 +661,19 @@
  
              extendedblockstorage.set(i, j & 15, k, state);
  
@@ -175,7 +224,7 @@
                      this.world.removeTileEntity(pos);
                  }
              }
-@@ -580,8 +641,7 @@
+@@ -580,8 +690,7 @@
                  }
                  else
                  {
@@ -185,7 +234,7 @@
  
                      if (j1 > 0)
                      {
-@@ -601,28 +661,20 @@
+@@ -601,28 +710,20 @@
                      }
                  }
  
@@ -220,7 +269,7 @@
                          this.world.setTileEntity(pos, tileentity1);
                      }
  
-@@ -738,11 +790,36 @@
+@@ -738,11 +839,22 @@
              k = this.entityLists.length - 1;
          }
  
@@ -238,26 +287,12 @@
 +            inventoryEntityCounts[k]++;
 +        }
 +        // Paper end
-+        // Spigot start - increment creature type count
-+        // Keep this synced up with World.a(Class)
-+        if (entityIn instanceof EntityLiving) {
-+            EntityLiving entityinsentient = (EntityLiving) entityIn;
-+            if (entityinsentient.canDespawn() && entityinsentient.isNoDespawnRequired()) {
-+                return;
-+            }
-+        }
-+        for ( EnumCreatureType creatureType : EnumCreatureType.values() )
-+        {
-+            if ( creatureType.getCreatureClass().isAssignableFrom( entityIn.getClass() ) )
-+            {
-+                this.entityCount.adjustOrPutValue( creatureType.getCreatureClass(), 1, 1 );
-+            }
-+        }
-+        // Spigot end
++        if (loaded) handleSpigotEntityAdd(entityIn); // CatServer
++
      }
  
      public void removeEntity(Entity entityIn)
-@@ -763,6 +840,30 @@
+@@ -763,6 +875,15 @@
          }
  
          this.entityLists[index].remove(entityIn);
@@ -269,26 +304,11 @@
 +            inventoryEntityCounts[index]--;
 +        }
 +        // Paper end
-+        // Spigot start - decrement creature type count
-+        // Keep this synced up with World.a(Class)
-+        if (entityIn instanceof EntityLiving) {
-+            EntityLiving entityinsentient = (EntityLiving) entityIn;
-+            if (entityinsentient.canDespawn() && entityinsentient.isNoDespawnRequired()) {
-+                return;
-+            }
-+        }
-+        for ( EnumCreatureType creatureType : EnumCreatureType.values() )
-+        {
-+            if ( creatureType.getCreatureClass().isAssignableFrom( entityIn.getClass() ) )
-+            {
-+                this.entityCount.adjustValue( creatureType.getCreatureClass(), -1 );
-+            }
-+        }
-+        // Spigot end
++        if (loaded) handleSpigotEntityRemove(entityIn); // CatServer
      }
  
      public boolean canSeeSky(BlockPos pos)
-@@ -778,31 +879,35 @@
+@@ -778,31 +899,35 @@
      {
          IBlockState iblockstate = this.getBlockState(pos);
          Block block = iblockstate.getBlock();
@@ -335,7 +355,7 @@
  
          return tileentity;
      }
-@@ -819,10 +924,12 @@
+@@ -819,10 +944,12 @@
  
      public void addTileEntity(BlockPos pos, TileEntity tileEntityIn)
      {
@@ -349,7 +369,7 @@
          {
              if (this.tileEntities.containsKey(pos))
              {
-@@ -836,6 +943,7 @@
+@@ -836,6 +963,7 @@
  
      public void removeTileEntity(BlockPos pos)
      {
@@ -357,13 +377,14 @@
          if (this.loaded)
          {
              TileEntity tileentity = this.tileEntities.remove(pos);
-@@ -850,16 +958,20 @@
+@@ -850,16 +978,21 @@
      public void onLoad()
      {
          this.loaded = true;
-+        loadingTileentity = true;
++        handleSpigotOnLoaded(); // CatServer
++        loadingTileentity = true; // CatServer
          this.world.addTileEntities(this.tileEntities.values());
-+        loadingTileentity = false;
++        loadingTileentity = false; // CatServer
  
          for (ClassInheritanceMultiMap<Entity> classinheritancemultimap : this.entityLists)
          {
@@ -379,7 +400,7 @@
          this.loaded = false;
  
          for (TileEntity tileentity : this.tileEntities.values())
-@@ -869,8 +981,16 @@
+@@ -869,8 +1002,16 @@
  
          for (ClassInheritanceMultiMap<Entity> classinheritancemultimap : this.entityLists)
          {
@@ -397,7 +418,7 @@
      }
  
      public void markDirty()
-@@ -880,8 +1000,8 @@
+@@ -880,8 +1021,8 @@
  
      public void getEntitiesWithinAABBForEntity(@Nullable Entity entityIn, AxisAlignedBB aabb, List<Entity> listToFill, Predicate <? super Entity > filter)
      {
@@ -408,7 +429,7 @@
          i = MathHelper.clamp(i, 0, this.entityLists.length - 1);
          j = MathHelper.clamp(j, 0, this.entityLists.length - 1);
  
-@@ -889,6 +1009,15 @@
+@@ -889,6 +1030,15 @@
          {
              if (!this.entityLists[k].isEmpty())
              {
@@ -424,7 +445,7 @@
                  for (Entity entity : this.entityLists[k])
                  {
                      if (entity.getEntityBoundingBox().intersects(aabb) && entity != entityIn)
-@@ -918,13 +1047,24 @@
+@@ -918,13 +1068,24 @@
  
      public <T extends Entity> void getEntitiesOfTypeWithinAABB(Class <? extends T > entityClass, AxisAlignedBB aabb, List<T> listToFill, Predicate <? super T > filter)
      {
@@ -451,7 +472,7 @@
              for (T t : this.entityLists[k].getByClass(entityClass))
              {
                  if (t.getEntityBoundingBox().intersects(aabb) && (filter == null || filter.apply(t)))
-@@ -995,8 +1135,70 @@
+@@ -995,8 +1156,70 @@
          }
      }
  
@@ -522,7 +543,7 @@
          if (this.isTerrainPopulated())
          {
              if (generator.generateStructures(this, this.x, this.z))
-@@ -1008,8 +1210,32 @@
+@@ -1008,8 +1231,32 @@
          {
              this.checkLight();
              generator.populate(this.x, this.z);
@@ -555,7 +576,7 @@
      }
  
      public BlockPos getPrecipitationHeight(BlockPos pos)
-@@ -1064,7 +1290,7 @@
+@@ -1064,7 +1311,7 @@
          {
              BlockPos blockpos = this.tileEntityPosQueue.poll();
  
@@ -564,7 +585,7 @@
              {
                  TileEntity tileentity = this.createNewTileEntity(blockpos);
                  this.world.setTileEntity(blockpos, tileentity);
-@@ -1075,7 +1301,7 @@
+@@ -1075,7 +1322,7 @@
  
      public boolean isPopulated()
      {
@@ -573,7 +594,7 @@
      }
  
      public boolean wasTicked()
-@@ -1128,6 +1354,13 @@
+@@ -1128,6 +1375,13 @@
      @SideOnly(Side.CLIENT)
      public void read(PacketBuffer buf, int availableSections, boolean groundUpContinuous)
      {
@@ -587,7 +608,7 @@
          boolean flag = this.world.provider.hasSkyLight();
  
          for (int i = 0; i < this.storageArrays.length; ++i)
-@@ -1176,10 +1409,16 @@
+@@ -1176,10 +1430,16 @@
          this.isTerrainPopulated = true;
          this.generateHeightMap();
  
@@ -604,7 +625,7 @@
      }
  
      public Biome getBiome(BlockPos pos, BiomeProvider provider)
-@@ -1190,7 +1429,13 @@
+@@ -1190,7 +1450,13 @@
  
          if (k == 255)
          {
@@ -619,7 +640,7 @@
              k = Biome.getIdForBiome(biome);
              this.blockBiomeArray[j << 4 | i] = (byte)(k & 255);
          }
-@@ -1244,13 +1489,13 @@
+@@ -1244,13 +1510,13 @@
                      BlockPos blockpos1 = blockpos.add(k, (j << 4) + i1, l);
                      boolean flag = i1 == 0 || i1 == 15 || k == 0 || k == 15 || l == 0 || l == 15;
  
@@ -635,7 +656,7 @@
                              {
                                  this.world.checkLight(blockpos2);
                              }
-@@ -1381,7 +1626,7 @@
+@@ -1381,7 +1647,7 @@
          {
              blockpos$mutableblockpos.setPos(blockpos$mutableblockpos.getX(), l, blockpos$mutableblockpos.getZ());
  
@@ -644,7 +665,7 @@
              {
                  this.world.checkLight(blockpos$mutableblockpos);
              }
-@@ -1420,6 +1665,7 @@
+@@ -1420,6 +1686,7 @@
          else
          {
              System.arraycopy(newHeightMap, 0, this.heightMap, 0, this.heightMap.length);
@@ -652,7 +673,7 @@
          }
      }
  
-@@ -1489,4 +1735,55 @@
+@@ -1489,4 +1756,55 @@
          QUEUED,
          CHECK;
      }
