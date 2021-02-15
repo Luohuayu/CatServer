@@ -28,25 +28,24 @@ import net.minecraftforge.registries.GameData;
 public class BukkitInjector {
     public static boolean initializedBukkit = false;
 
-    public static void injectItemBukkitMaterials()
-    {
+    public static void injectItemBukkitMaterials() {
         for (Map.Entry<ResourceLocation, Item> entry : ForgeRegistries.ITEMS.getEntries()) {
             ResourceLocation key = entry.getKey();
             Item item = entry.getValue();
             if(!key.getResourceDomain().equals("minecraft")) {
                 String materialName = key.toString().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
-                Material material = Material.addMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Integer.TYPE, Material.MaterialType.class}, new Object[]{Item.getIdFromItem(item), item.getItemStackLimit(), Material.MaterialType.MOD_ITEM}));
+                int itemId = Item.getIdFromItem(item);
+                Material material = Material.addMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Integer.TYPE, Material.MaterialType.class}, new Object[]{itemId, item.getItemStackLimit(), Material.MaterialType.MOD_ITEM}));
                 if (material != null) {
                     FMLLog.log(Level.DEBUG, "Injected new Forge item material %s with ID %d.", material.name(), material.getId());
                 } else {
-                    FMLLog.log(Level.DEBUG, "Inject item failure %s with ID %d.", materialName, Item.getIdFromItem(item));
+                    FMLLog.log(Level.DEBUG, "Inject item failure %s with ID %d.", materialName, itemId);
                 }
             }
         }
     }
 
-    public static void injectBlockBukkitMaterials()
-    {
+    public static void injectBlockBukkitMaterials() {
         for (Material material : Material.values()) {
             if (material.getId() < 256)
                 Material.addBlockMaterial(material);
@@ -56,11 +55,15 @@ public class BukkitInjector {
             Block block = entry.getValue();
             if(!key.getResourceDomain().equals("minecraft")) {
                 String materialName = key.toString().toUpperCase().replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
-                Material material = Material.addBlockMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Material.MaterialType.class}, new Object[]{Block.getIdFromBlock(block), Material.MaterialType.MOD_BLOCK}));
+                int blockId = Block.getIdFromBlock(block);
+                Material material = Material.addBlockMaterial(EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Material.MaterialType.class}, new Object[]{blockId, Material.MaterialType.MOD_BLOCK}));
                 if (material != null) {
                     FMLLog.log(Level.DEBUG, "Injected new Forge block material %s with ID %d.", material.name(), material.getId());
                 } else {
-                    FMLLog.log(Level.DEBUG, "Inject block failure %s with ID %d.", materialName, Block.getIdFromBlock(block));
+                    if (blockId < 256) {
+                        throw new RuntimeException("Can't inject Forge block material. Registry remap is not support! (level.dat is from the old version or corrupted)");
+                    }
+                    FMLLog.log(Level.DEBUG, "Inject block failure %s with ID %d.", materialName, blockId);
                 }
             }
         }
