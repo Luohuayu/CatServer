@@ -6,6 +6,7 @@
 [官网](https://catserver.moe/)
 [赞助](https://afdian.net/@Luohuayu)
 [English](README_EN.md)
+[Русский](README_RU.md)
 
 CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
 国内最早开发的高版本核心, 支持大部分MOD和插件同时稳定运行<br>
