@@ -22,7 +22,7 @@ Provide API to allow plugins to interact with mods easily<br>
 
 ### Installation
 1. Download or build the latest server
-2. Create startup script and run (Sample script: Java -Xmx2G -jar CatServer-5897fa9-universal.jar)
+2. Create startup script and run (Sample script: java -Xmx2G -jar CatServer-f2bc11f-universal.jar)
 3. Wait for the libraries file download complete on the first startup<br>
 
 ### Building

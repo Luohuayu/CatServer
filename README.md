@@ -24,7 +24,7 @@ CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
 
 ### 使用方法
 1. 下载或自行构建最新服务端
-2. 创建启动脚本并运行 (示例启动参数: Java -Xmx2G -jar CatServer-5897fa9-universal.jar)
+2. 创建启动脚本并运行 (示例启动参数: java -Xmx2G -jar CatServer-f2bc11f-universal.jar)
 3. 首次启动请耐心等待库文件下载完成<br>
 
 ### 构建方法
