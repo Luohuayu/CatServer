@@ -701,7 +701,7 @@
              {
                  int i = (this.getActivePotionEffect(MobEffects.RESISTANCE).getAmplifier() + 1) * 5;
                  int j = 25 - i;
-@@ -1378,24 +1574,181 @@
+@@ -1378,24 +1574,195 @@
  
      protected void damageEntity(DamageSource damageSrc, float damageAmount)
      {
@@ -731,6 +731,7 @@
      }
  
 +    protected boolean damageEntity_CB(final DamageSource damagesource, float f) { // void -> boolean, add final
++        // CatServer - Maybe Schrodinger's code
 +        if (!this.isEntityInvulnerable(damagesource)) {
 +            final boolean human = this instanceof EntityPlayer;
 +
@@ -808,23 +809,18 @@
 +                return false;
 +            }
 +
-+            // CatServer start - move from EntityPlayer to apply player armor
-+            if (human && event.getDamage() > 0) {
-+                float damage = net.minecraftforge.common.ISpecialArmor.ArmorProperties.applyArmor(EntityLivingBase.this, ((EntityPlayer) EntityLivingBase.this).inventory.armorInventory, damagesource, event.getDamage());
-+                event.setDamage(damage);
-+            }
-+            // CatServer end
-+
 +            // Apply damage to helmet
 +            if ((damagesource == DamageSource.ANVIL || damagesource == DamageSource.FALLING_BLOCK) && this.getItemStackFromSlot(EntityEquipmentSlot.HEAD) != null) {
 +                this.getItemStackFromSlot(EntityEquipmentSlot.HEAD).damageItem((int) (event.getDamage() * 4.0F + this.rand.nextFloat() * event.getDamage() * 2.0F), this);
 +            }
 +
++            /*
 +            // Apply damage to armor
-+            if (!human && !damagesource.isUnblockable()) { // CatServer - Forge handled player armor
++            if (!damagesource.isUnblockable()) {
 +                float armorDamage = (float) (event.getDamage() + event.getDamage(EntityDamageEvent.DamageModifier.BLOCKING) + event.getDamage(EntityDamageEvent.DamageModifier.HARD_HAT));
 +                this.damageArmor(armorDamage);
 +            }
++            */
 +
 +            // Apply blocking code // PAIL: steal from above
 +            if (event.getDamage(EntityDamageEvent.DamageModifier.BLOCKING) < 0) {
@@ -836,10 +832,28 @@
 +                }
 +            }
 +
-+            absorptionModifier = (float) -event.getDamage(EntityDamageEvent.DamageModifier.ABSORPTION);
-+            this.setAbsorptionAmount(Math.max(this.getAbsorptionAmount() - absorptionModifier, 0.0F));
++            f = (float) event.getFinalDamage();
++            if (human) {
++                float damage = (float) event.getDamage();
++                if (damage > 0) {
++                    damage = net.minecraftforge.common.ISpecialArmor.ArmorProperties.applyArmor(EntityLivingBase.this, ((EntityPlayer) EntityLivingBase.this).inventory.armorInventory, damagesource, damage); // move from EntityPlayer to apply player armor
++                    if (damage > 0) {
++                        float fixedFinalDamage = Math.max(f - this.getAbsorptionAmount(), 0.0F);
++                        this.setAbsorptionAmount(this.getAbsorptionAmount() - (f - fixedFinalDamage));
++                        f = fixedFinalDamage;
++                    }
++                }
++            } else {
++                if (!damagesource.isUnblockable()) {
++                    float armorDamage = (float) (event.getDamage() + event.getDamage(EntityDamageEvent.DamageModifier.BLOCKING) + event.getDamage(EntityDamageEvent.DamageModifier.HARD_HAT));
++                    this.damageArmor(armorDamage);
++                }
 +
-+            f = net.minecraftforge.common.ForgeHooks.onLivingDamage(this, damagesource, (float) event.getFinalDamage()); // CatServer
++                absorptionModifier = (float) -event.getDamage(EntityDamageEvent.DamageModifier.ABSORPTION);
++                this.setAbsorptionAmount(Math.max(this.getAbsorptionAmount() - absorptionModifier, 0.0F));
++            }
++
++            if (f > 0 || !human) f = net.minecraftforge.common.ForgeHooks.onLivingDamage(this, damagesource, f); // CatServer
 +
 +            if (f > 0 || !human) {
 +                if (human) {
@@ -884,7 +898,7 @@
      public CombatTracker getCombatTracker()
      {
          return this._combatTracker;
-@@ -1447,6 +1800,11 @@
+@@ -1447,6 +1814,11 @@
  
      public void swingArm(EnumHand hand)
      {
@@ -896,7 +910,7 @@
          if (!this.isSwingInProgress || this.swingProgressInt >= this.getArmSwingAnimationEnd() / 2 || this.swingProgressInt < 0)
          {
              this.swingProgressInt = -1;
-@@ -1570,6 +1928,7 @@
+@@ -1570,6 +1942,7 @@
          if (this.attributeMap == null)
          {
              this.attributeMap = new AttributeMap();
@@ -904,7 +918,7 @@
          }
  
          return this.attributeMap;
-@@ -1694,7 +2053,7 @@
+@@ -1694,7 +2067,7 @@
  
                      if (!this.world.collidesWithAnyBlock(axisalignedbb1))
                      {
@@ -913,7 +927,7 @@
                          {
                              this.setPositionAndUpdate(d11, this.posY + 1.0D, d12);
                              return;
-@@ -1702,14 +2061,14 @@
+@@ -1702,14 +2075,14 @@
  
                          BlockPos blockpos = new BlockPos(d11, this.posY - 1.0D, d12);
  
@@ -930,7 +944,7 @@
                      {
                          d1 = d11;
                          d13 = this.posY + 2.0D;
-@@ -1781,16 +2140,17 @@
+@@ -1781,16 +2154,17 @@
          }
  
          this.isAirBorne = true;
@@ -950,7 +964,7 @@
      }
  
      protected float getWaterSlowDown()
-@@ -1864,7 +2224,8 @@
+@@ -1864,7 +2238,8 @@
  
                          if (this.onGround && !this.world.isRemote)
                          {
@@ -960,7 +974,7 @@
                          }
                      }
                      else
-@@ -1874,7 +2235,8 @@
+@@ -1874,7 +2249,8 @@
  
                          if (this.onGround)
                          {
@@ -970,7 +984,7 @@
                          }
  
                          float f7 = 0.16277136F / (f6 * f6 * f6);
-@@ -1894,7 +2256,8 @@
+@@ -1894,7 +2270,8 @@
  
                          if (this.onGround)
                          {
@@ -980,7 +994,7 @@
                          }
  
                          if (this.isOnLadder())
-@@ -2054,6 +2417,8 @@
+@@ -2054,6 +2431,8 @@
  
      public void onUpdate()
      {
@@ -989,7 +1003,7 @@
          super.onUpdate();
          this.updateActiveHand();
  
-@@ -2096,7 +2461,9 @@
+@@ -2096,7 +2475,9 @@
  
                  if (!ItemStack.areItemStacksEqual(itemstack1, itemstack))
                  {
@@ -999,7 +1013,7 @@
  
                      if (!itemstack.isEmpty())
                      {
-@@ -2135,7 +2502,9 @@
+@@ -2135,7 +2516,9 @@
              }
          }
  
@@ -1009,7 +1023,7 @@
          double d0 = this.posX - this.prevPosX;
          double d1 = this.posZ - this.prevPosZ;
          float f3 = (float)(d0 * d0 + d1 * d1);
-@@ -2228,6 +2597,7 @@
+@@ -2228,6 +2611,7 @@
          {
              this.ticksElytraFlying = 0;
          }
@@ -1017,7 +1031,7 @@
      }
  
      protected float updateDistance(float p_110146_1_, float p_110146_2_)
-@@ -2304,7 +2674,7 @@
+@@ -2304,7 +2688,7 @@
          }
  
          this.world.profiler.startSection("ai");
@@ -1026,7 +1040,7 @@
          if (this.isMovementBlocked())
          {
              this.isJumping = false;
-@@ -2318,6 +2688,7 @@
+@@ -2318,6 +2702,7 @@
              this.updateEntityActionState();
              this.world.profiler.endSection();
          }
@@ -1034,7 +1048,7 @@
  
          this.world.profiler.endSection();
          this.world.profiler.startSection("jump");
-@@ -2349,10 +2720,14 @@
+@@ -2349,10 +2734,14 @@
          this.moveForward *= 0.98F;
          this.randomYawVelocity *= 0.9F;
          this.updateElytra();
@@ -1049,7 +1063,7 @@
          this.world.profiler.endSection();
      }
  
-@@ -2385,7 +2760,8 @@
+@@ -2385,7 +2774,8 @@
  
          if (!this.world.isRemote)
          {
@@ -1059,7 +1073,7 @@
          }
      }
  
-@@ -2419,9 +2795,13 @@
+@@ -2419,9 +2809,13 @@
                  }
              }
  
@@ -1074,7 +1088,7 @@
                  this.collideWithEntity(entity);
              }
          }
-@@ -2519,12 +2899,12 @@
+@@ -2519,12 +2913,12 @@
  
      public boolean canBeCollidedWith()
      {
@@ -1089,7 +1103,7 @@
      }
  
      protected void markVelocityChanged()
-@@ -2575,6 +2955,40 @@
+@@ -2575,6 +2969,40 @@
          this.potionsNeedUpdate = true;
      }
  
@@ -1130,7 +1144,7 @@
      public abstract EnumHandSide getPrimaryHand();
  
      public boolean isHandActive()
-@@ -2592,15 +3006,23 @@
+@@ -2592,15 +3020,23 @@
          if (this.isHandActive())
          {
              ItemStack itemstack = this.getHeldItem(this.getActiveHand());
@@ -1155,7 +1169,7 @@
                  {
                      this.onItemUseFinish();
                  }
-@@ -2618,8 +3040,10 @@
+@@ -2618,8 +3054,10 @@
  
          if (!itemstack.isEmpty() && !this.isHandActive())
          {
@@ -1167,7 +1181,7 @@
  
              if (!this.world.isRemote)
              {
-@@ -2700,7 +3124,27 @@
+@@ -2700,7 +3138,27 @@
          if (!this.activeItemStack.isEmpty() && this.isHandActive())
          {
              this.updateItemUse(this.activeItemStack, 16);
@@ -1196,7 +1210,7 @@
              this.resetActiveHand();
          }
      }
-@@ -2724,7 +3168,8 @@
+@@ -2724,7 +3182,8 @@
      {
          if (!this.activeItemStack.isEmpty())
          {
@@ -1206,7 +1220,7 @@
          }
  
          this.resetActiveHand();
-@@ -2808,11 +3253,14 @@
+@@ -2808,11 +3267,14 @@
  
              if (flag1)
              {
@@ -1226,7 +1240,7 @@
                  }
              }
          }
-@@ -2847,11 +3295,41 @@
+@@ -2847,11 +3309,41 @@
          }
      }
  
@@ -1268,7 +1282,7 @@
      public boolean attackable()
      {
          return true;
-@@ -2861,4 +3339,30 @@
+@@ -2861,4 +3353,30 @@
      public void setPartying(BlockPos pos, boolean p_191987_2_)
      {
      }
