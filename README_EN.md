@@ -3,7 +3,7 @@
 ![](https://img.shields.io/badge/Forge-14.23.5.2854-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
-[Website](https://catserver.moe/)
+[Website](https://catmc.org/)
 [Sponsor](https://paypal.me/LHYCAT)
 
 CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
