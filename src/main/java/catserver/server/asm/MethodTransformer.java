@@ -8,6 +8,7 @@ import org.objectweb.asm.tree.ClassNode;
 import static org.objectweb.asm.Opcodes.*;
 
 import net.minecraft.launchwrapper.IClassTransformer;
+import org.objectweb.asm.tree.MethodNode;
 
 public class MethodTransformer implements IClassTransformer {
     @Override
@@ -22,6 +23,8 @@ public class MethodTransformer implements IClassTransformer {
             return patchEntityPlayer(basicClass);
         } else if ("com.typesafe.config.impl.SimpleConfigOrigin".equals(transformedName)) {
             return patchSimpleConfigOrigin(basicClass);
+        } else if ("com.google.gson.internal.bind.TypeAdapters$EnumTypeAdapter".equals(transformedName)) {
+            return patchTypeAdapters(basicClass);
         }
 
         return basicClass;
@@ -116,6 +119,53 @@ public class MethodTransformer implements IClassTransformer {
         mv2.visitMethodInsn(INVOKEVIRTUAL, "com/typesafe/config/impl/SimpleConfigOrigin", "withLineNumber", "(I)Lcom/typesafe/config/impl/SimpleConfigOrigin;", false);
         mv2.visitInsn(ARETURN);
         mv2.visitEnd();
+
+        classNode.accept(classWriter);
+        return classWriter.toByteArray();
+    }
+
+    private byte[] patchTypeAdapters(byte[] basicClass) {
+        ClassNode classNode = new ClassNode();
+        new ClassReader(basicClass).accept(classNode, 0);
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+
+        for (MethodNode methodNode : classNode.methods) {
+            if ("<init>".equals(methodNode.name) && "(Ljava/lang/Class;)V".equals(methodNode.desc)) {
+                methodNode.instructions.clear();
+                methodNode.tryCatchBlocks.clear();
+                methodNode.localVariables.clear();
+
+                methodNode.visitCode();
+
+                methodNode.visitVarInsn(ALOAD, 0);
+                methodNode.visitMethodInsn(INVOKESPECIAL, "com/google/gson/TypeAdapter", "<init>", "()V", false);
+
+                methodNode.visitVarInsn(ALOAD, 0);
+                methodNode.visitTypeInsn(NEW, "java/util/HashMap");
+                methodNode.visitInsn(DUP);
+                methodNode.visitMethodInsn(INVOKESPECIAL, "java/util/HashMap", "<init>", "()V", false);
+                methodNode.visitFieldInsn(PUTFIELD, "com/google/gson/internal/bind/TypeAdapters$EnumTypeAdapter", "nameToConstant", "Ljava/util/Map;");
+
+                methodNode.visitVarInsn(ALOAD, 0);
+                methodNode.visitTypeInsn(NEW, "java/util/HashMap");
+                methodNode.visitInsn(DUP);
+                methodNode.visitMethodInsn(INVOKESPECIAL, "java/util/HashMap", "<init>", "()V", false);
+                methodNode.visitFieldInsn(PUTFIELD, "com/google/gson/internal/bind/TypeAdapters$EnumTypeAdapter", "constantToName", "Ljava/util/Map;");
+
+                methodNode.visitVarInsn(ALOAD, 1);
+                methodNode.visitVarInsn(ALOAD, 0);
+                methodNode.visitFieldInsn(GETFIELD, "com/google/gson/internal/bind/TypeAdapters$EnumTypeAdapter", "nameToConstant", "Ljava/util/Map;");
+                methodNode.visitVarInsn(ALOAD, 0);
+                methodNode.visitFieldInsn(GETFIELD, "com/google/gson/internal/bind/TypeAdapters$EnumTypeAdapter", "constantToName", "Ljava/util/Map;");
+                methodNode.visitMethodInsn(INVOKESTATIC, "catserver/server/asm/MethodHook", "TypeAdapters$EnumTypeAdapter_Init", "(Ljava/lang/Class;Ljava/util/Map;Ljava/util/Map;)V", false);
+
+                methodNode.visitInsn(RETURN);
+
+                methodNode.visitEnd();
+
+                break;
+            }
+        }
 
         classNode.accept(classWriter);
         return classWriter.toByteArray();
