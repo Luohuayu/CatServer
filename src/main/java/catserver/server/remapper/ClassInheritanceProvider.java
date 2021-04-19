@@ -14,7 +14,7 @@ public class ClassInheritanceProvider implements InheritanceProvider {
 
         try {
             Collection<String> parents = new HashSet<String>();
-            Class<?> reference = Class.forName(className.replace('/', '.').replace('$', '.'), false, this.getClass().getClassLoader()/*RemappedMethods.loader*/);
+            Class<?> reference = Class.forName(className.replace('/', '.'), false, this.getClass().getClassLoader()/*RemappedMethods.loader*/);
             Class<?> extend = reference.getSuperclass();
             if (extend != null) {
                 parents.add(reverseMap(extend));

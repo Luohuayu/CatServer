@@ -55,7 +55,7 @@ public class CatURLClassLoader extends URLClassLoader
 
     protected Class<?> findClass(final String name) throws ClassNotFoundException {
         if (RemapRules.isNMSPackage(name)) {
-            final String remappedClass = this.jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
+            final String remappedClass = this.jarMapping.classes.getOrDefault(name.replace(".", "/"), name);
             return launchClassLoader.findClass(remappedClass);
         }
 

@@ -110,7 +110,7 @@ final class PluginClassLoader extends URLClassLoader {
 
     Class<?> findClass(String name, boolean checkGlobal) throws ClassNotFoundException {
         if (RemapRules.isNMSPackage(name)) {
-            String remappedClass = jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
+            String remappedClass = jarMapping.classes.getOrDefault(name.replace(".", "/"), name);
             return launchClassLoader.findClass(remappedClass);
         }
 
