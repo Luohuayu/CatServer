@@ -4,22 +4,20 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import net.minecraft.command.ICommandSender;
-import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import org.bukkit.Server;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandException;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.command.SimpleCommandMap;
+import org.bukkit.command.*;
 import org.bukkit.craftbukkit.command.CraftBlockCommandSender;
-import org.bukkit.craftbukkit.command.CraftRemoteConsoleCommandSender;
+import org.bukkit.craftbukkit.command.CraftFunctionCommandSender;
+import org.bukkit.craftbukkit.command.ProxiedNativeCommandSender;
 import org.bukkit.craftbukkit.entity.CraftEntity;
 
 public class CraftSimpleCommandMap extends SimpleCommandMap {
-
     private static final Pattern PATTERN_ON_SPACE = Pattern.compile(" ", Pattern.LITERAL);
-    private ICommandSender vanillaConsoleSender;
+    private final MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
 
     public CraftSimpleCommandMap(Server server) {
         super(server);
@@ -45,12 +43,18 @@ public class CraftSimpleCommandMap extends SimpleCommandMap {
             // CatServer start - if command is a mod command, check permissions and route through vanilla
             if (target instanceof ModCustomCommand) {
                 if (!target.testPermission(sender)) return true;
-                if (sender instanceof ConsoleCommandSender || sender instanceof CraftRemoteConsoleCommandSender) {
-                    FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(this.vanillaConsoleSender, commandLine);
+                if (sender instanceof ConsoleCommandSender) {
+                    server.getCommandManager().executeCommand(this.server, commandLine);
+                } else if (sender instanceof RemoteConsoleCommandSender) {
+                    server.getCommandManager().executeCommand(((DedicatedServer)server).rconConsoleSource, commandLine);
                 } else if (sender instanceof CraftEntity) {
-                    FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(((CraftEntity) sender).getHandle(), commandLine);
+                    server.getCommandManager().executeCommand(((CraftEntity) sender).getHandle(), commandLine);
                 } else if (sender instanceof CraftBlockCommandSender) {
-                    FMLCommonHandler.instance().getMinecraftServerInstance().getCommandManager().executeCommand(((CraftBlockCommandSender) sender).getTileEntity(), commandLine);
+                    server.getCommandManager().executeCommand(((CraftBlockCommandSender) sender).getTileEntity(), commandLine);
+                } else if (sender instanceof ProxiedCommandSender) {
+                    server.getCommandManager().executeCommand(((ProxiedNativeCommandSender) sender).getHandle(), commandLine);
+                } else if (sender instanceof CraftFunctionCommandSender) {
+                    server.getCommandManager().executeCommand(((CraftFunctionCommandSender) sender).getHandle(), commandLine);
                 } else {
                     throw new CommandException("Unknown sender type: " + sender.getClass().getName());
                 }
@@ -69,9 +73,6 @@ public class CraftSimpleCommandMap extends SimpleCommandMap {
         return true;
     }
 
-    // CatServer start - sets the vanilla console sender
-    public void setVanillaConsoleSender(ICommandSender console) {
-        this.vanillaConsoleSender = console;
-    }
-    // CatServer end
+    @Deprecated
+    public void setVanillaConsoleSender(ICommandSender console) { }
 }

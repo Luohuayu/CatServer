@@ -712,10 +712,6 @@ public final class CraftServer implements Server {
             return true;
         }
 
-        if (sender instanceof ConsoleCommandSender) {
-            craftCommandMap.setVanillaConsoleSender(this.console);
-        }
-
         return this.dispatchVanillaCommand(sender, commandLine);
     }
 
