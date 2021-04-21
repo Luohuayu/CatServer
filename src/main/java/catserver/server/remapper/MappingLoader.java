@@ -28,7 +28,6 @@ public class MappingLoader {
         try {
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/com/google/gson", "com/google/gson");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/it/unimi/dsi/fastutil", "it/unimi/dsi/fastutil");
-            globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/jline", "jline");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/joptsimple", "joptsimple");
             globalJarMapping.classes.put(org_bukkit_craftbukkit + "/Main", org_bukkit_craftbukkit + "/" + CatServer.getNativeVersion() + "/Main");
             globalJarMapping.classes.put(org_bukkit_craftbukkit + "/Main$1", org_bukkit_craftbukkit + "/" + CatServer.getNativeVersion() + "/Main$1");
