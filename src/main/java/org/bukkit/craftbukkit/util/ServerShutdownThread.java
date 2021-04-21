@@ -17,7 +17,7 @@ public class ServerShutdownThread extends Thread {
         } catch (MinecraftException ex) {
             ex.printStackTrace();
         } finally {
-            try { net.minecraftforge.server.terminalconsole.TerminalConsoleAppender.close(); } catch (Exception ignored) {} // CatServer
+            try { catserver.server.threads.ConsoleWriteThread.stopThread(); net.minecraftforge.server.terminalconsole.TerminalConsoleAppender.close(); } catch (Exception ignored) {} // CatServer
         }
     }
 }

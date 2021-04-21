@@ -2,7 +2,6 @@ package catserver.server.log4j;
 
 import net.minecraftforge.server.terminalconsole.TerminalConsoleAppender;
 
-import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -19,6 +18,13 @@ public class AsyncConsoleWriteQueue implements Runnable {
         queue.add(object);
     }
 
+    public static void flush() {
+        Object object;
+        while ((object = queue.poll()) != null) {
+            TerminalConsoleAppender.write(object);
+        }
+    }
+
     public AsyncConsoleWriteQueue() {
         enable = true;
     }
@@ -26,7 +32,7 @@ public class AsyncConsoleWriteQueue implements Runnable {
     public void run() {
         Object object;
 
-        while (true) {
+        while (enable) {
             try {
                 try {
                     object = queue.take();
