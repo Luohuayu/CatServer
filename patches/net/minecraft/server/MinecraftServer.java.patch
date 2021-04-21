@@ -16,7 +16,7 @@
  import io.netty.buffer.ByteBuf;
  import io.netty.buffer.ByteBufOutputStream;
  import io.netty.buffer.Unpooled;
-@@ -23,19 +25,24 @@
+@@ -23,19 +25,23 @@
  import java.nio.charset.StandardCharsets;
  import java.security.KeyPair;
  import java.text.SimpleDateFormat;
@@ -37,12 +37,11 @@
  import javax.annotation.Nullable;
  import javax.imageio.ImageIO;
 +
-+import jline.console.ConsoleReader;
 +import joptsimple.OptionSet;
  import net.minecraft.advancements.AdvancementManager;
  import net.minecraft.advancements.FunctionManager;
  import net.minecraft.command.CommandBase;
-@@ -55,6 +62,7 @@
+@@ -55,6 +61,7 @@
  import net.minecraft.profiler.Profiler;
  import net.minecraft.profiler.Snooper;
  import net.minecraft.server.dedicated.DedicatedServer;
@@ -50,7 +49,7 @@
  import net.minecraft.server.management.PlayerList;
  import net.minecraft.server.management.PlayerProfileCache;
  import net.minecraft.util.IProgressUpdate;
-@@ -73,39 +81,51 @@
+@@ -73,39 +80,51 @@
  import net.minecraft.world.MinecraftException;
  import net.minecraft.world.ServerWorldEventHandler;
  import net.minecraft.world.World;
@@ -108,7 +107,7 @@
      private PlayerList playerList;
      private boolean serverRunning = true;
      private boolean serverStopped;
-@@ -123,11 +143,11 @@
+@@ -123,11 +142,11 @@
      private int buildLimit;
      private int maxPlayerIdleMinutes;
      public final long[] tickTimeArray = new long[100];
@@ -122,7 +121,7 @@
      private String worldName;
      private boolean isDemo;
      private boolean enableBonusChest;
-@@ -143,26 +163,71 @@
+@@ -143,26 +162,75 @@
      private final GameProfileRepository profileRepo;
      private final PlayerProfileCache profileCache;
      private long nanoTimeSinceStatusRefresh;
@@ -139,7 +138,7 @@
 +    public OptionSet options;
 +    public org.bukkit.command.ConsoleCommandSender console;
 +    public org.bukkit.command.RemoteConsoleCommandSender remoteConsole;
-+    public ConsoleReader reader;
++    // public ConsoleReader reader; // Paper
 +    public static int currentTick = (int) (System.currentTimeMillis() / 50);
 +    public Thread primaryThread;
 +    public java.util.Queue<Runnable> processQueue = new java.util.concurrent.ConcurrentLinkedQueue<Runnable>();
@@ -169,6 +168,8 @@
 +        // this.anvilConverterForAnvilFile = new AnvilSaveConverter(anvilFileIn, dataFixerIn); // CraftBukkit - moved to DedicatedServer.init
          this.dataFixer = dataFixerIn;
 +        this.options = options;
++        // Paper start - Handled by TerminalConsoleAppender
++        /*
 +        // Try to see if we're actually running in a terminal, disable jline if not
 +        if (System.console() == null && System.getProperty("jline.terminal") == null) {
 +            System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
@@ -190,6 +191,8 @@
 +                LOGGER.warn((String) null, ex);
 +            }
 +        }
++        */
++        // Paper end
 +        Runtime.getRuntime().addShutdownHook(new org.bukkit.craftbukkit.util.ServerShutdownThread(this));
 +        this.serverThread = primaryThread = new Thread(net.minecraftforge.fml.common.thread.SidedThreadGroups.SERVER, this, "Server thread"); // Moved from main
      }
@@ -199,7 +202,7 @@
      public ServerCommandManager createCommandManager()
      {
          return new ServerCommandManager(this);
-@@ -220,83 +285,104 @@
+@@ -220,83 +288,104 @@
  
      public void loadAllWorlds(String saveName, String worldNameIn, long seed, WorldType type, String generatorOptions)
      {
@@ -357,7 +360,7 @@
      }
  
      public void initialWorldChunkLoad()
-@@ -309,7 +395,7 @@
+@@ -309,7 +398,7 @@
          this.setUserMessage("menu.generatingTerrain");
          int j1 = 0;
          LOGGER.info("Preparing start region for level 0");
@@ -366,7 +369,7 @@
          BlockPos blockpos = worldserver.getSpawnPoint();
          long k1 = getCurrentTimeMillis();
  
-@@ -330,6 +416,10 @@
+@@ -330,6 +419,10 @@
              }
          }
  
@@ -377,7 +380,7 @@
          this.clearCurrentTask();
      }
  
-@@ -379,7 +469,7 @@
+@@ -379,7 +472,7 @@
  
      public void saveAllWorlds(boolean isSilent)
      {
@@ -386,7 +389,7 @@
          {
              if (worldserver != null)
              {
-@@ -400,10 +490,22 @@
+@@ -400,10 +493,22 @@
          }
      }
  
@@ -411,7 +414,7 @@
          if (this.getNetworkSystem() != null)
          {
              this.getNetworkSystem().terminateEndpoints();
-@@ -414,6 +516,7 @@
+@@ -414,6 +519,7 @@
              LOGGER.info("Saving players");
              this.playerList.saveAllPlayerData();
              this.playerList.removeAllPlayers();
@@ -419,7 +422,7 @@
          }
  
          if (this.worlds != null)
-@@ -430,21 +533,42 @@
+@@ -430,21 +536,42 @@
  
              this.saveAllWorlds(false);
  
@@ -463,7 +466,7 @@
      public boolean isServerRunning()
      {
          return this.serverRunning;
-@@ -455,62 +579,69 @@
+@@ -455,62 +582,69 @@
          this.serverRunning = false;
      }
  
@@ -562,7 +565,7 @@
          catch (Throwable throwable1)
          {
              LOGGER.error("Encountered an unexpected exception", throwable1);
-@@ -536,13 +667,13 @@
+@@ -536,13 +670,13 @@
                  LOGGER.error("We were unable to save this crash report to disk.");
              }
  
@@ -577,22 +580,16 @@
                  this.stopServer();
              }
              catch (Throwable throwable)
-@@ -551,6 +682,14 @@
+@@ -551,6 +685,8 @@
              }
              finally
              {
 +                net.minecraftforge.fml.common.FMLCommonHandler.instance().handleServerStopped();
 +                this.serverStopped = true;
-+                // CraftBukkit start - Restore terminal to original settings
-+                try {
-+                    reader.getTerminal().restore();
-+                } catch (Exception ignored) {
-+                }
-+                // CraftBukkit end
                  this.systemExitNow();
              }
          }
-@@ -577,6 +716,7 @@
+@@ -577,6 +713,7 @@
                  ImageIO.write(bufferedimage, "PNG", new ByteBufOutputStream(bytebuf));
                  ByteBuf bytebuf1 = Base64.encode(bytebuf);
                  response.setFavicon("data:image/png;base64," + bytebuf1.toString(StandardCharsets.UTF_8));
@@ -600,7 +597,7 @@
              }
              catch (Exception exception)
              {
-@@ -617,7 +757,9 @@
+@@ -617,7 +754,9 @@
  
      public void tick()
      {
@@ -610,7 +607,7 @@
          ++this.tickCounter;
  
          if (this.startProfiling)
-@@ -644,14 +786,17 @@
+@@ -644,14 +783,17 @@
  
              Collections.shuffle(Arrays.asList(agameprofile));
              this.statusResponse.getPlayers().setPlayers(agameprofile);
@@ -629,7 +626,7 @@
          }
  
          this.profiler.startSection("tallying");
-@@ -671,46 +816,86 @@
+@@ -671,46 +813,86 @@
  
          this.profiler.endSection();
          this.profiler.endSection();
@@ -729,7 +726,7 @@
                  }
                  catch (Throwable throwable1)
                  {
-@@ -721,7 +906,9 @@
+@@ -721,7 +903,9 @@
  
                  try
                  {
@@ -739,7 +736,7 @@
                  }
                  catch (Throwable throwable)
                  {
-@@ -730,28 +917,42 @@
+@@ -730,28 +914,42 @@
                      throw new ReportedException(crashreport1);
                  }
  
@@ -784,7 +781,7 @@
  
          this.profiler.endSection();
      }
-@@ -763,8 +964,11 @@
+@@ -763,8 +961,11 @@
  
      public void startServerThread()
      {
@@ -797,7 +794,7 @@
      }
  
      public File getFile(String fileName)
-@@ -779,16 +983,20 @@
+@@ -779,16 +980,20 @@
  
      public WorldServer getWorld(int dimension)
      {
@@ -824,7 +821,7 @@
      public String getMinecraftVersion()
      {
          return "1.12.2";
-@@ -816,7 +1024,8 @@
+@@ -816,7 +1021,8 @@
  
      public String getServerModName()
      {
@@ -834,7 +831,7 @@
      }
  
      public CrashReport addServerInfoToCrashReport(CrashReport report)
-@@ -845,7 +1054,7 @@
+@@ -845,7 +1051,7 @@
  
      public List<String> getTabCompletions(ICommandSender sender, String input, @Nullable BlockPos pos, boolean hasTargetBlock)
      {
@@ -843,7 +840,7 @@
          boolean flag = input.startsWith("/");
  
          if (flag)
-@@ -862,11 +1071,9 @@
+@@ -862,11 +1068,9 @@
              {
                  if (CommandBase.doesStringStartWith(s2, s1))
                  {
@@ -856,7 +853,7 @@
          }
          else
          {
-@@ -879,22 +1086,24 @@
+@@ -879,22 +1083,24 @@
                  {
                      if (flag1 && !hasTargetBlock)
                      {
@@ -886,7 +883,17 @@
      }
  
      public String getName()
-@@ -947,13 +1156,11 @@
+@@ -904,7 +1110,8 @@
+ 
+     public void sendMessage(ITextComponent component)
+     {
+-        LOGGER.info(component.getUnformattedText());
++        // Paper - Log message with colors
++        MinecraftServer.LOGGER.info(org.bukkit.craftbukkit.util.CraftChatMessage.fromComponent(component, net.minecraft.util.text.TextFormatting.WHITE));
+     }
+ 
+     public boolean canUseCommand(int permLevel, String commandName)
+@@ -947,13 +1154,11 @@
          this.folderName = name;
      }
  
@@ -900,7 +907,7 @@
      public String getWorldName()
      {
          return this.worldName;
-@@ -966,7 +1173,7 @@
+@@ -966,7 +1171,7 @@
  
      public void setDifficultyForAllWorlds(EnumDifficulty difficulty)
      {
@@ -909,7 +916,7 @@
          {
              if (worldserver1 != null)
              {
-@@ -1048,9 +1255,9 @@
+@@ -1048,9 +1253,9 @@
          playerSnooper.addClientStat("avg_tick_ms", Integer.valueOf((int)(MathHelper.average(this.tickTimeArray) * 1.0E-6D)));
          int l = 0;
  
@@ -921,7 +928,7 @@
              {
                  if (worldserver1 != null)
                  {
-@@ -1088,7 +1295,8 @@
+@@ -1088,7 +1293,8 @@
  
      public boolean isServerInOnlineMode()
      {
@@ -931,7 +938,7 @@
      }
  
      public void setOnlineMode(boolean online)
-@@ -1177,12 +1385,12 @@
+@@ -1177,12 +1383,12 @@
  
      public void setPlayerList(PlayerList list)
      {
@@ -946,7 +953,7 @@
          {
              worldserver1.getWorldInfo().setGameType(gameMode);
          }
-@@ -1224,7 +1432,7 @@
+@@ -1224,7 +1430,7 @@
  
      public World getEntityWorld()
      {
@@ -955,7 +962,7 @@
      }
  
      public boolean isBlockProtected(World worldIn, BlockPos pos, EntityPlayer playerIn)
-@@ -1285,7 +1493,7 @@
+@@ -1285,7 +1491,7 @@
      @Nullable
      public Entity getEntityFromUuid(UUID uuid)
      {
@@ -964,7 +971,7 @@
          {
              if (worldserver1 != null)
              {
-@@ -1303,7 +1511,7 @@
+@@ -1303,7 +1509,7 @@
  
      public boolean sendCommandFeedback()
      {
@@ -973,7 +980,7 @@
      }
  
      public MinecraftServer getServer()
-@@ -1311,6 +1519,11 @@
+@@ -1311,6 +1517,11 @@
          return this;
      }
  
@@ -985,7 +992,7 @@
      public int getMaxWorldSize()
      {
          return 29999984;
-@@ -1320,15 +1533,14 @@
+@@ -1320,15 +1531,14 @@
      {
          Validate.notNull(callable);
  
@@ -1006,7 +1013,7 @@
          }
          else
          {
-@@ -1366,12 +1578,12 @@
+@@ -1366,12 +1576,12 @@
  
      public AdvancementManager getAdvancementManager()
      {
@@ -1021,7 +1028,7 @@
      }
  
      public void reload()
-@@ -1379,7 +1591,7 @@
+@@ -1379,7 +1589,7 @@
          if (this.isCallingFromMinecraftThread())
          {
              this.getPlayerList().saveAllPlayerData();
@@ -1030,7 +1037,7 @@
              this.getAdvancementManager().reload();
              this.getFunctionManager().reload();
              this.getPlayerList().reloadResources();
-@@ -1409,120 +1621,47 @@
+@@ -1409,120 +1619,47 @@
      }
  
      @SideOnly(Side.SERVER)
@@ -1177,7 +1184,7 @@
          }
          catch (Exception exception)
          {
-@@ -1539,7 +1678,8 @@
+@@ -1539,7 +1676,8 @@
      @SideOnly(Side.SERVER)
      public boolean isDebuggingEnabled()
      {
@@ -1187,7 +1194,7 @@
      }
  
      @SideOnly(Side.SERVER)
-@@ -1598,4 +1738,9 @@
+@@ -1598,4 +1736,9 @@
      {
          return this.serverThread;
      }

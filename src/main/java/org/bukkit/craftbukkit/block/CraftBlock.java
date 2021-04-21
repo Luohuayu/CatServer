@@ -41,8 +41,6 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BlockVector;
 
-import javax.annotation.Resource;
-
 public class CraftBlock implements Block {
     private final CraftChunk chunk;
     private final int x;

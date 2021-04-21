@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import net.minecraft.server.MinecraftServer;
-import org.fusesource.jansi.AnsiConsole;
+import net.minecraftforge.server.terminalconsole.TerminalConsoleAppender;
 
 public class Main {
     public static boolean useJline = true;
@@ -154,6 +154,8 @@ public class Main {
             }
 
             try {
+                // Paper start - Handled by TerminalConsoleAppender
+                /*
                 // This trick bypasses Maven Shade's clever rewriting of our getProperty call when using String literals
                 String jline_UnsupportedTerminal = new String(new char[] {'j','l','i','n','e','.','U','n','s','u','p','p','o','r','t','e','d','T','e','r','m','i','n','a','l'});
                 String jline_terminal = new String(new char[] {'j','l','i','n','e','.','t','e','r','m','i','n','a','l'});
@@ -171,10 +173,18 @@ public class Main {
                     // This ensures the terminal literal will always match the jline implementation
                     System.setProperty(jline.TerminalFactory.JLINE_TERMINAL, jline.UnsupportedTerminal.class.getName());
                 }
+                */
 
+                if (options.has("nojline")) {
+                    System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
+                    useJline = false;
+                }
+                // Paper end
 
                 if (options.has("noconsole")) {
                     useConsole = false;
+                    useJline = false; // Paper
+                    System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false"); // Paper
                 }
 
                 if (false && Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {

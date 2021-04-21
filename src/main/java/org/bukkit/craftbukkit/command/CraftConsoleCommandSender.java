@@ -14,6 +14,8 @@ public class CraftConsoleCommandSender extends ServerCommandSender implements Co
 
     protected final ConversationTracker conversationTracker = new ConversationTracker();
 
+    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager.getRootLogger();
+
     protected CraftConsoleCommandSender() {
         super();
     }
@@ -23,7 +25,8 @@ public class CraftConsoleCommandSender extends ServerCommandSender implements Co
     }
 
     public void sendRawMessage(String message) {
-        System.out.println(ChatColor.stripColor(message));
+        // TerminalConsoleAppender supports color codes directly in log messages
+        LOGGER.info(message);
     }
 
     public void sendMessage(String[] messages) {
