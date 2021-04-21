@@ -298,26 +298,32 @@ public class TerminalConsoleAppender extends AbstractAppender
     @Override
     public void append(LogEvent event)
     {
+        if (catserver.server.log4j.AsyncConsoleWriteQueue.enable) catserver.server.log4j.AsyncConsoleWriteQueue.addLogToQueue(getLayout().toSerializable(event));
+        else write(getLayout().toSerializable(event));
+    }
+
+    public static void write(Object object)
+    {
         if (terminal != null)
         {
             if (reader != null)
             {
                 // Draw the prompt line again if a reader is available
                 reader.callWidget(LineReader.CLEAR);
-                terminal.writer().print(getLayout().toSerializable(event));
+                terminal.writer().print(object);
                 reader.callWidget(LineReader.REDRAW_LINE);
                 reader.callWidget(LineReader.REDISPLAY);
             }
             else
             {
-                terminal.writer().print(getLayout().toSerializable(event));
+                terminal.writer().print(object);
             }
 
             terminal.writer().flush();
         }
         else
         {
-            stdout.print(getLayout().toSerializable(event));
+            stdout.print(object);
         }
     }
 

@@ -65,7 +65,6 @@ public class ServerLaunchWrapper {
         {
             System.err.println("A problem occurred running the Server launcher.");
             e.printStackTrace(System.err);
-            catserver.server.utils.Log4jUitls.flush(); // CatServer - flush error to console
             System.exit(1);
         }
     }
