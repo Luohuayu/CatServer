@@ -1690,6 +1690,7 @@ public class CraftWorld implements World {
 
             // Already unloading?
             if (cps.droppedChunksSet.contains(ChunkPos.asLong(chunk.x, chunk.z))) {
+                if (!chunk.unloadQueued) chunk.unloadQueued = true; // CatServer
                 continue;
             }
 
