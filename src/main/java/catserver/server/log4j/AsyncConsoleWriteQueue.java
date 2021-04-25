@@ -32,7 +32,7 @@ public class AsyncConsoleWriteQueue implements Runnable {
     public void run() {
         Object object;
 
-        while (enable) {
+        while (true) {
             try {
                 try {
                     object = queue.take();

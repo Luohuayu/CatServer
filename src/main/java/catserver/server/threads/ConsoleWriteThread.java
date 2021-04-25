@@ -12,15 +12,4 @@ public class ConsoleWriteThread extends Thread {
     public static void startThread() {
         CONSOLE_WRITE_THREAD.start();
     }
-
-    public static void stopThread() {
-        AsyncConsoleWriteQueue.enable = false;
-        CONSOLE_WRITE_THREAD.interrupt();
-        try {
-            CONSOLE_WRITE_THREAD.join(1000);
-        } catch (InterruptedException e) {
-            CONSOLE_WRITE_THREAD.stop();
-        }
-        AsyncConsoleWriteQueue.flush();
-    }
 }
