@@ -1,10 +1,7 @@
 package catserver.server.patcher;
 
 import catserver.server.CatServer;
-import catserver.server.patcher.plugin.CoreProtectPatcher;
-import catserver.server.patcher.plugin.DisablePluginPatcher;
-import catserver.server.patcher.plugin.DynmapPacher;
-import catserver.server.patcher.plugin.EssentialsPatcher;
+import catserver.server.patcher.plugin.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +13,7 @@ public class PatcherManager {
         if (CatServer.getConfig().enableDynmapCompatible) registerPluginPatcher("dynmap", new DynmapPacher());
         if (CatServer.getConfig().enableCoreProtectModBlockCompatible) registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
         if (CatServer.getConfig().enableEssentialsNewVersionCompatible) registerPluginPatcher("Essentials", new EssentialsPatcher());
+        if (CatServer.getConfig().enableMythicMobsPatcherCompatible) registerPluginPatcher("MythicMobs", new MythicMobsPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {

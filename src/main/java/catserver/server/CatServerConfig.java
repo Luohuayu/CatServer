@@ -33,6 +33,7 @@ public class CatServerConfig {
     public boolean enableDynmapCompatible = true;
     public boolean enableCoreProtectModBlockCompatible = true;
     public boolean enableEssentialsNewVersionCompatible = true;
+    public boolean enableMythicMobsPatcherCompatible = true;
     public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
 
     public boolean disableUpdateGameProfile = false;
@@ -70,6 +71,7 @@ public class CatServerConfig {
         enableDynmapCompatible = getOrWriteBooleanConfig("plugin.patcher.enableDynmapCompatible", enableDynmapCompatible);
         enableCoreProtectModBlockCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCoreProtectModBlockCompatible", enableCoreProtectModBlockCompatible);
         enableEssentialsNewVersionCompatible = getOrWriteBooleanConfig("plugin.patcher.enableEssentialsNewVersionCompatible", enableEssentialsNewVersionCompatible);
+        enableMythicMobsPatcherCompatible = getOrWriteBooleanConfig("plugin.patcher.enableMythicMobsPatcherCompatible", enableMythicMobsPatcherCompatible);
         disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
