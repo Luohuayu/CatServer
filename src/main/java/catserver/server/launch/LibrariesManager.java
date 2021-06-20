@@ -1,4 +1,4 @@
-package catserver.server;
+package catserver.server.launch;
 
 import catserver.server.utils.LanguageUtils;
 import catserver.server.utils.Md5Utils;
@@ -55,6 +55,7 @@ public class LibrariesManager {
             for (Map.Entry<File, String> entry : librariesNeedDownload.entrySet()) {
                 tryDownload(entry.getKey(), entry.getValue());
             }
+            System.out.println(LanguageUtils.I18nToString("launch.lib_download_completed"));
         }
     }
 

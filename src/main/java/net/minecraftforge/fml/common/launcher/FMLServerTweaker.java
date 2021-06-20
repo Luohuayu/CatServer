@@ -58,6 +58,7 @@ public class FMLServerTweaker extends FMLTweaker {
         classLoader.addClassLoaderExclusion("org.jline.");
         classLoader.addClassLoaderExclusion("com.sun.jna.");
         classLoader.addClassLoaderExclusion("net.minecraftforge.server.terminalconsole.");
+        classLoader.addClassLoaderExclusion("catserver.server.launch.");
         classLoader.addClassLoaderExclusion("catserver.server.log4j.");
 
         FMLLaunchHandler.configureForServerLaunch(classLoader, this);

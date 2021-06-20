@@ -160,6 +160,7 @@ class ObjectHolderRef
 
         static Field makeWritable(Field f) throws ReflectiveOperationException
         {
+            if (catserver.server.launch.Java11Support.enable) return f;
             f.setAccessible(true);
             if (modifiersField == null)
             {
@@ -176,6 +177,7 @@ class ObjectHolderRef
 
         static void setField(Field field, @Nullable Object instance, Object thing) throws ReflectiveOperationException
         {
+            if (catserver.server.launch.Java11Support.enable) { catserver.server.launch.Java11Support.FieldHelper.set(instance, field, thing); return; }
             Object fieldAccessor = newFieldAccessor.invoke(reflectionFactory, field, false);
             fieldAccessorSet.invoke(fieldAccessor, instance, thing);
         }

@@ -41,7 +41,7 @@ public class ServerLaunchWrapper {
         Class<?> launchwrapper = null;
         try
         {
-            launchwrapper = Class.forName("net.minecraft.launchwrapper.Launch",true,getClass().getClassLoader());
+            launchwrapper = Class.forName(catserver.server.launch.Java11Support.enable ? "catserver.server.launch.Java11Launch" : "net.minecraft.launchwrapper.Launch",true,getClass().getClassLoader());
             Class.forName("org.objectweb.asm.Type",true,getClass().getClassLoader());
         }
         catch (Exception e)

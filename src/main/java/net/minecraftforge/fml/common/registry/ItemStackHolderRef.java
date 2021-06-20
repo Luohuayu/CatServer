@@ -56,6 +56,7 @@ class ItemStackHolderRef {
     {
         try
         {
+            if (catserver.server.launch.Java11Support.enable) return;
             if (modifiersField == null)
             {
                 Method getReflectionFactory = Class.forName("sun.reflect.ReflectionFactory").getDeclaredMethod("getReflectionFactory");
@@ -86,6 +87,7 @@ class ItemStackHolderRef {
         }
         try
         {
+            if (catserver.server.launch.Java11Support.enable) { catserver.server.launch.Java11Support.FieldHelper.setStatic(this.field, is); return; }
             Object fieldAccessor = newFieldAccessor.invoke(reflectionFactory, field, false);
             fieldAccessorSet.invoke(fieldAccessor, null, is);
         }

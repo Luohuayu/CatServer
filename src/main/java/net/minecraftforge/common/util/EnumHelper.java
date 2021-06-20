@@ -180,6 +180,8 @@ public class EnumHelper
             return;
         }
 
+        if (catserver.server.launch.Java11Support.enable) return;
+
         try
         {
             Method getReflectionFactory = Class.forName("sun.reflect.ReflectionFactory").getDeclaredMethod("getReflectionFactory");
@@ -226,6 +228,7 @@ public class EnumHelper
 
     public static void setFailsafeFieldValue(Field field, @Nullable Object target, @Nullable Object value) throws Exception
     {
+        if (catserver.server.launch.Java11Support.enable) { catserver.server.launch.Java11Support.EnumHelper.setFailsafeFieldValue(field, target, value); return; }
         field.setAccessible(true);
         Field modifiersField = Field.class.getDeclaredField("modifiers");
         modifiersField.setAccessible(true);
@@ -296,6 +299,7 @@ public class EnumHelper
     @Nullable
     private static <T extends Enum<? >> T addEnum(boolean test, final Class<T> enumType, @Nullable String enumName, final Class<?>[] paramTypes, @Nullable Object[] paramValues)
     {
+        if (catserver.server.launch.Java11Support.enable) return catserver.server.launch.Java11Support.EnumHelper.addEnum(test, enumType, enumName, paramTypes, paramValues);
         if (!isSetup)
         {
             setup();
