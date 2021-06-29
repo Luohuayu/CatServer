@@ -17,9 +17,13 @@ public class CatServerLaunch {
         if (!(CatServerLaunch.class.getClassLoader() instanceof URLClassLoader)) {
             System.out.println(String.format(LanguageUtils.I18nToString("launch.java_wrong"), System.getProperty("java.version")));
             try {
-                System.out.println(LanguageUtils.I18nToString("launch.java11_compatibility"));
-                Thread.sleep(5000);
-                Java11Support.setup();
+                if (Java11Support.isSupport()) {
+                    System.out.println(LanguageUtils.I18nToString("launch.java11_compatibility"));
+                    Thread.sleep(5000);
+                    Java11Support.setup();
+                } else {
+                    System.exit(0);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 System.exit(1);

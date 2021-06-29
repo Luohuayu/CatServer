@@ -25,7 +25,12 @@ public class Java11Launch {
     private Java11Launch() {
         try {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                Field ucpField = Java11Launch.class.getClassLoader().getClass().getDeclaredField("ucp");
+                Field ucpField = null;
+                try {
+                    ucpField = Java11Launch.class.getClassLoader().getClass().getDeclaredField("ucp");
+                } catch (NoSuchFieldException e) {
+                    ucpField = Java11Launch.class.getClassLoader().getClass().getSuperclass().getDeclaredField("ucp");
+                }
                 Object ucp = Java11Support.FieldHelper.get(Java11Launch.class.getClassLoader(), ucpField);
                 Field pathField = ucp.getClass().getDeclaredField("path");
                 URL[] sources = ((List<URL>) Java11Support.FieldHelper.get(ucp, pathField)).toArray(new URL[0]); // Luohuayu: May cause thread safety issues, find a better way to invoke getURLs

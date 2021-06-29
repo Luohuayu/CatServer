@@ -17,6 +17,15 @@ public class Java11Support {
     public static boolean enable = false;
     public static sun.misc.Unsafe unsafe;
 
+    public static boolean isSupport() {
+        try {
+            Class.forName("java.util.jar.Pack200");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static void setup() {
         enable = true;
         try {
