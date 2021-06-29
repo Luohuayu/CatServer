@@ -51,8 +51,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
-import catserver.server.inventory.CustomModRecipe;
-
 import org.bukkit.inventory.Recipe;
 
 public class ShapedOreRecipe extends IForgeRegistryEntry.Impl<IRecipe> implements IShapedRecipe
@@ -264,7 +262,7 @@ public class ShapedOreRecipe extends IForgeRegistryEntry.Impl<IRecipe> implement
     @Override
     public Recipe toBukkitRecipe() {
         if (bukkitRecip == null)
-            bukkitRecip = new CustomModRecipe(this, this.getRegistryName());
+            bukkitRecip = new catserver.server.inventory.CustomModRecipe(this, this.getRegistryName());
         return this.bukkitRecip;
     }
 

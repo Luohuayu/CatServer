@@ -11,63 +11,35 @@ import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
-import java.util.Collections;
 import java.util.List;
 
 public class CatInventoryUtils {
     public static void onOpen(IInventory inventory, CraftHumanEntity who) {
-        try {
-            inventory.onOpen(who);
-        } catch (AbstractMethodError ignored) { }
+        inventory.onOpen(who);
     }
 
     public static void onClose(IInventory inventory, CraftHumanEntity who) {
-        try {
-            inventory.onClose(who);
-        } catch (AbstractMethodError ignored) { }
+        inventory.onClose(who);
     }
 
     public static List<HumanEntity> getViewers(IInventory inventory) {
-        try {
-            return inventory.getViewers();
-        } catch (AbstractMethodError e) {
-            return new java.util.ArrayList<HumanEntity>();
-        }
+        return inventory.getViewers();
     }
 
     public static java.util.List<net.minecraft.item.ItemStack> getContents(IInventory inventory) {
-        try {
-            return inventory.getContents();
-        } catch (AbstractMethodError e) {
-            return Collections.emptyList(); // return empty list
-        }
+        return inventory.getContents();
     }
 
     public static InventoryHolder getOwner(IInventory inventory) {
-        try {
-            return inventory.getOwner();
-        } catch (AbstractMethodError e) {
-            return (inventory instanceof TileEntity) ? getOwner((TileEntity) inventory) : null;
-        }
+        return inventory.getOwner();
     }
 
     public static void setMaxStackSize(IInventory inventory, int size) {
-        try {
-            inventory.setMaxStackSize(size);
-        } catch (AbstractMethodError ignored) { }
+        inventory.setMaxStackSize(size);
     }
 
     public static Location getLocation(IInventory inventory) {
-        try {
-            return inventory.getLocation();
-        } catch (AbstractMethodError e) {
-            if (inventory instanceof net.minecraft.tileentity.TileEntity) {
-                TileEntity tileEntity = (TileEntity) inventory;
-                return new Location(tileEntity.getWorld().getWorld(), tileEntity.getPos().getX(), tileEntity.getPos().getY(), tileEntity.getPos().getZ());
-            }else{
-                return null;
-            }
-        }
+        return inventory.getLocation();
     }
 
     public static InventoryHolder getOwner(TileEntity tileEntity) {
@@ -84,13 +56,13 @@ public class CatInventoryUtils {
         }
         // Spigot end
         org.bukkit.block.BlockState state = block.getState();
-        if (state instanceof InventoryHolder)
-        {
+        if (state instanceof InventoryHolder) {
             return (InventoryHolder) state;
         } else if (state instanceof CraftBlockEntityState) { // CatServer
             TileEntity te = ((CraftBlockEntityState) state).getTileEntity();
-            if (te instanceof IInventory)
+            if (te instanceof IInventory) {
                 return new CatCustomInventory((IInventory) te);
+            }
         }
         return null;
     }

@@ -10,8 +10,6 @@ import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 
-import catserver.server.inventory.CustomModRecipe;
-
 public class CraftInventoryCrafting extends CraftInventory implements CraftingInventory {
     private final IInventory resultInventory;
 
@@ -117,13 +115,7 @@ public class CraftInventoryCrafting extends CraftInventory implements CraftingIn
     }
 
     public Recipe getRecipe() {
-        // CatServer - handle custom recipe classes without Bukkit API equivalents
         IRecipe recipe = ((InventoryCrafting)getInventory()).currentRecipe;
-        try {
-            return recipe == null ? null : recipe.toBukkitRecipe();
-        } catch (AbstractMethodError ex) {
-            // No Bukkit wrapper provided
-            return new CustomModRecipe(recipe, recipe.getRegistryName());
-        }
+        return recipe == null ? null : recipe.toBukkitRecipe();
     }
 }

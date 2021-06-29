@@ -7,8 +7,6 @@ import net.minecraft.item.crafting.FurnaceRecipes;
 import net.minecraft.item.crafting.IRecipe;
 import org.bukkit.inventory.Recipe;
 
-import catserver.server.inventory.CustomModRecipe;
-
 public class RecipeIterator implements Iterator<Recipe> {
     private final Iterator<IRecipe> recipes;
     private final Iterator<net.minecraft.item.ItemStack> smeltingCustom;
@@ -28,14 +26,10 @@ public class RecipeIterator implements Iterator<Recipe> {
     public Recipe next() {
         if (recipes.hasNext()) {
             removeFrom = recipes;
-            // CatServer - handle custom recipe classes without Bukkit API equivalents
+            // CatServer start - handle custom recipe classes without Bukkit API equivalents
             IRecipe recipe = recipes.next();
-            try {
-                return recipe == null ? null : recipe.toBukkitRecipe();
-            } catch (AbstractMethodError ex) {
-                // No Bukkit wrapper provided
-                return new CustomModRecipe(recipe, recipe.getRegistryName());
-            }
+            return recipe == null ? null : recipe.toBukkitRecipe();
+            // CatServer end
         } else {
             net.minecraft.item.ItemStack item;
             if (smeltingCustom.hasNext()) {

@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
-import catserver.server.inventory.CustomModRecipe;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockAir;
 import net.minecraft.block.BlockObserver;
@@ -487,7 +486,7 @@ public class GameData
             @Override
             public Recipe toBukkitRecipe() {
                 if (bukkitRecip == null)
-                    bukkitRecip = new CustomModRecipe(this, this.getRegistryName());
+                    bukkitRecip = new catserver.server.inventory.CustomModRecipe(this, this.getRegistryName());
                 return this.bukkitRecip;
             }
 

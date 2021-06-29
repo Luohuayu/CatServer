@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 
-import catserver.server.inventory.CatInventoryUtils;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IInventory;
 
@@ -75,7 +74,8 @@ public class CraftInventory implements Inventory {
     }
 
     public ItemStack[] getContents() {
-        List<net.minecraft.item.ItemStack> mcItems = CatInventoryUtils.getContents(getInventory()); // CatServer - fix AbstractMethodError
+        List<net.minecraft.item.ItemStack> mcItems = getInventory().getContents();
+
         return asCraftMirror(mcItems);
     }
 
@@ -436,7 +436,7 @@ public class CraftInventory implements Inventory {
     }
 
     public List<HumanEntity> getViewers() {
-        return CatInventoryUtils.getViewers(this.inventory); // CatServer - fix AbstractMethodError
+        return this.inventory.getViewers();
     }
 
     public String getTitle() { // CatServer - not return null
@@ -480,7 +480,7 @@ public class CraftInventory implements Inventory {
     }
 
     public InventoryHolder getHolder() {
-        return CatInventoryUtils.getOwner(inventory); // CatServer - fix AbstractMethodError
+        return inventory.getOwner();
     }
 
     public int getMaxStackSize() {
@@ -488,7 +488,7 @@ public class CraftInventory implements Inventory {
     }
 
     public void setMaxStackSize(int size) {
-        CatInventoryUtils.setMaxStackSize(inventory, size); // CatServer - fix AbstractMethodError
+        inventory.setMaxStackSize(size);
     }
 
     @Override
@@ -503,6 +503,6 @@ public class CraftInventory implements Inventory {
 
     @Override
     public Location getLocation() {
-        return CatInventoryUtils.getLocation(inventory); // CatServer - fix AbstractMethodError
+        return inventory.getLocation();
     }
 }
