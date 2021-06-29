@@ -69,10 +69,17 @@ public class MappingLoader {
     public static JarMapping loadMapping() {
         JarMapping jarMapping = new JarMapping();
         try {
-            fieldPackages.set(jarMapping, fieldPackages.get(globalJarMapping));
-            fieldClasses.set(jarMapping, fieldClasses.get(globalJarMapping));
-            fieldFields.set(jarMapping, fieldFields.get(globalJarMapping));
-            fieldMethods.set(jarMapping, fieldMethods.get(globalJarMapping));
+            if (catserver.server.launch.Java11Support.enable) {
+                catserver.server.launch.Java11Support.FieldHelper.set(jarMapping, fieldPackages, fieldPackages.get(globalJarMapping));
+                catserver.server.launch.Java11Support.FieldHelper.set(jarMapping, fieldClasses, fieldClasses.get(globalJarMapping));
+                catserver.server.launch.Java11Support.FieldHelper.set(jarMapping, fieldFields, fieldFields.get(globalJarMapping));
+                catserver.server.launch.Java11Support.FieldHelper.set(jarMapping, fieldMethods, fieldMethods.get(globalJarMapping));
+            } else {
+                fieldPackages.set(jarMapping, fieldPackages.get(globalJarMapping));
+                fieldClasses.set(jarMapping, fieldClasses.get(globalJarMapping));
+                fieldFields.set(jarMapping, fieldFields.get(globalJarMapping));
+                fieldMethods.set(jarMapping, fieldMethods.get(globalJarMapping));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

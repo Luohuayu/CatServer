@@ -21,6 +21,7 @@ public class ReflectionUtils {
     }
 
     public static void modifyFiledFinal(Field field) throws ReflectiveOperationException {
+        if (catserver.server.launch.Java11Support.enable) return;
         Field fieldModifiers = Field.class.getDeclaredField("modifiers");
         fieldModifiers.setAccessible(true);
         fieldModifiers.setInt(field, field.getModifiers() & ~Modifier.FINAL);
