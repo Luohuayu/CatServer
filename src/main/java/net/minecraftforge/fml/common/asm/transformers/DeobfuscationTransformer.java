@@ -70,6 +70,8 @@ public class DeobfuscationTransformer implements IClassTransformer, IClassNameTr
 
         if (!shouldTransform(name)) return bytes;
 
+        if (catserver.server.launch.Java11Support.enable && (bytes.length > 8 && bytes[7] > 52)) bytes[7] = 52;
+
         ClassReader classReader = new ClassReader(bytes);
         ClassWriter classWriter = new ClassWriter(WRITER_FLAGS);
         RemappingClassAdapter remapAdapter = new FMLRemappingAdapter(classWriter);
