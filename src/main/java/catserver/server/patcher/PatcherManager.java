@@ -14,6 +14,7 @@ public class PatcherManager {
         if (CatServer.getConfig().enableCoreProtectModBlockCompatible) registerPluginPatcher("CoreProtect", new CoreProtectPatcher());
         if (CatServer.getConfig().enableEssentialsNewVersionCompatible) registerPluginPatcher("Essentials", new EssentialsPatcher());
         if (CatServer.getConfig().enableMythicMobsPatcherCompatible) registerPluginPatcher("MythicMobs", new MythicMobsPatcher());
+        if (CatServer.getConfig().enableWorldEditCompatible) registerPluginPatcher("WorldEdit", new WorldEditPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {
