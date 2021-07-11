@@ -27,7 +27,7 @@ public class LanguageUtils {
         EN.put("launch.lib_failure_download", "File download failed(HTTP Status: %s), URL: %s");
         EN.put("launch.lib_downloading", "Downloading %s Size: %s");
         EN.put("launch.lib_download_completed", "The libraries file download completed, if an error occurs only need re-run the server");
-        EN.put("versioncheck.new_version", "Check CatServer has a new version(%s), you can download the update from https://catmc.org or turn off the version check in catserver.yml");
+        EN.put("versioncheck.new_version", "Check CatServer has a new version(%s), you can download the update from https://catmc.org or disable the version check in catserver.yml");
         EN.put("versioncheck.failure", "CatServer version check failed, please check network: %s");
 
         current = ("zh".equals(Locale.getDefault().getLanguage()) ? CN : EN);
