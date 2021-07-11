@@ -18,4 +18,11 @@ public class PlayerDataFixer {
             entity.setPosition(pos.getX(), pos.getY(), pos.getZ());
         }
     }
+
+    public static void checkHealth(EntityPlayer entity) {
+        if (!NumberConversions.isFinite(entity.getHealth())) {
+            entity.setHealth(0.0F);
+        }
+    }
+
 }
