@@ -1,5 +1,6 @@
 package catserver.server;
 
+import catserver.server.threads.AsyncChatThread;
 import catserver.server.threads.AsyncTaskThread;
 import catserver.server.threads.RealtimeThread;
 import catserver.server.utils.VersionCheck;
@@ -29,6 +30,7 @@ public class CatServer {
 
     public static void onServerStop() {
         AsyncTaskThread.shutdown();
+        AsyncChatThread.shutdown();
     }
 
     public static CatServerConfig getConfig() {
