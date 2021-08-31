@@ -7,8 +7,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 public class AsyncCatcher {
+    public static boolean isMainThread() {
+        return Thread.currentThread() == MinecraftServer.getServerInst().primaryThread;
+    }
+
     public static boolean checkAsync(String reason) {
-        if (org.spigotmc.AsyncCatcher.enabled && Thread.currentThread() != MinecraftServer.getServerInst().primaryThread) {
+        if (org.spigotmc.AsyncCatcher.enabled && !isMainThread()) {
             if (!CatServer.getConfig().disableAsyncCatchWarn) {
                 CatServer.log.warn("A Mod/Plugin try to async " + reason + ", it will be executed safely on the main server thread until return!");
                 CatServer.log.warn("Please check the stacktrace in debug.log and report the author.");
