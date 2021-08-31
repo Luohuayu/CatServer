@@ -7,7 +7,7 @@ public class RealtimeThread extends Thread {
     public static int currentTick = (int) (System.currentTimeMillis() / 50);
 
     private RealtimeThread() {
-        super("RealtimeThread");
+        super("Realtime Thread");
     }
 
     @Override
