@@ -938,7 +938,7 @@
          {
              TextComponentTranslation textcomponenttranslation = new TextComponentTranslation("chat.cannotSend", new Object[0]);
              textcomponenttranslation.getStyle().setColor(TextFormatting.RED);
-@@ -922,45 +1413,268 @@
+@@ -922,45 +1413,310 @@
              {
                  if (!ChatAllowedCharacters.isAllowedCharacter(s.charAt(i)))
                  {
@@ -995,6 +995,7 @@
 +                catserver.server.threads.AsyncChatThread.chat(this, s); // CatServer - Async chat
 +                // CraftBukkit end - the below is for reference. :)
              }
++            /*
              else
              {
 -                ITextComponent itextcomponent = new TextComponentTranslation("chat.type.text", new Object[] {this.player.getDisplayName(), s});
@@ -1003,6 +1004,7 @@
 +                if (itextcomponent == null) return;
                  this.serverController.getPlayerList().sendMessage(itextcomponent, false);
              }
++            */
  
 -            this.chatSpamThresholdCount += 20;
 -
@@ -1058,13 +1060,12 @@
 +        } else if (this.player.getChatVisibility() == EntityPlayer.EnumChatVisibility.SYSTEM) {
 +            // Do nothing, this is coming from a plugin
 +        } else {
-+            catserver.server.CatServerHooks.onServerChatEvent(this, s, new TextComponentTranslation("chat.type.text", this.player.getDisplayName(), net.minecraftforge.common.ForgeHooks.newChatWithLinks(s))); // CatServer start - move from processChatMessage to call ServerChatEvent(TODO: cancel event)
-+
-+            Player player = this.getPlayer();
++            CraftPlayer player = this.getPlayer();
 +            AsyncPlayerChatEvent event = new AsyncPlayerChatEvent(async, player, s, new LazyPlayerSet(serverController));
 +            this.server.getPluginManager().callEvent(event);
 +
 +            if (PlayerChatEvent.getHandlerList().getRegisteredListeners().length != 0) {
++                final String rawMessage = s; // CatServer - Need to final
 +                // Evil plugins still listening to deprecated event
 +                final PlayerChatEvent queueEvent = new PlayerChatEvent(player, event.getMessage(), event.getFormat(), event.getRecipients());
 +                queueEvent.setCancelled(event.isCancelled());
@@ -1077,17 +1078,38 @@
 +                            return null;
 +                        }
 +
-+                        String message = String.format(queueEvent.getFormat(), queueEvent.getPlayer().getDisplayName(), queueEvent.getMessage());
-+                        NetHandlerPlayServer.this.serverController.console.sendMessage(message);
-+                        if (((LazyPlayerSet) queueEvent.getRecipients()).isLazy()) {
-+                            for (Object player : NetHandlerPlayServer.this.serverController.getPlayerList().getPlayers()) {
-+                                ((EntityPlayerMP) player).sendMessage(CraftChatMessage.fromString(message));
++                        // CatServer start - handle ServerChatEvent, something move from processChatMessage
++                        NetHandlerPlayServer.this.serverController.console.sendMessage(String.format(queueEvent.getFormat(), queueEvent.getPlayer().getDisplayName(), queueEvent.getMessage()));
++
++                        ITextComponent itextcomponent = new TextComponentTranslation("chat.type.text", queueEvent.getPlayer().getDisplayName(), new TextComponentString(queueEvent.getMessage()));;
++                        itextcomponent = catserver.server.CatServerHooks.onServerChatEvent(NetHandlerPlayServer.this, rawMessage, itextcomponent);
++                        if (itextcomponent == null) return null;
++                        if (itextcomponent instanceof TextComponentTranslation && ((TextComponentTranslation) itextcomponent).getFormatArgs().length == 2) {
++                            Object[] formatArgs = ((TextComponentTranslation) itextcomponent).getFormatArgs();
++                            String message = String.format(queueEvent.getFormat(), formatArgs[0] instanceof ITextComponent ? ((ITextComponent) formatArgs[0]).getUnformattedComponentText() : formatArgs[0].toString(), formatArgs[1] instanceof ITextComponent ? ((ITextComponent) formatArgs[1]).getUnformattedComponentText() : formatArgs[1].toString());
++
++                            if (((LazyPlayerSet) queueEvent.getRecipients()).isLazy()) {
++                                for (EntityPlayerMP recipient : serverController.getPlayerList().getPlayers()) {
++                                    recipient.sendMessage(CraftChatMessage.fromString(message));
++                                }
++                            } else {
++                                for (Player recipient : queueEvent.getRecipients()) {
++                                    recipient.sendMessage(message);
++                                }
 +                            }
 +                        } else {
-+                            for (Player player : queueEvent.getRecipients()) {
-+                                player.sendMessage(message);
++                            if (((LazyPlayerSet) queueEvent.getRecipients()).isLazy()) {
++                                for (EntityPlayerMP recipient : serverController.getPlayerList().getPlayers()) {
++                                    recipient.sendMessage(itextcomponent);
++                                }
++                            } else {
++                                for (Player recipient : queueEvent.getRecipients()) {
++                                    ((CraftPlayer)recipient).getHandle().sendMessage(itextcomponent);
++                                }
 +                            }
 +                        }
++                        // CatServer end
++
 +                        return null;
 +                    }};
 +                if (async) {
@@ -1107,17 +1129,37 @@
 +                    return;
 +                }
 +
-+                s = String.format(event.getFormat(), event.getPlayer().getDisplayName(), event.getMessage());
-+                serverController.console.sendMessage(s);
-+                if (((LazyPlayerSet) event.getRecipients()).isLazy()) {
-+                    for (Object recipient : serverController.getPlayerList().getPlayers()) {
-+                        ((EntityPlayerMP) recipient).sendMessage(CraftChatMessage.fromString(s));
++                // CatServer start - handle ServerChatEvent, something move from processChatMessage
++                serverController.console.sendMessage(String.format(event.getFormat(), event.getPlayer().getDisplayName(), event.getMessage()));
++
++                ITextComponent itextcomponent = new TextComponentTranslation("chat.type.text", event.getPlayer().getDisplayName(), new TextComponentString(event.getMessage()));;
++                itextcomponent = catserver.server.CatServerHooks.onServerChatEvent(this, s, itextcomponent);
++                if (itextcomponent == null) return;
++                if (itextcomponent instanceof TextComponentTranslation && ((TextComponentTranslation) itextcomponent).getFormatArgs().length == 2) {
++                    Object[] formatArgs = ((TextComponentTranslation) itextcomponent).getFormatArgs();
++                    s = String.format(event.getFormat(), formatArgs[0] instanceof ITextComponent ? ((ITextComponent) formatArgs[0]).getUnformattedComponentText() : formatArgs[0].toString(), formatArgs[1] instanceof ITextComponent ? ((ITextComponent) formatArgs[1]).getUnformattedComponentText() : formatArgs[1].toString());
++
++                    if (((LazyPlayerSet) event.getRecipients()).isLazy()) {
++                        for (EntityPlayerMP recipient : serverController.getPlayerList().getPlayers()) {
++                            recipient.sendMessage(CraftChatMessage.fromString(s));
++                        }
++                    } else {
++                        for (Player recipient : event.getRecipients()) {
++                            recipient.sendMessage(s);
++                        }
 +                    }
 +                } else {
-+                    for (Player recipient : event.getRecipients()) {
-+                        recipient.sendMessage(s);
++                    if (((LazyPlayerSet) event.getRecipients()).isLazy()) {
++                        for (EntityPlayerMP recipient : serverController.getPlayerList().getPlayers()) {
++                            recipient.sendMessage(itextcomponent);
++                        }
++                    } else {
++                        for (Player recipient : event.getRecipients()) {
++                            ((CraftPlayer)recipient).getHandle().sendMessage(itextcomponent);
++                        }
 +                    }
 +                }
++                // CatServer end
 +            }
 +        }
 +    }
@@ -1217,7 +1259,7 @@
          this.player.markPlayerActive();
  
          switch (packetIn.getAction())
-@@ -1042,6 +1756,7 @@
+@@ -1042,6 +1798,7 @@
      public void processUseEntity(CPacketUseEntity packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1225,7 +1267,7 @@
          WorldServer worldserver = this.serverController.getWorld(this.player.dimension);
          Entity entity = packetIn.getEntityFromWorld(worldserver);
          this.player.markPlayerActive();
-@@ -1058,19 +1773,58 @@
+@@ -1058,19 +1815,58 @@
  
              if (this.player.getDistanceSq(entity) < d0)
              {
@@ -1285,7 +1327,7 @@
                      {
                          this.disconnect(new TextComponentTranslation("multiplayer.disconnect.invalid_entity_attacked", new Object[0]));
                          this.serverController.logWarning("Player " + this.player.getName() + " tried to attack an invalid entity");
-@@ -1078,6 +1832,10 @@
+@@ -1078,6 +1874,10 @@
                      }
  
                      this.player.attackTargetEntityWithCurrentItem(entity);
@@ -1296,7 +1338,7 @@
                  }
              }
          }
-@@ -1106,7 +1864,7 @@
+@@ -1106,7 +1906,7 @@
                          return;
                      }
  
@@ -1305,7 +1347,7 @@
  
                      if (this.serverController.isHardcore())
                      {
-@@ -1124,17 +1882,21 @@
+@@ -1124,17 +1924,21 @@
      public void processCloseWindow(CPacketCloseWindow packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1329,7 +1371,7 @@
              {
                  NonNullList<ItemStack> nonnulllist = NonNullList.<ItemStack>create();
  
-@@ -1147,10 +1909,288 @@
+@@ -1147,10 +1951,288 @@
              }
              else
              {
@@ -1620,7 +1662,7 @@
                      this.player.connection.sendPacket(new SPacketConfirmTransaction(packetIn.getWindowId(), packetIn.getActionNumber(), true));
                      this.player.isChangingQuantityOnly = true;
                      this.player.openContainer.detectAndSendChanges();
-@@ -1166,8 +2206,8 @@
+@@ -1166,8 +2248,8 @@
  
                      for (int j = 0; j < this.player.openContainer.inventorySlots.size(); ++j)
                      {
@@ -1631,7 +1673,7 @@
                          nonnulllist1.add(itemstack1);
                      }
  
-@@ -1182,6 +2222,13 @@
+@@ -1182,6 +2264,13 @@
          PacketThreadUtil.checkThreadAndEnqueue(p_194308_1_, this, this.player.getServerWorld());
          this.player.markPlayerActive();
  
@@ -1645,7 +1687,7 @@
          if (!this.player.isSpectator() && this.player.openContainer.windowId == p_194308_1_.func_194318_a() && this.player.openContainer.getCanCraft(this.player))
          {
              this.field_194309_H.func_194327_a(this.player, p_194308_1_.func_194317_b(), p_194308_1_.func_194319_c());
-@@ -1191,6 +2238,7 @@
+@@ -1191,6 +2280,7 @@
      public void processEnchantItem(CPacketEnchantItem packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1653,7 +1695,7 @@
          this.player.markPlayerActive();
  
          if (this.player.openContainer.windowId == packetIn.getWindowId() && this.player.openContainer.getCanCraft(this.player) && !this.player.isSpectator())
-@@ -1230,8 +2278,47 @@
+@@ -1230,8 +2320,47 @@
              }
  
              boolean flag1 = packetIn.getSlotId() >= 1 && packetIn.getSlotId() <= 45;
@@ -1702,7 +1744,7 @@
              if (flag1 && flag2)
              {
                  if (itemstack.isEmpty())
-@@ -1261,6 +2348,7 @@
+@@ -1261,6 +2390,7 @@
      public void processConfirmTransaction(CPacketConfirmTransaction packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1710,7 +1752,7 @@
          Short oshort = this.pendingTransactions.lookup(this.player.openContainer.windowId);
  
          if (oshort != null && packetIn.getUid() == oshort.shortValue() && this.player.openContainer.windowId == packetIn.getWindowId() && !this.player.openContainer.getCanCraft(this.player) && !this.player.isSpectator())
-@@ -1272,6 +2360,7 @@
+@@ -1272,6 +2402,7 @@
      public void processUpdateSign(CPacketUpdateSign packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1718,7 +1760,7 @@
          this.player.markPlayerActive();
          WorldServer worldserver = this.serverController.getWorld(this.player.dimension);
          BlockPos blockpos = packetIn.getPosition();
-@@ -1291,16 +2380,32 @@
+@@ -1291,16 +2422,32 @@
              if (!tileentitysign.getIsEditable() || tileentitysign.getPlayer() != this.player)
              {
                  this.serverController.logWarning("Player " + this.player.getName() + " just tried to change non-editable sign");
@@ -1752,7 +1794,7 @@
              tileentitysign.markDirty();
              worldserver.notifyBlockUpdate(blockpos, iblockstate, iblockstate, 3);
          }
-@@ -1308,6 +2413,7 @@
+@@ -1308,6 +2455,7 @@
  
      public void processKeepAlive(CPacketKeepAlive packetIn)
      {
@@ -1760,7 +1802,7 @@
          if (this.field_194403_g && packetIn.getKey() == this.field_194404_h)
          {
              int i = (int)(this.currentTimeMillis() - this.field_194402_f);
-@@ -1316,7 +2422,7 @@
+@@ -1316,7 +2464,7 @@
          }
          else if (!this.player.getName().equals(this.serverController.getServerOwner()))
          {
@@ -1769,7 +1811,7 @@
          }
      }
  
-@@ -1328,12 +2434,25 @@
+@@ -1328,12 +2476,25 @@
      public void processPlayerAbilities(CPacketPlayerAbilities packetIn)
      {
          PacketThreadUtil.checkThreadAndEnqueue(packetIn, this, this.player.getServerWorld());
@@ -1796,7 +1838,7 @@
          List<String> list = Lists.<String>newArrayList();
  
          for (String s : this.serverController.getTabCompletions(this.player, packetIn.getMessage(), packetIn.getTargetBlock(), packetIn.hasTargetBlock()))
-@@ -1357,6 +2476,11 @@
+@@ -1357,6 +2518,11 @@
  
          if ("MC|BEdit".equals(s))
          {
@@ -1808,7 +1850,7 @@
              PacketBuffer packetbuffer = packetIn.getBufferData();
  
              try
-@@ -1383,15 +2507,22 @@
+@@ -1383,15 +2549,22 @@
                  if (itemstack.getItem() == Items.WRITABLE_BOOK && itemstack.getItem() == itemstack1.getItem())
                  {
                      itemstack1.setTagInfo("pages", itemstack.getTagCompound().getTagList("pages", 8));
@@ -1831,7 +1873,7 @@
              PacketBuffer packetbuffer1 = packetIn.getBufferData();
  
              try
-@@ -1431,12 +2562,14 @@
+@@ -1431,12 +2604,14 @@
                      }
  
                      itemstack2.setTagInfo("pages", nbttaglist);
@@ -1847,7 +1889,7 @@
              }
          }
          else if ("MC|TrSel".equals(s))
-@@ -1454,6 +2587,7 @@
+@@ -1454,6 +2629,7 @@
              catch (Exception exception5)
              {
                  LOGGER.error("Couldn't select trade", (Throwable)exception5);
@@ -1855,7 +1897,7 @@
              }
          }
          else if ("MC|AdvCmd".equals(s))
-@@ -1516,6 +2650,7 @@
+@@ -1516,6 +2692,7 @@
              catch (Exception exception4)
              {
                  LOGGER.error("Couldn't set command block", (Throwable)exception4);
@@ -1863,7 +1905,7 @@
              }
          }
          else if ("MC|AutoCmd".equals(s))
-@@ -1594,6 +2729,7 @@
+@@ -1594,6 +2771,7 @@
              catch (Exception exception3)
              {
                  LOGGER.error("Couldn't set command block", (Throwable)exception3);
@@ -1871,7 +1913,7 @@
              }
          }
          else if ("MC|Beacon".equals(s))
-@@ -1620,6 +2756,7 @@
+@@ -1620,6 +2798,7 @@
                  catch (Exception exception2)
                  {
                      LOGGER.error("Couldn't set beacon", (Throwable)exception2);
@@ -1879,7 +1921,7 @@
                  }
              }
          }
-@@ -1731,6 +2868,7 @@
+@@ -1731,6 +2910,7 @@
              catch (Exception exception1)
              {
                  LOGGER.error("Couldn't set structure block", (Throwable)exception1);
@@ -1887,7 +1929,7 @@
              }
          }
          else if ("MC|PickItem".equals(s))
-@@ -1748,7 +2886,43 @@
+@@ -1748,7 +2928,43 @@
              catch (Exception exception)
              {
                  LOGGER.error("Couldn't pick item", (Throwable)exception);

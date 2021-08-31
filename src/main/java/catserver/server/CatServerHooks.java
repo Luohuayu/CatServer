@@ -1,5 +1,6 @@
 package catserver.server;
 
+import java.util.concurrent.ExecutionException;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.server.MinecraftServer;
@@ -11,6 +12,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import org.bukkit.craftbukkit.util.Waitable;
 
 public class CatServerHooks {
     public static PlayerInteractEvent.LeftClickBlock onLeftClickBlock(EntityPlayer player, BlockPos pos, EnumFacing face, Vec3d hitVec) {
@@ -29,7 +31,31 @@ public class CatServerHooks {
 
     public static ITextComponent onServerChatEvent(NetHandlerPlayServer net, String raw, ITextComponent comp) {
         ServerChatEvent event = new ServerChatEvent(net.player, raw, comp);
-        MinecraftServer.getServerInst().processQueue.add(() -> MinecraftForge.EVENT_BUS.post(event));
-        return null;
+        if (AsyncCatcher.isMainThread()) {
+            if (MinecraftForge.EVENT_BUS.post(event)) {
+                return null;
+            }
+            return event.getComponent();
+        } else {
+            Waitable<ITextComponent> waitable = new Waitable<ITextComponent>() {
+                @Override
+                protected ITextComponent evaluate() {
+                    if (MinecraftForge.EVENT_BUS.post(event)) {
+                        return null;
+                    }
+                    return event.getComponent();
+                }
+            };
+            MinecraftServer.getServerInst().processQueue.add(waitable);
+            if (CatServer.getConfig().waitForgeServerChatEvent) {
+                try {
+                    return waitable.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                return comp;
+            }
+        }
     }
 }
