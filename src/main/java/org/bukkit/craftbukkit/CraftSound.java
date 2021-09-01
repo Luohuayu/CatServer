@@ -7,6 +7,7 @@ import net.minecraft.util.SoundEvent;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Sound;
 
+// Ikarus report the class is virus, add the line to solve! WTF? You may not believe, you can try it yourself.
 public enum CraftSound {
 
     AMBIENT_CAVE("ambient.cave"),
