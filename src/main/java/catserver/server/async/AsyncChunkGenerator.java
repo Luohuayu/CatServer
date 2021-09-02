@@ -1,27 +1,22 @@
 package catserver.server.async;
 
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.util.ReportedException;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
-import net.minecraftforge.common.DimensionManager;
 
 public class AsyncChunkGenerator {
     private static final Map<QueuedChunk, ChunkGeneratorTask> tasks = Maps.newConcurrentMap();
-    private static final ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 4, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactoryBuilder().setDaemon(true).setNameFormat("Async Chunk Generator Thread - #%d").build());
 
-    public static Chunk syncChunkGenerate(World world, ChunkProviderServer chunkProviderServer, int chunkX, int chunkZ) {
+    public static Chunk syncChunkGenerate(WorldServer world, ChunkProviderServer chunkProviderServer, int chunkX, int chunkZ) {
         ChunkGeneratorTask task = tasks.remove(new QueuedChunk(chunkX, chunkZ, world));
         if (task != null) {
             synchronized(task) {
@@ -40,14 +35,14 @@ public class AsyncChunkGenerator {
         }
     }
 
-    public static void queueChunkGenerate(World world, ChunkProviderServer chunkProviderServer, int chunkX, int chunkZ, Runnable callback) {
+    public static void queueChunkGenerate(WorldServer world, ChunkProviderServer chunkProviderServer, int chunkX, int chunkZ, Runnable callback) {
         QueuedChunk key = new QueuedChunk(chunkX, chunkZ, world);
         ChunkGeneratorTask task = tasks.get(key);
         if (task == null) {
             task = new ChunkGeneratorTask(chunkX, chunkZ, chunkProviderServer);
             task.addCallback(callback);
             tasks.put(key, task);
-            pool.submit(task);
+            world.asyncChunkGeneratorThread.submit(task);
         } else {
             task.addCallback(callback);
         }
@@ -62,7 +57,6 @@ public class AsyncChunkGenerator {
                 itr.remove();
             }
         }
-        pool.setMaximumPoolSize(DimensionManager.getWorlds().length + 1);
     }
 
     private static class ChunkGeneratorTask implements Runnable {

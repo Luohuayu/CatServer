@@ -238,7 +238,11 @@ public class DimensionManager
         }
         else
         {
-            FMLCommonHandler.instance().getMinecraftServerInstance().worldServerList.remove(getWorld(id)); // CatServer - remove world from our new world arraylist
+            // CatServer start
+            WorldServer world1 = getWorld(id);
+            world1.asyncChunkGeneratorThread.shutdown(); // safe shutdown thread pool
+            FMLCommonHandler.instance().getMinecraftServerInstance().worldServerList.remove(world1); // remove world from our new world arraylist
+            // CatServer end
             worlds.remove(id);
             server.worldTickTimes.remove(id);
             FMLLog.log.info("Unloading dimension {}", id);
