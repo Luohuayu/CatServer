@@ -351,7 +351,7 @@ public class CraftWorld implements World {
 
         net.minecraft.world.chunk.Chunk chunk = null;
 
-        chunk = world.getChunkProvider().chunkGenerator.generateChunk(x, z);
+        synchronized (world.getChunkProvider().chunkGenerator) { chunk = world.getChunkProvider().chunkGenerator.generateChunk(x, z); } // CatServer
         PlayerChunkMapEntry playerChunk = world.getPlayerChunkMap().getEntry(x, z);
         if (playerChunk != null) {
             playerChunk.chunk = chunk;

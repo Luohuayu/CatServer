@@ -208,7 +208,7 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
     }
 
     public Chunk getChunkAt(int x, int z) {
-        return generateChunk(x, z);
+        synchronized (this) { return generateChunk(x, z); } // CatServer
     }
 
     @Override

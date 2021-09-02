@@ -82,15 +82,28 @@
          return chunk;
      }
  
-@@ -108,6 +144,7 @@
+@@ -108,11 +144,19 @@
  
          if (chunk == null)
          {
++            // CatServer start
++            chunk = catserver.server.async.AsyncChunkGenerator.syncChunkGenerate(world, this, x, z);
++            if (chunk != null) {
++                return chunk;
++            }
++            // CatServer end
++
 +            world.timings.syncChunkLoadTimer.startTiming(); // Spigot
              long i = ChunkPos.asLong(x, z);
  
              try
-@@ -126,7 +163,8 @@
+             {
+-                chunk = this.chunkGenerator.generateChunk(x, z);
++                synchronized (this.chunkGenerator) { chunk = this.chunkGenerator.generateChunk(x, z); } // CatServer
+             }
+             catch (Throwable throwable)
+             {
+@@ -126,7 +170,8 @@
  
              this.id2ChunkMap.put(i, chunk);
              chunk.onLoad();
@@ -100,7 +113,7 @@
          }
  
          return chunk;
-@@ -224,6 +262,11 @@
+@@ -224,6 +269,11 @@
          {
              if (!this.droppedChunksSet.isEmpty())
              {
@@ -112,7 +125,7 @@
                  Iterator<Long> iterator = this.droppedChunksSet.iterator();
  
                  for (int i = 0; i < 100 && iterator.hasNext(); iterator.remove())
-@@ -233,21 +276,58 @@
+@@ -233,21 +283,58 @@
  
                      if (chunk != null && chunk.unloadQueued)
                      {
@@ -175,3 +188,19 @@
      public boolean canSave()
      {
          return !this.world.disableLevelSaving;
+@@ -288,4 +375,15 @@
+     {
+         return this.id2ChunkMap.containsKey(ChunkPos.asLong(x, z)) || this.chunkLoader.isChunkGeneratedAt(x, z);
+     }
++
++    // CatServer start
++    public void provideChunkAsync(int x, int z, Runnable runnable) {
++        Chunk chunk = this.loadChunk(x, z, runnable);
++        if (chunk == null) {
++            catserver.server.async.AsyncChunkGenerator.queueChunkGenerate(world, this, x, z, runnable);
++        } else {
++            runnable.run();
++        }
++    }
++    // CatServer end
+ }

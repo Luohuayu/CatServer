@@ -38,7 +38,7 @@ public class NormalChunkGenerator extends InternalChunkGenerator {
 
     @Override
     public Chunk generateChunk(int i, int i1) {
-        return generator.generateChunk(i, i1);
+        synchronized (generator) { return generator.generateChunk(i, i1); } // CatServer
     }
 
     @Override
