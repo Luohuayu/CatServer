@@ -39,6 +39,7 @@ public class CatServerConfig {
 
     public boolean waitForgeServerChatEvent = false;
     public boolean asyncChunkGenerator = false;
+    public boolean asyncEntityMoveChunkLoad = false;
 
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
@@ -81,6 +82,7 @@ public class CatServerConfig {
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
         asyncChunkGenerator = getOrWriteBooleanConfig("async.chunkGenerator", asyncChunkGenerator);
+        asyncEntityMoveChunkLoad = getOrWriteBooleanConfig("async.entityMoveChunkLoad", asyncEntityMoveChunkLoad);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
