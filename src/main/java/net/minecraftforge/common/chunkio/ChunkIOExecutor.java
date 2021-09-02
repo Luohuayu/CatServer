@@ -59,7 +59,7 @@ public class ChunkIOExecutor
     //Load the chunk completely in this thread. Dequeue as needed...
     public static Chunk syncChunkLoad(World world, AnvilChunkLoader loader, ChunkProviderServer provider, int x, int z)
     {
-        if (catserver.server.AsyncCatcher.checkAsync("load chunk")) return catserver.server.AsyncCatcher.ensureExecuteOnPrimaryThread(() -> syncChunkLoad(world, loader, provider, x, z)); // CatServer
+        if (catserver.server.AsyncCatcher.checkAsync("load chunk")) return catserver.server.AsyncCatcher.asyncLoadChunkCaught(world, loader, provider, x, z); // CatServer
         QueuedChunk key = new QueuedChunk(x, z, world);
         ChunkIOProvider task = tasks.remove(key); // Remove task because we will call the sync callbacks directly
         if (task != null)

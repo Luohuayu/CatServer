@@ -1,6 +1,10 @@
 package catserver.server;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.World;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.storage.AnvilChunkLoader;
+import net.minecraft.world.gen.ChunkProviderServer;
 import org.bukkit.craftbukkit.util.Waitable;
 
 import java.util.concurrent.ExecutionException;
@@ -28,15 +32,15 @@ public class AsyncCatcher {
     }
 
     public static <T> T ensureExecuteOnPrimaryThread(Supplier<T> runnable) {
-        Waitable<T> wait = new Waitable<T>() {
+        Waitable<T> waitable = new Waitable<T>() {
             @Override
             protected T evaluate() {
                 return runnable.get();
             }
         };
-        MinecraftServer.getServerInst().processQueue.add(wait);
+        MinecraftServer.getServerInst().processQueue.add(waitable);
         try {
-            return wait.get();
+            return waitable.get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -48,5 +52,26 @@ public class AsyncCatcher {
             return true;
         }
         return false;
+    }
+
+    public static Chunk asyncLoadChunkCaught(World world, AnvilChunkLoader loader, ChunkProviderServer provider, int x, int z) {
+        if (net.minecraftforge.common.ForgeChunkManager.asyncChunkLoading) {
+            Waitable<Chunk> waitable = new Waitable<Chunk>() {
+                @Override
+                protected Chunk evaluate() {
+                    return provider.getChunkIfLoaded(x, z);
+                }
+            };
+
+            net.minecraftforge.common.chunkio.ChunkIOExecutor.queueChunkLoad(world, loader, provider, x, z, waitable);
+
+            try {
+                return waitable.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return ensureExecuteOnPrimaryThread(() -> net.minecraftforge.common.chunkio.ChunkIOExecutor.syncChunkLoad(world, loader, provider, x, z));
+        }
     }
 }
