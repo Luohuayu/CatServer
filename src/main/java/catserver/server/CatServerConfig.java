@@ -38,7 +38,7 @@ public class CatServerConfig {
     public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
 
     public boolean waitForgeServerChatEvent = false;
-    public boolean chunkGenerator = false;
+    public boolean asyncChunkGenerator = false;
 
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
@@ -80,7 +80,7 @@ public class CatServerConfig {
         disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
-        chunkGenerator = getOrWriteBooleanConfig("async.chunkGenerator", chunkGenerator);
+        asyncChunkGenerator = getOrWriteBooleanConfig("async.chunkGenerator", asyncChunkGenerator);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
