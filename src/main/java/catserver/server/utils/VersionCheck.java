@@ -14,7 +14,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class VersionCheck {
-    private static final String api = "https://catserver.moe/api/version/?v=universal";
+    private static final String api = "https://catserver.moe/api/version/?v=async";
 
     public VersionCheck() {
         if (!isOfficialVersion()) {
