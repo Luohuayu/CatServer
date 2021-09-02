@@ -114,7 +114,7 @@ public class ForgeChunkManager
     private static File cfgFile;
     private static Configuration config;
     private static int playerTicketLength;
-    private static int dormantChunkCacheSize;
+    public static int dormantChunkCacheSize; // CatServer - private -> public
 
     public static boolean asyncChunkLoading;
 
