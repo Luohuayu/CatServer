@@ -188,14 +188,38 @@
      public boolean canSave()
      {
          return !this.world.disableLevelSaving;
-@@ -288,4 +375,15 @@
+@@ -288,4 +375,39 @@
      {
          return this.id2ChunkMap.containsKey(ChunkPos.asLong(x, z)) || this.chunkLoader.isChunkGeneratedAt(x, z);
      }
 +
 +    // CatServer start
 +    public void provideChunkAsync(int x, int z, Runnable runnable) {
-+        Chunk chunk = this.loadChunk(x, z, runnable);
++        Chunk chunk = this.getLoadedChunk(x, z);
++        if (chunk == null) {
++            if ((net.minecraftforge.common.ForgeChunkManager.dormantChunkCacheSize > 0 || !(this.chunkLoader instanceof net.minecraft.world.chunk.storage.AnvilChunkLoader)) && catserver.server.AsyncCatcher.checkAsync("load chunk")) { catserver.server.AsyncCatcher.ensureExecuteOnPrimaryThread(() -> provideChunkAsync(x, z, runnable)); return; } // CatServer - Async will break forge dormant chunk cache
++            long pos = ChunkPos.asLong(x, z);
++            chunk = net.minecraftforge.common.ForgeChunkManager.fetchDormantChunk(pos, this.world);
++            if (chunk != null || !(this.chunkLoader instanceof net.minecraft.world.chunk.storage.AnvilChunkLoader)) {
++                if (!loadingChunks.add(pos)) net.minecraftforge.fml.common.FMLLog.bigWarning("There is an attempt to load a chunk ({},{}) in dimension {} that is already being loaded. This will cause weird chunk breakages.", x, z, this.world.provider.getDimension());
++                if (chunk == null) chunk = this.loadChunkFromFile(x, z);
++
++                if (chunk != null) {
++                    this.id2ChunkMap.put(ChunkPos.asLong(x, z), chunk);
++                    chunk.onLoad();
++                    chunk.populateCB(this, this.chunkGenerator, false);
++                }
++            } else {
++                net.minecraft.world.chunk.storage.AnvilChunkLoader loader = (net.minecraft.world.chunk.storage.AnvilChunkLoader) this.chunkLoader;
++                if (!net.minecraftforge.common.ForgeChunkManager.asyncChunkLoading) {
++                    chunk = net.minecraftforge.common.chunkio.ChunkIOExecutor.syncChunkLoad(this.world, loader, this, x, z);
++                } else if (loader.isChunkGeneratedAt(x, z)) {
++                    net.minecraftforge.common.chunkio.ChunkIOExecutor.queueChunkLoad(this.world, loader, this, x, z, runnable);
++                    return;
++                }
++            }
++        }
++
 +        if (chunk == null) {
 +            catserver.server.async.AsyncChunkGenerator.queueChunkGenerate(world, this, x, z, runnable);
 +        } else {
