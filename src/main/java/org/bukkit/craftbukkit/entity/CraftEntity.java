@@ -835,4 +835,10 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         return spigot;
     }
     // Spigot end
+
+    // CatServer start
+    public java.util.concurrent.CompletableFuture<Boolean> teleportAsync(Location loc, TeleportCause cause) {
+        return catserver.server.async.AsyncEntityTeleporter.teleport(this, loc, cause);
+    }
+    // CatServer end
 }

@@ -1740,5 +1740,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     public boolean isFakePlayer() {
         return (this instanceof CraftFakePlayer);
     }
+
+    public java.util.concurrent.CompletableFuture<Boolean> teleportAsync(Location loc, PlayerTeleportEvent.TeleportCause cause) {
+        return catserver.server.async.AsyncEntityTeleporter.teleport(this, loc, cause);
+    }
     // CatServer end
 }

@@ -497,4 +497,14 @@ public interface Entity extends Metadatable, CommandSender, Nameable {
     @Override
     Spigot spigot();
     // Spigot end
+
+    // CatServer start
+    default java.util.concurrent.CompletableFuture<Boolean> teleportAsync(Location loc) {
+        return teleportAsync(loc, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
+    }
+
+    default java.util.concurrent.CompletableFuture<Boolean> teleportAsync(Location loc, TeleportCause cause) {
+        return catserver.server.async.AsyncEntityTeleporter.teleport(this, loc, cause);
+    }
+    // CatServer end
 }
