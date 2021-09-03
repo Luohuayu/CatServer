@@ -1,5 +1,6 @@
 package catserver.server.async;
 
+import catserver.server.CatServer;
 import com.google.common.collect.Maps;
 import java.util.Iterator;
 import java.util.Map;
@@ -49,6 +50,9 @@ public class AsyncChunkGenerator {
     }
 
     public static void tick() {
+        long limitNanoTime = System.nanoTime() + CatServer.getConfig().worldGenMaxTickTime;
+        int limitCount = 49;
+
         Iterator<ChunkGeneratorTask> itr = tasks.values().iterator();
         while (itr.hasNext()) {
             ChunkGeneratorTask task = itr.next();
@@ -56,6 +60,8 @@ public class AsyncChunkGenerator {
                 task.syncChunkGenerate();
                 itr.remove();
             }
+
+            if (limitCount-- < 0 || System.nanoTime() > limitNanoTime) break;
         }
     }
 
