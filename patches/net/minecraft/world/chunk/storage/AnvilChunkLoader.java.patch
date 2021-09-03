@@ -1,6 +1,14 @@
 --- ../src-base/minecraft/net/minecraft/world/chunk/storage/AnvilChunkLoader.java
 +++ ../src-work/minecraft/net/minecraft/world/chunk/storage/AnvilChunkLoader.java
-@@ -49,25 +49,48 @@
+@@ -42,6 +42,7 @@
+     public final File chunkSaveLocation;
+     private final DataFixer fixer;
+     private boolean flushing;
++    private boolean checkedSessionLock = false; // CatServer
+ 
+     public AnvilChunkLoader(File chunkSaveLocationIn, DataFixer dataFixerIn)
+     {
+@@ -49,25 +50,48 @@
          this.fixer = dataFixerIn;
      }
  
@@ -53,7 +61,7 @@
      }
  
      public boolean isChunkGeneratedAt(int x, int z)
-@@ -80,6 +103,13 @@
+@@ -80,6 +104,13 @@
      @Nullable
      protected Chunk checkedReadChunkFromNBT(World worldIn, int x, int z, NBTTagCompound compound)
      {
@@ -67,7 +75,7 @@
          if (!compound.hasKey("Level", 10))
          {
              LOGGER.error("Chunk file at {},{} is missing level data, skipping", Integer.valueOf(x), Integer.valueOf(z));
-@@ -103,10 +133,29 @@
+@@ -103,17 +134,36 @@
                      LOGGER.error("Chunk file at {},{} is in the wrong location; relocating. (Expected {}, {}, got {}, {})", Integer.valueOf(x), Integer.valueOf(z), Integer.valueOf(x), Integer.valueOf(z), Integer.valueOf(chunk.x), Integer.valueOf(chunk.z));
                      nbttagcompound.setInteger("xPos", x);
                      nbttagcompound.setInteger("zPos", z);
@@ -98,7 +106,15 @@
              }
          }
      }
-@@ -121,7 +170,10 @@
+ 
+     public void saveChunk(World worldIn, Chunk chunkIn) throws MinecraftException, IOException
+     {
+-        worldIn.checkSessionLock();
++        if (!checkedSessionLock) { worldIn.checkSessionLock(); checkedSessionLock = true; } // CatServer
+ 
+         try
+         {
+@@ -121,7 +171,10 @@
              NBTTagCompound nbttagcompound1 = new NBTTagCompound();
              nbttagcompound.setTag("Level", nbttagcompound1);
              nbttagcompound.setInteger("DataVersion", 1343);
@@ -109,7 +125,7 @@
              this.addChunkToPending(chunkIn.getPos(), nbttagcompound);
          }
          catch (Exception exception)
-@@ -186,9 +238,10 @@
+@@ -186,9 +239,10 @@
  
      private void writeChunkData(ChunkPos pos, NBTTagCompound compound) throws IOException
      {
@@ -123,7 +139,15 @@
      }
  
      public void saveExtraChunkData(World worldIn, Chunk chunkIn) throws IOException
-@@ -305,11 +358,19 @@
+@@ -197,6 +251,7 @@
+ 
+     public void chunkTick()
+     {
++        this.checkedSessionLock = false; // CatServer
+     }
+ 
+     public void flush()
+@@ -305,11 +360,19 @@
              {
                  NBTTagCompound nbttagcompound2 = new NBTTagCompound();
  
@@ -143,7 +167,7 @@
              }
          }
  
-@@ -318,8 +379,16 @@
+@@ -318,8 +381,16 @@
  
          for (TileEntity tileentity : chunkIn.getTileEntityMap().values())
          {
@@ -160,7 +184,7 @@
          }
  
          compound.setTag("TileEntities", nbttaglist2);
-@@ -345,6 +414,18 @@
+@@ -345,6 +416,18 @@
  
              compound.setTag("TileTicks", nbttaglist3);
          }
@@ -179,7 +203,7 @@
      }
  
      private Chunk readChunkFromNBT(World worldIn, NBTTagCompound compound)
-@@ -388,6 +469,17 @@
+@@ -388,6 +471,17 @@
              chunk.setBiomeArray(compound.getByteArray("Biomes"));
          }
  
@@ -197,7 +221,7 @@
          NBTTagList nbttaglist1 = compound.getTagList("Entities", 10);
  
          for (int j1 = 0; j1 < nbttaglist1.tagCount(); ++j1)
-@@ -396,7 +488,8 @@
+@@ -396,7 +490,8 @@
              readChunkEntity(nbttagcompound1, worldIn, chunk);
              chunk.setHasEntities(true);
          }
@@ -207,7 +231,7 @@
          NBTTagList nbttaglist2 = compound.getTagList("TileEntities", 10);
  
          for (int k1 = 0; k1 < nbttaglist2.tagCount(); ++k1)
-@@ -409,7 +502,8 @@
+@@ -409,7 +504,8 @@
                  chunk.addTileEntity(tileentity);
              }
          }
@@ -217,7 +241,7 @@
          if (compound.hasKey("TileTicks", 9))
          {
              NBTTagList nbttaglist3 = compound.getTagList("TileTicks", 10);
-@@ -431,8 +525,7 @@
+@@ -431,8 +527,7 @@
                  worldIn.scheduleBlockUpdate(new BlockPos(nbttagcompound3.getInteger("x"), nbttagcompound3.getInteger("y"), nbttagcompound3.getInteger("z")), block, nbttagcompound3.getInteger("t"), nbttagcompound3.getInteger("p"));
              }
          }
@@ -227,7 +251,7 @@
      }
  
      @Nullable
-@@ -521,8 +614,11 @@
+@@ -521,8 +616,11 @@
  
      public static void spawnEntity(Entity entityIn, World worldIn)
      {
@@ -241,7 +265,7 @@
              for (Entity entity : entityIn.getPassengers())
              {
                  spawnEntity(entity, worldIn);
-@@ -563,4 +659,9 @@
+@@ -563,4 +661,9 @@
              return entity;
          }
      }
