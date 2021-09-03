@@ -1,6 +1,6 @@
 --- ../src-base/minecraft/net/minecraft/server/management/PlayerChunkMapEntry.java
 +++ ../src-work/minecraft/net/minecraft/server/management/PlayerChunkMapEntry.java
-@@ -23,21 +23,31 @@
+@@ -23,21 +23,32 @@
  {
      private static final Logger LOGGER = LogManager.getLogger();
      private final PlayerChunkMap playerChunkMap;
@@ -25,6 +25,7 @@
 +    };
 +    private boolean loading = true;
 +    private boolean waitAsyncGenerate = false; // CatServer
++    private SPacketChunkData cachedChunkDataPacket = null; // CatServer
  
      public PlayerChunkMapEntry(PlayerChunkMap mapIn, int chunkX, int chunkZ)
      {
@@ -35,7 +36,7 @@
      }
  
      public ChunkPos getPos()
-@@ -63,6 +73,8 @@
+@@ -63,6 +74,8 @@
              if (this.sentToPlayers)
              {
                  this.sendToPlayer(player);
@@ -44,7 +45,7 @@
              }
          }
      }
-@@ -71,6 +83,20 @@
+@@ -71,6 +84,20 @@
      {
          if (this.players.contains(player))
          {
@@ -65,7 +66,7 @@
              if (this.sentToPlayers)
              {
                  player.connection.sendPacket(new SPacketUnloadChunk(this.pos.x, this.pos.z));
-@@ -78,6 +104,8 @@
+@@ -78,6 +105,8 @@
  
              this.players.remove(player);
  
@@ -74,7 +75,7 @@
              if (this.players.isEmpty())
              {
                  this.playerChunkMap.removeEntry(this);
-@@ -87,6 +115,8 @@
+@@ -87,6 +116,8 @@
  
      public boolean providePlayerChunk(boolean canGenerate)
      {
@@ -83,7 +84,7 @@
          if (this.chunk != null)
          {
              return true;
-@@ -95,7 +125,16 @@
+@@ -95,7 +126,16 @@
          {
              if (canGenerate)
              {
@@ -101,12 +102,13 @@
              }
              else
              {
-@@ -125,12 +164,15 @@
+@@ -125,12 +165,15 @@
              this.changes = 0;
              this.changedSectionFilter = 0;
              this.sentToPlayers = true;
+-            Packet<?> packet = new SPacketChunkData(this.chunk, 65535);
 +            if (this.players.isEmpty()) return true; // Forge: fix MC-120780
-             Packet<?> packet = new SPacketChunkData(this.chunk, 65535);
++            Packet<?> packet = cachedChunkDataPacket == null ? cachedChunkDataPacket = new SPacketChunkData(this.chunk, 65535) : cachedChunkDataPacket; // CatServer
  
              for (EntityPlayerMP entityplayermp : this.players)
              {
@@ -117,7 +119,16 @@
              }
  
              return true;
-@@ -169,7 +211,7 @@
+@@ -141,7 +184,7 @@
+     {
+         if (this.sentToPlayers)
+         {
+-            player.connection.sendPacket(new SPacketChunkData(this.chunk, 65535));
++            player.connection.sendPacket(cachedChunkDataPacket == null ? cachedChunkDataPacket = new SPacketChunkData(this.chunk, 65535) : cachedChunkDataPacket); // CatServer
+             this.playerChunkMap.getWorldServer().getEntityTracker().sendLeashedEntitiesInChunk(player, this.chunk);
+         }
+     }
+@@ -169,7 +212,7 @@
  
              this.changedSectionFilter |= 1 << (y >> 4);
  
@@ -126,7 +137,7 @@
              {
                  short short1 = (short)(x << 12 | z << 8 | y);
  
-@@ -180,7 +222,8 @@
+@@ -180,7 +223,8 @@
                          return;
                      }
                  }
@@ -136,7 +147,7 @@
                  this.changedBlocks[this.changes++] = short1;
              }
          }
-@@ -197,6 +240,7 @@
+@@ -197,12 +241,14 @@
          }
      }
  
@@ -144,7 +155,14 @@
      public void update()
      {
          if (this.sentToPlayers && this.chunk != null)
-@@ -210,28 +254,57 @@
+         {
+             if (this.changes != 0)
+             {
++                cachedChunkDataPacket = null; // CatServer
+                 if (this.changes == 1)
+                 {
+                     int i = (this.changedBlocks[0] >> 12 & 15) + this.pos.x * 16;
+@@ -210,28 +256,57 @@
                      int k = (this.changedBlocks[0] >> 8 & 15) + this.pos.z * 16;
                      BlockPos blockpos = new BlockPos(i, j, k);
                      this.sendPacket(new SPacketBlockChange(this.playerChunkMap.getWorldServer(), blockpos));
@@ -207,7 +225,7 @@
                          {
                              this.sendBlockEntity(this.playerChunkMap.getWorldServer().getTileEntity(blockpos1));
                          }
-@@ -311,4 +384,9 @@
+@@ -311,4 +386,9 @@
  
          return d0;
      }
