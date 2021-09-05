@@ -21,6 +21,7 @@ public class CatServerConfig {
     public boolean enableRealtime = false;
     public boolean forceSaveOnWatchdog = true;
     public int maxEntityCollision = 8;
+    public boolean saveBukkitWorldDimensionId = true;
 
     public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
     public boolean fakePlayerEventPass = false;
@@ -55,13 +56,14 @@ public class CatServerConfig {
         keepSpawnInMemory = getOrWriteBooleanConfig("world.keepSpawnInMemory", keepSpawnInMemory);
         enableSkipEntityTick = getOrWriteBooleanConfig("world.enableSkipEntityTick", enableSkipEntityTick);
         enableSkipTileEntityTick = getOrWriteBooleanConfig("world.enableSkipTileEntityTick", enableSkipTileEntityTick);
-        worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", 15) * 1000000;
+        worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", 15) * 1000000L;
         disableForgeGenerateWorlds = getOrWriteStringListConfig("world.disableForgeGenerateWorlds", disableForgeGenerateWorlds);
         preventBlockLoadChunk = getOrWriteBooleanConfig("world.preventBlockLoadChunk", preventBlockLoadChunk);
         autoUnloadDimensions = getOrWriteIntegerListConfig("world.autoUnloadDimensions", autoUnloadDimensions);
         enableRealtime = getOrWriteBooleanConfig("world.enableRealtime", enableRealtime);
         forceSaveOnWatchdog = getOrWriteBooleanConfig("world.forceSaveOnWatchdog", forceSaveOnWatchdog);
         maxEntityCollision = getOrWriteIntConfig("world.maxEntityCollision", maxEntityCollision);
+        saveBukkitWorldDimensionId = getOrWriteBooleanConfig("world.saveBukkitWorldDimensionId", saveBukkitWorldDimensionId);
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);

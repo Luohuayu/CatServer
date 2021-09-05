@@ -4,7 +4,10 @@ import catserver.server.threads.AsyncChatThread;
 import catserver.server.threads.AsyncTaskThread;
 import catserver.server.threads.RealtimeThread;
 import catserver.server.utils.VersionCheck;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.storage.SaveHandler;
+import net.minecraft.world.storage.WorldInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,6 +34,17 @@ public class CatServer {
     public static void onServerStop() {
         AsyncTaskThread.shutdown();
         AsyncChatThread.shutdown();
+    }
+
+    public static void onWorldDataLave(SaveHandler handler, WorldInfo worldInfo, NBTTagCompound tagCompound) {
+        NBTTagCompound catserverData = tagCompound.getCompoundTag("catserver");
+        BukkitWorldDimensionManager.load(catserverData);
+    }
+
+    public static void onWorldDataSave(SaveHandler handler, WorldInfo worldInfo, NBTTagCompound tagCompound) {
+        NBTTagCompound catserverData = new NBTTagCompound();
+        BukkitWorldDimensionManager.save(catserverData);
+        tagCompound.setTag("catserver", catserverData);
     }
 
     public static CatServerConfig getConfig() {

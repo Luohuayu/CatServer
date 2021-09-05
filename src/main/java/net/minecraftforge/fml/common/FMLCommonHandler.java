@@ -401,6 +401,7 @@ public class FMLCommonHandler
                 }
             }
         }
+        catserver.server.CatServer.onWorldDataSave(handler, worldInfo, tagCompound); // CatServer
     }
 
     public void handleWorldDataLoad(SaveHandler handler, WorldInfo worldInfo, NBTTagCompound tagCompound)
@@ -428,6 +429,7 @@ public class FMLCommonHandler
                 }
             }
         }
+        catserver.server.CatServer.onWorldDataLave(handler, worldInfo, tagCompound); // CatServer
     }
 
     public void confirmBackupLevelDatUse(SaveHandler handler)

@@ -19,6 +19,7 @@
 
 package net.minecraftforge.common;
 
+import catserver.server.BukkitWorldDimensionManager;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -560,7 +561,7 @@ public class DimensionManager
         // Use saved dimension from level.dat if it exists. This guarantees that after a world is created, the same dimension will be used. Fixes issues with MultiVerse
         AnvilSaveHandler saveHandler = new AnvilSaveHandler(mcServer.server.getWorldContainer(), name, true, mcServer.getDataFixer());
 
-        if (saveHandler.loadWorldInfo() != null)
+        if (saveHandler.loadWorldInfo() != null) // try to get dim id from level.dat
         {
             int savedDim = saveHandler.loadWorldInfo().getDimension();
             if (savedDim != 0 && savedDim != -1 && savedDim != 1)
@@ -568,7 +569,13 @@ public class DimensionManager
                 dim = savedDim;
             }
         }
-        if (dim == 0 || worlds.containsKey(dim))
+
+        if (dim == 0 || worlds.containsKey(dim)) // try to get dim id from BukkitWorldDimensionManager
+        {
+            dim = BukkitWorldDimensionManager.getWorldDimId(creator.name());
+        }
+
+        if (dim == 0 || worlds.containsKey(dim)) // allocate free dim id
         {
             dim = getNextFreeDimId();
         }
@@ -578,6 +585,8 @@ public class DimensionManager
             registerDimension(dim, type);
             addBukkitDimension(dim);
         }
+
+        BukkitWorldDimensionManager.putWorldDimId(creator.name() , dim);
 
         if (env == null) {
             try {
