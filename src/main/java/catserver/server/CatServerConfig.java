@@ -21,6 +21,7 @@ public class CatServerConfig {
     public boolean enableRealtime = false;
     public boolean forceSaveOnWatchdog = true;
     public int maxEntityCollision = 8;
+    public boolean saveBukkitWorldDimensionId = true;
 
     public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
     public boolean fakePlayerEventPass = false;
@@ -64,6 +65,7 @@ public class CatServerConfig {
         enableRealtime = getOrWriteBooleanConfig("world.enableRealtime", enableRealtime);
         forceSaveOnWatchdog = getOrWriteBooleanConfig("world.forceSaveOnWatchdog", forceSaveOnWatchdog);
         maxEntityCollision = getOrWriteIntConfig("world.maxEntityCollision", maxEntityCollision);
+        saveBukkitWorldDimensionId = getOrWriteBooleanConfig("world.saveBukkitWorldDimensionId", saveBukkitWorldDimensionId);
         // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         fakePlayerEventPass = getOrWriteBooleanConfig("fakePlayer.eventPass", fakePlayerEventPass);
