@@ -932,6 +932,15 @@ public interface Server extends PluginMessageRecipient {
      */
     Entity getEntity(UUID uuid);
 
+    // Paper start
+    /**
+     * Gets the current server TPS
+     *
+     * @return current server TPS (1m, 5m, 15m in Paper-Server)
+     */
+    public double[] getTPS();
+    // Paper end
+
     /**
      * Get the advancement specified by this key.
      *
