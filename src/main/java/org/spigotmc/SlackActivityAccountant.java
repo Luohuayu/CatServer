@@ -23,7 +23,7 @@ public class SlackActivityAccountant {
     }
 
     private int getEstimatedSlackNanos() {
-        return (int) Math.max(net.minecraft.server.MinecraftServer.currentTick - (long) this.averageTickNonSlackNanos, 0);
+        return (int) Math.max(net.minecraft.server.MinecraftServer.TICK_TIME - (long) this.averageTickNonSlackNanos, 0);
     }
 
     public void tickStarted() {

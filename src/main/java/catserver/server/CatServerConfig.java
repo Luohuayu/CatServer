@@ -14,7 +14,7 @@ public class CatServerConfig {
     public boolean keepSpawnInMemory = true;
     public boolean enableSkipEntityTick = true;
     public boolean enableSkipTileEntityTick = false;
-    public long worldGenMaxTickTime = 15000000L;
+    public int worldGenMaxTickTime = 15;
     public List<String> disableForgeGenerateWorlds = Lists.<String>newArrayList("ExampleCustomWorld");
     public boolean preventBlockLoadChunk = false;
     public List<Integer> autoUnloadDimensions = Lists.<Integer>newArrayList(99999999);
@@ -56,7 +56,7 @@ public class CatServerConfig {
         keepSpawnInMemory = getOrWriteBooleanConfig("world.keepSpawnInMemory", keepSpawnInMemory);
         enableSkipEntityTick = getOrWriteBooleanConfig("world.enableSkipEntityTick", enableSkipEntityTick);
         enableSkipTileEntityTick = getOrWriteBooleanConfig("world.enableSkipTileEntityTick", enableSkipTileEntityTick);
-        worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", 15) * 1000000L;
+        worldGenMaxTickTime = getOrWriteIntConfig("world.worldGenMaxTick", worldGenMaxTickTime);
         disableForgeGenerateWorlds = getOrWriteStringListConfig("world.disableForgeGenerateWorlds", disableForgeGenerateWorlds);
         preventBlockLoadChunk = getOrWriteBooleanConfig("world.preventBlockLoadChunk", preventBlockLoadChunk);
         autoUnloadDimensions = getOrWriteIntegerListConfig("world.autoUnloadDimensions", autoUnloadDimensions);

@@ -100,7 +100,15 @@
          }
  
          return chunk;
-@@ -224,6 +262,11 @@
+@@ -218,36 +256,89 @@
+         this.chunkLoader.flush();
+     }
+ 
++    private static final double UNLOAD_QUEUE_RESIZE_FACTOR = 0.96;
++
+     public boolean tick()
+     {
+         if (!this.world.disableLevelSaving)
          {
              if (!this.droppedChunksSet.isEmpty())
              {
@@ -109,10 +117,20 @@
 +                    this.droppedChunksSet.remove(ChunkPos.asLong(forced.x, forced.z));
 +                }
 +
++                // Spigot start
++                org.spigotmc.SlackActivityAccountant activityAccountant = net.minecraft.server.MinecraftServer.getServerInst().slackActivityAccountant;
++                activityAccountant.startActivity(0.5);
++                int targetSize = (int) (this.droppedChunksSet.size() * UNLOAD_QUEUE_RESIZE_FACTOR);
++                // Spigot end
++
                  Iterator<Long> iterator = this.droppedChunksSet.iterator();
  
-                 for (int i = 0; i < 100 && iterator.hasNext(); iterator.remove())
-@@ -233,21 +276,58 @@
+-                for (int i = 0; i < 100 && iterator.hasNext(); iterator.remove())
++                while (iterator.hasNext()) // Spigot
+                 {
+                     Long olong = iterator.next();
++                    iterator.remove(); // Spigot
+                     Chunk chunk = (Chunk)this.id2ChunkMap.get(olong);
  
                      if (chunk != null && chunk.unloadQueued)
                      {
@@ -120,17 +138,20 @@
 -                        this.saveChunkData(chunk);
 -                        this.saveChunkExtraData(chunk);
 -                        this.id2ChunkMap.remove(olong);
-+//                        chunk.onUnload();
-+//                        net.minecraftforge.common.ForgeChunkManager.putDormantChunk(ChunkPos.asLong(chunk.x, chunk.z), chunk);
-+//                        this.saveChunkData(chunk);
-+//                        this.saveChunkExtraData(chunk);
-+//                        this.id2ChunkMap.remove(olong);
+-                        ++i;
 +                        if (!unloadChunk(chunk, true)) {
 +                            continue;
 +                        }
-                         ++i;
++
++                        // Spigot start
++                        if (this.droppedChunksSet.size() <= targetSize && activityAccountant.activityTimeIsExhausted()) {
++                            break;
++                        }
++                        // Spigot end
                      }
                  }
++
++                activityAccountant.endActivity(); // Spigot
              }
  
 +            if (this.id2ChunkMap.isEmpty() && !net.minecraftforge.common.DimensionManager.isBukkitDimension(this.world.provider.getDimension()) && catserver.server.CatServer.getConfig().autoUnloadDimensions.contains(this.world.provider.getDimension())) net.minecraftforge.common.DimensionManager.unloadWorld(this.world.provider.getDimension()); // CatServer - Ignore Bukkit world and use unload list
