@@ -65,6 +65,8 @@ public class AsyncChunkGenerator {
 
             if (limitCount-- < 0 || activityAccountant.activityTimeIsExhausted()) break;
         }
+
+        activityAccountant.endActivity();
     }
 
     private static class ChunkGeneratorTask implements Runnable {
