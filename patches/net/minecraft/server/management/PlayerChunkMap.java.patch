@@ -1,13 +1,6 @@
 --- ../src-base/minecraft/net/minecraft/server/management/PlayerChunkMap.java
 +++ ../src-work/minecraft/net/minecraft/server/management/PlayerChunkMap.java
-@@ -1,5 +1,6 @@
- package net.minecraft.server.management;
- 
-+import catserver.server.CatServer;
- import com.google.common.base.Predicate;
- import com.google.common.collect.AbstractIterator;
- import com.google.common.collect.ComparisonChain;
-@@ -10,9 +11,12 @@
+@@ -10,9 +10,12 @@
  import java.util.Collections;
  import java.util.Comparator;
  import java.util.Iterator;
@@ -20,7 +13,7 @@
  import net.minecraft.entity.player.EntityPlayerMP;
  import net.minecraft.util.math.BlockPos;
  import net.minecraft.util.math.ChunkPos;
-@@ -52,7 +56,7 @@
+@@ -52,7 +55,7 @@
      public PlayerChunkMap(WorldServer serverWorld)
      {
          this.world = serverWorld;
@@ -29,16 +22,26 @@
      }
  
      public WorldServer getWorldServer()
-@@ -155,7 +159,7 @@
- 
-         if (!this.entriesWithoutChunks.isEmpty())
+@@ -157,6 +160,12 @@
          {
--            long l = System.nanoTime() + 50000000L;
-+            long l = System.nanoTime() + CatServer.getConfig().worldGenMaxTickTime;
+             long l = System.nanoTime() + 50000000L;
              int k = 49;
++
++            // Spigot start
++            org.spigotmc.SlackActivityAccountant activityAccountant = net.minecraft.server.MinecraftServer.getServerInst().slackActivityAccountant;
++            activityAccountant.startActivity(Math.min(catserver.server.CatServer.getConfig().worldGenMaxTickTime, 18.75) / (18.75 * 2)); // CatServer - 50 * 0.375 = 18.75
++            // Spigot end
++
              Iterator<PlayerChunkMapEntry> iterator = this.entriesWithoutChunks.iterator();
  
-@@ -183,6 +187,9 @@
+             while (iterator.hasNext())
+@@ -178,13 +187,18 @@
+ 
+                         --k;
+ 
+-                        if (k < 0 || System.nanoTime() > l)
++                        if (k < 0 || activityAccountant.activityTimeIsExhausted()) // CatServer
+                         {
                              break;
                          }
                      }
@@ -47,8 +50,12 @@
 +                    iterator.remove();
                  }
              }
++
++            activityAccountant.endActivity(); // Spigot
          }
-@@ -257,8 +264,17 @@
+ 
+         if (!this.pendingSendToPlayers.isEmpty())
+@@ -257,8 +271,17 @@
          return playerchunkmapentry;
      }
  
@@ -66,7 +73,7 @@
          int i = pos.getX() >> 4;
          int j = pos.getZ() >> 4;
          PlayerChunkMapEntry playerchunkmapentry = this.getEntry(i, j);
-@@ -276,14 +292,22 @@
+@@ -276,14 +299,22 @@
          player.managedPosX = player.posX;
          player.managedPosZ = player.posZ;
  
@@ -90,7 +97,7 @@
          this.players.add(player);
          this.markSortPending();
      }
-@@ -341,6 +365,8 @@
+@@ -341,6 +372,8 @@
              int j1 = i - k;
              int k1 = j - l;
  
@@ -99,7 +106,7 @@
              if (j1 != 0 || k1 != 0)
              {
                  for (int l1 = i - i1; l1 <= i + i1; ++l1)
-@@ -349,7 +375,8 @@
+@@ -349,7 +382,8 @@
                      {
                          if (!this.overlaps(l1, i2, k, l, i1))
                          {
@@ -109,7 +116,7 @@
                          }
  
                          if (!this.overlaps(l1 - j1, i2 - k1, i, j, i1))
-@@ -367,6 +394,12 @@
+@@ -367,6 +401,12 @@
                  player.managedPosX = player.posX;
                  player.managedPosZ = player.posZ;
                  this.markSortPending();
@@ -122,7 +129,7 @@
              }
          }
      }
-@@ -443,11 +476,13 @@
+@@ -443,11 +483,13 @@
  
      public void entryChanged(PlayerChunkMapEntry entry)
      {
@@ -136,7 +143,7 @@
          ChunkPos chunkpos = entry.getPos();
          long i = getIndex(chunkpos.x, chunkpos.z);
          entry.updateChunkInhabitedTime();
-@@ -458,9 +493,78 @@
+@@ -458,9 +500,78 @@
          this.entriesWithoutChunks.remove(entry);
          Chunk chunk = entry.getChunk();
  

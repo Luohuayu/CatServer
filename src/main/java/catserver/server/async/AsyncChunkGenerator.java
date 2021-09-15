@@ -50,7 +50,9 @@ public class AsyncChunkGenerator {
     }
 
     public static void tick() {
-        long limitNanoTime = System.nanoTime() + CatServer.getConfig().worldGenMaxTickTime;
+        org.spigotmc.SlackActivityAccountant activityAccountant = net.minecraft.server.MinecraftServer.getServerInst().slackActivityAccountant;
+        activityAccountant.startActivity(Math.min(catserver.server.CatServer.getConfig().worldGenMaxTickTime, 18.75) / (18.75 * 2)); // CatServer - 50 * 0.375 = 18.75
+
         int limitCount = 49;
 
         Iterator<ChunkGeneratorTask> itr = tasks.values().iterator();
@@ -61,7 +63,7 @@ public class AsyncChunkGenerator {
                 itr.remove();
             }
 
-            if (limitCount-- < 0 || System.nanoTime() > limitNanoTime) break;
+            if (limitCount-- < 0 || activityAccountant.activityTimeIsExhausted()) break;
         }
     }
 

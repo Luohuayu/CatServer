@@ -71,4 +71,14 @@ public class CatInventoryUtils {
         InventoryHolder owner = CatInventoryUtils.getOwner(inventory);
         return (owner == null ? new CatCustomInventory(inventory).getInventory() : owner.getInventory());
     }
+
+    public static String getInventorySafely(IInventory inventory) {
+        String name = null;
+
+        try {
+            name = inventory.getName();
+        } catch (Throwable ignored) {}
+
+        return name == null ? "MODInv_" + inventory.getClass().getSimpleName() : name;
+    }
 }

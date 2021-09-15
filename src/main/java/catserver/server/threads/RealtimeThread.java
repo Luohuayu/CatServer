@@ -4,7 +4,7 @@ import net.minecraft.server.MinecraftServer;
 
 public class RealtimeThread extends Thread {
     public static final RealtimeThread INSTANCE = new RealtimeThread();
-    public static int currentTick = (int) (System.currentTimeMillis() / 50);
+    public static int currentTick = 0;
 
     private RealtimeThread() {
         super("Realtime Thread");
