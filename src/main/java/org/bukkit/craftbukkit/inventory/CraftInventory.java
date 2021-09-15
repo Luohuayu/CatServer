@@ -41,9 +41,8 @@ public class CraftInventory implements Inventory {
         return getInventory().getSizeInventory();
     }
 
-    public String getName() { // CatServer - not return null
-        String name = inventory.getName();
-        return name != null ? name : "MODInv_" + inventory.getClass().getSimpleName();
+    public String getName() {
+        return catserver.server.inventory.CatInventoryUtils.getInventorySafely(inventory); // CatServer
     }
 
     public ItemStack getItem(int index) {
@@ -439,9 +438,8 @@ public class CraftInventory implements Inventory {
         return this.inventory.getViewers();
     }
 
-    public String getTitle() { // CatServer - not return null
-        String name = inventory.getName();
-        return name != null ? name : "MODInv_" + inventory.getClass().getSimpleName();
+    public String getTitle() {
+        return catserver.server.inventory.CatInventoryUtils.getInventorySafely(inventory); // CatServer
     }
 
     public InventoryType getType() {
