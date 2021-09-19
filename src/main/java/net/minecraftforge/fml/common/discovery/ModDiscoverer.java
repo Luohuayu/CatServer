@@ -88,6 +88,7 @@ public class ModDiscoverer
 
         for (ModCandidate candidate : candidates)
         {
+            if (catserver.server.launch.Java14Support.PACK200_LIB_NAME.equals(candidate.getModContainer().getName())) continue; // CatServer
             try
             {
                 List<ModContainer> mods = candidate.explore(dataTable);

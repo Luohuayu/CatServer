@@ -186,7 +186,8 @@ public class ClassPatchManager {
                     ByteArrayOutputStream jarBytes = new ByteArrayOutputStream();
                     try (JarOutputStream jos = new JarOutputStream(jarBytes))
                     {
-                        Pack200.newUnpacker().unpack(binpatchesDecompressed, jos);
+                        //Pack200.newUnpacker().unpack(binpatchesDecompressed, jos);
+                        catserver.server.launch.Java14Support.unpack(binpatchesDecompressed, jos); // CatServer
                         jis = new JarInputStream(new ByteArrayInputStream(jarBytes.toByteArray()));
                     }
                 }

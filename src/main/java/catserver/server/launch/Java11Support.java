@@ -17,15 +17,6 @@ public class Java11Support {
     public static boolean enable = false;
     public static sun.misc.Unsafe unsafe;
 
-    public static boolean isSupport() {
-        try {
-            Class.forName("java.util.jar.Pack200");
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public static void setup() {
         enable = true;
         try {
@@ -138,7 +129,6 @@ public class Java11Support {
         private static void blankField(Class<?> enumClass, String fieldName) throws Exception {
             for (Field field : Class.class.getDeclaredFields()) {
                 if (field.getName().contains(fieldName)) {
-                    field.setAccessible(true);
                     setFailsafeFieldValue(field, enumClass, null);
                     break;
                 }
