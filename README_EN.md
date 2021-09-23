@@ -31,6 +31,9 @@ Provide API to allow plugins to interact with mods easily<br>
 - 2.Generate patch: gradlew genPatches<br>
 - 3.Build: gradlew build<br>
 
+### Generate dependency
+Use [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) to generate dependency, which can be used to write plugins to operate NMS or modify MOD
+
 ### Chat
 Telegram: [@CatServer](https://t.me/CatServer)<br>
 Discord: [Click to join](https://discord.gg/wvBJN4d)<br>

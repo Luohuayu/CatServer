@@ -3,6 +3,8 @@
 ![](https://img.shields.io/badge/Forge-14.23.5.2855-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2%20latest-brightgreen.svg?colorB=469C00)
 
+<b>The translation is not necessarily correct, it is recommended to view the English version.</b>
+
 [Сайт CatServer](https://catmc.org/)<br>
 [Спонсор](https://paypal.me/LHYCAT)
 
@@ -30,6 +32,9 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
   Чтобы импортировать IDEA или Eclipse, откройте: projects/Catserver/.project
 - 2.Сгенерировать патч: gradlew genPatches<br>
 - 3.Сбилдить: gradlew build<br>
+
+### Создать зависимость 
+Используйте [CatServerSRG-Generator] (https://github.com/Luohuayu/CatServerSRG-Generator) для создания зависимости, которую можно использовать для написания плагинов для работы NMS или изменения MOD 
 
 ### Чаты
 Телеграм: [@CatServer](https://t.me/CatServer)<br>

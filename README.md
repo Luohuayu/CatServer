@@ -33,6 +33,9 @@ CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
 - 2.生成补丁: gradlew genPatches<br>
 - 3.编译项目: gradlew build<br>
 
+### 生成依赖库
+使用 [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) 生成依赖库, 可用于编写插件操作NMS或直接修改MOD
+
 ### 加入交流群
 QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW)<br>
 Telegram: [@CatServer](https://t.me/CatServer)<br>
