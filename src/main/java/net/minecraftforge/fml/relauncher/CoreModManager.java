@@ -447,12 +447,31 @@ public class CoreModManager {
         try
         {
             // Have to manually stuff the tweaker into the parent classloader
-            if (ADDURL == null)
-            {
-                ADDURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-                ADDURL.setAccessible(true);
+            // CatServer start
+            if (catserver.server.launch.Java11Support.enable) {
+                /*
+                try {
+                    if (ADDURL == null) {
+                        ADDURL = classLoader.getClass().getClassLoader().getClass().getDeclaredMethod("appendToClassPathForInstrumentation", String.class);
+                        ADDURL.setAccessible(true);
+                    }
+                    ADDURL.invoke(classLoader.getClass().getClassLoader(), coreMod.getPath());
+                } catch (Exception e) {
+                    FMLLog.log.info("Unable to inject the tweaker into the parent classloader: {} (Java11 compatibility mode)", coreMod.getAbsolutePath(), e);
+                    return;
+                }
+                */
+                FMLLog.log.warn("Unable to load the tweaker on java11 compatibility mode: {}", coreMod.getAbsolutePath());
+                return;
+            } else {
+                if (ADDURL == null)
+                {
+                    ADDURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+                    ADDURL.setAccessible(true);
+                }
+                ADDURL.invoke(classLoader.getClass().getClassLoader(), coreMod.toURI().toURL());
             }
-            ADDURL.invoke(classLoader.getClass().getClassLoader(), coreMod.toURI().toURL());
+            // CatServer end
             classLoader.addURL(coreMod.toURI().toURL());
             CoreModManager.tweaker.injectCascadingTweak(cascadedTweaker);
             tweakSorting.put(cascadedTweaker,sortingOrder);
