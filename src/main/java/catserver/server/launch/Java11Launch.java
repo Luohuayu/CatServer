@@ -38,6 +38,9 @@ public class Java11Launch {
                 Launch.classLoader = new LaunchClassLoader(sources);
                 Launch.blackboard = new HashMap<>();
                 Thread.currentThread().setContextClassLoader(Launch.classLoader);
+
+                Launch.classLoader.addClassLoaderExclusion("javax.script.");
+
                 return null;
             });
         } catch (Exception e) {
