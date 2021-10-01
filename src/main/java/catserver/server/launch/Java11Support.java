@@ -1,6 +1,10 @@
 package catserver.server.launch;
 
 import com.google.common.collect.Lists;
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraftforge.classloading.FMLForgePlugin;
 import net.minecraftforge.fml.common.EnhancedRuntimeException;
 import org.apache.commons.lang.ArrayUtils;
@@ -24,8 +28,33 @@ public class Java11Support {
             Field unsafeField = unsafeClass.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
             unsafe = (sun.misc.Unsafe) unsafeField.get(null);
+
+            setModulesToOpen();
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private final static Map<Object, Object> FAKE_MAP = new ConcurrentHashMap<Object, Object>() { public Object get(Object key) { return true; } };
+
+    private static void setModulesToOpen() {
+        try {
+            Class<?> classModuleLayer = Class.forName("java.lang.ModuleLayer");
+            Class<?> classModule = Class.forName("java.lang.Module");
+            Class<?> classReflectionData = Class.forName("java.lang.Module$ReflectionData");
+
+            Object EVERYONE_MODULE = FieldHelper.getStatic(classModule.getDeclaredField("EVERYONE_MODULE"));
+            Object exports = FieldHelper.getStatic(classReflectionData.getDeclaredField("exports"));
+            Method methodPut = exports.getClass().getMethod("put", Object.class, Object.class, Object.class);
+            methodPut.setAccessible(true);
+
+            Object bootModuleLayer = classModuleLayer.getMethod("boot").invoke(null);
+            Set<Object> modules = (Set<Object>) classModuleLayer.getMethod("modules").invoke(bootModuleLayer);
+            for (Object module : modules) {
+                methodPut.invoke(exports, module, EVERYONE_MODULE, FAKE_MAP);
+            }
+        } catch (Exception e) {
+            // e.printStackTrace();
         }
     }
 
