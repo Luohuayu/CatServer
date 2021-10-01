@@ -124,7 +124,7 @@ public class ASMEventHandler implements IEventListener
         System.out.println("Event:    " + eventType);
         */
 
-        cw.visit(V1_6, ACC_PUBLIC | ACC_SUPER, desc, null, "java/lang/Object", new String[]{ HANDLER_DESC });
+        cw.visit(getClassVersion(), ACC_PUBLIC | ACC_SUPER, desc, null, "java/lang/Object", new String[]{ HANDLER_DESC }); // CatServer
 
         cw.visitSource(".dynamic", null);
         {
@@ -157,7 +157,7 @@ public class ASMEventHandler implements IEventListener
             }
             mv.visitVarInsn(ALOAD, 1);
             mv.visitTypeInsn(CHECKCAST, eventType);
-            mv.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKEVIRTUAL, instType, callback.getName(), Type.getMethodDescriptor(callback), false);
+            mv.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKEVIRTUAL, instType, callback.getName(), Type.getMethodDescriptor(callback), isInterface(instType)); // CatServer
             mv.visitInsn(RETURN);
             mv.visitMaxs(2, 2);
             mv.visitEnd();
@@ -193,4 +193,21 @@ public class ASMEventHandler implements IEventListener
     {
         return readable;
     }
+
+    // CatServer start
+    public static int getClassVersion() {
+        return catserver.server.launch.Java11Support.enable ? V1_8 : V1_6;
+    }
+
+    public static boolean isInterface(String instType) {
+        if (catserver.server.launch.Java11Support.enable) {
+            try {
+                return Class.forName(instType.replace("/", "."), false, ASMEventHandler.class.getClassLoader()).isInterface();
+            } catch (Throwable throwable) {
+                return false;
+            }
+        }
+        return false;
+    }
+    // CatServer end
 }
