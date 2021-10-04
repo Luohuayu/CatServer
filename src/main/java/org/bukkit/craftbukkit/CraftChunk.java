@@ -174,13 +174,17 @@ public class CraftChunk implements Chunk {
 
                 byte[] rawIds = new byte[4096];
                 NibbleArray data = new NibbleArray();
-                cs[i].getData().getDataForNBT(rawIds, data);
+                NibbleArray blockIdExtensionData = cs[i].getData().getDataForNBT(rawIds, data); // CatServer
 
                 byte[] dataValues = sectionBlockData[i] = data.getData();
 
                 // Copy base IDs
                 for (int j = 0; j < 4096; j++) {
-                    blockids[j] = (short) (rawIds[j] & 0xFF);
+                    // CatServer start
+                    int extData = blockIdExtensionData == null ? 0 : blockIdExtensionData.get(j & 15, j >> 8 & 15, j >> 4 & 15);
+                    int blockId = (extData << 12 | (rawIds[j] & 0xFF) << 4 | extData) >> 4;
+                    blockids[j] = blockId > Short.MAX_VALUE ? 0 : (short)blockId; // Not support id > 32767
+                    // CatServer end
                 }
 
                 sectionBlockIDs[i] = blockids;
