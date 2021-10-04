@@ -17,7 +17,7 @@ public class RemapUtils {
 
     // Classes
     public static String reverseMapExternal(Class<?> name) {
-        return reverseMap(name).replace('$', '.').replace('/', '.');
+        return reverseMap(name).replace('/', '.');
     }
 
     public static String reverseMap(Class<?> name) {
