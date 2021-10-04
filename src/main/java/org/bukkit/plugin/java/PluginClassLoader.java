@@ -200,6 +200,17 @@ final class PluginClassLoader extends URLClassLoader {
                     if (dot != -1) {
                         String pkgName = name.substring(0, dot);
                         Package pkg = getPackage(pkgName);
+                        if (pkg == null) {
+                            try {
+                                if (manifest != null) {
+                                    pkg = definePackage(pkgName, manifest, url);
+                                } else {
+                                    pkg = definePackage(pkgName, null, null, null, null, null, null, null);
+                                }
+                            } catch (Exception e) {
+                                // do nothing
+                            }
+                        }
                         if (pkg != null && manifest != null) {
                             fixPackage(pkg);
                         }
@@ -233,16 +244,34 @@ final class PluginClassLoader extends URLClassLoader {
             Attributes attr = manifest.getMainAttributes();
             if (attr != null) {
                 try {
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_TITLE), "specTitle");
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VERSION), "specVersion");
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VENDOR), "specVendor");
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_TITLE), "implTitle");
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VERSION), "implVersion");
-                    ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VENDOR), "implVendor");
-                } catch (Exception ignored) {}
-            }
+                    if (catserver.server.launch.Java11Support.enable) {
+                        try {
+                            Object versionInfo = catserver.server.launch.Java11Support.FieldHelper.get(pkg, Package.class.getDeclaredField("versionInfo"));
+                            if (versionInfo != null) {
+                                Class<?> classVersionInfo = Class.forName("java.lang.Package$VersionInfo");
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("specTitle"), attr.getValue(Attributes.Name.SPECIFICATION_TITLE));
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("specVersion"), attr.getValue(Attributes.Name.SPECIFICATION_VERSION));
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("specVendor"), attr.getValue(Attributes.Name.SPECIFICATION_VENDOR));
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("implTitle"), attr.getValue(Attributes.Name.IMPLEMENTATION_TITLE));
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("implVersion"), attr.getValue(Attributes.Name.IMPLEMENTATION_VERSION));
+                                catserver.server.launch.Java11Support.FieldHelper.set(versionInfo, classVersionInfo.getDeclaredField("implVendor"), attr.getValue(Attributes.Name.IMPLEMENTATION_VENDOR));
+                            }
+                            return;
+                        } catch (Exception ignored) {}
+                    }
 
-            fixedPackages.add(pkg);
+                    try {
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_TITLE), "specTitle");
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VERSION), "specVersion");
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.SPECIFICATION_VENDOR), "specVendor");
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_TITLE), "implTitle");
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VERSION), "implVersion");
+                        ReflectionHelper.setPrivateValue(Package.class, pkg, attr.getValue(Attributes.Name.IMPLEMENTATION_VENDOR), "implVendor");
+                    } catch (Exception ignored) {}
+                } finally {
+                    fixedPackages.add(pkg);
+                }
+            }
         }
     }
 }
