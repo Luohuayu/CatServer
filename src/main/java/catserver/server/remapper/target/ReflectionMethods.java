@@ -44,6 +44,25 @@ public class ReflectionMethods {
         if (cache != null) return cache;
         String[] name = RemapUtils.reverseMapExternal(inst).split("\\.");
         String retn = name[name.length - 1];
+        if (retn.contains("$")) {
+            int count = 0;
+            int index = 0;
+            String defaultSimpleName = inst.getSimpleName();
+            while ((index = defaultSimpleName.indexOf("$", index)) != -1) {
+                index ++;
+                count++;
+            }
+            name = retn.split("\\$");
+            if (name.length < count) {
+                simpleNameGetNameCache.put(inst, retn);
+                return retn;
+            }
+            retn = name[name.length - count-- - 1];
+            for (; count >= 0;) {
+                retn += name[name.length - count-- - 1];
+                retn += "$";
+            }
+        }
         simpleNameGetNameCache.put(inst, retn);
         return retn;
     }
