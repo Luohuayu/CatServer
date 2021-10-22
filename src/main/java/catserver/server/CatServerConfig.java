@@ -36,6 +36,7 @@ public class CatServerConfig {
     public boolean enableEssentialsNewVersionCompatible = true;
     public boolean enableMythicMobsPatcherCompatible = true;
     public boolean enableWorldEditCompatible = true;
+    public boolean enableLibsDisguisesCompatible = true;
     public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
 
     public boolean waitForgeServerChatEvent = false;
@@ -78,6 +79,7 @@ public class CatServerConfig {
         enableEssentialsNewVersionCompatible = getOrWriteBooleanConfig("plugin.patcher.enableEssentialsNewVersionCompatible", enableEssentialsNewVersionCompatible);
         enableMythicMobsPatcherCompatible = getOrWriteBooleanConfig("plugin.patcher.enableMythicMobsPatcherCompatible", enableMythicMobsPatcherCompatible);
         enableWorldEditCompatible = getOrWriteBooleanConfig("plugin.patcher.enableWorldEditCompatible", enableWorldEditCompatible);
+        enableLibsDisguisesCompatible = getOrWriteBooleanConfig("plugin.patcher.enableLibsDisguisesCompatible", enableLibsDisguisesCompatible);
         disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
