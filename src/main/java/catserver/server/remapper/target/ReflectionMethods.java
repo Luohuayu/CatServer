@@ -43,7 +43,7 @@ public class ReflectionMethods {
         String cache = simpleNameGetNameCache.get(inst);
         if (cache != null) return cache;
         String[] name = RemapUtils.reverseMapExternal(inst).split("\\.");
-        String retn = name[name.length - 1];
+        String retn = RemapUtils.fixSimpleName(name[name.length - 1], inst.getSimpleName());
         simpleNameGetNameCache.put(inst, retn);
         return retn;
     }

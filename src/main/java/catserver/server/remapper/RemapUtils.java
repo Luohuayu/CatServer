@@ -158,4 +158,21 @@ public class RemapUtils {
         classNeedRemap.put(className, false);
         return false;
     }
+
+    public static String fixSimpleName(String originSimpleName, String remappedSimpleName) {
+        if (remappedSimpleName.contains("$")) {
+            String[] originSplit = originSimpleName.split("\\$");
+            String[] remappedSplit = remappedSimpleName.split("\\$");
+            int length = remappedSplit.length - originSplit.length;
+            if (length > 0) {
+                StringBuilder sb = new StringBuilder();
+                while (length > 0) {
+                    sb.append(remappedSplit[length - 1]);
+                    if (--length > 0) sb.append("$");
+                }
+                return sb.toString();
+            }
+        }
+        return remappedSimpleName;
+    }
 }
