@@ -1447,7 +1447,10 @@ public class CraftWorld implements World {
     }
 
     public org.bukkit.WorldType getWorldType() {
-        return org.bukkit.WorldType.getByName(world.getWorldInfo().getTerrainType().getName());
+        // CatServer start
+        org.bukkit.WorldType type = org.bukkit.WorldType.getByName(world.getWorldInfo().getTerrainType().getName());
+        return type == null ? org.bukkit.WorldType.OTHER_MODDED : type;
+        // CatServer end
     }
 
     public boolean canGenerateStructures() {
