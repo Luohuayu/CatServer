@@ -134,6 +134,7 @@ public class WorldCreator {
      * @return This object, for chaining
      */
     public WorldCreator type(WorldType type) {
+        if (type == WorldType.OTHER_MODDED) return this; // CatServer
         this.type = type;
 
         return this;
