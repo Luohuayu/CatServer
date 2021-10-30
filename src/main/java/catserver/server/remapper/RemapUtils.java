@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.StringUtils;
 import org.objectweb.asm.Type;
 
 import catserver.server.CatServer;
@@ -165,12 +166,9 @@ public class RemapUtils {
             String[] remappedSplit = remappedSimpleName.split("\\$");
             int length = remappedSplit.length - originSplit.length;
             if (length > 0) {
-                StringBuilder sb = new StringBuilder();
-                while (length > 0) {
-                    sb.append(remappedSplit[length - 1]);
-                    if (--length > 0) sb.append("$");
-                }
-                return sb.toString();
+                String[] fixedSplit = new String[originSplit.length];
+                System.arraycopy(remappedSplit, length, fixedSplit, 0, fixedSplit.length);
+                return StringUtils.join(fixedSplit, "$");
             }
         }
         return remappedSimpleName;
