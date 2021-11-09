@@ -1,11 +1,12 @@
 --- ../src-base/minecraft/net/minecraft/item/crafting/CraftingManager.java
 +++ ../src-work/minecraft/net/minecraft/item/crafting/CraftingManager.java
-@@ -36,12 +36,13 @@
+@@ -36,12 +36,14 @@
  {
      private static final Logger LOGGER = LogManager.getLogger();
      private static int nextAvailableId;
 -    public static final RegistryNamespaced<ResourceLocation, IRecipe> REGISTRY = new RegistryNamespaced<ResourceLocation, IRecipe>();
 +    public static RegistryNamespaced<ResourceLocation, IRecipe> REGISTRY = net.minecraftforge.registries.GameData.getWrapper(IRecipe.class);
++    private static final IRecipe[] cachedRecipe = new IRecipe[3]; // CatServer
  
      public static boolean init()
      {
@@ -15,7 +16,7 @@
              register("armordye", new RecipesArmorDyes());
              register("bookcloning", new RecipeBookCloning());
              register("mapcloning", new RecipesMapCloning());
-@@ -173,12 +174,14 @@
+@@ -173,12 +175,14 @@
          }
      }
  
@@ -32,7 +33,7 @@
      {
          if (REGISTRY.containsKey(name))
          {
-@@ -186,6 +189,7 @@
+@@ -186,43 +190,52 @@
          }
          else
          {
@@ -40,7 +41,15 @@
              REGISTRY.register(nextAvailableId++, name, recipe);
          }
      }
-@@ -199,7 +203,7 @@
+ 
+     public static ItemStack findMatchingResult(InventoryCrafting craftMatrix, World worldIn)
+     {
++        synchronized (cachedRecipe) { if (cachedRecipe[0] != null && cachedRecipe[0].matches(craftMatrix, worldIn)) return cachedRecipe[0].getCraftingResult(craftMatrix); } // CatServer
+         for (IRecipe irecipe : REGISTRY)
+         {
+             if (irecipe.matches(craftMatrix, worldIn))
+             {
++                synchronized (cachedRecipe) { cachedRecipe[0] = irecipe; } // CatServer
                  return irecipe.getCraftingResult(craftMatrix);
              }
          }
@@ -49,10 +58,15 @@
          return ItemStack.EMPTY;
      }
  
-@@ -210,10 +214,12 @@
+     @Nullable
+     public static IRecipe findMatchingRecipe(InventoryCrafting craftMatrix, World worldIn)
+     {
++        synchronized (cachedRecipe) { if (cachedRecipe[1] != null && cachedRecipe[1].matches(craftMatrix, worldIn)) { craftMatrix.currentRecipe = cachedRecipe[1]; return cachedRecipe[1];} } // CatServer
+         for (IRecipe irecipe : REGISTRY)
          {
              if (irecipe.matches(craftMatrix, worldIn))
              {
++                synchronized (cachedRecipe) { cachedRecipe[1] = irecipe; } // CatServer
 +                craftMatrix.currentRecipe = irecipe; // CraftBukkit
                  return irecipe;
              }
@@ -62,7 +76,18 @@
          return null;
      }
  
-@@ -243,11 +249,13 @@
+     public static NonNullList<ItemStack> getRemainingItems(InventoryCrafting craftMatrix, World worldIn)
+     {
++        synchronized (cachedRecipe) { if (cachedRecipe[2] != null && cachedRecipe[2].matches(craftMatrix, worldIn)) return cachedRecipe[2].getRemainingItems(craftMatrix); } // CatServer
+         for (IRecipe irecipe : REGISTRY)
+         {
+             if (irecipe.matches(craftMatrix, worldIn))
+             {
++                synchronized (cachedRecipe) { cachedRecipe[2] = irecipe; } // CatServer
+                 return irecipe.getRemainingItems(craftMatrix);
+             }
+         }
+@@ -243,11 +256,13 @@
          return REGISTRY.getObject(name);
      }
  
