@@ -39,7 +39,7 @@ public class Java11Launch {
                 Launch.blackboard = new HashMap<>();
                 Thread.currentThread().setContextClassLoader(Launch.classLoader);
 
-                Launch.classLoader.addClassLoaderExclusion("javax.script.");
+                Launch.classLoader.addClassLoaderExclusion("javax.");
 
                 return null;
             });
