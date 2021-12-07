@@ -192,6 +192,8 @@ public class FMLServerHandler implements IFMLSidedHandler
                     {
                         String cmd = it.next().command.trim().toLowerCase();
 
+                        if (!cmd.startsWith("/")) cmd = "/" + cmd; // CatServer
+
                         if (cmd.equals("/fml confirm"))
                         {
                             FMLLog.log.info("confirmed");
@@ -199,6 +201,19 @@ public class FMLServerHandler implements IFMLSidedHandler
                             done = true;
                             it.remove();
                         }
+                        // CatServer start
+                        else if (cmd.equals("/fml confirm nobackup"))
+                        {
+                            FMLLog.log.info("confirmed");
+                            if (System.getProperty("fml.doNotBackup") == null)
+                            {
+                                System.setProperty("fml.doNotBackup", "true");
+                            }
+                            query.setResult(true);
+                            done = true;
+                            it.remove();
+                        }
+                        // CatServer end
                         else if (cmd.equals("/fml cancel"))
                         {
                             FMLLog.log.info("cancelled");
