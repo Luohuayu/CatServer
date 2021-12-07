@@ -134,10 +134,12 @@ final class PluginClassLoader extends URLClassLoader {
                 }
 
                 if (result == null) {
-                    try {
-                        result = launchClassLoader.getClass().getClassLoader().loadClass(name);
-                    } catch (Throwable throwable) {
-                        throw new ClassNotFoundException(name, throwable);
+                    if (checkGlobal) {
+                        try {
+                            result = launchClassLoader.getClass().getClassLoader().loadClass(name);
+                        } catch (Throwable throwable) {
+                            throw new ClassNotFoundException(name, throwable);
+                        }
                     }
                 }
 
