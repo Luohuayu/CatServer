@@ -3,7 +3,7 @@ package catserver.server.utils;
 import java.util.regex.Pattern;
 
 public class Log4j2_3201_Fixer {
-    private final static Pattern REGEX = Pattern.compile("\\$\\{jndi:.*}");
+    private final static Pattern REGEX = Pattern.compile("(?i)\\$\\{jndi:[\\s\\S]*}");
 
     public static boolean match(String message) {
         return REGEX.matcher(message).find();
