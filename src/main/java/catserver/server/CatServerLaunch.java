@@ -9,7 +9,6 @@ import java.net.URLClassLoader;
 public class CatServerLaunch {
     public static void main(String[] args) throws Throwable {
         checkJavaVersion();
-        disableLog4j2Lookup();
         if (!"true".equals(System.getProperty("catserver.skipCheckLibraries"))) LibrariesManager.checkLibraries();
         Class.forName("net.minecraftforge.fml.relauncher.ServerLaunchWrapper").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
     }
@@ -26,9 +25,5 @@ public class CatServerLaunch {
                 System.exit(1);
             }
         }
-    }
-
-    public static void disableLog4j2Lookup() {
-        System.setProperty("log4j2.formatMsgNoLookups", "true");
     }
 }
