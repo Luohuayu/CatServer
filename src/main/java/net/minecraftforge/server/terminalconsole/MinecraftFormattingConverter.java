@@ -126,6 +126,8 @@ public class MinecraftFormattingConverter extends LogEventPatternConverter
         this.ansi = !strip;
     }
 
+    static { catserver.server.utils.Log4j2_3201_Fixer.disableJndiLookup(); } // CatServer
+
     @Override
     public void format(LogEvent event, StringBuilder toAppendTo)
     {
