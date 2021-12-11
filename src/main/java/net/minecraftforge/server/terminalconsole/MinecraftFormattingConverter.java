@@ -129,7 +129,7 @@ public class MinecraftFormattingConverter extends LogEventPatternConverter
     @Override
     public void format(LogEvent event, StringBuilder toAppendTo)
     {
-        if (catserver.server.utils.Log4j2_3201_Fixer.matchPrintException(event.getMessage().getFormattedMessage())) return; // CatServer
+        if (catserver.server.utils.Log4j2_3201_Fixer.matchPrintMessage(event.getMessage().getFormattedMessage())) return; // CatServer
         int start = toAppendTo.length();
         //noinspection ForLoopReplaceableByForEach
         for (int i = 0, size = formatters.size(); i < size; i++)
