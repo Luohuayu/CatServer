@@ -13,7 +13,7 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 Самое продолжительное время непрерывной работы, поддержка большинства модов и плагинов для стабильной работы сервера!<br>
 
 [Скачать (Github)](https://github.com/Luohuayu/CatServer/releases)
-[Скачать (Зеркала)](https://catserver.moe/download/universal)
+[Скачать (Зеркало)](https://catserver.moe/download/universal)
 
 ### Особенности
 Использует самописную оптимизацию и оптимизацию Paper, чтобы повысить производительность<br>
