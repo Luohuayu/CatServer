@@ -10,7 +10,7 @@ import org.bukkit.inventory.InventoryHolder;
 
 public class CraftCustomContainer extends CraftBlockState implements InventoryHolder {
     private final CraftWorld world;
-    private final IInventory inventory;
+    protected final IInventory inventory;
 
     public CraftCustomContainer(Block block) {
         super(block);
