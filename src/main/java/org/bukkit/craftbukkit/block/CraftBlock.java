@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import catserver.server.inventory.CraftCustomContainer;
+import catserver.server.inventory.CraftMatrixEnchantingTable;
 import net.minecraft.block.BlockCocoa;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.BlockRedstoneWire;
@@ -284,6 +285,10 @@ public class CraftBlock implements Block {
         if (material == null) {
             TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
             if (tileEntity != null) {
+                // block with MatrixEnchantingTable
+                if (CraftMatrixEnchantingTable.isNmsInstanceOf(tileEntity)) {
+                    return new CraftMatrixEnchantingTable(this);
+                }
                 // block with IInventory
                 if (tileEntity instanceof IInventory) {
                     return new CraftCustomContainer(this);
@@ -357,6 +362,12 @@ public class CraftBlock implements Block {
         case BLACK_SHULKER_BOX:
             return new CraftShulkerBox(this);
         case ENCHANTMENT_TABLE:
+            // Quark oddities replace vanilla tile entity.
+            // Handle Quark tile correctly to fix ClassCastException
+            if (CraftMatrixEnchantingTable.isNmsInstanceOf(
+                    chunk.getCraftWorld().getTileEntityAt(x, y, z))) {
+                return new CraftMatrixEnchantingTable(this);
+            }
             return new CraftEnchantingTable(this);
         case ENDER_CHEST:
             return new CraftEnderChest(this);
@@ -371,6 +382,10 @@ public class CraftBlock implements Block {
         default:
             TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
             if (tileEntity != null) {
+                // block with MatrixEnchantingTable
+                if (CraftMatrixEnchantingTable.isNmsInstanceOf(tileEntity)) {
+                    return new CraftMatrixEnchantingTable(this);
+                }
                 // block with IInventory
                 if (tileEntity instanceof IInventory) {
                     return new CraftCustomContainer(this);
