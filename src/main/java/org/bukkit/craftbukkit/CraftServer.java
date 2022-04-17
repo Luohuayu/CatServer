@@ -397,6 +397,8 @@ public final class CraftServer implements Server {
             CraftDefaultPermissions.registerCorePermissions();
             helpMap.initializeCommands();
         }
+
+        catserver.server.SparkLoader.tryLoadSparkPlugin(pluginManager); // CatServer
     }
 
     public void disablePlugins() {

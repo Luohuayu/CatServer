@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class LibrariesManager {
-    private static List<String> librariesSources = new ArrayList<>();
+    private static final List<String> librariesSources = new ArrayList<>();
+    public static final String sparkPluginFileName = "spark-1.8.19-bukkit.jar";
+    public static final String sparkPluginMD5 = "ab5e7e1cd1bcd7cc910c2b7a59e7b7e5";
 
     public static void checkLibraries() {
         File jarDir = findJarDir();
@@ -43,6 +45,12 @@ public class LibrariesManager {
                     } catch (IOException e) {
                         System.out.println(e.toString());
                     }
+                }
+            }
+            if (Boolean.parseBoolean(System.getProperty("catserver.spark.enable", "true"))) {
+                File sparkPluginFile = new File(libDir, sparkPluginFileName);
+                if (!sparkPluginFile.exists() || !Md5Utils.getFileMD5String(sparkPluginFile).equals(sparkPluginMD5)) {
+                    librariesNeedDownload.put(sparkPluginFile, sparkPluginMD5);
                 }
             }
         } catch (IOException e) {

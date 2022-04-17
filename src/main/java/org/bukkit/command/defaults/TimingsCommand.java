@@ -103,6 +103,7 @@ public class TimingsCommand extends BukkitCommand {
     @Override
     public boolean execute(CommandSender sender, String currentAlias, String[] args) {
         if (!testPermission(sender)) return true;
+        if (catserver.server.SparkLoader.isSparkPluginEnabled()) sender.sendMessage(catserver.server.utils.LanguageUtils.I18nToString("spark.recommend")); // CatServer
         if (args.length < 1)  { // Spigot
             sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
             return false;
