@@ -6,14 +6,12 @@
 <b>The translation is not necessarily correct, it is recommended to view the English version.</b>
 <b>Перевод может содержать ошибки и другие неточности для большей ясности смотрите Английскую версию.</b>
 
-[Сайт CatServer](https://catmc.org/)<br>
-[Спонсор](https://paypal.me/LHYCAT)
-
 CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 Самое продолжительное время непрерывной работы, поддержка большинства модов и плагинов для стабильной работы сервера!<br>
+Вы можете загрузить последнюю версию с [зеркального сайта](https://catserver.moe/download/universal) или [релизов GitHub](https://github.com/Luohuayu/CatServer/releases)<br>
 
-[Скачать (Github)](https://github.com/Luohuayu/CatServer/releases)
-[Скачать (Зеркало)](https://catserver.moe/download/universal)
+Другая версия:
+[LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
 
 ### Особенности
 Использует самописную оптимизацию и оптимизацию Paper, чтобы повысить производительность<br>
@@ -25,7 +23,7 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 
 ### Установка
 1. Загрузите или соберите последнюю версию сервера
-2. Создайте скрипт запуска и запустите (Пример скрипта: java -Xmx2G -jar CatServer-f2bc11f-universal.jar)
+2. Создайте скрипт запуска и запустите (Пример скрипта: java -Xmx2G -jar CatServer-xxxxxxx-universal.jar)
 3. Дождитесь завершения загрузки файлов библиотек при первом запуске<br>
 
 ### Сборка
@@ -36,7 +34,3 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 
 ### Создать зависимость 
 Используйте [CatServerSRG-Generator] (https://github.com/Luohuayu/CatServerSRG-Generator) для создания зависимости, которую можно использовать для написания плагинов для работы NMS или изменения MOD 
-
-### Чаты
-Телеграм: [@CatServer](https://t.me/CatServer)<br>
-Дискорд: [Нажмите чтобы войти](https://discord.gg/wvBJN4d)<br>
