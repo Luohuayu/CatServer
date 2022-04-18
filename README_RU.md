@@ -33,4 +33,4 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 - 3.Собрать: gradlew build<br>
 
 ### Создать зависимость 
-Используйте [CatServerSRG-Generator] (https://github.com/Luohuayu/CatServerSRG-Generator) для создания зависимости, которую можно использовать для написания плагинов для работы NMS или изменения MOD 
+Используйте [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) для создания зависимости, которую можно использовать для написания плагинов для работы NMS или изменения MOD 
