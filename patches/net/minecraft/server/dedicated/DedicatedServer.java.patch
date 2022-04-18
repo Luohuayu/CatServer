@@ -8,7 +8,7 @@
  import java.net.InetAddress;
  import java.net.Proxy;
  import java.nio.charset.StandardCharsets;
-@@ -43,29 +44,39 @@
+@@ -43,29 +44,40 @@
  import net.minecraft.world.World;
  import net.minecraft.world.WorldSettings;
  import net.minecraft.world.WorldType;
@@ -31,7 +31,7 @@
      private static final Logger LOGGER = LogManager.getLogger();
      private static final Pattern RESOURCE_PACK_SHA1_PATTERN = Pattern.compile("^[a-fA-F0-9]{40}$");
 -    public final List<PendingCommand> pendingCommandList = Collections.<PendingCommand>synchronizedList(Lists.newArrayList());
-+    public final java.util.Queue<PendingCommand> pendingCommandList = new java.util.concurrent.ConcurrentLinkedQueue<>(); // Paper - use a proper queue
++    public final List<PendingCommand> field_71341_l = Collections.<PendingCommand>synchronizedList(Lists.newArrayList()); // CatServer - keep srg field
      private RConThreadQuery rconQueryThread;
 -    private final RConConsoleSource rconConsoleSource = new RConConsoleSource(this);
 +    public final RConConsoleSource rconConsoleSource = new RConConsoleSource(this);
@@ -43,6 +43,7 @@
      private GameType gameType;
      private boolean guiIsEnabled;
 +    public static boolean allowPlayerLogins = false;
++    public final java.util.Queue<PendingCommand> pendingCommandList = new java.util.concurrent.ConcurrentLinkedQueue<>(); // Paper - use a proper queue
  
 -    public DedicatedServer(File anvilFileIn, DataFixer dataFixerIn, YggdrasilAuthenticationService authServiceIn, MinecraftSessionService sessionServiceIn, GameProfileRepository profileRepoIn, PlayerProfileCache profileCacheIn)
 +    // CraftBukkit start - Signature changed
@@ -53,7 +54,7 @@
          Thread thread = new Thread("Server Infinisleeper")
          {
              {
-@@ -95,6 +106,11 @@
+@@ -95,6 +107,11 @@
          {
              public void run()
              {
@@ -65,7 +66,7 @@
                  BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
                  String s4;
  
-@@ -111,6 +127,35 @@
+@@ -111,6 +128,35 @@
                  }
              }
          };
@@ -101,7 +102,7 @@
          thread.setDaemon(true);
          thread.start();
          LOGGER.info("Starting minecraft server version 1.12.2");
-@@ -120,8 +165,10 @@
+@@ -120,8 +166,10 @@
              LOGGER.warn("To start the server with more ram, launch it as \"java -Xmx1024M -Xms1024M -jar minecraft_server.jar\"");
          }
  
@@ -113,7 +114,7 @@
          this.eula = new ServerEula(new File("eula.txt"));
  
          if (!this.eula.hasAcceptedEULA())
-@@ -177,27 +224,42 @@
+@@ -177,27 +225,42 @@
                  this.setServerPort(this.settings.getIntProperty("server-port", 25565));
              }
  
@@ -168,7 +169,7 @@
                  LOGGER.warn("To change this, set \"online-mode\" to \"true\" in the server.properties file.");
              }
  
-@@ -212,7 +274,9 @@
+@@ -212,7 +275,9 @@
              }
              else
              {
@@ -179,7 +180,7 @@
                  long j = System.nanoTime();
  
                  if (this.getFolderName() == null)
-@@ -260,6 +324,7 @@
+@@ -260,6 +325,7 @@
                  TileEntitySkull.setProfileCache(this.getPlayerProfileCache());
                  TileEntitySkull.setSessionService(this.getMinecraftSessionService());
                  PlayerProfileCache.setOnlineMode(this.isServerInOnlineMode());
@@ -187,7 +188,7 @@
                  LOGGER.info("Preparing level \"{}\"", (Object)this.getFolderName());
                  this.loadAllWorlds(this.getFolderName(), this.getFolderName(), k, worldtype, s2);
                  long i1 = System.nanoTime() - j;
-@@ -268,7 +333,7 @@
+@@ -268,7 +334,7 @@
  
                  if (this.settings.hasProperty("announce-player-achievements"))
                  {
@@ -196,7 +197,7 @@
                      this.settings.removeProperty("announce-player-achievements");
                      this.settings.saveProperties();
                  }
-@@ -280,14 +345,33 @@
+@@ -280,14 +346,33 @@
                      this.rconQueryThread.startThread();
                  }
  
@@ -233,7 +234,7 @@
                  {
                      Thread thread1 = new Thread(new ServerHangWatchdog(this));
                      thread1.setName("Server Watchdog");
-@@ -296,7 +380,8 @@
+@@ -296,7 +381,8 @@
                  }
  
                  Items.AIR.getSubItems(CreativeTabs.SEARCH, NonNullList.create());
@@ -243,14 +244,11 @@
              }
          }
      }
-@@ -419,11 +504,20 @@
+@@ -419,11 +505,32 @@
  
      public void executePendingCommands()
      {
 -        while (!this.pendingCommandList.isEmpty())
--        {
--            PendingCommand pendingcommand = this.pendingCommandList.remove(0);
--            this.getCommandManager().executeCommand(pendingcommand.sender, pendingcommand.command);
 +        SpigotTimings.serverCommandTimer.startTiming(); // Spigot
 +        PendingCommand pendingcommand;
 +        while ((pendingcommand = this.pendingCommandList.poll()) != null) {  // Paper - use proper queue
@@ -263,12 +261,26 @@
 +            // this.getCommandManager().executeCommand(pendingcommand.sender, pendingcommand.command); // Called in dispatchServerCommand
 +            server.dispatchServerCommand(console, pendingcommand);
 +            // CraftBukkit end
++        }
++        // CatServer start
++        while (!this.field_71341_l.isEmpty())
+         {
+-            PendingCommand pendingcommand = this.pendingCommandList.remove(0);
+-            this.getCommandManager().executeCommand(pendingcommand.sender, pendingcommand.command);
++            pendingcommand = this.field_71341_l.remove(0);
++            ServerCommandEvent event = new ServerCommandEvent(console, pendingcommand.command);
++            server.getPluginManager().callEvent(event);
++            if (event.isCancelled()) continue;
++            pendingcommand = new PendingCommand(event.getCommand(), pendingcommand.sender);
++
++            server.dispatchServerCommand(console, pendingcommand);
          }
++        // CatServer end
 +        SpigotTimings.serverCommandTimer.stopTiming(); // Spigot
      }
  
      public boolean isDedicatedServer()
-@@ -515,7 +609,7 @@
+@@ -515,7 +622,7 @@
  
      public boolean isBlockProtected(World worldIn, BlockPos pos, EntityPlayer playerIn)
      {
@@ -277,7 +289,7 @@
          {
              return false;
          }
-@@ -584,6 +678,9 @@
+@@ -584,6 +691,9 @@
          return this.settings.getIntProperty("network-compression-threshold", super.getNetworkCompressionThreshold());
      }
  
@@ -287,7 +299,7 @@
      protected boolean convertFiles() throws IOException
      {
          boolean flag = false;
-@@ -673,13 +770,66 @@
+@@ -673,13 +783,66 @@
  
      public String getPlugins()
      {
