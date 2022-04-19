@@ -13,6 +13,13 @@ public class CatServerLaunch {
     private static final boolean skipCheckLibraries = Boolean.parseBoolean(System.getProperty("catserver.skipCheckLibraries"));
 
     public static void main(String[] args) throws Throwable {
+        if (!checkJavaVersion()) {
+            System.out.println(
+                    "The current Java version may not be compatible, you may need to add these parameters before -jar: \n" +
+                    "--add-exports=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.base/java.util.jar=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED"
+            );
+        }
+
         if (!skipCheckLibraries) {
             DefaultLibraries.run();
             InstallUtils.startInstallation();
@@ -24,6 +31,16 @@ public class CatServerLaunch {
         acceptEULA();
 
         ServerMain.main(args);
+    }
+
+    public static boolean checkJavaVersion() {
+        String classVersion = System.getProperty("java.class.version");
+        try {
+            return Integer.parseInt(classVersion.split("\\.")[0]) < 60;
+        } catch (Exception e) {
+            System.out.println("Unknown java version: " + classVersion);
+        }
+        return false;
     }
 
     private static void initEnv() throws Exception {
