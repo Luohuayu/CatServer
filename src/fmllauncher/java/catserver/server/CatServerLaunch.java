@@ -36,7 +36,7 @@ public class CatServerLaunch {
     public static boolean checkJavaVersion() {
         String classVersion = System.getProperty("java.class.version");
         try {
-            return Integer.parseInt(classVersion.split("\\.")[0]) < 60;
+            return Integer.parseInt(classVersion.split("\\.")[0]) < 58; // jdk14: 58
         } catch (Exception e) {
             System.out.println("Unknown java version: " + classVersion);
         }
