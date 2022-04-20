@@ -28,9 +28,15 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 3. 首次启动请耐心等待库文件下载完成<br>
 
 ### 构建方法
-- 1.配置项目: gradlew setup<br>
-- 2.生成补丁(如果你修改了Minecraft代码): gradlew genPatches<br>
-- 3.编译项目: gradlew buildCatServer<br>
+#### 克隆
+- 1.克隆1.16.5分支: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
+- 2.切换目录: `cd CatServer`
+- 3.初始化子模块: `git submodule update --init`
+
+#### 构建
+- 1.配置项目: `gradlew setup`
+- 2.生成补丁(如果你修改了Minecraft代码): `gradlew genPatches`
+- 3.编译项目: `gradlew buildCatServer`
 
 ### 生成依赖库
 ##### TODO
