@@ -3,7 +3,7 @@
 ![](https://img.shields.io/badge/Forge-36.2.33-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.16.5-brightgreen.svg?colorB=469C00)
 
-##### TODO: 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md)
+##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md) (TODO)
 
 CatServer是一个高性能的Forge+Bukkit+Spigot服务端核心<br>
 早期的1.16.5版本交付 LoliServer 项目组并共同开发, 目前已支持大部分MOD和插件同时稳定运行<br>
