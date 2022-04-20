@@ -10,6 +10,9 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 Самое продолжительное время непрерывной работы, поддержка большинства модов и плагинов для стабильной работы сервера!<br>
 Вы можете загрузить последнюю версию с [зеркального сайта](https://catserver.moe/download/universal) или [релизов GitHub](https://github.com/Luohuayu/CatServer/releases)<br>
 
+Все версии CatServer:
+[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
+
 Другая версия:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
 
@@ -27,10 +30,10 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 3. Дождитесь завершения загрузки файлов библиотек при первом запуске<br>
 
 ### Сборка
-- 1.Установить проект: gradlew setup<br>
-  Чтобы импортировать IDEA или Eclipse, откройте: projects/Catserver/.project
-- 2.Сгенерировать патч: gradlew genPatches<br>
-- 3.Собрать: gradlew build<br>
+- 1.Установить проект: `gradlew setup`
+- Чтобы импортировать IDEA или Eclipse, откройте: `projects/Catserver/.project`
+- 2.Сгенерировать патч(Если вы измените код Minecraft): `gradlew genPatches`
+- 3.Собрать: `gradlew build`
 
 ### Создать зависимость 
 Используйте [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) для создания зависимости, которую можно использовать для написания плагинов для работы NMS или изменения MOD 

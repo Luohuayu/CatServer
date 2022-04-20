@@ -7,10 +7,13 @@ CatServer is 1.12.2 version Forge+Bukkit+Spigot server<br>
 The longest continuous update time, supporting most mods and plugins to run stably<br>
 You can download the latest version from [Mirror Site](https://catserver.moe/download/universal) or [GitHub Releases](https://github.com/Luohuayu/CatServer/releases)<br>
 
-QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [Click to join](https://discord.gg/wvBJN4d)<br>
+All versions of CatServer:
+[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
 
-Other Version:
+Other fork:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
+
+QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [Click to join](https://discord.gg/wvBJN4d)<br>
 
 ### Features
 Use self-writing optimization and some Paper optimization to greatly improve performance<br>
@@ -26,10 +29,10 @@ Provide API to allow plugins to interact with mods easily<br>
 3. Wait for the libraries file download complete on the first startup<br>
 
 ### Building
-- 1.Setup project: gradlew setup<br>
-  To import IDEA or Eclipse open: projects/Catserver/.project
-- 2.Generate patch: gradlew genPatches<br>
-- 3.Build: gradlew build<br>
+- 1.Setup project: `gradlew setup`
+- To import IDEA or Eclipse open: projects/Catserver/.project
+- 2.Generate patch(If you modify the Minecraft code): `gradlew genPatches`
+- 3.Build: `gradlew build`
 
 ### Generate dependency
 Use [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) to generate dependency, which can be used to write plugins to operate NMS or modify MOD

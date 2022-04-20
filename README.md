@@ -9,10 +9,13 @@ CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
 国内最早开发的高版本核心, 支持大部分MOD和插件同时稳定运行<br>
 你可以从 [国内镜像](https://catserver.moe/download/universal) 或 [GitHub Releases](https://github.com/Luohuayu/CatServer/releases) 下载到最新版本<br>
 
-QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
+CatServer所有版本:
+[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
 
-其他版本:
+其他分支:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
+
+QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
 
 ### 服务端特性
 使用原创优化和部分Paper优化大幅度提升性能<br>
@@ -28,10 +31,10 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 3. 首次启动请耐心等待库文件下载完成<br>
 
 ### 构建方法
-- 1.配置项目: gradlew setup<br>
-  如需导入IDEA或Eclipse打开: projects/Catserver/.project
-- 2.生成补丁: gradlew genPatches<br>
-- 3.编译项目: gradlew build<br>
+- 1.配置项目: `gradlew setup`<br>
+- 如需导入IDEA或Eclipse打开: `projects/Catserver/.project`
+- 2.生成补丁(如果你修改了Minecraft代码): `gradlew genPatches`
+- 3.编译项目: `gradlew build`
 
 ### 生成依赖库
 使用 [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) 生成依赖库, 可用于编写插件操作NMS或直接修改MOD
