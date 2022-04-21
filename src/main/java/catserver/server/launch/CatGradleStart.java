@@ -1,5 +1,6 @@
-package catserver.server;
+package catserver.server.launch;
 
+import catserver.server.CatServer;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,8 @@ public class CatGradleStart {
         args = getArgs();
         argMap = null;
         extras = null;
+
+        System.setProperty("catserver.spark.enable", "false");
 
         System.gc();
         try {
