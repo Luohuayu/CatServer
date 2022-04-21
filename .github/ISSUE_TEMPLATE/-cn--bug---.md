@@ -1,7 +1,7 @@
 ---
 name: "[CN] BUG 反馈"
 about: Create a report to help us improve
-title: "[1.12.2]"
+title: "[1.12.2] "
 labels: ''
 assignees: ''
 

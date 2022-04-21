@@ -1,7 +1,7 @@
 ---
 name: "[EN] Bug report"
 about: Create a report to help us improve
-title: "[1.12.2]"
+title: "[1.12.2] "
 labels: ''
 assignees: ''
 
