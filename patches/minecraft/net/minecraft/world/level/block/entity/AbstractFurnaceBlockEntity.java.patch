@@ -1,0 +1,317 @@
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -42,6 +_,15 @@
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.block.BlockExpEvent;
++import org.bukkit.event.inventory.FurnaceBurnEvent;
++import org.bukkit.event.inventory.FurnaceExtractEvent;
++import org.bukkit.event.inventory.FurnaceStartSmeltEvent;
++import org.bukkit.inventory.CookingRecipe;
+ 
+ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, RecipeHolder, StackedContentsCompatible {
+    protected static final int f_154980_ = 0;
+@@ -62,6 +_,7 @@
+    int f_58317_;
+    public int f_58318_;
+    public int f_58319_;
++
+    protected final ContainerData f_58311_ = new ContainerData() {
+       public int m_6413_(int p_58431_) {
+          switch(p_58431_) {
+@@ -107,6 +_,7 @@
+       this.f_58312_ = p_154994_;
+    }
+ 
++   /**@deprecated Forge: get burn times by calling ForgeHooks#getBurnTime(ItemStack)*/ @Deprecated
+    public static Map<Item, Integer> m_58423_() {
+       Map<Item, Integer> map = Maps.newLinkedHashMap();
+       m_58374_(map, Items.f_42448_, 20000);
+@@ -206,9 +_,9 @@
+       super.m_142466_(p_155025_);
+       this.f_58310_ = NonNullList.m_122780_(this.m_6643_(), ItemStack.f_41583_);
+       ContainerHelper.m_18980_(p_155025_, this.f_58310_);
+-      this.f_58316_ = p_155025_.m_128448_("BurnTime");
+-      this.f_58318_ = p_155025_.m_128448_("CookTime");
+-      this.f_58319_ = p_155025_.m_128448_("CookTimeTotal");
++      this.f_58316_ = p_155025_.m_128451_("BurnTime");
++      this.f_58318_ = p_155025_.m_128451_("CookTime");
++      this.f_58319_ = p_155025_.m_128451_("CookTimeTotal");
+       this.f_58317_ = this.m_7743_(this.f_58310_.get(1));
+       CompoundTag compoundtag = p_155025_.m_128469_("RecipesUsed");
+ 
+@@ -220,9 +_,9 @@
+ 
+    protected void m_183515_(CompoundTag p_187452_) {
+       super.m_183515_(p_187452_);
+-      p_187452_.m_128376_("BurnTime", (short)this.f_58316_);
+-      p_187452_.m_128376_("CookTime", (short)this.f_58318_);
+-      p_187452_.m_128376_("CookTimeTotal", (short)this.f_58319_);
++      p_187452_.m_128405_("BurnTime", this.f_58316_);
++      p_187452_.m_128405_("CookTime", this.f_58318_);
++      p_187452_.m_128405_("CookTimeTotal", this.f_58319_);
+       ContainerHelper.m_18973_(p_187452_, this.f_58310_);
+       CompoundTag compoundtag = new CompoundTag();
+       this.f_58320_.forEach((p_187449_, p_187450_) -> {
+@@ -240,30 +_,57 @@
+ 
+       ItemStack itemstack = p_155017_.f_58310_.get(1);
+       if (p_155017_.m_58425_() || !itemstack.m_41619_() && !p_155017_.f_58310_.get(0).m_41619_()) {
+-         Recipe<?> recipe = p_155014_.m_7465_().m_44015_((RecipeType<AbstractCookingRecipe>)p_155017_.f_58312_, p_155017_, p_155014_).orElse((AbstractCookingRecipe)null);
++         Recipe<?> recipe = p_155014_.m_7465_().m_44015_((RecipeType<AbstractCookingRecipe>)p_155017_.f_58312_, p_155017_, p_155014_).orElse(null);
+          int i = p_155017_.m_6893_();
+-         if (!p_155017_.m_58425_() && m_155005_(recipe, p_155017_.f_58310_, i)) {
++         if (!p_155017_.m_58425_() && p_155017_.m_155005_(recipe, p_155017_.f_58310_, i)) {
+             p_155017_.f_58316_ = p_155017_.m_7743_(itemstack);
++            // CraftBukkit start
++            CraftItemStack fuel = CraftItemStack.asCraftMirror(itemstack);
++
++            FurnaceBurnEvent furnaceBurnEvent = new FurnaceBurnEvent( CraftBlock.at(p_155014_, p_155015_), fuel, p_155017_.m_7743_(itemstack));
++            p_155014_.getCraftServer().getPluginManager().callEvent(furnaceBurnEvent);
++
++            if (furnaceBurnEvent.isCancelled()) {
++               return;
++            }
++
++            p_155017_.f_58316_ = furnaceBurnEvent.getBurnTime();
+             p_155017_.f_58317_ = p_155017_.f_58316_;
+-            if (p_155017_.m_58425_()) {
++            if (p_155017_.m_58425_() && furnaceBurnEvent.isBurning()) {
++               // CraftBukkit end
+                flag1 = true;
++               if (itemstack.hasContainerItem())
++                  p_155017_.f_58310_.set(1, itemstack.getContainerItem());
++               else
+                if (!itemstack.m_41619_()) {
+                   Item item = itemstack.m_41720_();
+                   itemstack.m_41774_(1);
+                   if (itemstack.m_41619_()) {
+-                     Item item1 = item.m_41469_();
+-                     p_155017_.f_58310_.set(1, item1 == null ? ItemStack.f_41583_ : new ItemStack(item1));
++                     p_155017_.f_58310_.set(1, itemstack.getContainerItem());
+                   }
+                }
+             }
+          }
+ 
+-         if (p_155017_.m_58425_() && m_155005_(recipe, p_155017_.f_58310_, i)) {
++         if (p_155017_.m_58425_() && p_155017_.m_155005_(recipe, p_155017_.f_58310_, i)) {
++
++            // CraftBukkit start
++            if (p_155017_ != null && p_155017_.f_58318_ == 0) {
++               CraftItemStack source = CraftItemStack.asCraftMirror(p_155017_.f_58310_.get(0));
++               CookingRecipe<?> brecipe = (CookingRecipe<?>) recipe.toBukkitRecipe();
++
++               FurnaceStartSmeltEvent event = new FurnaceStartSmeltEvent(CraftBlock.at(p_155014_, p_155015_), source, brecipe);
++               p_155014_.getCraftServer().getPluginManager().callEvent(event);
++
++               p_155017_.f_58319_ = event.getTotalCookTime();
++            }
++            // CraftBukkit end
++
+             ++p_155017_.f_58318_;
+             if (p_155017_.f_58318_ == p_155017_.f_58319_) {
+                p_155017_.f_58318_ = 0;
+                p_155017_.f_58319_ = m_155009_(p_155014_, p_155017_.f_58312_, p_155017_);
+-               if (m_155026_(recipe, p_155017_.f_58310_, i)) {
++               if (p_155017_.m_155026_(recipe, p_155017_.f_58310_, i)) {
+                   p_155017_.m_6029_(recipe);
+                }
+ 
+@@ -288,9 +_,9 @@
+ 
+    }
+ 
+-   private static boolean m_155005_(@Nullable Recipe<?> p_155006_, NonNullList<ItemStack> p_155007_, int p_155008_) {
++   private boolean m_155005_(@Nullable Recipe<?> p_155006_, NonNullList<ItemStack> p_155007_, int p_155008_) {
+       if (!p_155007_.get(0).m_41619_() && p_155006_ != null) {
+-         ItemStack itemstack = p_155006_.m_8043_();
++         ItemStack itemstack = ((Recipe<WorldlyContainer>) p_155006_).m_5874_(this);
+          if (itemstack.m_41619_()) {
+             return false;
+          } else {
+@@ -299,10 +_,10 @@
+                return true;
+             } else if (!itemstack1.m_41656_(itemstack)) {
+                return false;
+-            } else if (itemstack1.m_41613_() < p_155008_ && itemstack1.m_41613_() < itemstack1.m_41741_()) {
++            } else if (itemstack1.m_41613_() + itemstack.m_41613_() <= p_155008_ && itemstack1.m_41613_() + itemstack.m_41613_() <= itemstack1.m_41741_()) { // Forge fix: make furnace respect stack sizes in furnace recipes
+                return true;
+             } else {
+-               return itemstack1.m_41613_() < itemstack.m_41741_();
++               return itemstack1.m_41613_() + itemstack.m_41613_() <= itemstack.m_41741_(); // Forge fix: make furnace respect stack sizes in furnace recipes
+             }
+          }
+       } else {
+@@ -310,15 +_,15 @@
+       }
+    }
+ 
+-   private static boolean m_155026_(@Nullable Recipe<?> p_155027_, NonNullList<ItemStack> p_155028_, int p_155029_) {
+-      if (p_155027_ != null && m_155005_(p_155027_, p_155028_, p_155029_)) {
++   private boolean m_155026_(@Nullable Recipe<?> p_155027_, NonNullList<ItemStack> p_155028_, int p_155029_) {
++      if (p_155027_ != null && this.m_155005_(p_155027_, p_155028_, p_155029_)) {
+          ItemStack itemstack = p_155028_.get(0);
+-         ItemStack itemstack1 = p_155027_.m_8043_();
++         ItemStack itemstack1 = ((Recipe<WorldlyContainer>) p_155027_).m_5874_(this);
+          ItemStack itemstack2 = p_155028_.get(2);
+          if (itemstack2.m_41619_()) {
+             p_155028_.set(2, itemstack1.m_41777_());
+          } else if (itemstack2.m_150930_(itemstack1.m_41720_())) {
+-            itemstack2.m_41769_(1);
++            itemstack2.m_41769_(itemstack1.m_41613_());
+          }
+ 
+          if (itemstack.m_150930_(Blocks.f_50057_.m_5456_()) && !p_155028_.get(1).m_41619_() && p_155028_.get(1).m_150930_(Items.f_42446_)) {
+@@ -337,7 +_,7 @@
+          return 0;
+       } else {
+          Item item = p_58343_.m_41720_();
+-         return m_58423_().getOrDefault(item, 0);
++         return net.minecraftforge.common.ForgeHooks.getBurnTime(p_58343_, this.f_58312_);
+       }
+    }
+ 
+@@ -346,7 +_,7 @@
+    }
+ 
+    public static boolean m_58399_(ItemStack p_58400_) {
+-      return m_58423_().containsKey(p_58400_.m_41720_());
++      return net.minecraftforge.common.ForgeHooks.getBurnTime(p_58400_, null) > 0;
+    }
+ 
+    public int[] m_7071_(Direction p_58363_) {
+@@ -426,7 +_,7 @@
+          return true;
+       } else {
+          ItemStack itemstack = this.f_58310_.get(1);
+-         return m_58399_(p_58390_) || p_58390_.m_150930_(Items.f_42446_) && !itemstack.m_150930_(Items.f_42446_);
++         return net.minecraftforge.common.ForgeHooks.getBurnTime(p_58390_, this.f_58312_) > 0 || p_58390_.m_150930_(Items.f_42446_) && !itemstack.m_150930_(Items.f_42446_);
+       }
+    }
+ 
+@@ -456,26 +_,49 @@
+       this.f_58320_.clear();
+    }
+ 
++   public void awardUsedRecipesAndPopExperience(ServerPlayer p_155004_, ItemStack itemstack, int amount) {
++      List<Recipe<?>> list = this.getRecipesToAwardAndPopExperience(p_155004_.m_183503_(), p_155004_.m_20182_(), this.f_58858_, p_155004_, itemstack, amount); // CraftBukkit
++      p_155004_.m_7281_(list);
++      this.f_58320_.clear();
++   }
++
+    public List<Recipe<?>> m_154995_(ServerLevel p_154996_, Vec3 p_154997_) {
++      // CraftBukkit start
++      return this.getRecipesToAwardAndPopExperience(p_154996_, p_154997_, this.f_58858_, null, null, 0);
++   }
++
++   public List<Recipe<?>> getRecipesToAwardAndPopExperience(ServerLevel p_154996_, Vec3 p_154997_, BlockPos blockposition, ServerPlayer entityplayer, ItemStack itemstack, int amount) {
++      // CraftBukkit end
+       List<Recipe<?>> list = Lists.newArrayList();
+ 
+       for(Entry<ResourceLocation> entry : this.f_58320_.object2IntEntrySet()) {
+          p_154996_.m_7465_().m_44043_(entry.getKey()).ifPresent((p_155023_) -> {
+             list.add(p_155023_);
+-            m_154998_(p_154996_, p_154997_, entry.getIntValue(), ((AbstractCookingRecipe)p_155023_).m_43750_());
++            createExperience(p_154996_, p_154997_, entry.getIntValue(), ((AbstractCookingRecipe) p_155023_).m_43750_(), blockposition, entityplayer, itemstack, amount); // CraftBukkit
+          });
+       }
+ 
+       return list;
+    }
+ 
+-   private static void m_154998_(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_) {
++   private static void createExperience(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_, BlockPos blockposition, Player entityhuman, ItemStack itemstack, int amount) { // CraftBukkit
+       int i = Mth.m_14143_((float)p_155001_ * p_155002_);
+       float f = Mth.m_14187_((float)p_155001_ * p_155002_);
+       if (f != 0.0F && Math.random() < (double)f) {
+          ++i;
+       }
+ 
++      // CraftBukkit start - fire FurnaceExtractEvent / BlockExpEvent
++      BlockExpEvent event;
++      if (amount != 0) {
++         event = new FurnaceExtractEvent(( org.bukkit.entity.Player ) entityhuman.getBukkitEntity(), CraftBlock.at(p_154999_, blockposition), org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers.getMaterial(itemstack.m_41720_()), amount, i);
++      } else {
++         event = new BlockExpEvent(CraftBlock.at(p_154999_, blockposition), i);
++      }
++      p_154999_.getCraftServer().getPluginManager().callEvent(event);
++      i = event.getExpToDrop();
++      // CraftBukkit end
++
+       ExperienceOrb.m_147082_(p_154999_, p_155000_, i);
+    }
+ 
+@@ -485,4 +_,67 @@
+       }
+ 
+    }
++
++   net.minecraftforge.common.util.LazyOptional<? extends net.minecraftforge.items.IItemHandler>[] handlers =
++           net.minecraftforge.items.wrapper.SidedInvWrapper.create(this, Direction.UP, Direction.DOWN, Direction.NORTH);
++
++   @Override
++   public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable Direction facing) {
++      if (!this.f_58859_ && facing != null && capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
++         if (facing == Direction.UP)
++            return handlers[0].cast();
++         else if (facing == Direction.DOWN)
++            return handlers[1].cast();
++         else
++            return handlers[2].cast();
++      }
++      return super.getCapability(capability, facing);
++   }
++
++   @Override
++   public void invalidateCaps() {
++      super.invalidateCaps();
++      for (int x = 0; x < handlers.length; x++)
++        handlers[x].invalidate();
++   }
++
++   @Override
++   public void reviveCaps() {
++      super.reviveCaps();
++      this.handlers = net.minecraftforge.items.wrapper.SidedInvWrapper.create(this, Direction.UP, Direction.DOWN, Direction.NORTH);
++   }
++
++   // CraftBukkit start - add fields and methods
++   private int maxStack = MAX_STACK;
++   public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++
++   public List<ItemStack> getContents() {
++      return this.f_58310_;
++   }
++
++   public void onOpen(CraftHumanEntity who) {
++      transaction.add(who);
++   }
++
++   public void onClose(CraftHumanEntity who) {
++      transaction.remove(who);
++   }
++
++   public List<HumanEntity> getViewers() {
++      return transaction;
++   }
++
++   @Override
++   public int m_6893_() {
++      return maxStack;
++   }
++
++   public void setMaxStackSize(int size) {
++      maxStack = size;
++   }
++
++   public Object2IntOpenHashMap<ResourceLocation> getRecipesUsed() {
++      return this.f_58320_; // PAIL private -> public
++   }
++   // CraftBukkit end
+ }

@@ -1,0 +1,77 @@
+--- a/net/minecraft/world/level/chunk/ChunkAccess.java
++++ b/net/minecraft/world/level/chunk/ChunkAccess.java
+@@ -71,14 +_,20 @@
+    protected final UpgradeData f_187606_;
+    @Nullable
+    protected BlendingData f_187607_;
+-   protected final Map<Heightmap.Types, Heightmap> f_187608_ = Maps.newEnumMap(Heightmap.Types.class);
++   public final Map<Heightmap.Types, Heightmap> f_187608_ = Maps.newEnumMap(Heightmap.Types.class);
+    private final Map<ConfiguredStructureFeature<?, ?>, StructureStart> f_187617_ = Maps.newHashMap();
+    private final Map<ConfiguredStructureFeature<?, ?>, LongSet> f_187618_ = Maps.newHashMap();
+    protected final Map<BlockPos, CompoundTag> f_187609_ = Maps.newHashMap();
+-   protected final Map<BlockPos, BlockEntity> f_187610_ = Maps.newHashMap();
++   public final Map<BlockPos, BlockEntity> f_187610_ = Maps.newHashMap();
+    protected final LevelHeightAccessor f_187611_;
+    protected final LevelChunkSection[] f_187612_;
+ 
++   public final Registry<Biome> biomeRegistry;
++   // CraftBukkit start - SPIGOT-6814: move to IChunkAccess to account for 1.17 to 1.18 chunk upgrading.
++   private static final org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry();
++   public org.bukkit.craftbukkit.v1_18_R2.persistence.DirtyCraftPersistentDataContainer persistentDataContainer = new org.bukkit.craftbukkit.v1_18_R2.persistence.DirtyCraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++   // CraftBukkit end
++
+    public ChunkAccess(ChunkPos p_187621_, UpgradeData p_187622_, LevelHeightAccessor p_187623_, Registry<Biome> p_187624_, long p_187625_, @Nullable LevelChunkSection[] p_187626_, @Nullable BlendingData p_187627_) {
+       this.f_187604_ = p_187621_;
+       this.f_187606_ = p_187622_;
+@@ -96,6 +_,7 @@
+       }
+ 
+       m_187634_(p_187623_, p_187624_, this.f_187612_);
++      this.biomeRegistry = p_187624_;
+    }
+ 
+    private static void m_187634_(LevelHeightAccessor p_187635_, Registry<Biome> p_187636_, LevelChunkSection[] p_187637_) {
+@@ -248,10 +_,11 @@
+ 
+    public void m_8092_(boolean p_62094_) {
+       this.f_187603_ = p_62094_;
++      if (!p_62094_) this.persistentDataContainer.dirty(false); // CraftBukkit - SPIGOT-6814: chunk was saved, pdc is no longer dirty
+    }
+ 
+    public boolean m_6344_() {
+-      return this.f_187603_;
++      return this.f_187603_ || this.persistentDataContainer.dirty(); // CraftBukkit - SPIGOT-6814: chunk is unsaved if pdc was mutated
+    }
+ 
+    public abstract ChunkStatus m_6415_();
+@@ -409,6 +_,30 @@
+       return this;
+    }
+ 
++   // CraftBukkit start
++   public void setBiome(int i, int j, int k, Holder<Biome> biome) {
++      try {
++         int l = QuartPos.m_175400_(this.m_141937_());
++         int i1 = l + QuartPos.m_175400_(this.m_141928_()) - 1;
++         int j1 = Mth.m_14045_(j, l, i1);
++         int k1 = this.m_151564_(QuartPos.m_175402_(j1));
++
++         this.f_187612_[k1].setBiome(i & 3, j1 & 3, k & 3, biome);
++      } catch (Throwable throwable) {
++         CrashReport crashreport = CrashReport.m_127521_(throwable, "Setting biome");
++         CrashReportCategory crashreportsystemdetails = crashreport.m_127514_("Biome being set");
++
++         crashreportsystemdetails.m_128165_("Location", () -> {
++            return CrashReportCategory.m_178942_(this, i, j, k);
++         });
++         throw new ReportedException(crashreport);
++      }
++   }
++   // CraftBukkit end
++
+    public static record TicksToSave(SerializableTickContainer<Block> f_187680_, SerializableTickContainer<Fluid> f_187681_) {
+    }
++
++   @Nullable
++   public net.minecraft.world.level.LevelAccessor getWorldForge() { return null; }
+ }

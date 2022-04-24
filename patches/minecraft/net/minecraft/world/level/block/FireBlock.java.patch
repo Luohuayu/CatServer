@@ -1,0 +1,230 @@
+--- a/net/minecraft/world/level/block/FireBlock.java
++++ b/net/minecraft/world/level/block/FireBlock.java
+@@ -27,6 +_,15 @@
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockState;
++import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockStates;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.block.BlockBurnEvent;
++import org.bukkit.event.block.BlockFadeEvent;
++// CraftBukkit end
++
++
+ public class FireBlock extends BaseFireBlock {
+    public static final int f_153264_ = 15;
+    public static final IntegerProperty f_53408_ = BlockStateProperties.f_61410_;
+@@ -89,7 +_,24 @@
+    }
+ 
+    public BlockState m_7417_(BlockState p_53458_, Direction p_53459_, BlockState p_53460_, LevelAccessor p_53461_, BlockPos p_53462_, BlockPos p_53463_) {
+-      return this.m_7898_(p_53458_, p_53461_, p_53462_) ? this.m_53437_(p_53461_, p_53462_, p_53458_.m_61143_(f_53408_)) : Blocks.f_50016_.m_49966_();
++      // CraftBukkit start
++      if (!this.m_7898_(p_53458_, p_53461_, p_53462_)) {
++         // Suppress during worldgen
++         if (!(p_53461_ instanceof Level)) {
++            return Blocks.f_50016_.m_49966_();
++         }
++         CraftBlockState blockState = CraftBlockStates.getBlockState(p_53461_, p_53462_);
++         blockState.setData(Blocks.f_50016_.m_49966_());
++
++         BlockFadeEvent event = new BlockFadeEvent(blockState.getBlock(), blockState);
++         ((Level) p_53461_).getCraftServer().getPluginManager().callEvent(event);
++
++         if (!event.isCancelled()) {
++            return blockState.getHandle();
++         }
++      }
++      return this.m_53437_(p_53461_, p_53462_, (Integer) p_53458_.m_61143_(FireBlock.f_53408_));
++      // CraftBukkit end
+    }
+ 
+    public VoxelShape m_5940_(BlockState p_53474_, BlockGetter p_53475_, BlockPos p_53476_, CollisionContext p_53477_) {
+@@ -103,13 +_,13 @@
+    protected BlockState m_53470_(BlockGetter p_53471_, BlockPos p_53472_) {
+       BlockPos blockpos = p_53472_.m_7495_();
+       BlockState blockstate = p_53471_.m_8055_(blockpos);
+-      if (!this.m_7599_(blockstate) && !blockstate.m_60783_(p_53471_, blockpos, Direction.UP)) {
++      if (!this.canCatchFire(p_53471_, p_53472_, Direction.UP) && !blockstate.m_60783_(p_53471_, blockpos, Direction.UP)) {
+          BlockState blockstate1 = this.m_49966_();
+ 
+          for(Direction direction : Direction.values()) {
+             BooleanProperty booleanproperty = f_53414_.get(direction);
+             if (booleanproperty != null) {
+-               blockstate1 = blockstate1.m_61124_(booleanproperty, Boolean.valueOf(this.m_7599_(p_53471_.m_8055_(p_53472_.m_142300_(direction)))));
++               blockstate1 = blockstate1.m_61124_(booleanproperty, Boolean.valueOf(this.canCatchFire(p_53471_, p_53472_.m_142300_(direction), direction.m_122424_())));
+             }
+          }
+ 
+@@ -128,14 +_,14 @@
+       p_53450_.m_186460_(p_53451_, this, m_53468_(p_53450_.f_46441_));
+       if (p_53450_.m_46469_().m_46207_(GameRules.f_46131_)) {
+          if (!p_53449_.m_60710_(p_53450_, p_53451_)) {
+-            p_53450_.m_7471_(p_53451_, false);
++            fireExtinguished(p_53450_, p_53451_); // CraftBukkit - invalid place location
+          }
+ 
+          BlockState blockstate = p_53450_.m_8055_(p_53451_.m_7495_());
+-         boolean flag = blockstate.m_204336_(p_53450_.m_6042_().m_204517_());
++         boolean flag = blockstate.isFireSource(p_53450_, p_53451_, Direction.UP);
+          int i = p_53449_.m_61143_(f_53408_);
+          if (!flag && p_53450_.m_46471_() && this.m_53428_(p_53450_, p_53451_) && p_53452_.nextFloat() < 0.2F + (float)i * 0.03F) {
+-            p_53450_.m_7471_(p_53451_, false);
++            fireExtinguished(p_53450_, p_53451_); // CraftBukkit - extinguished by rain
+          } else {
+             int j = Math.min(15, i + p_53452_.nextInt(3) / 2);
+             if (i != j) {
+@@ -147,26 +_,26 @@
+                if (!this.m_53485_(p_53450_, p_53451_)) {
+                   BlockPos blockpos = p_53451_.m_7495_();
+                   if (!p_53450_.m_8055_(blockpos).m_60783_(p_53450_, blockpos, Direction.UP) || i > 3) {
+-                     p_53450_.m_7471_(p_53451_, false);
++                     fireExtinguished(p_53450_, p_53451_); // CraftBukkit
+                   }
+ 
+                   return;
+                }
+ 
+-               if (i == 15 && p_53452_.nextInt(4) == 0 && !this.m_7599_(p_53450_.m_8055_(p_53451_.m_7495_()))) {
+-                  p_53450_.m_7471_(p_53451_, false);
++               if (i == 15 && p_53452_.nextInt(4) == 0 && !this.canCatchFire(p_53450_, p_53451_.m_7495_(), Direction.UP)) {
++                  fireExtinguished(p_53450_, p_53451_); // CraftBukkit
+                   return;
+                }
+             }
+ 
+             boolean flag1 = p_53450_.m_46761_(p_53451_);
+             int k = flag1 ? -50 : 0;
+-            this.m_53431_(p_53450_, p_53451_.m_142126_(), 300 + k, p_53452_, i);
+-            this.m_53431_(p_53450_, p_53451_.m_142125_(), 300 + k, p_53452_, i);
+-            this.m_53431_(p_53450_, p_53451_.m_7495_(), 250 + k, p_53452_, i);
+-            this.m_53431_(p_53450_, p_53451_.m_7494_(), 250 + k, p_53452_, i);
+-            this.m_53431_(p_53450_, p_53451_.m_142127_(), 300 + k, p_53452_, i);
+-            this.m_53431_(p_53450_, p_53451_.m_142128_(), 300 + k, p_53452_, i);
++            this.tryCatchFire(p_53450_, p_53451_.m_142126_(), 300 + k, p_53452_, i, Direction.EAST);
++            this.tryCatchFire(p_53450_, p_53451_.m_142125_(), 300 + k, p_53452_, i, Direction.WEST);
++            this.tryCatchFire(p_53450_, p_53451_.m_7495_(), 250 + k, p_53452_, i, Direction.UP);
++            this.tryCatchFire(p_53450_, p_53451_.m_7494_(), 250 + k, p_53452_, i, Direction.DOWN);
++            this.tryCatchFire(p_53450_, p_53451_.m_142127_(), 300 + k, p_53452_, i, Direction.NORTH);
++            this.tryCatchFire(p_53450_, p_53451_.m_142128_(), 300 + k, p_53452_, i, Direction.SOUTH);
+             BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
+ 
+             for(int l = -1; l <= 1; ++l) {
+@@ -188,7 +_,17 @@
+ 
+                            if (i2 > 0 && p_53452_.nextInt(k1) <= i2 && (!p_53450_.m_46471_() || !this.m_53428_(p_53450_, blockpos$mutableblockpos))) {
+                               int j2 = Math.min(15, i + p_53452_.nextInt(5) / 4);
+-                              p_53450_.m_7731_(blockpos$mutableblockpos, this.m_53437_(p_53450_, blockpos$mutableblockpos, j2), 3);
++
++                              // CraftBukkit start - Call to stop spread of fire
++                              if (p_53450_.m_8055_(blockpos$mutableblockpos).m_60734_() != Blocks.f_50083_) {
++                                 if (CraftEventFactory.callBlockIgniteEvent(p_53450_, blockpos$mutableblockpos, p_53451_).isCancelled()) {
++                                    continue;
++                                 }
++
++                                 CraftEventFactory.handleBlockSpreadEvent(p_53450_, p_53451_, blockpos$mutableblockpos, this.m_53437_(p_53450_, blockpos$mutableblockpos, j2), 3); // CraftBukkit
++                              }
++                              // CraftBukkit end
++                              //
+                            }
+                         }
+                      }
+@@ -204,18 +_,34 @@
+       return p_53429_.m_46758_(p_53430_) || p_53429_.m_46758_(p_53430_.m_142125_()) || p_53429_.m_46758_(p_53430_.m_142126_()) || p_53429_.m_46758_(p_53430_.m_142127_()) || p_53429_.m_46758_(p_53430_.m_142128_());
+    }
+ 
++   @Deprecated //Forge: Use IForgeBlockState.getFlammability, Public for default implementation only.
+    public int m_53492_(BlockState p_53493_) {
+       return p_53493_.m_61138_(BlockStateProperties.f_61362_) && p_53493_.m_61143_(BlockStateProperties.f_61362_) ? 0 : this.f_53422_.getInt(p_53493_.m_60734_());
+    }
+ 
++   @Deprecated //Forge: Use IForgeBlockState.getFireSpreadSpeed
+    public int m_53494_(BlockState p_53495_) {
+       return p_53495_.m_61138_(BlockStateProperties.f_61362_) && p_53495_.m_61143_(BlockStateProperties.f_61362_) ? 0 : this.f_53421_.getInt(p_53495_.m_60734_());
+    }
+ 
+-   private void m_53431_(Level p_53432_, BlockPos p_53433_, int p_53434_, Random p_53435_, int p_53436_) {
+-      int i = this.m_53492_(p_53432_.m_8055_(p_53433_));
++   private void tryCatchFire(Level p_53432_, BlockPos p_53433_, int p_53434_, Random p_53435_, int p_53436_, Direction face) {
++      int i = p_53432_.m_8055_(p_53433_).getFlammability(p_53432_, p_53433_, face);
+       if (p_53435_.nextInt(p_53434_) < i) {
+          BlockState blockstate = p_53432_.m_8055_(p_53433_);
++
++         // CraftBukkit start
++         BlockPos sourcePos = p_53433_.m_142300_(face);
++         org.bukkit.block.Block theBlock = p_53432_.getWorld().getBlockAt(p_53433_.m_123341_(), p_53433_.m_123342_(), p_53433_.m_123343_());
++         org.bukkit.block.Block sourceBlock = p_53432_.getWorld().getBlockAt(sourcePos.m_123341_(), sourcePos.m_123342_(), sourcePos.m_123343_());
++
++         BlockBurnEvent event = new BlockBurnEvent(theBlock, sourceBlock);
++         p_53432_.getCraftServer().getPluginManager().callEvent(event);
++
++         if (event.isCancelled()) {
++            return;
++         }
++         // CraftBukkit end
++
+          if (p_53435_.nextInt(p_53436_ + 10) < 5 && !p_53432_.m_46758_(p_53433_)) {
+             int j = Math.min(p_53436_ + p_53435_.nextInt(5) / 4, 15);
+             p_53432_.m_7731_(p_53433_, this.m_53437_(p_53432_, p_53433_, j), 3);
+@@ -223,11 +_,7 @@
+             p_53432_.m_7471_(p_53433_, false);
+          }
+ 
+-         Block block = blockstate.m_60734_();
+-         if (block instanceof TntBlock) {
+-            TntBlock tntblock = (TntBlock)block;
+-            TntBlock.m_57433_(p_53432_, p_53433_);
+-         }
++         blockstate.onCaughtFire(p_53432_, p_53433_, face, null);
+       }
+ 
+    }
+@@ -239,7 +_,7 @@
+ 
+    private boolean m_53485_(BlockGetter p_53486_, BlockPos p_53487_) {
+       for(Direction direction : Direction.values()) {
+-         if (this.m_7599_(p_53486_.m_8055_(p_53487_.m_142300_(direction)))) {
++         if (this.canCatchFire(p_53486_, p_53487_.m_142300_(direction), direction.m_122424_())) {
+             return true;
+          }
+       }
+@@ -255,13 +_,14 @@
+ 
+          for(Direction direction : Direction.values()) {
+             BlockState blockstate = p_53442_.m_8055_(p_53443_.m_142300_(direction));
+-            i = Math.max(this.m_53494_(blockstate), i);
++            i = Math.max(blockstate.getFireSpreadSpeed(p_53442_, p_53443_.m_142300_(direction), direction.m_122424_()), i);
+          }
+ 
+          return i;
+       }
+    }
+ 
++   @Deprecated //Forge: Use canCatchFire with more context
+    protected boolean m_7599_(BlockState p_53489_) {
+       return this.m_53494_(p_53489_) > 0;
+    }
+@@ -280,8 +_,21 @@
+    }
+ 
+    private void m_53444_(Block p_53445_, int p_53446_, int p_53447_) {
++      if (p_53445_ == Blocks.f_50016_) throw new IllegalArgumentException("Tried to set air on fire... This is bad.");
+       this.f_53421_.put(p_53445_, p_53446_);
+       this.f_53422_.put(p_53445_, p_53447_);
++   }
++
++   /**
++    * Side sensitive version that calls the block function.
++    *
++    * @param world The current world
++    * @param pos Block position
++    * @param face The side the fire is coming from
++    * @return True if the face can catch fire.
++    */
++   public boolean canCatchFire(BlockGetter world, BlockPos pos, Direction face) {
++      return world.m_8055_(pos).isFlammable(world, pos, face);
+    }
+ 
+    public static void m_53484_() {

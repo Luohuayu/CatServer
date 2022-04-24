@@ -1,0 +1,219 @@
+--- a/net/minecraft/world/level/block/PointedDripstoneBlock.java
++++ b/net/minecraft/world/level/block/PointedDripstoneBlock.java
+@@ -3,7 +_,6 @@
+ import com.google.common.annotations.VisibleForTesting;
+ import java.util.Optional;
+ import java.util.Random;
+-import java.util.function.BiPredicate;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+@@ -38,7 +_,6 @@
+ import net.minecraft.world.level.pathfinder.PathComputationType;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
+-import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+@@ -48,6 +_,7 @@
+    public static final EnumProperty<DripstoneThickness> f_154010_ = BlockStateProperties.f_155998_;
+    public static final BooleanProperty f_154011_ = BlockStateProperties.f_61362_;
+    private static final int f_154012_ = 11;
++   private static final int MAX_SEARCH_LENGTH_WHEN_LOOKING_FOR_TIP_OF_FALLING_STALACTITE = Integer.MAX_VALUE;
+    private static final int f_154014_ = 2;
+    private static final float f_154015_ = 0.02F;
+    private static final float f_154016_ = 0.12F;
+@@ -72,7 +_,6 @@
+    private static final VoxelShape f_154006_ = Block.m_49796_(3.0D, 0.0D, 3.0D, 13.0D, 16.0D, 13.0D);
+    private static final VoxelShape f_154007_ = Block.m_49796_(2.0D, 0.0D, 2.0D, 14.0D, 16.0D, 14.0D);
+    private static final float f_154008_ = 0.125F;
+-   private static final VoxelShape f_202005_ = Block.m_49796_(6.0D, 0.0D, 6.0D, 10.0D, 16.0D, 10.0D);
+ 
+    public PointedDripstoneBlock(BlockBehaviour.Properties p_154025_) {
+       super(p_154025_);
+@@ -100,7 +_,7 @@
+             return p_154147_;
+          } else if (p_154148_ == direction.m_122424_() && !this.m_7898_(p_154147_, p_154150_, p_154151_)) {
+             if (direction == Direction.DOWN) {
+-               p_154150_.m_186460_(p_154151_, this, 2);
++               this.scheduleStalactiteFallTicks(p_154147_, p_154150_, p_154151_);
+             } else {
+                p_154150_.m_186460_(p_154151_, this, 1);
+             }
+@@ -271,21 +_,49 @@
+       return EntitySelector.f_20406_.and(EntitySelector.f_20403_);
+    }
+ 
++   private void scheduleStalactiteFallTicks(BlockState p_154127_, LevelAccessor p_154128_, BlockPos p_154129_) {
++      BlockPos blockpos = m_154130_(p_154127_, p_154128_, p_154129_, Integer.MAX_VALUE, true);
++      if (blockpos != null) {
++         BlockPos.MutableBlockPos blockpos$mutableblockpos = blockpos.m_122032_();
++         blockpos$mutableblockpos.m_122173_(Direction.DOWN);
++         BlockState blockstate = p_154128_.m_8055_(blockpos$mutableblockpos);
++         if (blockstate.m_60742_(p_154128_, blockpos$mutableblockpos, CollisionContext.m_82749_()).m_83297_(Direction.Axis.Y) >= 1.0D || blockstate.m_60713_(Blocks.f_152499_)) {
++            p_154128_.m_46961_(blockpos, true);
++            blockpos$mutableblockpos.m_122173_(Direction.UP);
++         }
++
++         blockpos$mutableblockpos.m_122173_(Direction.UP);
++
++         while(m_154240_(p_154128_.m_8055_(blockpos$mutableblockpos))) {
++            p_154128_.m_186460_(blockpos$mutableblockpos, this, 2);
++            blockpos$mutableblockpos.m_122173_(Direction.UP);
++         }
++
++      }
++   }
++
++   private static int getStalactiteSizeFromTip(ServerLevel p_154175_, BlockPos p_154176_, int p_154177_) {
++      int i = 1;
++      BlockPos.MutableBlockPos blockpos$mutableblockpos = p_154176_.m_122032_().m_122173_(Direction.UP);
++
++      while(i < p_154177_ && m_154240_(p_154175_.m_8055_(blockpos$mutableblockpos))) {
++         ++i;
++         blockpos$mutableblockpos.m_122173_(Direction.UP);
++      }
++
++      return i;
++   }
++
+    private static void m_154097_(BlockState p_154098_, ServerLevel p_154099_, BlockPos p_154100_) {
+-      BlockPos.MutableBlockPos blockpos$mutableblockpos = p_154100_.m_122032_();
+-
+-      for(BlockState blockstate = p_154098_; m_154240_(blockstate); blockstate = p_154099_.m_8055_(blockpos$mutableblockpos)) {
+-         FallingBlockEntity fallingblockentity = FallingBlockEntity.m_201971_(p_154099_, blockpos$mutableblockpos, blockstate);
+-         if (m_154153_(blockstate, true)) {
+-            int i = Math.max(1 + p_154100_.m_123342_() - blockpos$mutableblockpos.m_123342_(), 6);
+-            float f = 1.0F * (float)i;
+-            fallingblockentity.m_149656_(f, 40);
+-            break;
+-         }
+-
+-         blockpos$mutableblockpos.m_122173_(Direction.DOWN);
++      Vec3 vec3 = Vec3.m_82539_(p_154100_);
++      FallingBlockEntity fallingblockentity = new FallingBlockEntity(p_154099_, vec3.f_82479_, vec3.f_82480_, vec3.f_82481_, p_154098_);
++      if (m_154153_(p_154098_, true)) {
++         int i = getStalactiteSizeFromTip(p_154099_, p_154100_, 6);
++         float f = 1.0F * (float)i;
++         fallingblockentity.m_149656_(f, 40);
+       }
+ 
++      p_154099_.m_7967_(fallingblockentity);
+    }
+ 
+    @VisibleForTesting
+@@ -327,10 +_,6 @@
+             m_154035_(p_154033_, blockpos$mutableblockpos.m_7495_(), Direction.UP);
+             return;
+          }
+-
+-         if (!m_202017_(p_154033_, blockpos$mutableblockpos, blockstate)) {
+-            return;
+-         }
+       }
+ 
+    }
+@@ -389,10 +_,10 @@
+          return p_154133_;
+       } else {
+          Direction direction = p_154131_.m_61143_(f_154009_);
+-         BiPredicate<BlockPos, BlockState> bipredicate = (p_202023_, p_202024_) -> {
+-            return p_202024_.m_60713_(Blocks.f_152588_) && p_202024_.m_61143_(f_154009_) == direction;
++         Predicate<BlockState> predicate = (p_154212_) -> {
++            return p_154212_.m_60713_(Blocks.f_152588_) && p_154212_.m_61143_(f_154009_) == direction;
+          };
+-         return m_202006_(p_154132_, p_154133_, direction.m_122421_(), bipredicate, (p_154168_) -> {
++         return findBlockVertical(p_154132_, p_154133_, direction.m_122421_(), predicate, (p_154168_) -> {
+             return m_154153_(p_154168_, p_154135_);
+          }, p_154134_).orElse((BlockPos)null);
+       }
+@@ -449,10 +_,10 @@
+ 
+    private static Optional<BlockPos> m_154066_(Level p_154067_, BlockPos p_154068_, BlockState p_154069_, int p_154070_) {
+       Direction direction = p_154069_.m_61143_(f_154009_);
+-      BiPredicate<BlockPos, BlockState> bipredicate = (p_202015_, p_202016_) -> {
+-         return p_202016_.m_60713_(Blocks.f_152588_) && p_202016_.m_61143_(f_154009_) == direction;
++      Predicate<BlockState> predicate = (p_154165_) -> {
++         return p_154165_.m_60713_(Blocks.f_152588_) && p_154165_.m_61143_(f_154009_) == direction;
+       };
+-      return m_202006_(p_154067_, p_154068_, direction.m_122424_().m_122421_(), bipredicate, (p_154245_) -> {
++      return findBlockVertical(p_154067_, p_154068_, direction.m_122424_().m_122421_(), predicate, (p_154245_) -> {
+          return !p_154245_.m_60713_(Blocks.f_152588_);
+       }, p_154070_);
+    }
+@@ -501,18 +_,12 @@
+       Predicate<BlockState> predicate = (p_154162_) -> {
+          return p_154162_.m_60734_() instanceof AbstractCauldronBlock && ((AbstractCauldronBlock)p_154162_.m_60734_()).m_142087_(p_154079_);
+       };
+-      BiPredicate<BlockPos, BlockState> bipredicate = (p_202034_, p_202035_) -> {
+-         return m_202017_(p_154077_, p_202034_, p_202035_);
+-      };
+-      return m_202006_(p_154077_, p_154078_, Direction.DOWN.m_122421_(), bipredicate, predicate, 11).orElse((BlockPos)null);
++      return findBlockVertical(p_154077_, p_154078_, Direction.DOWN.m_122421_(), BlockBehaviour.BlockStateBase::m_60795_, predicate, 11).orElse((BlockPos)null);
+    }
+ 
+    @Nullable
+    public static BlockPos m_154055_(Level p_154056_, BlockPos p_154057_) {
+-      BiPredicate<BlockPos, BlockState> bipredicate = (p_202030_, p_202031_) -> {
+-         return m_202017_(p_154056_, p_202030_, p_202031_);
+-      };
+-      return m_202006_(p_154056_, p_154057_, Direction.UP.m_122421_(), bipredicate, PointedDripstoneBlock::m_154238_, 11).orElse((BlockPos)null);
++      return findBlockVertical(p_154056_, p_154057_, Direction.UP.m_122421_(), BlockBehaviour.BlockStateBase::m_60795_, PointedDripstoneBlock::m_154238_, 11).orElse((BlockPos)null);
+    }
+ 
+    public static Fluid m_154178_(Level p_154179_, BlockPos p_154180_) {
+@@ -520,8 +_,8 @@
+    }
+ 
+    private static Optional<Fluid> m_154181_(Level p_154182_, BlockPos p_154183_, BlockState p_154184_) {
+-      return !m_154240_(p_154184_) ? Optional.empty() : m_154066_(p_154182_, p_154183_, p_154184_, 11).map((p_202027_) -> {
+-         return p_154182_.m_6425_(p_202027_.m_7494_()).m_76152_();
++      return !m_154240_(p_154184_) ? Optional.empty() : m_154066_(p_154182_, p_154183_, p_154184_, 11).map((p_154215_) -> {
++         return p_154182_.m_6425_(p_154215_.m_7494_()).m_76152_();
+       });
+    }
+ 
+@@ -541,35 +_,22 @@
+       }
+    }
+ 
+-   private static Optional<BlockPos> m_202006_(LevelAccessor p_202007_, BlockPos p_202008_, Direction.AxisDirection p_202009_, BiPredicate<BlockPos, BlockState> p_202010_, Predicate<BlockState> p_202011_, int p_202012_) {
+-      Direction direction = Direction.m_122390_(p_202009_, Direction.Axis.Y);
+-      BlockPos.MutableBlockPos blockpos$mutableblockpos = p_202008_.m_122032_();
++   private static Optional<BlockPos> findBlockVertical(LevelAccessor p_154081_, BlockPos p_154082_, Direction.AxisDirection p_154083_, Predicate<BlockState> p_154084_, Predicate<BlockState> p_154085_, int p_154086_) {
++      Direction direction = Direction.m_122390_(p_154083_, Direction.Axis.Y);
++      BlockPos.MutableBlockPos blockpos$mutableblockpos = p_154082_.m_122032_();
+ 
+-      for(int i = 1; i < p_202012_; ++i) {
++      for(int i = 1; i < p_154086_; ++i) {
+          blockpos$mutableblockpos.m_122173_(direction);
+-         BlockState blockstate = p_202007_.m_8055_(blockpos$mutableblockpos);
+-         if (p_202011_.test(blockstate)) {
++         BlockState blockstate = p_154081_.m_8055_(blockpos$mutableblockpos);
++         if (p_154085_.test(blockstate)) {
+             return Optional.of(blockpos$mutableblockpos.m_7949_());
+          }
+ 
+-         if (p_202007_.m_151562_(blockpos$mutableblockpos.m_123342_()) || !p_202010_.test(blockpos$mutableblockpos, blockstate)) {
++         if (p_154081_.m_151562_(blockpos$mutableblockpos.m_123342_()) || !p_154084_.test(blockstate)) {
+             return Optional.empty();
+          }
+       }
+ 
+       return Optional.empty();
+-   }
+-
+-   private static boolean m_202017_(BlockGetter p_202018_, BlockPos p_202019_, BlockState p_202020_) {
+-      if (p_202020_.m_60795_()) {
+-         return true;
+-      } else if (p_202020_.m_60804_(p_202018_, p_202019_)) {
+-         return false;
+-      } else if (!p_202020_.m_60819_().m_76178_()) {
+-         return false;
+-      } else {
+-         VoxelShape voxelshape = p_202020_.m_60812_(p_202018_, p_202019_);
+-         return !Shapes.m_83157_(f_202005_, voxelshape, BooleanOp.f_82689_);
+-      }
+    }
+ }

@@ -1,0 +1,238 @@
+--- a/net/minecraft/world/level/Explosion.java
++++ b/net/minecraft/world/level/Explosion.java
+@@ -21,6 +_,8 @@
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.boss.EnderDragonPart;
++import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.item.PrimedTnt;
+ import net.minecraft.world.entity.player.Player;
+@@ -29,7 +_,6 @@
+ import net.minecraft.world.item.enchantment.ProtectionEnchantment;
+ import net.minecraft.world.level.block.BaseFireBlock;
+ import net.minecraft.world.level.block.Block;
+-import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
+@@ -40,6 +_,15 @@
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
++// CraftBukkit start
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.entity.ComplexEntityPart;
++import org.bukkit.event.entity.EntityExplodeEvent;
++import org.bukkit.Location;
++import org.bukkit.event.block.BlockExplodeEvent;
++// CraftBukkit end
++
++
+ public class Explosion {
+    private static final ExplosionDamageCalculator f_46008_ = new ExplosionDamageCalculator();
+    private static final int f_151469_ = 16;
+@@ -57,8 +_,10 @@
+    private final ExplosionDamageCalculator f_46019_;
+    private final List<BlockPos> f_46020_ = Lists.newArrayList();
+    private final Map<Player, Vec3> f_46021_ = Maps.newHashMap();
++   private final Vec3 position;
++   public boolean wasCanceled = false; // CraftBukkit - add field
+ 
+-   public Explosion(Level p_151471_, @Nullable Entity p_151472_, double p_151473_, double p_151474_, double p_151475_, float p_151476_) {
++    public Explosion(Level p_151471_, @Nullable Entity p_151472_, double p_151473_, double p_151474_, double p_151475_, float p_151476_) {
+       this(p_151471_, p_151472_, p_151473_, p_151474_, p_151475_, p_151476_, false, Explosion.BlockInteraction.DESTROY);
+    }
+ 
+@@ -78,7 +_,7 @@
+    public Explosion(Level p_46051_, @Nullable Entity p_46052_, @Nullable DamageSource p_46053_, @Nullable ExplosionDamageCalculator p_46054_, double p_46055_, double p_46056_, double p_46057_, float p_46058_, boolean p_46059_, Explosion.BlockInteraction p_46060_) {
+       this.f_46012_ = p_46051_;
+       this.f_46016_ = p_46052_;
+-      this.f_46017_ = p_46058_;
++      this.f_46017_ = (float) Math.max(p_46058_, 0.0); // CraftBukkit - clamp bad values
+       this.f_46013_ = p_46055_;
+       this.f_46014_ = p_46056_;
+       this.f_46015_ = p_46057_;
+@@ -86,6 +_,7 @@
+       this.f_46010_ = p_46060_;
+       this.f_46018_ = p_46053_ == null ? DamageSource.m_19358_(this) : p_46053_;
+       this.f_46019_ = p_46054_ == null ? this.m_46062_(p_46052_) : p_46054_;
++      this.position = new Vec3(this.f_46013_, this.f_46014_, this.f_46015_);
+    }
+ 
+    private ExplosionDamageCalculator m_46062_(@Nullable Entity p_46063_) {
+@@ -126,6 +_,11 @@
+    }
+ 
+    public void m_46061_() {
++       //Craftbukkit start
++       if(this.f_46017_ < 0.1F){
++          return;
++       }
++       //Craftbukkit end
+       this.f_46012_.m_142346_(this.f_46016_, GameEvent.f_157812_, new BlockPos(this.f_46013_, this.f_46014_, this.f_46015_));
+       Set<BlockPos> set = Sets.newHashSet();
+       int i = 16;
+@@ -181,6 +_,7 @@
+       int j2 = Mth.m_14107_(this.f_46015_ - (double)f2 - 1.0D);
+       int j1 = Mth.m_14107_(this.f_46015_ + (double)f2 + 1.0D);
+       List<Entity> list = this.f_46012_.m_45933_(this.f_46016_, new AABB((double)k1, (double)i2, (double)j2, (double)l1, (double)i1, (double)j1));
++      net.minecraftforge.event.ForgeEventFactory.onExplosionDetonate(this.f_46012_, this, list, f2);
+       Vec3 vec3 = new Vec3(this.f_46013_, this.f_46014_, this.f_46015_);
+ 
+       for(int k2 = 0; k2 < list.size(); ++k2) {
+@@ -198,7 +_,37 @@
+                   d9 /= d13;
+                   double d14 = (double)m_46064_(vec3, entity);
+                   double d10 = (1.0D - d12) * d14;
+-                  entity.m_6469_(this.m_46077_(), (float)((int)((d10 * d10 + d10) / 2.0D * 7.0D * (double)f2 + 1.0D)));
++                  // CraftBukkit start
++                  CraftEventFactory.entityDamage = f_46016_;
++                  entity.lastDamageCancelled = false;
++
++                  // Special case ender dragon only give knockback if no damage is cancelled
++                  // Thinks to note:
++                  // - Setting a velocity to a ComplexEntityPart is ignored (and therefore not needed)
++                  // - Damaging ComplexEntityPart while forward the damage to EntityEnderDragon
++                  // - Damaging EntityEnderDragon does nothing
++                  // - EntityEnderDragon hitbock always covers the other parts and is therefore always present
++                  if (entity instanceof ComplexEntityPart ) {
++                     continue;
++                  }
++
++                  if (entity instanceof EnderDragon ) {
++                     for ( EnderDragonPart entityComplexPart : ((EnderDragon) entity).f_31089_) {
++                        if (list.contains(entityComplexPart)) {
++                           entityComplexPart.m_6469_(this.m_46077_(), (float) ((int) ((d10 * d10 + d10) / 2.0D * 7.0D * (double) f2 + 1.0D)));
++                        }
++                     }
++                  } else {
++                     entity.m_6469_(this.m_46077_(), (float) ((int) ((d10 * d10 + d10) / 2.0D * 7.0D * (double) f2 + 1.0D)));
++
++                  }
++
++                  CraftEventFactory.entityDamage = null;
++                  if (entity.lastDamageCancelled) { // SPIGOT-5339, SPIGOT-6252, SPIGOT-6777: Skip entity if damage event was cancelled
++                     continue;
++                  }
++                  // CraftBukkit end
++
+                   double d11 = d10;
+                   if (entity instanceof LivingEntity) {
+                      d11 = ProtectionEnchantment.m_45135_((LivingEntity)entity, d10);
+@@ -236,17 +_,61 @@
+          ObjectArrayList<Pair<ItemStack, BlockPos>> objectarraylist = new ObjectArrayList<>();
+          Collections.shuffle(this.f_46020_, this.f_46012_.f_46441_);
+ 
++         // CraftBukkit start
++         org.bukkit.World bworld = this.f_46012_.getWorld();
++         org.bukkit.entity.Entity explode = this.f_46016_ == null ? null : this.f_46016_.getBukkitEntity();
++         Location location = new Location(bworld, this.f_46013_, this.f_46014_, this.f_46015_);
++
++         List<org.bukkit.block.Block> blockList = Lists.newArrayList();
++         for (int i1 = this.f_46020_.size() - 1; i1 >= 0; i1--) {
++            BlockPos cpos = (BlockPos) this.f_46020_.get(i1);
++            org.bukkit.block.Block bblock = bworld.getBlockAt(cpos.m_123341_(), cpos.m_123342_(), cpos.m_123343_());
++            if (!bblock.getType().isAir()) {
++               blockList.add(bblock);
++            }
++         }
++
++         boolean cancelled;
++         List<org.bukkit.block.Block> bukkitBlocks;
++         float yield1;
++
++         if (explode != null) {
++            EntityExplodeEvent event = new EntityExplodeEvent(explode, location, blockList, this.f_46010_ == Explosion.BlockInteraction.DESTROY ? 1.0F / this.f_46017_ : 1.0F);
++            this.f_46012_.getCraftServer().getPluginManager().callEvent(event);
++            cancelled = event.isCancelled();
++            bukkitBlocks = event.blockList();
++            yield1 = event.getYield();
++         } else {
++            BlockExplodeEvent event = new BlockExplodeEvent(location.getBlock(), blockList, this.f_46010_ == Explosion.BlockInteraction.DESTROY ? 1.0F / this.f_46017_ : 1.0F);
++            this.f_46012_.getCraftServer().getPluginManager().callEvent(event);
++            cancelled = event.isCancelled();
++            bukkitBlocks = event.blockList();
++            yield1 = event.getYield();
++         }
++
++         this.f_46020_.clear();
++
++         for (org.bukkit.block.Block bblock : bukkitBlocks) {
++            BlockPos coords = new BlockPos(bblock.getX(), bblock.getY(), bblock.getZ());
++            f_46020_.add(coords);
++         }
++
++         if (cancelled) {
++            this.wasCanceled = true;
++            return;
++         }
++         // CraftBukkit end
++
+          for(BlockPos blockpos : this.f_46020_) {
+             BlockState blockstate = this.f_46012_.m_8055_(blockpos);
+-            Block block = blockstate.m_60734_();
+             if (!blockstate.m_60795_()) {
+                BlockPos blockpos1 = blockpos.m_7949_();
+                this.f_46012_.m_46473_().m_6180_("explosion_blocks");
+-               if (block.m_6903_(this) && this.f_46012_ instanceof ServerLevel) {
++               if (blockstate.canDropFromExplosion(this.f_46012_, blockpos, this) && this.f_46012_ instanceof ServerLevel) {
+                   BlockEntity blockentity = blockstate.m_155947_() ? this.f_46012_.m_7702_(blockpos) : null;
+                   LootContext.Builder lootcontext$builder = (new LootContext.Builder((ServerLevel)this.f_46012_)).m_78977_(this.f_46012_.f_46441_).m_78972_(LootContextParams.f_81460_, Vec3.m_82512_(blockpos)).m_78972_(LootContextParams.f_81463_, ItemStack.f_41583_).m_78984_(LootContextParams.f_81462_, blockentity).m_78984_(LootContextParams.f_81455_, this.f_46016_);
+-                  if (this.f_46010_ == Explosion.BlockInteraction.DESTROY) {
+-                     lootcontext$builder.m_78972_(LootContextParams.f_81464_, this.f_46017_);
++                  if (this.f_46010_ == Explosion.BlockInteraction.DESTROY || yield1 < 1.0F) { // CraftBukkit - add yield
++                     lootcontext$builder.m_78972_(LootContextParams.f_81464_, 1.0F / yield1); // CraftBukkit - add yield
+                   }
+ 
+                   blockstate.m_60724_(lootcontext$builder).forEach((p_46074_) -> {
+@@ -254,8 +_,7 @@
+                   });
+                }
+ 
+-               this.f_46012_.m_7731_(blockpos, Blocks.f_50016_.m_49966_(), 3);
+-               block.m_7592_(this.f_46012_, blockpos, this);
++               blockstate.onBlockExploded(this.f_46012_, blockpos, this);
+                this.f_46012_.m_46473_().m_7238_();
+             }
+          }
+@@ -268,7 +_,11 @@
+       if (this.f_46009_) {
+          for(BlockPos blockpos2 : this.f_46020_) {
+             if (this.f_46011_.nextInt(3) == 0 && this.f_46012_.m_8055_(blockpos2).m_60795_() && this.f_46012_.m_8055_(blockpos2.m_7495_()).m_60804_(this.f_46012_, blockpos2.m_7495_())) {
+-               this.f_46012_.m_46597_(blockpos2, BaseFireBlock.m_49245_(this.f_46012_, blockpos2));
++               // CraftBukkit start - Ignition by explosion
++               if (!org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callBlockIgniteEvent(this.f_46012_, blockpos2.m_123341_(), blockpos2.m_123342_(), blockpos2.m_123343_(), this).isCancelled()) {
++                  this.f_46012_.m_46597_(blockpos2, BaseFireBlock.m_49245_(this.f_46012_, blockpos2));
++               }
++               // CraftBukkit end
+             }
+          }
+       }
+@@ -276,7 +_,8 @@
+    }
+ 
+    private static void m_46067_(ObjectArrayList<Pair<ItemStack, BlockPos>> p_46068_, ItemStack p_46069_, BlockPos p_46070_) {
+-      int i = p_46068_.size();
++       if (p_46069_.m_41619_()) return; // CraftBukkit - SPIGOT-5425
++       int i = p_46068_.size();
+ 
+       for(int j = 0; j < i; ++j) {
+          Pair<ItemStack, BlockPos> pair = p_46068_.get(j);
+@@ -327,6 +_,15 @@
+ 
+    public List<BlockPos> m_46081_() {
+       return this.f_46020_;
++   }
++
++   public Vec3 getPosition() {
++      return this.position;
++   }
++
++   @Nullable
++   public Entity getExploder() {
++      return this.f_46016_;
+    }
+ 
+    public static enum BlockInteraction {

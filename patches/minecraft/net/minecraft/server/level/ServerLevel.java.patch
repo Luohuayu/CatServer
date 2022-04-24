@@ -1,0 +1,3258 @@
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -14,17 +_,12 @@
+ import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+ import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
++
+ import java.io.IOException;
+ import java.io.Writer;
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+-import java.util.ArrayList;
+-import java.util.Comparator;
+-import java.util.List;
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Set;
+-import java.util.UUID;
++import java.util.*;
+ import java.util.concurrent.Executor;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Function;
+@@ -33,6 +_,7 @@
+ import java.util.stream.Stream;
+ import javax.annotation.Nonnull;
+ import javax.annotation.Nullable;
++
+ import net.minecraft.CrashReport;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+@@ -71,6 +_,7 @@
+ import net.minecraft.util.ProgressListener;
+ import net.minecraft.util.Unit;
+ import net.minecraft.util.profiling.ProfilerFiller;
++import net.minecraft.world.Container;
+ import net.minecraft.world.DifficultyInstance;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+@@ -87,7 +_,6 @@
+ import net.minecraft.world.entity.animal.Animal;
+ import net.minecraft.world.entity.animal.WaterAnimal;
+ import net.minecraft.world.entity.animal.horse.SkeletonHorse;
+-import net.minecraft.world.entity.boss.EnderDragonPart;
+ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+ import net.minecraft.world.entity.npc.Npc;
+ import net.minecraft.world.entity.player.Player;
+@@ -108,6 +_,7 @@
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.TickingBlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.ChunkAccess;
+@@ -136,1408 +_,1811 @@
+ import net.minecraft.world.level.portal.PortalForcer;
+ import net.minecraft.world.level.saveddata.maps.MapIndex;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+-import net.minecraft.world.level.storage.DimensionDataStorage;
+-import net.minecraft.world.level.storage.LevelStorageSource;
+-import net.minecraft.world.level.storage.ServerLevelData;
++import net.minecraft.world.level.storage.*;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ import net.minecraft.world.ticks.LevelTicks;
++import org.bukkit.Bukkit;
++import org.bukkit.WeatherType;
++import org.bukkit.craftbukkit.v1_18_R2.generator.CustomChunkGenerator;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.server.MapInitializeEvent;
++import org.bukkit.event.world.TimeSkipEvent;
+ import org.slf4j.Logger;
++import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_18_R2.util.WorldUUID;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.weather.LightningStrikeEvent;
++import org.spigotmc.SpigotWorldConfig;
+ 
+ public class ServerLevel extends Level implements WorldGenLevel {
+-   public static final BlockPos f_8562_ = new BlockPos(100, 50, 0);
+-   private static final int f_184049_ = 12000;
+-   private static final int f_184039_ = 180000;
+-   private static final int f_184040_ = 12000;
+-   private static final int f_184041_ = 24000;
+-   private static final int f_184042_ = 12000;
+-   private static final int f_184043_ = 180000;
+-   private static final int f_184044_ = 3600;
+-   private static final int f_184045_ = 15600;
+-   private static final Logger f_8566_ = LogUtils.getLogger();
+-   private static final int f_143242_ = 300;
+-   private static final int f_184046_ = 65536;
+-   final List<ServerPlayer> f_8546_ = Lists.newArrayList();
+-   private final ServerChunkCache f_8547_;
+-   private final MinecraftServer f_8548_;
+-   public final ServerLevelData f_8549_;
+-   final EntityTickList f_143243_ = new EntityTickList();
+-   private final PersistentEntitySectionManager<Entity> f_143244_;
+-   public boolean f_8564_;
+-   private final SleepStatus f_143245_;
+-   private int f_8551_;
+-   private final PortalForcer f_8552_;
+-   private final LevelTicks<Block> f_8553_ = new LevelTicks<>(this::m_184110_, this.m_46658_());
+-   private final LevelTicks<Fluid> f_184047_ = new LevelTicks<>(this::m_184110_, this.m_46658_());
+-   final Set<Mob> f_143246_ = new ObjectOpenHashSet<>();
+-   volatile boolean f_200893_;
+-   protected final Raids f_8565_;
+-   private final ObjectLinkedOpenHashSet<BlockEventData> f_8556_ = new ObjectLinkedOpenHashSet<>();
+-   private final List<BlockEventData> f_184048_ = new ArrayList<>(64);
+-   private boolean f_8557_;
+-   private final List<CustomSpawner> f_8558_;
+-   @Nullable
+-   private final EndDragonFight f_8559_;
+-   final Int2ObjectMap<EnderDragonPart> f_143247_ = new Int2ObjectOpenHashMap<>();
+-   private final StructureFeatureManager f_8560_;
+-   private final StructureCheck f_196556_;
+-   private final boolean f_8561_;
+-
+-   public ServerLevel(MinecraftServer p_203762_, Executor p_203763_, LevelStorageSource.LevelStorageAccess p_203764_, ServerLevelData p_203765_, ResourceKey<Level> p_203766_, Holder<DimensionType> p_203767_, ChunkProgressListener p_203768_, ChunkGenerator p_203769_, boolean p_203770_, long p_203771_, List<CustomSpawner> p_203772_, boolean p_203773_) {
+-      super(p_203765_, p_203766_, p_203767_, p_203762_::m_129905_, false, p_203770_, p_203771_);
+-      this.f_8561_ = p_203773_;
+-      this.f_8548_ = p_203762_;
+-      this.f_8558_ = p_203772_;
+-      this.f_8549_ = p_203765_;
+-      p_203769_.m_211700_();
+-      boolean flag = p_203762_.m_6365_();
+-      DataFixer datafixer = p_203762_.m_129933_();
+-      EntityPersistentStorage<Entity> entitypersistentstorage = new EntityStorage(this, p_203764_.m_197394_(p_203766_).resolve("entities"), datafixer, flag, p_203762_);
+-      this.f_143244_ = new PersistentEntitySectionManager<>(Entity.class, new ServerLevel.EntityCallbacks(), entitypersistentstorage);
+-      this.f_8547_ = new ServerChunkCache(this, p_203764_, datafixer, p_203762_.m_129909_(), p_203763_, p_203769_, p_203762_.m_6846_().m_11312_(), p_203762_.m_6846_().m_184213_(), flag, p_203768_, this.f_143244_::m_157524_, () -> {
+-         return p_203762_.m_129783_().m_8895_();
+-      });
+-      this.f_8552_ = new PortalForcer(this);
+-      this.m_46465_();
+-      this.m_46466_();
+-      this.m_6857_().m_61923_(p_203762_.m_6329_());
+-      this.f_8565_ = this.m_8895_().m_164861_((p_184095_) -> {
+-         return Raids.m_150235_(this, p_184095_);
+-      }, () -> {
+-         return new Raids(this);
+-      }, Raids.m_211596_(this.m_204156_()));
+-      if (!p_203762_.m_129792_()) {
+-         p_203765_.m_5458_(p_203762_.m_130008_());
+-      }
+-
+-      long i = p_203762_.m_129910_().m_5961_().m_64619_();
+-      this.f_196556_ = new StructureCheck(this.f_8547_.m_196555_(), this.m_5962_(), p_203762_.m_129909_(), p_203766_, p_203769_, this, p_203769_.m_62218_(), i, datafixer);
+-      this.f_8560_ = new StructureFeatureManager(this, p_203762_.m_129910_().m_5961_(), this.f_196556_);
+-      if (this.m_6042_().m_63965_()) {
+-         this.f_8559_ = new EndDragonFight(this, i, p_203762_.m_129910_().m_6564_());
+-      } else {
+-         this.f_8559_ = null;
+-      }
+-
+-      this.f_143245_ = new SleepStatus();
+-   }
+-
+-   public void m_8606_(int p_8607_, int p_8608_, boolean p_8609_, boolean p_8610_) {
+-      this.f_8549_.m_6393_(p_8607_);
+-      this.f_8549_.m_6399_(p_8608_);
+-      this.f_8549_.m_6398_(p_8608_);
+-      this.f_8549_.m_5565_(p_8609_);
+-      this.f_8549_.m_5557_(p_8610_);
+-   }
+-
+-   public Holder<Biome> m_203675_(int p_203775_, int p_203776_, int p_203777_) {
+-      return this.m_7726_().m_8481_().m_203495_(p_203775_, p_203776_, p_203777_);
+-   }
+-
+-   public StructureFeatureManager m_8595_() {
+-      return this.f_8560_;
+-   }
+-
+-   public void m_8793_(BooleanSupplier p_8794_) {
+-      ProfilerFiller profilerfiller = this.m_46473_();
+-      this.f_8557_ = true;
+-      profilerfiller.m_6180_("world border");
+-      this.m_6857_().m_61969_();
+-      profilerfiller.m_6182_("weather");
+-      this.m_184096_();
+-      int i = this.m_46469_().m_46215_(GameRules.f_151486_);
+-      if (this.f_143245_.m_144002_(i) && this.f_143245_.m_144004_(i, this.f_8546_)) {
+-         if (this.m_46469_().m_46207_(GameRules.f_46140_)) {
+-            long j = this.f_46442_.m_6792_() + 24000L;
+-            this.m_8615_(j - j % 24000L);
+-         }
+-
+-         this.m_8804_();
+-         if (this.m_46469_().m_46207_(GameRules.f_46150_) && this.m_46471_()) {
+-            this.m_184097_();
+-         }
+-      }
+-
+-      this.m_46465_();
+-      this.m_8809_();
+-      profilerfiller.m_6182_("tickPending");
+-      if (!this.m_46659_()) {
+-         long k = this.m_46467_();
+-         profilerfiller.m_6180_("blockTicks");
+-         this.f_8553_.m_193225_(k, 65536, this::m_184112_);
+-         profilerfiller.m_6182_("fluidTicks");
+-         this.f_184047_.m_193225_(k, 65536, this::m_184076_);
+-         profilerfiller.m_7238_();
+-      }
+-
+-      profilerfiller.m_6182_("raid");
+-      this.f_8565_.m_37957_();
+-      profilerfiller.m_6182_("chunkSource");
+-      this.m_7726_().m_201698_(p_8794_, true);
+-      profilerfiller.m_6182_("blockEvents");
+-      this.m_8807_();
+-      this.f_8557_ = false;
+-      profilerfiller.m_7238_();
+-      boolean flag = !this.f_8546_.isEmpty() || !this.m_8902_().isEmpty();
+-      if (flag) {
+-         this.m_8886_();
+-      }
+-
+-      if (flag || this.f_8551_++ < 300) {
+-         profilerfiller.m_6180_("entities");
+-         if (this.f_8559_ != null) {
+-            profilerfiller.m_6180_("dragonFight");
+-            this.f_8559_.m_64095_();
+-            profilerfiller.m_7238_();
+-         }
+-
+-         this.f_143243_.m_156910_((p_184065_) -> {
+-            if (!p_184065_.m_146910_()) {
+-               if (this.m_143342_(p_184065_)) {
+-                  p_184065_.m_146870_();
+-               } else {
+-                  profilerfiller.m_6180_("checkDespawn");
+-                  p_184065_.m_6043_();
+-                  profilerfiller.m_7238_();
+-                  if (this.f_8547_.f_8325_.m_143145_().m_183913_(p_184065_.m_146902_().m_45588_())) {
+-                     Entity entity = p_184065_.m_20202_();
+-                     if (entity != null) {
+-                        if (!entity.m_146910_() && entity.m_20363_(p_184065_)) {
+-                           return;
+-                        }
+-
+-                        p_184065_.m_8127_();
+-                     }
+-
+-                     profilerfiller.m_6180_("tick");
+-                     this.m_46653_(this::m_8647_, p_184065_);
+-                     profilerfiller.m_7238_();
+-                  }
+-               }
+-            }
+-         });
+-         profilerfiller.m_7238_();
+-         this.m_46463_();
+-      }
+-
+-      profilerfiller.m_6180_("entityManagement");
+-      this.f_143244_.m_157506_();
+-      profilerfiller.m_7238_();
+-   }
+-
+-   public boolean m_183438_(long p_184059_) {
+-      return this.f_8547_.f_8325_.m_143145_().m_183916_(p_184059_);
+-   }
+-
+-   protected void m_8809_() {
+-      if (this.f_8561_) {
+-         long i = this.f_46442_.m_6793_() + 1L;
+-         this.f_8549_.m_6253_(i);
+-         this.f_8549_.m_7540_().m_82256_(this.f_8548_, i);
+-         if (this.f_46442_.m_5470_().m_46207_(GameRules.f_46140_)) {
+-            this.m_8615_(this.f_46442_.m_6792_() + 1L);
+-         }
+-
+-      }
+-   }
+-
+-   public void m_8615_(long p_8616_) {
+-      this.f_8549_.m_6247_(p_8616_);
+-   }
+-
+-   public void m_8799_(boolean p_8800_, boolean p_8801_) {
+-      for(CustomSpawner customspawner : this.f_8558_) {
+-         customspawner.m_7995_(this, p_8800_, p_8801_);
+-      }
+-
+-   }
+-
+-   private boolean m_143342_(Entity p_143343_) {
+-      if (this.f_8548_.m_6998_() || !(p_143343_ instanceof Animal) && !(p_143343_ instanceof WaterAnimal)) {
+-         return !this.f_8548_.m_6997_() && p_143343_ instanceof Npc;
+-      } else {
+-         return true;
+-      }
+-   }
+-
+-   private void m_8804_() {
+-      this.f_143245_.m_144001_();
+-      this.f_8546_.stream().filter(LivingEntity::m_5803_).collect(Collectors.toList()).forEach((p_184116_) -> {
+-         p_184116_.m_6145_(false, false);
+-      });
+-   }
+-
+-   public void m_8714_(LevelChunk p_8715_, int p_8716_) {
+-      ChunkPos chunkpos = p_8715_.m_7697_();
+-      boolean flag = this.m_46471_();
+-      int i = chunkpos.m_45604_();
+-      int j = chunkpos.m_45605_();
+-      ProfilerFiller profilerfiller = this.m_46473_();
+-      profilerfiller.m_6180_("thunder");
+-      if (flag && this.m_46470_() && this.f_46441_.nextInt(100000) == 0) {
+-         BlockPos blockpos = this.m_143288_(this.m_46496_(i, 0, j, 15));
+-         if (this.m_46758_(blockpos)) {
+-            DifficultyInstance difficultyinstance = this.m_6436_(blockpos);
+-            boolean flag1 = this.m_46469_().m_46207_(GameRules.f_46134_) && this.f_46441_.nextDouble() < (double)difficultyinstance.m_19056_() * 0.01D && !this.m_8055_(blockpos.m_7495_()).m_60713_(Blocks.f_152587_);
+-            if (flag1) {
+-               SkeletonHorse skeletonhorse = EntityType.f_20525_.m_20615_(this);
+-               skeletonhorse.m_30923_(true);
+-               skeletonhorse.m_146762_(0);
+-               skeletonhorse.m_6034_((double)blockpos.m_123341_(), (double)blockpos.m_123342_(), (double)blockpos.m_123343_());
+-               this.m_7967_(skeletonhorse);
+-            }
+-
+-            LightningBolt lightningbolt = EntityType.f_20465_.m_20615_(this);
+-            lightningbolt.m_20219_(Vec3.m_82539_(blockpos));
+-            lightningbolt.m_20874_(flag1);
+-            this.m_7967_(lightningbolt);
+-         }
+-      }
+-
+-      profilerfiller.m_6182_("iceandsnow");
+-      if (this.f_46441_.nextInt(16) == 0) {
+-         BlockPos blockpos2 = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, this.m_46496_(i, 0, j, 15));
+-         BlockPos blockpos3 = blockpos2.m_7495_();
+-         Biome biome = this.m_204166_(blockpos2).m_203334_();
+-         if (biome.m_47477_(this, blockpos3)) {
+-            this.m_46597_(blockpos3, Blocks.f_50126_.m_49966_());
+-         }
+-
+-         if (flag) {
+-            if (biome.m_47519_(this, blockpos2)) {
+-               this.m_46597_(blockpos2, Blocks.f_50125_.m_49966_());
+-            }
+-
+-            BlockState blockstate1 = this.m_8055_(blockpos3);
+-            Biome.Precipitation biome$precipitation = biome.m_47530_();
+-            if (biome$precipitation == Biome.Precipitation.RAIN && biome.m_198904_(blockpos3)) {
+-               biome$precipitation = Biome.Precipitation.SNOW;
+-            }
+-
+-            blockstate1.m_60734_().m_141997_(blockstate1, this, blockpos3, biome$precipitation);
+-         }
+-      }
+-
+-      profilerfiller.m_6182_("tickBlocks");
+-      if (p_8716_ > 0) {
+-         for(LevelChunkSection levelchunksection : p_8715_.m_7103_()) {
+-            if (levelchunksection.m_63014_()) {
+-               int l = levelchunksection.m_63017_();
+-
+-               for(int k = 0; k < p_8716_; ++k) {
+-                  BlockPos blockpos1 = this.m_46496_(i, l, j, 15);
+-                  profilerfiller.m_6180_("randomTick");
+-                  BlockState blockstate = levelchunksection.m_62982_(blockpos1.m_123341_() - i, blockpos1.m_123342_() - l, blockpos1.m_123343_() - j);
+-                  if (blockstate.m_60823_()) {
+-                     blockstate.m_60735_(this, blockpos1, this.f_46441_);
+-                  }
+-
+-                  FluidState fluidstate = blockstate.m_60819_();
+-                  if (fluidstate.m_76187_()) {
+-                     fluidstate.m_76174_(this, blockpos1, this.f_46441_);
+-                  }
+-
+-                  profilerfiller.m_7238_();
+-               }
+-            }
+-         }
+-      }
+-
+-      profilerfiller.m_7238_();
+-   }
+-
+-   private Optional<BlockPos> m_143248_(BlockPos p_143249_) {
+-      Optional<BlockPos> optional = this.m_8904_().m_148658_((p_184069_) -> {
+-         return p_184069_ == PoiType.f_148687_;
+-      }, (p_184055_) -> {
+-         return p_184055_.m_123342_() == this.m_6018_().m_6924_(Heightmap.Types.WORLD_SURFACE, p_184055_.m_123341_(), p_184055_.m_123343_()) - 1;
+-      }, p_143249_, 128, PoiManager.Occupancy.ANY);
+-      return optional.map((p_184053_) -> {
+-         return p_184053_.m_6630_(1);
+-      });
+-   }
+-
+-   protected BlockPos m_143288_(BlockPos p_143289_) {
+-      BlockPos blockpos = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, p_143289_);
+-      Optional<BlockPos> optional = this.m_143248_(blockpos);
+-      if (optional.isPresent()) {
+-         return optional.get();
+-      } else {
+-         AABB aabb = (new AABB(blockpos, new BlockPos(blockpos.m_123341_(), this.m_151558_(), blockpos.m_123343_()))).m_82400_(3.0D);
+-         List<LivingEntity> list = this.m_6443_(LivingEntity.class, aabb, (p_184067_) -> {
+-            return p_184067_ != null && p_184067_.m_6084_() && this.m_45527_(p_184067_.m_142538_());
+-         });
+-         if (!list.isEmpty()) {
+-            return list.get(this.f_46441_.nextInt(list.size())).m_142538_();
+-         } else {
+-            if (blockpos.m_123342_() == this.m_141937_() - 1) {
+-               blockpos = blockpos.m_6630_(2);
+-            }
+-
+-            return blockpos;
+-         }
+-      }
+-   }
+-
+-   public boolean m_8874_() {
+-      return this.f_8557_;
+-   }
+-
+-   public boolean m_143333_() {
+-      return this.m_46469_().m_46215_(GameRules.f_151486_) <= 100;
+-   }
+-
+-   private void m_143315_() {
+-      if (this.m_143333_()) {
+-         if (!this.m_142572_().m_129792_() || this.m_142572_().m_6992_()) {
+-            int i = this.m_46469_().m_46215_(GameRules.f_151486_);
+-            Component component;
+-            if (this.f_143245_.m_144002_(i)) {
+-               component = new TranslatableComponent("sleep.skipping_night");
+-            } else {
+-               component = new TranslatableComponent("sleep.players_sleeping", this.f_143245_.m_144009_(), this.f_143245_.m_144010_(i));
+-            }
+-
+-            for(ServerPlayer serverplayer : this.f_8546_) {
+-               serverplayer.m_5661_(component, true);
+-            }
+-
+-         }
+-      }
+-   }
+-
+-   public void m_8878_() {
+-      if (!this.f_8546_.isEmpty() && this.f_143245_.m_144007_(this.f_8546_)) {
+-         this.m_143315_();
+-      }
+-
+-   }
+-
+-   public ServerScoreboard m_6188_() {
+-      return this.f_8548_.m_129896_();
+-   }
+-
+-   private void m_184096_() {
+-      boolean flag = this.m_46471_();
+-      if (this.m_6042_().m_63935_()) {
+-         if (this.m_46469_().m_46207_(GameRules.f_46150_)) {
+-            int i = this.f_8549_.m_6537_();
+-            int j = this.f_8549_.m_6558_();
+-            int k = this.f_8549_.m_6531_();
+-            boolean flag1 = this.f_46442_.m_6534_();
+-            boolean flag2 = this.f_46442_.m_6533_();
+-            if (i > 0) {
+-               --i;
+-               j = flag1 ? 0 : 1;
+-               k = flag2 ? 0 : 1;
+-               flag1 = false;
+-               flag2 = false;
+-            } else {
+-               if (j > 0) {
+-                  --j;
+-                  if (j == 0) {
+-                     flag1 = !flag1;
+-                  }
+-               } else if (flag1) {
+-                  j = Mth.m_144928_(this.f_46441_, 3600, 15600);
+-               } else {
+-                  j = Mth.m_144928_(this.f_46441_, 12000, 180000);
+-               }
+-
+-               if (k > 0) {
+-                  --k;
+-                  if (k == 0) {
+-                     flag2 = !flag2;
+-                  }
+-               } else if (flag2) {
+-                  k = Mth.m_144928_(this.f_46441_, 12000, 24000);
+-               } else {
+-                  k = Mth.m_144928_(this.f_46441_, 12000, 180000);
+-               }
+-            }
+-
+-            this.f_8549_.m_6398_(j);
+-            this.f_8549_.m_6399_(k);
+-            this.f_8549_.m_6393_(i);
+-            this.f_8549_.m_5557_(flag1);
+-            this.f_8549_.m_5565_(flag2);
+-         }
+-
+-         this.f_46439_ = this.f_46440_;
+-         if (this.f_46442_.m_6534_()) {
+-            this.f_46440_ += 0.01F;
+-         } else {
+-            this.f_46440_ -= 0.01F;
+-         }
+-
+-         this.f_46440_ = Mth.m_14036_(this.f_46440_, 0.0F, 1.0F);
+-         this.f_46437_ = this.f_46438_;
+-         if (this.f_46442_.m_6533_()) {
+-            this.f_46438_ += 0.01F;
+-         } else {
+-            this.f_46438_ -= 0.01F;
+-         }
+-
+-         this.f_46438_ = Mth.m_14036_(this.f_46438_, 0.0F, 1.0F);
+-      }
+-
+-      if (this.f_46437_ != this.f_46438_) {
+-         this.f_8548_.m_6846_().m_11270_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, this.f_46438_), this.m_46472_());
+-      }
+-
+-      if (this.f_46439_ != this.f_46440_) {
+-         this.f_8548_.m_6846_().m_11270_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, this.f_46440_), this.m_46472_());
+-      }
+-
+-      if (flag != this.m_46471_()) {
+-         if (flag) {
+-            this.f_8548_.m_6846_().m_11268_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132155_, 0.0F));
+-         } else {
+-            this.f_8548_.m_6846_().m_11268_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132154_, 0.0F));
+-         }
+-
+-         this.f_8548_.m_6846_().m_11268_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, this.f_46438_));
+-         this.f_8548_.m_6846_().m_11268_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, this.f_46440_));
+-      }
+-
+-   }
+-
+-   private void m_184097_() {
+-      this.f_8549_.m_6399_(0);
+-      this.f_8549_.m_5565_(false);
+-      this.f_8549_.m_6398_(0);
+-      this.f_8549_.m_5557_(false);
+-   }
+-
+-   public void m_8886_() {
+-      this.f_8551_ = 0;
+-   }
+-
+-   private void m_184076_(BlockPos p_184077_, Fluid p_184078_) {
+-      FluidState fluidstate = this.m_6425_(p_184077_);
+-      if (fluidstate.m_192917_(p_184078_)) {
+-         fluidstate.m_76163_(this, p_184077_);
+-      }
+-
+-   }
+-
+-   private void m_184112_(BlockPos p_184113_, Block p_184114_) {
+-      BlockState blockstate = this.m_8055_(p_184113_);
+-      if (blockstate.m_60713_(p_184114_)) {
+-         blockstate.m_60616_(this, p_184113_, this.f_46441_);
+-      }
+-
+-   }
+-
+-   public void m_8647_(Entity p_8648_) {
+-      p_8648_.m_146867_();
+-      ProfilerFiller profilerfiller = this.m_46473_();
+-      ++p_8648_.f_19797_;
+-      this.m_46473_().m_6521_(() -> {
+-         return Registry.f_122826_.m_7981_(p_8648_.m_6095_()).toString();
+-      });
+-      profilerfiller.m_6174_("tickNonPassenger");
+-      p_8648_.m_8119_();
+-      this.m_46473_().m_7238_();
+-
+-      for(Entity entity : p_8648_.m_20197_()) {
+-         this.m_8662_(p_8648_, entity);
+-      }
+-
+-   }
+-
+-   private void m_8662_(Entity p_8663_, Entity p_8664_) {
+-      if (!p_8664_.m_146910_() && p_8664_.m_20202_() == p_8663_) {
+-         if (p_8664_ instanceof Player || this.f_143243_.m_156914_(p_8664_)) {
+-            p_8664_.m_146867_();
+-            ++p_8664_.f_19797_;
+-            ProfilerFiller profilerfiller = this.m_46473_();
+-            profilerfiller.m_6521_(() -> {
+-               return Registry.f_122826_.m_7981_(p_8664_.m_6095_()).toString();
+-            });
+-            profilerfiller.m_6174_("tickPassenger");
+-            p_8664_.m_6083_();
+-            profilerfiller.m_7238_();
+-
+-            for(Entity entity : p_8664_.m_20197_()) {
+-               this.m_8662_(p_8664_, entity);
+-            }
+-
+-         }
+-      } else {
+-         p_8664_.m_8127_();
+-      }
+-   }
+-
+-   public boolean m_7966_(Player p_8696_, BlockPos p_8697_) {
+-      return !this.f_8548_.m_7762_(this, p_8697_, p_8696_) && this.m_6857_().m_61937_(p_8697_);
+-   }
+-
+-   public void m_8643_(@Nullable ProgressListener p_8644_, boolean p_8645_, boolean p_8646_) {
+-      ServerChunkCache serverchunkcache = this.m_7726_();
+-      if (!p_8646_) {
+-         if (p_8644_ != null) {
+-            p_8644_.m_6309_(new TranslatableComponent("menu.savingLevel"));
+-         }
+-
+-         this.m_8806_();
+-         if (p_8644_ != null) {
+-            p_8644_.m_6307_(new TranslatableComponent("menu.savingChunks"));
+-         }
+-
+-         serverchunkcache.m_8419_(p_8645_);
+-         if (p_8645_) {
+-            this.f_143244_.m_157561_();
+-         } else {
+-            this.f_143244_.m_157554_();
+-         }
+-
+-      }
+-   }
+-
+-   private void m_8806_() {
+-      if (this.f_8559_ != null) {
+-         this.f_8548_.m_129910_().m_5915_(this.f_8559_.m_64081_());
+-      }
+-
+-      this.m_7726_().m_8483_().m_78151_();
+-   }
+-
+-   public <T extends Entity> List<? extends T> m_143280_(EntityTypeTest<Entity, T> p_143281_, Predicate<? super T> p_143282_) {
+-      List<T> list = Lists.newArrayList();
+-      this.m_142646_().m_142690_(p_143281_, (p_184091_) -> {
+-         if (p_143282_.test(p_184091_)) {
+-            list.add(p_184091_);
+-         }
+-
+-      });
+-      return list;
+-   }
+-
+-   public List<? extends EnderDragon> m_8857_() {
+-      return this.m_143280_(EntityType.f_20565_, LivingEntity::m_6084_);
+-   }
+-
+-   public List<ServerPlayer> m_8795_(Predicate<? super ServerPlayer> p_8796_) {
+-      List<ServerPlayer> list = Lists.newArrayList();
+-
+-      for(ServerPlayer serverplayer : this.f_8546_) {
+-         if (p_8796_.test(serverplayer)) {
+-            list.add(serverplayer);
+-         }
+-      }
+-
+-      return list;
+-   }
+-
+-   @Nullable
+-   public ServerPlayer m_8890_() {
+-      List<ServerPlayer> list = this.m_8795_(LivingEntity::m_6084_);
+-      return list.isEmpty() ? null : list.get(this.f_46441_.nextInt(list.size()));
+-   }
+-
+-   public boolean m_7967_(Entity p_8837_) {
+-      return this.m_8872_(p_8837_);
+-   }
+-
+-   public boolean m_8847_(Entity p_8848_) {
+-      return this.m_8872_(p_8848_);
+-   }
+-
+-   public void m_143334_(Entity p_143335_) {
+-      this.m_8872_(p_143335_);
+-   }
+-
+-   public void m_8622_(ServerPlayer p_8623_) {
+-      this.m_8853_(p_8623_);
+-   }
+-
+-   public void m_8817_(ServerPlayer p_8818_) {
+-      this.m_8853_(p_8818_);
+-   }
+-
+-   public void m_8834_(ServerPlayer p_8835_) {
+-      this.m_8853_(p_8835_);
+-   }
+-
+-   public void m_8845_(ServerPlayer p_8846_) {
+-      this.m_8853_(p_8846_);
+-   }
+-
+-   private void m_8853_(ServerPlayer p_8854_) {
+-      Entity entity = this.m_142646_().m_142694_(p_8854_.m_142081_());
+-      if (entity != null) {
+-         f_8566_.warn("Force-added player with duplicate UUID {}", (Object)p_8854_.m_142081_().toString());
+-         entity.m_19877_();
+-         this.m_143261_((ServerPlayer)entity, Entity.RemovalReason.DISCARDED);
+-      }
+-
+-      this.f_143244_.m_157533_(p_8854_);
+-   }
+-
+-   private boolean m_8872_(Entity p_8873_) {
+-      if (p_8873_.m_146910_()) {
+-         f_8566_.warn("Tried to add entity {} but it was marked as removed already", (Object)EntityType.m_20613_(p_8873_.m_6095_()));
+-         return false;
+-      } else {
+-         return this.f_143244_.m_157533_(p_8873_);
+-      }
+-   }
+-
+-   public boolean m_8860_(Entity p_8861_) {
+-      if (p_8861_.m_142428_().map(Entity::m_142081_).anyMatch(this.f_143244_::m_157550_)) {
+-         return false;
+-      } else {
+-         this.m_47205_(p_8861_);
+-         return true;
+-      }
+-   }
+-
+-   public void m_8712_(LevelChunk p_8713_) {
+-      p_8713_.m_187957_();
+-      p_8713_.m_187979_(this);
+-   }
+-
+-   public void m_143261_(ServerPlayer p_143262_, Entity.RemovalReason p_143263_) {
+-      p_143262_.m_142687_(p_143263_);
+-   }
+-
+-   public void m_6801_(int p_8612_, BlockPos p_8613_, int p_8614_) {
+-      for(ServerPlayer serverplayer : this.f_8548_.m_6846_().m_11314_()) {
+-         if (serverplayer != null && serverplayer.f_19853_ == this && serverplayer.m_142049_() != p_8612_) {
+-            double d0 = (double)p_8613_.m_123341_() - serverplayer.m_20185_();
+-            double d1 = (double)p_8613_.m_123342_() - serverplayer.m_20186_();
+-            double d2 = (double)p_8613_.m_123343_() - serverplayer.m_20189_();
+-            if (d0 * d0 + d1 * d1 + d2 * d2 < 1024.0D) {
+-               serverplayer.f_8906_.m_141995_(new ClientboundBlockDestructionPacket(p_8612_, p_8613_, p_8614_));
+-            }
+-         }
+-      }
+-
+-   }
+-
+-   public void m_6263_(@Nullable Player p_8675_, double p_8676_, double p_8677_, double p_8678_, SoundEvent p_8679_, SoundSource p_8680_, float p_8681_, float p_8682_) {
+-      this.f_8548_.m_6846_().m_11241_(p_8675_, p_8676_, p_8677_, p_8678_, p_8681_ > 1.0F ? (double)(16.0F * p_8681_) : 16.0D, this.m_46472_(), new ClientboundSoundPacket(p_8679_, p_8680_, p_8676_, p_8677_, p_8678_, p_8681_, p_8682_));
+-   }
+-
+-   public void m_6269_(@Nullable Player p_8689_, Entity p_8690_, SoundEvent p_8691_, SoundSource p_8692_, float p_8693_, float p_8694_) {
+-      this.f_8548_.m_6846_().m_11241_(p_8689_, p_8690_.m_20185_(), p_8690_.m_20186_(), p_8690_.m_20189_(), p_8693_ > 1.0F ? (double)(16.0F * p_8693_) : 16.0D, this.m_46472_(), new ClientboundSoundEntityPacket(p_8691_, p_8692_, p_8690_, p_8693_, p_8694_));
+-   }
+-
+-   public void m_6798_(int p_8811_, BlockPos p_8812_, int p_8813_) {
+-      this.f_8548_.m_6846_().m_11268_(new ClientboundLevelEventPacket(p_8811_, p_8812_, p_8813_, true));
+-   }
+-
+-   public void m_5898_(@Nullable Player p_8684_, int p_8685_, BlockPos p_8686_, int p_8687_) {
+-      this.f_8548_.m_6846_().m_11241_(p_8684_, (double)p_8686_.m_123341_(), (double)p_8686_.m_123342_(), (double)p_8686_.m_123343_(), 64.0D, this.m_46472_(), new ClientboundLevelEventPacket(p_8685_, p_8686_, p_8687_, false));
+-   }
+-
+-   public int m_143344_() {
+-      return this.m_6042_().m_63964_();
+-   }
+-
+-   public void m_142346_(@Nullable Entity p_143268_, GameEvent p_143269_, BlockPos p_143270_) {
+-      this.m_151513_(p_143268_, p_143269_, p_143270_, p_143269_.m_157827_());
+-   }
+-
+-   public void m_7260_(BlockPos p_8755_, BlockState p_8756_, BlockState p_8757_, int p_8758_) {
+-      if (this.f_200893_) {
+-         String s = "recursive call to sendBlockUpdated";
+-         Util.m_200890_("recursive call to sendBlockUpdated", new IllegalStateException("recursive call to sendBlockUpdated"));
+-      }
+-
+-      this.m_7726_().m_8450_(p_8755_);
+-      VoxelShape voxelshape1 = p_8756_.m_60812_(this, p_8755_);
+-      VoxelShape voxelshape = p_8757_.m_60812_(this, p_8755_);
+-      if (Shapes.m_83157_(voxelshape1, voxelshape, BooleanOp.f_82687_)) {
+-         List<PathNavigation> list = new ObjectArrayList<>();
+-
+-         for(Mob mob : this.f_143246_) {
+-            PathNavigation pathnavigation = mob.m_21573_();
+-            if (pathnavigation.m_200903_(p_8755_)) {
+-               list.add(pathnavigation);
+-            }
+-         }
+-
+-         try {
+-            this.f_200893_ = true;
+-
+-            for(PathNavigation pathnavigation1 : list) {
+-               pathnavigation1.m_26569_();
+-            }
+-         } finally {
+-            this.f_200893_ = false;
+-         }
+-
+-      }
+-   }
+-
+-   public void m_7605_(Entity p_8650_, byte p_8651_) {
+-      this.m_7726_().m_8394_(p_8650_, new ClientboundEntityEventPacket(p_8650_, p_8651_));
+-   }
+-
+-   public ServerChunkCache m_7726_() {
+-      return this.f_8547_;
+-   }
+-
+-   public Explosion m_7703_(@Nullable Entity p_8653_, @Nullable DamageSource p_8654_, @Nullable ExplosionDamageCalculator p_8655_, double p_8656_, double p_8657_, double p_8658_, float p_8659_, boolean p_8660_, Explosion.BlockInteraction p_8661_) {
++    public static final BlockPos f_8562_ = new BlockPos(100, 50, 0);
++    private static final int f_184049_ = 12000;
++    private static final int f_184039_ = 180000;
++    private static final int f_184040_ = 12000;
++    private static final int f_184041_ = 24000;
++    private static final int f_184042_ = 12000;
++    private static final int f_184043_ = 180000;
++    private static final int f_184044_ = 3600;
++    private static final int f_184045_ = 15600;
++    private static final Logger f_8566_ = LogUtils.getLogger();
++    private static final int f_143242_ = 300;
++    private static final int f_184046_ = 65536;
++    final List<ServerPlayer> f_8546_ = Lists.newArrayList();
++    private final ServerChunkCache f_8547_;
++    private final MinecraftServer f_8548_;
++    public final PrimaryLevelData f_8549_; // CraftBukkit - type
++    final EntityTickList f_143243_ = new EntityTickList();
++    public final PersistentEntitySectionManager<Entity> f_143244_;
++    public boolean f_8564_;
++    private final SleepStatus f_143245_;
++    private int f_8551_;
++    private final PortalForcer f_8552_;
++    private final LevelTicks<Block> f_8553_ = new LevelTicks<>(this::m_184110_, this.m_46658_());
++    private final LevelTicks<Fluid> f_184047_ = new LevelTicks<>(this::m_184110_, this.m_46658_());
++    final Set<Mob> f_143246_ = new ObjectOpenHashSet<>();
++    volatile boolean f_200893_;
++    protected final Raids f_8565_;
++    private final ObjectLinkedOpenHashSet<BlockEventData> f_8556_ = new ObjectLinkedOpenHashSet<>();
++    private final List<BlockEventData> f_184048_ = new ArrayList<>(64);
++    private boolean f_8557_;
++    private final List<CustomSpawner> f_8558_;
++    @Nullable
++    private final EndDragonFight f_8559_;
++    final Int2ObjectMap<net.minecraftforge.entity.PartEntity<?>> f_143247_ = new Int2ObjectOpenHashMap<>();
++    private final StructureFeatureManager f_8560_;
++    private final StructureCheck f_196556_;
++    private final boolean f_8561_;
++    private net.minecraftforge.common.util.WorldCapabilityData capabilityData;
++
++    public PrimaryLevelData worldDataServer;
++    public final LevelStorageSource.LevelStorageAccess convertable;
++    public final UUID uuid;
++
++    public ServerLevel(MinecraftServer p_203762_, Executor p_203763_, LevelStorageSource.LevelStorageAccess p_203764_, ServerLevelData p_203765_, ResourceKey<Level> p_203766_, Holder<DimensionType> p_203767_, ChunkProgressListener p_203768_, ChunkGenerator p_203769_, boolean p_203770_, long p_203771_, List<CustomSpawner> p_203772_, boolean p_203773_, org.bukkit.World.Environment env, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider) {
++        super(p_203765_, p_203766_, p_203767_, p_203762_::m_129905_, false, p_203770_, p_203771_, gen, biomeProvider, env);
++        this.pvpMode = p_203762_.m_129799_();
++        convertable = p_203764_;
++        uuid = WorldUUID.getUUID(p_203764_.f_78271_.toFile());
++        if (generator != null) {
++            p_203769_ = new org.bukkit.craftbukkit.v1_18_R2.generator.CustomChunkGenerator(this, p_203769_, generator);
++        }
++        this.spigotConfig = new SpigotWorldConfig(p_203765_.m_5462_());
++        p_203769_.conf = spigotConfig; // Spigot
++        this.f_8561_ = p_203773_;
++        this.f_8548_ = p_203762_;
++        this.f_8558_ = p_203772_;
++        this.f_8549_ = (PrimaryLevelData) p_203765_;
++        f_8549_.setWorld(this);
++        p_203769_.m_211700_();
++        boolean flag = p_203762_.m_6365_();
++        DataFixer datafixer = p_203762_.m_129933_();
++        EntityPersistentStorage<Entity> entitypersistentstorage = new EntityStorage(this, p_203764_.m_197394_(p_203766_).resolve("entities"), datafixer, flag, p_203762_);
++        this.f_143244_ = new PersistentEntitySectionManager<>(Entity.class, new ServerLevel.EntityCallbacks(), entitypersistentstorage);
++        //this.chunkSource = new ServerChunkCache(this, p_203764_, datafixer, p_203762_.getStructureManager(), p_203763_, p_203769_, p_203762_.getPlayerList().getViewDistance(), p_203762_.getPlayerList().getSimulationDistance(), flag, p_203768_, this.entityManager::updateChunkStatus, () -> {
++        // FoxServer TODO
++        this.f_8547_ = new ServerChunkCache(this, p_203764_, datafixer, p_203762_.m_129909_(), p_203763_, p_203769_, this.spigotConfig.viewDistance, this.spigotConfig.simulationDistance, flag, p_203768_, this.f_143244_::m_157524_, () -> {
++            return p_203762_.m_129783_().m_8895_();
++        });
++        this.f_8552_ = new PortalForcer(this);
++        this.m_46465_();
++        this.m_46466_();
++        this.m_6857_().m_61923_(p_203762_.m_6329_());
++        this.f_8565_ = this.m_8895_().m_164861_((p_184095_) -> {
++            return Raids.m_150235_(this, p_184095_);
++        }, () -> {
++            return new Raids(this);
++        }, Raids.m_211596_(this.m_204156_()));
++        if (!p_203762_.m_129792_()) {
++            p_203765_.m_5458_(p_203762_.m_130008_());
++        }
++
++        long i = p_203762_.m_129910_().m_5961_().m_64619_();
++        this.f_196556_ = new StructureCheck(this.f_8547_.m_196555_(), this.m_5962_(), p_203762_.m_129909_(), p_203766_, p_203769_, this, p_203769_.m_62218_(), i, datafixer);
++        this.f_8560_ = new StructureFeatureManager(this, this.f_8549_.m_5961_(), this.f_196556_); // CraftBukkit
++        if (this.m_6042_().m_63965_()) {
++            this.f_8559_ = new EndDragonFight(this, this.f_8549_.m_5961_().m_64619_(), this.f_8549_.m_6564_()); // CraftBukkit
++        } else {
++            this.f_8559_ = null;
++        }
++
++        this.f_143245_ = new SleepStatus();
++        this.initCapabilities();
++        this.world = new CraftWorld(this, generator, biomeProvider, environment);
++        m_6857_().world = this;
++        this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
++    }
++
++    public ServerLevel(MinecraftServer p_203762_, Executor p_203763_, LevelStorageSource.LevelStorageAccess p_203764_, ServerLevelData p_203765_, ResourceKey<Level> p_203766_, Holder<DimensionType> p_203767_, ChunkProgressListener p_203768_, ChunkGenerator p_203769_, boolean p_203770_, long p_203771_, List<CustomSpawner> p_203772_, boolean p_203773_) {
++        super(p_203765_, p_203766_, p_203767_, p_203762_::m_129905_, false, p_203770_, p_203771_);
++        convertable = p_203764_;
++        this.pvpMode = p_203762_.m_129799_();
++        uuid = WorldUUID.getUUID(p_203764_.f_78271_.toFile());
++        if (generator != null) {
++            p_203769_ = new org.bukkit.craftbukkit.v1_18_R2.generator.CustomChunkGenerator(this, p_203769_, generator);
++        }
++        this.spigotConfig = new SpigotWorldConfig(p_203765_.m_5462_());
++        p_203769_.conf = spigotConfig; // Spigot
++        this.f_8561_ = p_203773_;
++        this.f_8548_ = p_203762_;
++        this.f_8558_ = p_203772_;
++        this.f_8549_ = (PrimaryLevelData) p_203765_;
++        f_8549_.setWorld(this);
++        p_203769_.m_211700_();
++        boolean flag = p_203762_.m_6365_();
++        DataFixer datafixer = p_203762_.m_129933_();
++        EntityPersistentStorage<Entity> entitypersistentstorage = new EntityStorage(this, p_203764_.m_197394_(p_203766_).resolve("entities"), datafixer, flag, p_203762_);
++        this.f_143244_ = new PersistentEntitySectionManager<>(Entity.class, new ServerLevel.EntityCallbacks(), entitypersistentstorage);
++        //this.chunkSource = new ServerChunkCache(this, p_203764_, datafixer, p_203762_.getStructureManager(), p_203763_, p_203769_, p_203762_.getPlayerList().getViewDistance(), p_203762_.getPlayerList().getSimulationDistance(), flag, p_203768_, this.entityManager::updateChunkStatus, () -> {
++        // FoxServer start
++        this.f_8547_ = new ServerChunkCache(this, p_203764_, datafixer, p_203762_.m_129909_(), p_203763_, p_203769_, this.spigotConfig.viewDistance, this.spigotConfig.simulationDistance, flag, p_203768_, this.f_143244_::m_157524_, () -> {
++            return p_203762_.m_129783_().m_8895_();
++        });
++        this.f_8552_ = new PortalForcer(this);
++        this.m_46465_();
++        this.m_46466_();
++        this.m_6857_().m_61923_(p_203762_.m_6329_());
++        this.f_8565_ = this.m_8895_().m_164861_((p_184095_) -> {
++            return Raids.m_150235_(this, p_184095_);
++        }, () -> {
++            return new Raids(this);
++        }, Raids.m_211596_(this.m_204156_()));
++        if (!p_203762_.m_129792_()) {
++            p_203765_.m_5458_(p_203762_.m_130008_());
++        }
++
++        long i = p_203762_.m_129910_().m_5961_().m_64619_();
++        this.f_196556_ = new StructureCheck(this.f_8547_.m_196555_(), this.m_5962_(), p_203762_.m_129909_(), p_203766_, p_203769_, this, p_203769_.m_62218_(), i, datafixer);
++        this.f_8560_ = new StructureFeatureManager(this, this.f_8549_.m_5961_(), this.f_196556_); // CraftBukkit
++        if (this.m_6042_().m_63965_()) {
++            this.f_8559_ = new EndDragonFight(this, this.f_8549_.m_5961_().m_64619_(), this.f_8549_.m_6564_()); // CraftBukkit
++        } else {
++            this.f_8559_ = null;
++        }
++
++        this.f_143245_ = new SleepStatus();
++        this.initCapabilities();
++        this.world = new CraftWorld(this, generator, biomeProvider, environment);
++        m_6857_().world = this;
++        this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
++    }
++
++    public void m_8606_(int p_8607_, int p_8608_, boolean p_8609_, boolean p_8610_) {
++        this.f_8549_.m_6393_(p_8607_);
++        this.f_8549_.m_6399_(p_8608_);
++        this.f_8549_.m_6398_(p_8608_);
++        this.f_8549_.m_5565_(p_8609_);
++        this.f_8549_.m_5557_(p_8610_);
++    }
++
++    public Holder<Biome> m_203675_(int p_203775_, int p_203776_, int p_203777_) {
++        return this.m_7726_().m_8481_().m_203495_(p_203775_, p_203776_, p_203777_);
++    }
++
++    public StructureFeatureManager m_8595_() {
++        return this.f_8560_;
++    }
++
++    public void m_8793_(BooleanSupplier p_8794_) {
++        ProfilerFiller profilerfiller = this.m_46473_();
++        this.f_8557_ = true;
++        profilerfiller.m_6180_("world border");
++        this.m_6857_().m_61969_();
++        profilerfiller.m_6182_("weather");
++        this.m_184096_();
++        int i = this.m_46469_().m_46215_(GameRules.f_151486_);
++        long j = 0L;
++        if (this.f_143245_.m_144002_(i) && this.f_143245_.m_144004_(i, this.f_8546_)) {
++            // CraftBukkit start
++            j = this.f_46442_.m_6792_() + 24000L;
++            TimeSkipEvent event = new TimeSkipEvent(this.getWorld(), TimeSkipEvent.SkipReason.NIGHT_SKIP, (j - j % 24000L) - this.m_46468_());
++            if (this.m_46469_().m_46207_(GameRules.f_46140_)) {
++                getCraftServer().getPluginManager().callEvent(event);
++                if (!event.isCancelled()) {
++                    this.m_8615_(this.m_46468_() + event.getSkipAmount());
++                } else {
++                    this.m_8615_(net.minecraftforge.event.ForgeEventFactory.onSleepFinished(this, j - j % 24000L, this.m_46468_()));
++                }
++            }
++
++            if (!event.isCancelled()) {
++                this.m_8804_();
++            }
++            // CraftBukkit end
++
++            if (this.m_46469_().m_46207_(GameRules.f_46150_) && this.m_46471_()) {
++                this.m_184097_();
++            }
++        }
++
++        this.m_46465_();
++        this.m_8809_();
++        profilerfiller.m_6182_("tickPending");
++        timings.doTickPending.startTiming(); // Spigot
++        if (!this.m_46659_()) {
++            long k = this.m_46467_();
++            profilerfiller.m_6180_("blockTicks");
++            this.f_8553_.m_193225_(k, 65536, this::m_184112_);
++            profilerfiller.m_6182_("fluidTicks");
++            this.f_184047_.m_193225_(k, 65536, this::m_184076_);
++            profilerfiller.m_7238_();
++        }
++        timings.doTickPending.stopTiming(); // Spigot
++
++        profilerfiller.m_6182_("raid");
++        this.f_8565_.m_37957_();
++        profilerfiller.m_6182_("chunkSource");
++        this.m_7726_().m_201698_(p_8794_, true);
++        profilerfiller.m_6182_("blockEvents");
++        timings.doSounds.startTiming(); // Spigot
++        this.m_8807_();
++        timings.doSounds.stopTiming(); // Spigot
++        this.f_8557_ = false;
++        profilerfiller.m_7238_();
++        boolean flag = true || !this.f_8546_.isEmpty() || !this.m_8902_().isEmpty(); // CraftBukkit - this prevents entity cleanup, other issues on servers with no players
++        if (flag) {
++            this.m_8886_();
++        }
++
++        if (flag || this.f_8551_++ < 300) {
++            profilerfiller.m_6180_("entities");
++            timings.tickEntities.startTiming(); // Spigot
++            if (this.f_8559_ != null) {
++                profilerfiller.m_6180_("dragonFight");
++                this.f_8559_.m_64095_();
++                profilerfiller.m_7238_();
++            }
++
++            org.spigotmc.ActivationRange.activateEntities(this); // Spigot
++            timings.entityTick.startTiming(); // Spigot
++            this.f_143243_.m_156910_((p_184065_) -> {
++                if (!p_184065_.m_146910_()) {
++                    if (false && this.m_143342_(p_184065_)) { // CraftBukkit - We prevent spawning in general, so this butchering is not needed
++                        p_184065_.m_146870_();
++                    } else {
++                        profilerfiller.m_6180_("checkDespawn");
++                        p_184065_.m_6043_();
++                        profilerfiller.m_7238_();
++                        if (this.f_8547_.f_8325_.m_143145_().m_183913_(p_184065_.m_146902_().m_45588_())) {
++                            Entity entity = p_184065_.m_20202_();
++                            if (entity != null) {
++                                if (!entity.m_146910_() && entity.m_20363_(p_184065_)) {
++                                    return;
++                                }
++
++                                p_184065_.m_8127_();
++                            }
++
++                            profilerfiller.m_6180_("tick");
++                            if (!p_184065_.m_146910_() && !(p_184065_ instanceof net.minecraftforge.entity.PartEntity)) {
++                                this.m_46653_(this::m_8647_, p_184065_);
++                            }
++                            profilerfiller.m_7238_();
++                        }
++                    }
++                }
++            });
++            timings.entityTick.stopTiming(); // Spigot
++            timings.tickEntities.stopTiming(); // Spigot
++            profilerfiller.m_7238_();
++            this.m_46463_();
++        }
++
++        profilerfiller.m_6180_("entityManagement");
++        this.f_143244_.m_157506_();
++        profilerfiller.m_7238_();
++    }
++
++    public boolean m_183438_(long p_184059_) {
++        return this.f_8547_.f_8325_.m_143145_().m_183916_(p_184059_);
++    }
++
++    protected void m_8809_() {
++        if (this.f_8561_) {
++            long i = this.f_46442_.m_6793_() + 1L;
++            this.f_8549_.m_6253_(i);
++            this.f_8549_.m_7540_().m_82256_(this.f_8548_, i);
++            if (this.f_46442_.m_5470_().m_46207_(GameRules.f_46140_)) {
++                this.m_8615_(this.f_46442_.m_6792_() + 1L);
++            }
++
++        }
++    }
++
++    public void m_8615_(long p_8616_) {
++        this.f_8549_.m_6247_(p_8616_);
++    }
++
++    public void m_8799_(boolean p_8800_, boolean p_8801_) {
++        for (CustomSpawner customspawner : this.f_8558_) {
++            customspawner.m_7995_(this, p_8800_, p_8801_);
++        }
++
++    }
++
++    private boolean m_143342_(Entity p_143343_) {
++        if (this.f_8548_.m_6998_() || !(p_143343_ instanceof Animal) && !(p_143343_ instanceof WaterAnimal)) {
++            return !this.f_8548_.m_6997_() && p_143343_ instanceof Npc;
++        } else {
++            return true;
++        }
++    }
++
++    private void m_8804_() {
++        this.f_143245_.m_144001_();
++        this.f_8546_.stream().filter(LivingEntity::m_5803_).collect(Collectors.toList()).forEach((p_184116_) -> {
++            p_184116_.m_6145_(false, false);
++        });
++    }
++
++    public void m_8714_(LevelChunk p_8715_, int p_8716_) {
++        ChunkPos chunkpos = p_8715_.m_7697_();
++        boolean flag = this.m_46471_();
++        int i = chunkpos.m_45604_();
++        int j = chunkpos.m_45605_();
++        ProfilerFiller profilerfiller = this.m_46473_();
++        profilerfiller.m_6180_("thunder");
++        if (flag && this.m_46470_() && this.spigotConfig.thunderChance > 0 && this.f_46441_.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot
++            BlockPos blockpos = this.m_143288_(this.m_46496_(i, 0, j, 15));
++            if (this.m_46758_(blockpos)) {
++                DifficultyInstance difficultyinstance = this.m_6436_(blockpos);
++                boolean flag1 = this.m_46469_().m_46207_(GameRules.f_46134_) && this.f_46441_.nextDouble() < (double) difficultyinstance.m_19056_() * 0.01D && !this.m_8055_(blockpos.m_7495_()).m_60713_(Blocks.f_152587_);
++                if (flag1) {
++                    SkeletonHorse skeletonhorse = EntityType.f_20525_.m_20615_(this);
++                    skeletonhorse.m_30923_(true);
++                    skeletonhorse.m_146762_(0);
++                    skeletonhorse.m_6034_((double) blockpos.m_123341_(), (double) blockpos.m_123342_(), (double) blockpos.m_123343_());
++                    this.addFreshEntity(skeletonhorse, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.LIGHTNING); // CraftBukkit
++                }
++
++                LightningBolt lightningbolt = EntityType.f_20465_.m_20615_(this);
++                lightningbolt.m_20219_(Vec3.m_82539_(blockpos));
++                lightningbolt.m_20874_(flag1);
++                this.strikeLightning(lightningbolt, org.bukkit.event.weather.LightningStrikeEvent.Cause.WEATHER); // CraftBukkit
++            }
++        }
++
++        profilerfiller.m_6182_("iceandsnow");
++        if (this.f_46441_.nextInt(16) == 0) {
++            BlockPos blockpos2 = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, this.m_46496_(i, 0, j, 15));
++            BlockPos blockpos3 = blockpos2.m_7495_();
++            Biome biome = this.m_204166_(blockpos2).m_203334_();
++            if (this.isAreaLoaded(blockpos2, 1)) // Forge: check area to avoid loading neighbors in unloaded chunks
++                if (biome.m_47477_(this, blockpos3)) {
++                    org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.handleBlockFormEvent(this, blockpos3, Blocks.f_50126_.m_49966_(), null); // CraftBukkit
++                }
++
++            if (flag) {
++                if (biome.m_47519_(this, blockpos2)) {
++                    org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.handleBlockFormEvent(this, blockpos2, Blocks.f_50125_.m_49966_(), null); // CraftBukkit
++                }
++
++                BlockState blockstate1 = this.m_8055_(blockpos3);
++                Biome.Precipitation biome$precipitation = biome.m_47530_();
++                if (biome$precipitation == Biome.Precipitation.RAIN && biome.m_198904_(blockpos3)) {
++                    biome$precipitation = Biome.Precipitation.SNOW;
++                }
++
++                blockstate1.m_60734_().m_141997_(blockstate1, this, blockpos3, biome$precipitation);
++            }
++        }
++
++        profilerfiller.m_6182_("tickBlocks");
++        if (p_8716_ > 0) {
++            for (LevelChunkSection levelchunksection : p_8715_.m_7103_()) {
++                if (levelchunksection.m_63014_()) {
++                    int l = levelchunksection.m_63017_();
++
++                    for (int k = 0; k < p_8716_; ++k) {
++                        BlockPos blockpos1 = this.m_46496_(i, l, j, 15);
++                        profilerfiller.m_6180_("randomTick");
++                        BlockState blockstate = levelchunksection.m_62982_(blockpos1.m_123341_() - i, blockpos1.m_123342_() - l, blockpos1.m_123343_() - j);
++                        if (blockstate.m_60823_()) {
++                            blockstate.m_60735_(this, blockpos1, this.f_46441_);
++                        }
++
++                        FluidState fluidstate = blockstate.m_60819_();
++                        if (fluidstate.m_76187_()) {
++                            fluidstate.m_76174_(this, blockpos1, this.f_46441_);
++                        }
++
++                        profilerfiller.m_7238_();
++                    }
++                }
++            }
++        }
++
++        profilerfiller.m_7238_();
++    }
++
++    private Optional<BlockPos> m_143248_(BlockPos p_143249_) {
++        Optional<BlockPos> optional = this.m_8904_().m_148658_((p_184069_) -> {
++            return p_184069_ == PoiType.f_148687_;
++        }, (p_184055_) -> {
++            return p_184055_.m_123342_() == this.m_6018_().m_6924_(Heightmap.Types.WORLD_SURFACE, p_184055_.m_123341_(), p_184055_.m_123343_()) - 1;
++        }, p_143249_, 128, PoiManager.Occupancy.ANY);
++        return optional.map((p_184053_) -> {
++            return p_184053_.m_6630_(1);
++        });
++    }
++
++    protected BlockPos m_143288_(BlockPos p_143289_) {
++        BlockPos blockpos = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, p_143289_);
++        Optional<BlockPos> optional = this.m_143248_(blockpos);
++        if (optional.isPresent()) {
++            return optional.get();
++        } else {
++            AABB aabb = (new AABB(blockpos, new BlockPos(blockpos.m_123341_(), this.m_151558_(), blockpos.m_123343_()))).m_82400_(3.0D);
++            List<LivingEntity> list = this.m_6443_(LivingEntity.class, aabb, (p_184067_) -> {
++                return p_184067_ != null && p_184067_.m_6084_() && this.m_45527_(p_184067_.m_142538_());
++            });
++            if (!list.isEmpty()) {
++                return list.get(this.f_46441_.nextInt(list.size())).m_142538_();
++            } else {
++                if (blockpos.m_123342_() == this.m_141937_() - 1) {
++                    blockpos = blockpos.m_6630_(2);
++                }
++
++                return blockpos;
++            }
++        }
++    }
++
++    public boolean m_8874_() {
++        return this.f_8557_;
++    }
++
++    public boolean m_143333_() {
++        return this.m_46469_().m_46215_(GameRules.f_151486_) <= 100;
++    }
++
++    private void m_143315_() {
++        if (this.m_143333_()) {
++            if (!this.m_142572_().m_129792_() || this.m_142572_().m_6992_()) {
++                int i = this.m_46469_().m_46215_(GameRules.f_151486_);
++                Component component;
++                if (this.f_143245_.m_144002_(i)) {
++                    component = new TranslatableComponent("sleep.skipping_night");
++                } else {
++                    component = new TranslatableComponent("sleep.players_sleeping", this.f_143245_.m_144009_(), this.f_143245_.m_144010_(i));
++                }
++
++                for (ServerPlayer serverplayer : this.f_8546_) {
++                    serverplayer.m_5661_(component, true);
++                }
++
++            }
++        }
++    }
++
++    public void m_8878_() {
++        if (!this.f_8546_.isEmpty() && this.f_143245_.m_144007_(this.f_8546_)) {
++            this.m_143315_();
++        }
++
++    }
++
++    public ServerScoreboard m_6188_() {
++        return this.f_8548_.m_129896_();
++    }
++
++    private void m_184096_() {
++        boolean flag = this.m_46471_();
++        if (this.m_6042_().m_63935_()) {
++            if (this.m_46469_().m_46207_(GameRules.f_46150_)) {
++                int i = this.f_8549_.m_6537_();
++                int j = this.f_8549_.m_6558_();
++                int k = this.f_8549_.m_6531_();
++                boolean flag1 = this.f_46442_.m_6534_();
++                boolean flag2 = this.f_46442_.m_6533_();
++                if (i > 0) {
++                    --i;
++                    j = flag1 ? 0 : 1;
++                    k = flag2 ? 0 : 1;
++                    flag1 = false;
++                    flag2 = false;
++                } else {
++                    if (j > 0) {
++                        --j;
++                        if (j == 0) {
++                            flag1 = !flag1;
++                        }
++                    } else if (flag1) {
++                        j = Mth.m_144928_(this.f_46441_, 3600, 15600);
++                    } else {
++                        j = Mth.m_144928_(this.f_46441_, 12000, 180000);
++                    }
++
++                    if (k > 0) {
++                        --k;
++                        if (k == 0) {
++                            flag2 = !flag2;
++                        }
++                    } else if (flag2) {
++                        k = Mth.m_144928_(this.f_46441_, 12000, 24000);
++                    } else {
++                        k = Mth.m_144928_(this.f_46441_, 12000, 180000);
++                    }
++                }
++
++                this.f_8549_.m_6398_(j);
++                this.f_8549_.m_6399_(k);
++                this.f_8549_.m_6393_(i);
++                this.f_8549_.m_5557_(flag1);
++                this.f_8549_.m_5565_(flag2);
++            }
++
++            this.f_46439_ = this.f_46440_;
++            if (this.f_46442_.m_6534_()) {
++                this.f_46440_ += 0.01F;
++            } else {
++                this.f_46440_ -= 0.01F;
++            }
++
++            this.f_46440_ = Mth.m_14036_(this.f_46440_, 0.0F, 1.0F);
++            this.f_46437_ = this.f_46438_;
++            if (this.f_46442_.m_6533_()) {
++                this.f_46438_ += 0.01F;
++            } else {
++                this.f_46438_ -= 0.01F;
++            }
++
++            this.f_46438_ = Mth.m_14036_(this.f_46438_, 0.0F, 1.0F);
++        }
++
++      /* CraftBukkit start
++      if (this.oRainLevel != this.rainLevel) {
++         this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, this.rainLevel), this.dimension());
++      }
++
++      if (this.oThunderLevel != this.thunderLevel) {
++         this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel), this.dimension());
++      }
++
++      /* The function in use here has been replaced in order to only send the weather info to players in the correct dimension,
++       * rather than to all players on the server. This is what causes the client-side rain, as the
++       * client believes that it has started raining locally, rather than in another dimension.
++       */
++      /*
++      if (flag != this.isRaining()) {
++         if (flag) {
++            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.STOP_RAINING, 0.0F), this.dimension());
++         } else {
++            this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F), this.dimension());
++         }
++
++         this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, this.rainLevel), this.dimension());
++         this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel), this.dimension());
++      }
++      */
++        // CraftBukkit start
++        int idx;
++        for (idx = 0; idx < this.f_8546_.size(); ++idx) {
++            if (this.f_8546_.get(idx).f_19853_ == this)
++                (this.f_8546_.get(idx)).tickWeather();
++        }
++        if (flag != m_46471_())
++            for (idx = 0; idx < this.f_8546_.size(); ++idx) {
++                if ((this.f_8546_.get(idx)).f_19853_ == this)
++                    (this.f_8546_.get(idx)).setPlayerWeather(!flag ? org.bukkit.WeatherType.DOWNFALL : org.bukkit.WeatherType.CLEAR, false);
++            }
++        for (idx = 0; idx < this.f_8546_.size(); ++idx) {
++            if ((this.f_8546_.get(idx)).f_19853_ == this)
++                (this.f_8546_.get(idx)).updateWeather(this.f_46437_, this.f_46438_, this.f_46439_, this.f_46440_);
++        }
++        // CraftBukkit end
++
++    }
++
++    private void m_184097_() {
++        //this.serverLevelData.setRainTime(0);
++        // CraftBukkit start
++        this.f_8549_.m_5565_(false);
++        //this.serverLevelData.setThunderTime(0);
++        // If we stop due to everyone sleeping we should reset the weather duration to some other random value.
++        // Not that everyone ever manages to get the whole server to sleep at the same time....
++        if (!this.f_8549_.m_6533_()) {
++            this.f_8549_.m_6399_(0);
++        }
++        // CraftBukkit end
++        this.f_8549_.m_5557_(false);
++        // CraftBukkit start
++        // If we stop due to everyone sleeping we should reset the weather duration to some other random value.
++        // Not that everyone ever manages to get the whole server to sleep at the same time....
++        if (!this.f_8549_.m_6534_()) {
++            this.f_8549_.m_6398_(0);
++        }
++        // CraftBukkit end
++    }
++
++    public void m_8886_() {
++        this.f_8551_ = 0;
++    }
++
++    private void m_184076_(BlockPos p_184077_, Fluid p_184078_) {
++        FluidState fluidstate = this.m_6425_(p_184077_);
++        if (fluidstate.m_192917_(p_184078_)) {
++            fluidstate.m_76163_(this, p_184077_);
++        }
++
++    }
++
++    private void m_184112_(BlockPos p_184113_, Block p_184114_) {
++        BlockState blockstate = this.m_8055_(p_184113_);
++        if (blockstate.m_60713_(p_184114_)) {
++            blockstate.m_60616_(this, p_184113_, this.f_46441_);
++        }
++
++    }
++
++    public void m_8647_(Entity p_8648_) {
++        // Spigot start
++        if (!org.spigotmc.ActivationRange.checkIfActive(p_8648_)) {
++            p_8648_.f_19797_++;
++            p_8648_.inactiveTick();
++            return;
++        }
++        // Spigot end
++        p_8648_.tickTimer.startTiming(); // Spigot
++        p_8648_.m_146867_();
++        ProfilerFiller profilerfiller = this.m_46473_();
++        ++p_8648_.f_19797_;
++        this.m_46473_().m_6521_(() -> {
++            return Registry.f_122826_.m_7981_(p_8648_.m_6095_()).toString();
++        });
++        profilerfiller.m_6174_("tickNonPassenger");
++        p_8648_.m_8119_();
++        p_8648_.postTick(); // CraftBukkit
++        this.m_46473_().m_7238_();
++
++        for (Entity entity : p_8648_.m_20197_()) {
++            this.m_8662_(p_8648_, entity);
++        }
++        p_8648_.tickTimer.stopTiming(); // Spigot
++
++    }
++
++    private void m_8662_(Entity p_8663_, Entity p_8664_) {
++        if (!p_8664_.m_146910_() && p_8664_.m_20202_() == p_8663_) {
++            if (p_8664_ instanceof Player || this.f_143243_.m_156914_(p_8664_)) {
++                p_8664_.m_146867_();
++                ++p_8664_.f_19797_;
++                ProfilerFiller profilerfiller = this.m_46473_();
++                profilerfiller.m_6521_(() -> {
++                    return p_8664_.m_6095_().getRegistryName() == null ? p_8664_.m_6095_().toString() : p_8664_.m_6095_().getRegistryName().toString();
++                });
++                profilerfiller.m_6174_("tickPassenger");
++                if (p_8664_.canUpdate())
++                    p_8664_.m_6083_();
++                p_8664_.postTick(); // CraftBukkit
++                profilerfiller.m_7238_();
++
++                for (Entity entity : p_8664_.m_20197_()) {
++                    this.m_8662_(p_8664_, entity);
++                }
++
++            }
++        } else {
++            p_8664_.m_8127_();
++        }
++    }
++
++    public boolean m_7966_(Player p_8696_, BlockPos p_8697_) {
++        return !this.f_8548_.m_7762_(this, p_8697_, p_8696_) && this.m_6857_().m_61937_(p_8697_);
++    }
++
++    public void m_8643_(@Nullable ProgressListener p_8644_, boolean p_8645_, boolean p_8646_) {
++        ServerChunkCache serverchunkcache = this.m_7726_();
++        if (!p_8646_) {
++            org.bukkit.Bukkit.getPluginManager().callEvent(new org.bukkit.event.world.WorldSaveEvent(getWorld())); // CraftBukkit
++            if (p_8644_ != null) {
++                p_8644_.m_6309_(new TranslatableComponent("menu.savingLevel"));
++            }
++
++            this.m_8806_();
++            if (p_8644_ != null) {
++                p_8644_.m_6307_(new TranslatableComponent("menu.savingChunks"));
++            }
++
++            if (p_8645_) {
++                this.f_143244_.m_157561_();
++            } else {
++                this.f_143244_.m_157554_();
++            }
++
++            serverchunkcache.m_8419_(p_8645_);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Save(this));
++        }
++        // CraftBukkit start - moved from MinecraftServer.saveChunks
++        ServerLevel worldserver1 = this;
++        f_8549_.m_7831_(worldserver1.m_6857_().m_61970_());
++        this.f_8548_.m_129910_().m_5917_(this.f_8548_.m_129901_().m_136307_());
++        convertable.m_78290_(this.f_8548_.f_129746_, this.f_8549_, this.f_8548_.m_6846_().m_6960_());
++        // CraftBukkit end
++    }
++
++    private void m_8806_() {
++        if (this.f_8559_ != null) {
++            this.f_8548_.m_129910_().m_5915_(this.f_8559_.m_64081_()); // CraftBukkit
++        }
++
++        this.m_7726_().m_8483_().m_78151_();
++    }
++
++    public <T extends Entity> List<? extends T> m_143280_(EntityTypeTest<Entity, T> p_143281_, Predicate<? super T> p_143282_) {
++        List<T> list = Lists.newArrayList();
++        this.m_142646_().m_142690_(p_143281_, (p_184091_) -> {
++            if (p_143282_.test(p_184091_)) {
++                list.add(p_184091_);
++            }
++
++        });
++        return list;
++    }
++
++    public List<? extends EnderDragon> m_8857_() {
++        return this.m_143280_(EntityType.f_20565_, LivingEntity::m_6084_);
++    }
++
++    public List<ServerPlayer> m_8795_(Predicate<? super ServerPlayer> p_8796_) {
++        List<ServerPlayer> list = Lists.newArrayList();
++
++        for (ServerPlayer serverplayer : this.f_8546_) {
++            if (p_8796_.test(serverplayer)) {
++                list.add(serverplayer);
++            }
++        }
++
++        return list;
++    }
++
++    @Nullable
++    public ServerPlayer m_8890_() {
++        List<ServerPlayer> list = this.m_8795_(LivingEntity::m_6084_);
++        return list.isEmpty() ? null : list.get(this.f_46441_.nextInt(list.size()));
++    }
++
++    public boolean m_7967_(Entity p_8837_) {
++        // CraftBukkit start
++        return this.addFreshEntity(p_8837_, CreatureSpawnEvent.SpawnReason.DEFAULT);
++    }
++
++    public boolean addFreshEntity(Entity entity, CreatureSpawnEvent.SpawnReason reason) {
++        return this.addEntity(entity, reason);
++        // CraftBukkit end
++    }
++
++    public boolean m_8847_(Entity p_8848_) {
++        // CraftBukkit start
++        return this.addWithUUID(p_8848_, CreatureSpawnEvent.SpawnReason.DEFAULT);
++    }
++
++    public boolean addWithUUID(Entity p_8848_, CreatureSpawnEvent.SpawnReason reason) {
++        return this.addEntity(p_8848_, reason);
++        // CraftBukkit end
++    }
++
++    public void m_143334_(Entity p_143335_) {
++        // CraftBukkit start
++        // SPIGOT-6415: Don't call spawn event for entities which travel trough worlds,
++        // since it is only an implementation detail, that a new entity is created when
++        // they are traveling between worlds.
++        this.addDuringTeleport(p_143335_, null);
++    }
++
++    public void addDuringTeleport(Entity p_143335_, CreatureSpawnEvent.SpawnReason reason) {
++        this.addEntity(p_143335_, reason);
++        // CraftBukkit end
++    }
++
++    public void m_8622_(ServerPlayer p_8623_) {
++        this.m_8853_(p_8623_);
++    }
++
++    public void m_8817_(ServerPlayer p_8818_) {
++        this.m_8853_(p_8818_);
++    }
++
++    public void m_8834_(ServerPlayer p_8835_) {
++        this.m_8853_(p_8835_);
++    }
++
++    public void m_8845_(ServerPlayer p_8846_) {
++        this.m_8853_(p_8846_);
++    }
++
++    /**
++     * @deprecated To be removed in 1.19. See {@link #removePlayerImmediately(ServerPlayer, Entity.RemovalReason)} as a possible replacement.
++     */
++    @Deprecated(forRemoval = true, since = "1.18.1")
++    public void removePlayer(ServerPlayer p_8850_, boolean keepData) {
++        p_8850_.m_146870_();
++        this.removeEntity(p_8850_, keepData);
++    }
++
++    /**
++     * @deprecated To be removed in 1.19. See {@link Entity#setRemoved(Entity.RemovalReason)} as a possible replacement.
++     */
++    @Deprecated(forRemoval = true, since = "1.18.1")
++    public void removeEntityComplete(Entity p_8865_, boolean keepData) {
++        if (p_8865_.isMultipartEntity()) {
++            for (net.minecraftforge.entity.PartEntity<?> parts : p_8865_.getParts()) {
++                parts.m_146870_();
++            }
++        }
++
++        this.m_7726_().m_8443_(p_8865_);
++        if (p_8865_ instanceof ServerPlayer) {
++            ServerPlayer serverplayerentity = (ServerPlayer) p_8865_;
++            this.f_8546_.remove(serverplayerentity);
++        }
++
++        this.m_6188_().m_83420_(p_8865_);
++        if (p_8865_ instanceof Mob) {
++            this.f_143246_.remove(((Mob) p_8865_).m_21573_());
++        }
++
++        p_8865_.m_146870_();
++        // onRemovedFromWorld and EntityLeaveWorldEvent are called by discard, so no need to do it ourselves here lest we double-call
++    }
++
++    /**
++     * @deprecated To be removed in 1.19. See {@link Entity#setRemoved(Entity.RemovalReason)} as a possible replacement.
++     */
++    @Deprecated(forRemoval = true, since = "1.18.1")
++    public void removeEntity(Entity entity) {
++        removeEntity(entity, false);
++    }
++
++    /**
++     * @deprecated To be removed in 1.19. See {@link Entity#setRemoved(Entity.RemovalReason)} as a possible replacement.
++     */
++    @Deprecated(forRemoval = true, since = "1.18.1")
++    public void removeEntity(Entity p_8868_, boolean keepData) {
++        if (this.f_8557_) {
++            throw (IllegalStateException) net.minecraft.Util.m_137570_(new IllegalStateException("Removing entity while ticking!"));
++        } else {
++            removeEntityComplete(p_8868_, keepData);
++        }
++    }
++
++    private void m_8853_(ServerPlayer p_8854_) {
++        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityJoinWorldEvent(p_8854_, this)))
++            return;
++        Entity entity = this.m_142646_().m_142694_(p_8854_.m_142081_());
++        if (entity != null) {
++            f_8566_.warn("Force-added player with duplicate UUID {}", (Object) p_8854_.m_142081_().toString());
++            entity.m_19877_();
++            this.m_143261_((ServerPlayer) entity, Entity.RemovalReason.DISCARDED);
++        }
++
++        this.f_143244_.addNewEntityWithoutEvent(p_8854_);
++        p_8854_.onAddedToWorld();
++    }
++
++    /*
++    private boolean addEntity(Entity p_8873_) {
++        org.spigotmc.AsyncCatcher.catchOp("entity add"); // Spigot
++        if (p_8873_.isRemoved()) {
++            LOGGER.warn("Tried to add entity {} but it was marked as removed already", (Object) EntityType.getKey(p_8873_.getType()));
++            return false;
++        } else {
++            if (this.entityManager.addNewEntity(p_8873_)) {
++                p_8873_.onAddedToWorld();
++                return true;
++            } else {
++                return false;
++            }
++        }
++    }
++     */
++
++    private boolean m_8872_(Entity p_8873_) {
++        return addEntity(p_8873_, CreatureSpawnEvent.SpawnReason.DEFAULT); // FoxServer
++    }
++
++    public boolean addEntity(Entity entity, CreatureSpawnEvent.SpawnReason spawnReason) {
++        org.spigotmc.AsyncCatcher.catchOp("entity add"); // Spigot
++        if (entity.m_146910_()) {
++            // WorldServer.LOGGER.warn("Tried to add entity {} but it was marked as removed already", EntityTypes.getKey(entity.getType())); // CraftBukkit
++            return false;
++        } else {
++            if (spawnReason != null && !CraftEventFactory.doEntityAddEventCalling(this, entity, spawnReason)) {
++                return false;
++            }
++            // CraftBukkit end
++
++            return this.f_143244_.m_157533_(entity);
++        }
++    }
++
++    public boolean m_8860_(Entity p_8861_) {
++        return tryAddFreshEntityWithPassengers(p_8861_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT);
++    }
++    public boolean tryAddFreshEntityWithPassengers(Entity p_8861_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason reason) {
++        if (p_8861_.m_142428_().map(Entity::m_142081_).anyMatch(this.f_143244_::m_157550_)) {
++            return false;
++        } else {
++            this.addFreshEntityWithPassengers(p_8861_, reason); // CraftBukkit
++            return true;
++        }
++    }
++
++    public void m_8712_(LevelChunk p_8713_) {
++        // Spigot Start
++        for (BlockEntity tileEntity : p_8713_.m_62954_().values()) {
++            if (tileEntity instanceof Container) {
++                for (HumanEntity humanEntity : Lists.newArrayList(((net.minecraft.world.Container) tileEntity).getViewers())) {
++                    humanEntity.closeInventory();
++                }
++            }
++        }
++        // Spigot end
++        p_8713_.m_187957_();
++        p_8713_.m_187979_(this);
++    }
++
++    public void m_143261_(ServerPlayer p_143262_, Entity.RemovalReason p_143263_) {
++        p_143262_.m_142687_(p_143263_);
++    }
++
++    // CraftBukkit start
++    public boolean strikeLightning(Entity entitylightning) {
++        return this.strikeLightning(entitylightning, LightningStrikeEvent.Cause.UNKNOWN);
++    }
++
++    public boolean strikeLightning(Entity entitylightning, LightningStrikeEvent.Cause cause) {
++        LightningStrikeEvent lightning = CraftEventFactory.callLightningStrikeEvent((org.bukkit.entity.LightningStrike) entitylightning.getBukkitEntity(), cause);
++
++        if (lightning.isCancelled()) {
++            return false;
++        }
++
++        return this.m_7967_(entitylightning);
++    }
++    // CraftBukkit end
++
++    public void m_6801_(int p_8612_, BlockPos p_8613_, int p_8614_) {
++        // CraftBukkit start
++        Player entityhuman = null;
++        Entity entity = this.m_6815_(p_8612_);
++        if (entity instanceof Player) entityhuman = (Player) entity;
++        // CraftBukkit end
++
++        for (ServerPlayer serverplayer : this.f_8548_.m_6846_().m_11314_()) {
++            if (serverplayer != null && serverplayer.f_19853_ == this && serverplayer.m_142049_() != p_8612_) {
++                double d0 = (double) p_8613_.m_123341_() - serverplayer.m_20185_();
++                double d1 = (double) p_8613_.m_123342_() - serverplayer.m_20186_();
++                double d2 = (double) p_8613_.m_123343_() - serverplayer.m_20189_();
++
++                // CraftBukkit start
++                if (entityhuman != null && !serverplayer.getBukkitEntity().canSee(entityhuman.getBukkitEntity())) {
++                    continue;
++                }
++                // CraftBukkit end
++
++                if (d0 * d0 + d1 * d1 + d2 * d2 < 1024.0D) {
++                    serverplayer.f_8906_.m_141995_(new ClientboundBlockDestructionPacket(p_8612_, p_8613_, p_8614_));
++                }
++            }
++        }
++
++    }
++
++    public void m_6263_(@Nullable Player p_8675_, double p_8676_, double p_8677_, double p_8678_, SoundEvent p_8679_, SoundSource p_8680_, float p_8681_, float p_8682_) {
++        net.minecraftforge.event.entity.PlaySoundAtEntityEvent event = net.minecraftforge.event.ForgeEventFactory.onPlaySoundAtEntity(p_8675_, p_8679_, p_8680_, p_8681_, p_8682_);
++        if (event.isCanceled() || event.getSound() == null) return;
++        p_8679_ = event.getSound();
++        p_8680_ = event.getCategory();
++        p_8681_ = event.getVolume();
++        this.f_8548_.m_6846_().m_11241_(p_8675_, p_8676_, p_8677_, p_8678_, p_8681_ > 1.0F ? (double) (16.0F * p_8681_) : 16.0D, this.m_46472_(), new ClientboundSoundPacket(p_8679_, p_8680_, p_8676_, p_8677_, p_8678_, p_8681_, p_8682_));
++    }
++
++    public void m_6269_(@Nullable Player p_8689_, Entity p_8690_, SoundEvent p_8691_, SoundSource p_8692_, float p_8693_, float p_8694_) {
++        net.minecraftforge.event.entity.PlaySoundAtEntityEvent event = net.minecraftforge.event.ForgeEventFactory.onPlaySoundAtEntity(p_8689_, p_8691_, p_8692_, p_8693_, p_8694_);
++        if (event.isCanceled() || event.getSound() == null) return;
++        p_8691_ = event.getSound();
++        p_8692_ = event.getCategory();
++        p_8693_ = event.getVolume();
++        this.f_8548_.m_6846_().m_11241_(p_8689_, p_8690_.m_20185_(), p_8690_.m_20186_(), p_8690_.m_20189_(), p_8693_ > 1.0F ? (double) (16.0F * p_8693_) : 16.0D, this.m_46472_(), new ClientboundSoundEntityPacket(p_8691_, p_8692_, p_8690_, p_8693_, p_8694_));
++    }
++
++    public void m_6798_(int p_8811_, BlockPos p_8812_, int p_8813_) {
++        this.f_8548_.m_6846_().m_11268_(new ClientboundLevelEventPacket(p_8811_, p_8812_, p_8813_, true));
++    }
++
++    public void m_5898_(@Nullable Player p_8684_, int p_8685_, BlockPos p_8686_, int p_8687_) {
++        this.f_8548_.m_6846_().m_11241_(p_8684_, (double) p_8686_.m_123341_(), (double) p_8686_.m_123342_(), (double) p_8686_.m_123343_(), 64.0D, this.m_46472_(), new ClientboundLevelEventPacket(p_8685_, p_8686_, p_8687_, false));
++    }
++
++    public int m_143344_() {
++        return this.m_6042_().m_63964_();
++    }
++
++    public void m_142346_(@Nullable Entity p_143268_, GameEvent p_143269_, BlockPos p_143270_) {
++        if (net.minecraftforge.common.ForgeHooks.onVanillaGameEvent(this, p_143268_, p_143269_, p_143270_))
++            this.m_151513_(p_143268_, p_143269_, p_143270_, p_143269_.m_157827_());
++    }
++
++    public void m_7260_(BlockPos p_8755_, BlockState p_8756_, BlockState p_8757_, int p_8758_) {
++        if (this.f_200893_) {
++            String s = "recursive call to sendBlockUpdated";
++            Util.m_200890_("recursive call to sendBlockUpdated", new IllegalStateException("recursive call to sendBlockUpdated"));
++        }
++
++        this.m_7726_().m_8450_(p_8755_);
++        VoxelShape voxelshape1 = p_8756_.m_60812_(this, p_8755_);
++        VoxelShape voxelshape = p_8757_.m_60812_(this, p_8755_);
++        if (Shapes.m_83157_(voxelshape1, voxelshape, BooleanOp.f_82687_)) {
++            List<PathNavigation> list = new ObjectArrayList<>();
++
++            for (Mob mob : this.f_143246_) {
++                PathNavigation pathnavigation = mob.m_21573_();
++                if (pathnavigation.m_200903_(p_8755_)) {
++                    list.add(pathnavigation);
++                }
++            }
++
++            try {
++                this.f_200893_ = true;
++
++                for (PathNavigation pathnavigation1 : list) {
++                    pathnavigation1.m_26569_();
++                }
++            } finally {
++                this.f_200893_ = false;
++            }
++
++        }
++    }
++
++    public void m_7605_(Entity p_8650_, byte p_8651_) {
++        this.m_7726_().m_8394_(p_8650_, new ClientboundEntityEventPacket(p_8650_, p_8651_));
++    }
++
++    public ServerChunkCache m_7726_() {
++        return this.f_8547_;
++    }
++
++    public Explosion m_7703_(@Nullable Entity p_8653_, @Nullable DamageSource p_8654_, @Nullable ExplosionDamageCalculator p_8655_, double p_8656_, double p_8657_, double p_8658_, float p_8659_, boolean p_8660_, Explosion.BlockInteraction p_8661_) {
++        // CraftBukkit start
++        Explosion explosion = super.m_7703_(p_8653_, p_8654_, p_8655_, p_8656_, p_8657_, p_8658_, p_8659_, p_8660_, p_8661_);
++        if (explosion.wasCanceled) {
++            return explosion;
++        }
++
++      /* Remove
+       Explosion explosion = new Explosion(this, p_8653_, p_8654_, p_8655_, p_8656_, p_8657_, p_8658_, p_8659_, p_8660_, p_8661_);
+-      explosion.m_46061_();
+-      explosion.m_46075_(false);
+-      if (p_8661_ == Explosion.BlockInteraction.NONE) {
+-         explosion.m_46080_();
+-      }
+-
+-      for(ServerPlayer serverplayer : this.f_8546_) {
+-         if (serverplayer.m_20275_(p_8656_, p_8657_, p_8658_) < 4096.0D) {
+-            serverplayer.f_8906_.m_141995_(new ClientboundExplodePacket(p_8656_, p_8657_, p_8658_, p_8659_, explosion.m_46081_(), explosion.m_46078_().get(serverplayer)));
+-         }
+-      }
+-
+-      return explosion;
+-   }
+-
+-   public void m_7696_(BlockPos p_8746_, Block p_8747_, int p_8748_, int p_8749_) {
+-      this.f_8556_.add(new BlockEventData(p_8746_, p_8747_, p_8748_, p_8749_));
+-   }
+-
+-   private void m_8807_() {
+-      this.f_184048_.clear();
+-
+-      while(!this.f_8556_.isEmpty()) {
+-         BlockEventData blockeventdata = this.f_8556_.removeFirst();
+-         if (this.m_183438_(ChunkPos.m_151388_(blockeventdata.f_45529_()))) {
+-            if (this.m_8698_(blockeventdata)) {
+-               this.f_8548_.m_6846_().m_11241_((Player)null, (double)blockeventdata.f_45529_().m_123341_(), (double)blockeventdata.f_45529_().m_123342_(), (double)blockeventdata.f_45529_().m_123343_(), 64.0D, this.m_46472_(), new ClientboundBlockEventPacket(blockeventdata.f_45529_(), blockeventdata.f_45530_(), blockeventdata.f_45531_(), blockeventdata.f_45532_()));
+-            }
+-         } else {
+-            this.f_184048_.add(blockeventdata);
+-         }
+-      }
+-
+-      this.f_8556_.addAll(this.f_184048_);
+-   }
+-
+-   private boolean m_8698_(BlockEventData p_8699_) {
+-      BlockState blockstate = this.m_8055_(p_8699_.f_45529_());
+-      return blockstate.m_60713_(p_8699_.f_45530_()) ? blockstate.m_60677_(this, p_8699_.f_45529_(), p_8699_.f_45531_(), p_8699_.f_45532_()) : false;
+-   }
+-
+-   public LevelTicks<Block> m_183326_() {
+-      return this.f_8553_;
+-   }
+-
+-   public LevelTicks<Fluid> m_183324_() {
+-      return this.f_184047_;
+-   }
+-
+-   @Nonnull
+-   public MinecraftServer m_142572_() {
+-      return this.f_8548_;
+-   }
+-
+-   public PortalForcer m_8871_() {
+-      return this.f_8552_;
+-   }
+-
+-   public StructureManager m_8875_() {
+-      return this.f_8548_.m_129909_();
+-   }
+-
+-   public void m_143283_(VibrationPath p_143284_) {
+-      BlockPos blockpos = p_143284_.m_157948_();
+-      ClientboundAddVibrationSignalPacket clientboundaddvibrationsignalpacket = new ClientboundAddVibrationSignalPacket(p_143284_);
+-      this.f_8546_.forEach((p_184082_) -> {
+-         this.m_8636_(p_184082_, false, (double)blockpos.m_123341_(), (double)blockpos.m_123342_(), (double)blockpos.m_123343_(), clientboundaddvibrationsignalpacket);
+-      });
+-   }
+-
+-   public <T extends ParticleOptions> int m_8767_(T p_8768_, double p_8769_, double p_8770_, double p_8771_, int p_8772_, double p_8773_, double p_8774_, double p_8775_, double p_8776_) {
+-      ClientboundLevelParticlesPacket clientboundlevelparticlespacket = new ClientboundLevelParticlesPacket(p_8768_, false, p_8769_, p_8770_, p_8771_, (float)p_8773_, (float)p_8774_, (float)p_8775_, (float)p_8776_, p_8772_);
+-      int i = 0;
+-
+-      for(int j = 0; j < this.f_8546_.size(); ++j) {
+-         ServerPlayer serverplayer = this.f_8546_.get(j);
+-         if (this.m_8636_(serverplayer, false, p_8769_, p_8770_, p_8771_, clientboundlevelparticlespacket)) {
+-            ++i;
+-         }
+-      }
+-
+-      return i;
+-   }
+-
+-   public <T extends ParticleOptions> boolean m_8624_(ServerPlayer p_8625_, T p_8626_, boolean p_8627_, double p_8628_, double p_8629_, double p_8630_, int p_8631_, double p_8632_, double p_8633_, double p_8634_, double p_8635_) {
+-      Packet<?> packet = new ClientboundLevelParticlesPacket(p_8626_, p_8627_, p_8628_, p_8629_, p_8630_, (float)p_8632_, (float)p_8633_, (float)p_8634_, (float)p_8635_, p_8631_);
+-      return this.m_8636_(p_8625_, p_8627_, p_8628_, p_8629_, p_8630_, packet);
+-   }
+-
+-   private boolean m_8636_(ServerPlayer p_8637_, boolean p_8638_, double p_8639_, double p_8640_, double p_8641_, Packet<?> p_8642_) {
+-      if (p_8637_.m_183503_() != this) {
+-         return false;
+-      } else {
+-         BlockPos blockpos = p_8637_.m_142538_();
+-         if (blockpos.m_203195_(new Vec3(p_8639_, p_8640_, p_8641_), p_8638_ ? 512.0D : 32.0D)) {
+-            p_8637_.f_8906_.m_141995_(p_8642_);
+-            return true;
+-         } else {
++      if (net.minecraftforge.event.ForgeEventFactory.onExplosionStart(this, explosion)) return explosion;
++      explosion.explode();
++      explosion.finalizeExplosion(false);
++       */
++        // CraftBukkit end - TODO: Check if explosions are still properly implemented
++        if (net.minecraftforge.event.ForgeEventFactory.onExplosionStart(this, explosion)) return explosion;
++
++        if (p_8661_ == Explosion.BlockInteraction.NONE) {
++            explosion.m_46080_();
++        }
++
++        for (ServerPlayer serverplayer : this.f_8546_) {
++            if (serverplayer.m_20275_(p_8656_, p_8657_, p_8658_) < 4096.0D) {
++                serverplayer.f_8906_.m_141995_(new ClientboundExplodePacket(p_8656_, p_8657_, p_8658_, p_8659_, explosion.m_46081_(), explosion.m_46078_().get(serverplayer)));
++            }
++        }
++
++        return explosion;
++    }
++
++    public void m_7696_(BlockPos p_8746_, Block p_8747_, int p_8748_, int p_8749_) {
++        this.f_8556_.add(new BlockEventData(p_8746_, p_8747_, p_8748_, p_8749_));
++    }
++
++    private void m_8807_() {
++        this.f_184048_.clear();
++
++        while (!this.f_8556_.isEmpty()) {
++            BlockEventData blockeventdata = this.f_8556_.removeFirst();
++            if (this.m_183438_(ChunkPos.m_151388_(blockeventdata.f_45529_()))) {
++                if (this.m_8698_(blockeventdata)) {
++                    this.f_8548_.m_6846_().m_11241_((Player) null, (double) blockeventdata.f_45529_().m_123341_(), (double) blockeventdata.f_45529_().m_123342_(), (double) blockeventdata.f_45529_().m_123343_(), 64.0D, this.m_46472_(), new ClientboundBlockEventPacket(blockeventdata.f_45529_(), blockeventdata.f_45530_(), blockeventdata.f_45531_(), blockeventdata.f_45532_()));
++                }
++            } else {
++                this.f_184048_.add(blockeventdata);
++            }
++        }
++
++        this.f_8556_.addAll(this.f_184048_);
++    }
++
++    private boolean m_8698_(BlockEventData p_8699_) {
++        BlockState blockstate = this.m_8055_(p_8699_.f_45529_());
++        return blockstate.m_60713_(p_8699_.f_45530_()) ? blockstate.m_60677_(this, p_8699_.f_45529_(), p_8699_.f_45531_(), p_8699_.f_45532_()) : false;
++    }
++
++    public LevelTicks<Block> m_183326_() {
++        return this.f_8553_;
++    }
++
++    public LevelTicks<Fluid> m_183324_() {
++        return this.f_184047_;
++    }
++
++    @Nonnull
++    public MinecraftServer m_142572_() {
++        return this.f_8548_;
++    }
++
++    public PortalForcer m_8871_() {
++        return this.f_8552_;
++    }
++
++    public StructureManager m_8875_() {
++        return this.f_8548_.m_129909_();
++    }
++
++    public void m_143283_(VibrationPath p_143284_) {
++        BlockPos blockpos = p_143284_.m_157948_();
++        ClientboundAddVibrationSignalPacket clientboundaddvibrationsignalpacket = new ClientboundAddVibrationSignalPacket(p_143284_);
++        this.f_8546_.forEach((p_184082_) -> {
++            this.m_8636_(p_184082_, false, (double) blockpos.m_123341_(), (double) blockpos.m_123342_(), (double) blockpos.m_123343_(), clientboundaddvibrationsignalpacket);
++        });
++    }
++
++    public <T extends ParticleOptions> int m_8767_(T p_8768_, double p_8769_, double p_8770_, double p_8771_, int p_8772_, double p_8773_, double p_8774_, double p_8775_, double p_8776_) {
++        ClientboundLevelParticlesPacket clientboundlevelparticlespacket = new ClientboundLevelParticlesPacket(p_8768_, false, p_8769_, p_8770_, p_8771_, (float) p_8773_, (float) p_8774_, (float) p_8775_, (float) p_8776_, p_8772_);
++        int i = 0;
++
++        for (int j = 0; j < this.f_8546_.size(); ++j) {
++            ServerPlayer serverplayer = this.f_8546_.get(j);
++            if (this.m_8636_(serverplayer, false, p_8769_, p_8770_, p_8771_, clientboundlevelparticlespacket)) {
++                ++i;
++            }
++        }
++
++        return i;
++    }
++
++    public <T extends ParticleOptions> boolean m_8624_(ServerPlayer p_8625_, T p_8626_, boolean p_8627_, double p_8628_, double p_8629_, double p_8630_, int p_8631_, double p_8632_, double p_8633_, double p_8634_, double p_8635_) {
++        Packet<?> packet = new ClientboundLevelParticlesPacket(p_8626_, p_8627_, p_8628_, p_8629_, p_8630_, (float) p_8632_, (float) p_8633_, (float) p_8634_, (float) p_8635_, p_8631_);
++        return this.m_8636_(p_8625_, p_8627_, p_8628_, p_8629_, p_8630_, packet);
++    }
++
++    private boolean m_8636_(ServerPlayer p_8637_, boolean p_8638_, double p_8639_, double p_8640_, double p_8641_, Packet<?> p_8642_) {
++        if (p_8637_.m_183503_() != this) {
+             return false;
+-         }
+-      }
+-   }
+-
+-   @Nullable
+-   public Entity m_6815_(int p_8597_) {
+-      return this.m_142646_().m_142597_(p_8597_);
+-   }
+-
+-   /** @deprecated */
+-   @Deprecated
+-   @Nullable
+-   public Entity m_143317_(int p_143318_) {
+-      Entity entity = this.m_142646_().m_142597_(p_143318_);
+-      return entity != null ? entity : this.f_143247_.get(p_143318_);
+-   }
+-
+-   @Nullable
+-   public Entity m_8791_(UUID p_8792_) {
+-      return this.m_142646_().m_142694_(p_8792_);
+-   }
+-
+-   @Nullable
+-   public BlockPos m_207561_(TagKey<ConfiguredStructureFeature<?, ?>> p_207562_, BlockPos p_207563_, int p_207564_, boolean p_207565_) {
+-      if (!this.f_8548_.m_129910_().m_5961_().m_64657_()) {
+-         return null;
+-      } else {
+-         Optional<HolderSet.Named<ConfiguredStructureFeature<?, ?>>> optional = this.m_5962_().m_175515_(Registry.f_122882_).m_203431_(p_207562_);
+-         if (optional.isEmpty()) {
++        } else {
++            BlockPos blockpos = p_8637_.m_142538_();
++            if (blockpos.m_203195_(new Vec3(p_8639_, p_8640_, p_8641_), p_8638_ ? 512.0D : 32.0D)) {
++                p_8637_.f_8906_.m_141995_(p_8642_);
++                return true;
++            } else {
++                return false;
++            }
++        }
++    }
++
++    @Nullable
++    public Entity m_6815_(int p_8597_) {
++        return this.m_142646_().m_142597_(p_8597_);
++    }
++
++    /**
++     * @deprecated
++     */
++    @Deprecated
++    @Nullable
++    public Entity m_143317_(int p_143318_) {
++        Entity entity = this.m_142646_().m_142597_(p_143318_);
++        return entity != null ? entity : this.f_143247_.get(p_143318_);
++    }
++
++    @Nullable
++    public Entity m_8791_(UUID p_8792_) {
++        return this.m_142646_().m_142694_(p_8792_);
++    }
++
++    @Nullable
++    public BlockPos m_207561_(TagKey<ConfiguredStructureFeature<?, ?>> p_207562_, BlockPos p_207563_, int p_207564_, boolean p_207565_) {
++        if (!this.f_8548_.m_129910_().m_5961_().m_64657_()) {
+             return null;
+-         } else {
+-            Pair<BlockPos, Holder<ConfiguredStructureFeature<?, ?>>> pair = this.m_7726_().m_8481_().m_207970_(this, optional.get(), p_207563_, p_207564_, p_207565_);
+-            return pair != null ? pair.getFirst() : null;
+-         }
+-      }
+-   }
+-
+-   @Nullable
+-   public Pair<BlockPos, Holder<Biome>> m_207571_(Predicate<Holder<Biome>> p_207572_, BlockPos p_207573_, int p_207574_, int p_207575_) {
+-      return this.m_7726_().m_8481_().m_62218_().m_207481_(p_207573_.m_123341_(), p_207573_.m_123342_(), p_207573_.m_123343_(), p_207574_, p_207575_, p_207572_, this.f_46441_, true, this.m_7726_().m_8481_().m_183403_());
+-   }
+-
+-   public RecipeManager m_7465_() {
+-      return this.f_8548_.m_129894_();
+-   }
+-
+-   public boolean m_7441_() {
+-      return this.f_8564_;
+-   }
+-
+-   public RegistryAccess m_5962_() {
+-      return this.f_8548_.m_206579_();
+-   }
+-
+-   public DimensionDataStorage m_8895_() {
+-      return this.m_7726_().m_8483_();
+-   }
+-
+-   @Nullable
+-   public MapItemSavedData m_7489_(String p_8785_) {
+-      return this.m_142572_().m_129783_().m_8895_().m_164858_(MapItemSavedData::m_164807_, p_8785_);
+-   }
+-
+-   public void m_142325_(String p_143305_, MapItemSavedData p_143306_) {
+-      this.m_142572_().m_129783_().m_8895_().m_164855_(p_143305_, p_143306_);
+-   }
+-
+-   public int m_7354_() {
+-      return this.m_142572_().m_129783_().m_8895_().m_164861_(MapIndex::m_164762_, MapIndex::new, "idcounts").m_77880_();
+-   }
+-
+-   public void m_8733_(BlockPos p_8734_, float p_8735_) {
+-      ChunkPos chunkpos = new ChunkPos(new BlockPos(this.f_46442_.m_6789_(), 0, this.f_46442_.m_6526_()));
+-      this.f_46442_.m_7250_(p_8734_, p_8735_);
+-      this.m_7726_().m_8438_(TicketType.f_9442_, chunkpos, 11, Unit.INSTANCE);
+-      this.m_7726_().m_8387_(TicketType.f_9442_, new ChunkPos(p_8734_), 11, Unit.INSTANCE);
+-      this.m_142572_().m_6846_().m_11268_(new ClientboundSetDefaultSpawnPositionPacket(p_8734_, p_8735_));
+-   }
+-
+-   public BlockPos m_8900_() {
+-      BlockPos blockpos = new BlockPos(this.f_46442_.m_6789_(), this.f_46442_.m_6527_(), this.f_46442_.m_6526_());
+-      if (!this.m_6857_().m_61937_(blockpos)) {
+-         blockpos = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, new BlockPos(this.m_6857_().m_6347_(), 0.0D, this.m_6857_().m_6345_()));
+-      }
+-
+-      return blockpos;
+-   }
+-
+-   public float m_8901_() {
+-      return this.f_46442_.m_6790_();
+-   }
+-
+-   public LongSet m_8902_() {
+-      ForcedChunksSavedData forcedchunkssaveddata = this.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
+-      return (LongSet)(forcedchunkssaveddata != null ? LongSets.unmodifiable(forcedchunkssaveddata.m_46116_()) : LongSets.EMPTY_SET);
+-   }
+-
+-   public boolean m_8602_(int p_8603_, int p_8604_, boolean p_8605_) {
+-      ForcedChunksSavedData forcedchunkssaveddata = this.m_8895_().m_164861_(ForcedChunksSavedData::m_151483_, ForcedChunksSavedData::new, "chunks");
+-      ChunkPos chunkpos = new ChunkPos(p_8603_, p_8604_);
+-      long i = chunkpos.m_45588_();
+-      boolean flag;
+-      if (p_8605_) {
+-         flag = forcedchunkssaveddata.m_46116_().add(i);
+-         if (flag) {
+-            this.m_6325_(p_8603_, p_8604_);
+-         }
+-      } else {
+-         flag = forcedchunkssaveddata.m_46116_().remove(i);
+-      }
+-
+-      forcedchunkssaveddata.m_77760_(flag);
+-      if (flag) {
+-         this.m_7726_().m_6692_(chunkpos, p_8605_);
+-      }
+-
+-      return flag;
+-   }
+-
+-   public List<ServerPlayer> m_6907_() {
+-      return this.f_8546_;
+-   }
+-
+-   public void m_6559_(BlockPos p_8751_, BlockState p_8752_, BlockState p_8753_) {
+-      Optional<PoiType> optional = PoiType.m_27390_(p_8752_);
+-      Optional<PoiType> optional1 = PoiType.m_27390_(p_8753_);
+-      if (!Objects.equals(optional, optional1)) {
+-         BlockPos blockpos = p_8751_.m_7949_();
+-         optional.ifPresent((p_207583_) -> {
+-            this.m_142572_().execute(() -> {
+-               this.m_8904_().m_27079_(blockpos);
+-               DebugPackets.m_133716_(this, blockpos);
+-            });
+-         });
+-         optional1.ifPresent((p_184106_) -> {
+-            this.m_142572_().execute(() -> {
+-               this.m_8904_().m_27085_(blockpos, p_184106_);
+-               DebugPackets.m_133679_(this, blockpos);
+-            });
+-         });
+-      }
+-   }
+-
+-   public PoiManager m_8904_() {
+-      return this.m_7726_().m_8484_();
+-   }
+-
+-   public boolean m_8802_(BlockPos p_8803_) {
+-      return this.m_8736_(p_8803_, 1);
+-   }
+-
+-   public boolean m_8762_(SectionPos p_8763_) {
+-      return this.m_8802_(p_8763_.m_123250_());
+-   }
+-
+-   public boolean m_8736_(BlockPos p_8737_, int p_8738_) {
+-      if (p_8738_ > 6) {
+-         return false;
+-      } else {
+-         return this.m_8828_(SectionPos.m_123199_(p_8737_)) <= p_8738_;
+-      }
+-   }
+-
+-   public int m_8828_(SectionPos p_8829_) {
+-      return this.m_8904_().m_27098_(p_8829_);
+-   }
+-
+-   public Raids m_8905_() {
+-      return this.f_8565_;
+-   }
+-
+-   @Nullable
+-   public Raid m_8832_(BlockPos p_8833_) {
+-      return this.f_8565_.m_37970_(p_8833_, 9216);
+-   }
+-
+-   public boolean m_8843_(BlockPos p_8844_) {
+-      return this.m_8832_(p_8844_) != null;
+-   }
+-
+-   public void m_8670_(ReputationEventType p_8671_, Entity p_8672_, ReputationEventHandler p_8673_) {
+-      p_8673_.m_6814_(p_8671_, p_8672_);
+-   }
+-
+-   public void m_8786_(Path p_8787_) throws IOException {
+-      ChunkMap chunkmap = this.m_7726_().f_8325_;
+-      Writer writer = Files.newBufferedWriter(p_8787_.resolve("stats.txt"));
+-
+-      try {
+-         writer.write(String.format("spawning_chunks: %d\n", chunkmap.m_143145_().m_140816_()));
+-         NaturalSpawner.SpawnState naturalspawner$spawnstate = this.m_7726_().m_8485_();
+-         if (naturalspawner$spawnstate != null) {
+-            for(Entry<MobCategory> entry : naturalspawner$spawnstate.m_47148_().object2IntEntrySet()) {
+-               writer.write(String.format("spawn_count.%s: %d\n", entry.getKey().m_21607_(), entry.getIntValue()));
+-            }
+-         }
+-
+-         writer.write(String.format("entities: %s\n", this.f_143244_.m_157572_()));
+-         writer.write(String.format("block_entity_tickers: %d\n", this.f_151512_.size()));
+-         writer.write(String.format("block_ticks: %d\n", this.m_183326_().m_183574_()));
+-         writer.write(String.format("fluid_ticks: %d\n", this.m_183324_().m_183574_()));
+-         writer.write("distance_manager: " + chunkmap.m_143145_().m_140837_() + "\n");
+-         writer.write(String.format("pending_tasks: %d\n", this.m_7726_().m_8480_()));
+-      } catch (Throwable throwable11) {
+-         if (writer != null) {
+-            try {
+-               writer.close();
+-            } catch (Throwable throwable5) {
+-               throwable11.addSuppressed(throwable5);
+-            }
+-         }
+-
+-         throw throwable11;
+-      }
+-
+-      if (writer != null) {
+-         writer.close();
+-      }
+-
+-      CrashReport crashreport = new CrashReport("Level dump", new Exception("dummy"));
+-      this.m_6026_(crashreport);
+-      Writer writer3 = Files.newBufferedWriter(p_8787_.resolve("example_crash.txt"));
+-
+-      try {
+-         writer3.write(crashreport.m_127526_());
+-      } catch (Throwable throwable10) {
+-         if (writer3 != null) {
+-            try {
+-               writer3.close();
+-            } catch (Throwable throwable4) {
+-               throwable10.addSuppressed(throwable4);
+-            }
+-         }
+-
+-         throw throwable10;
+-      }
+-
+-      if (writer3 != null) {
+-         writer3.close();
+-      }
+-
+-      Path path = p_8787_.resolve("chunks.csv");
+-      Writer writer4 = Files.newBufferedWriter(path);
+-
+-      try {
+-         chunkmap.m_140274_(writer4);
+-      } catch (Throwable throwable9) {
+-         if (writer4 != null) {
+-            try {
+-               writer4.close();
+-            } catch (Throwable throwable3) {
+-               throwable9.addSuppressed(throwable3);
+-            }
+-         }
+-
+-         throw throwable9;
+-      }
+-
+-      if (writer4 != null) {
+-         writer4.close();
+-      }
+-
+-      Path path1 = p_8787_.resolve("entity_chunks.csv");
+-      Writer writer5 = Files.newBufferedWriter(path1);
+-
+-      try {
+-         this.f_143244_.m_157548_(writer5);
+-      } catch (Throwable throwable8) {
+-         if (writer5 != null) {
+-            try {
+-               writer5.close();
+-            } catch (Throwable throwable2) {
+-               throwable8.addSuppressed(throwable2);
+-            }
+-         }
+-
+-         throw throwable8;
+-      }
+-
+-      if (writer5 != null) {
+-         writer5.close();
+-      }
+-
+-      Path path2 = p_8787_.resolve("entities.csv");
+-      Writer writer1 = Files.newBufferedWriter(path2);
+-
+-      try {
+-         m_8781_(writer1, this.m_142646_().m_142273_());
+-      } catch (Throwable throwable7) {
+-         if (writer1 != null) {
+-            try {
+-               writer1.close();
+-            } catch (Throwable throwable1) {
+-               throwable7.addSuppressed(throwable1);
+-            }
+-         }
+-
+-         throw throwable7;
+-      }
+-
+-      if (writer1 != null) {
+-         writer1.close();
+-      }
+-
+-      Path path3 = p_8787_.resolve("block_entities.csv");
+-      Writer writer2 = Files.newBufferedWriter(path3);
+-
+-      try {
+-         this.m_143299_(writer2);
+-      } catch (Throwable throwable6) {
+-         if (writer2 != null) {
+-            try {
+-               writer2.close();
+-            } catch (Throwable throwable) {
+-               throwable6.addSuppressed(throwable);
+-            }
+-         }
+-
+-         throw throwable6;
+-      }
+-
+-      if (writer2 != null) {
+-         writer2.close();
+-      }
+-
+-   }
+-
+-   private static void m_8781_(Writer p_8782_, Iterable<Entity> p_8783_) throws IOException {
+-      CsvOutput csvoutput = CsvOutput.m_13619_().m_13630_("x").m_13630_("y").m_13630_("z").m_13630_("uuid").m_13630_("type").m_13630_("alive").m_13630_("display_name").m_13630_("custom_name").m_13628_(p_8782_);
+-
+-      for(Entity entity : p_8783_) {
+-         Component component = entity.m_7770_();
+-         Component component1 = entity.m_5446_();
+-         csvoutput.m_13624_(entity.m_20185_(), entity.m_20186_(), entity.m_20189_(), entity.m_142081_(), Registry.f_122826_.m_7981_(entity.m_6095_()), entity.m_6084_(), component1.getString(), component != null ? component.getString() : null);
+-      }
+-
+-   }
+-
+-   private void m_143299_(Writer p_143300_) throws IOException {
+-      CsvOutput csvoutput = CsvOutput.m_13619_().m_13630_("x").m_13630_("y").m_13630_("z").m_13630_("type").m_13628_(p_143300_);
+-
+-      for(TickingBlockEntity tickingblockentity : this.f_151512_) {
+-         BlockPos blockpos = tickingblockentity.m_142689_();
+-         csvoutput.m_13624_(blockpos.m_123341_(), blockpos.m_123342_(), blockpos.m_123343_(), tickingblockentity.m_142280_());
+-      }
+-
+-   }
+-
+-   @VisibleForTesting
+-   public void m_8722_(BoundingBox p_8723_) {
+-      this.f_8556_.removeIf((p_207568_) -> {
+-         return p_8723_.m_71051_(p_207568_.f_45529_());
+-      });
+-   }
+-
+-   public void m_6289_(BlockPos p_8743_, Block p_8744_) {
+-      if (!this.m_46659_()) {
+-         this.m_46672_(p_8743_, p_8744_);
+-      }
+-
+-   }
+-
+-   public float m_7717_(Direction p_8760_, boolean p_8761_) {
+-      return 1.0F;
+-   }
+-
+-   public Iterable<Entity> m_8583_() {
+-      return this.m_142646_().m_142273_();
+-   }
+-
+-   public String toString() {
+-      return "ServerLevel[" + this.f_8549_.m_5462_() + "]";
+-   }
+-
+-   public boolean m_8584_() {
+-      return this.f_8548_.m_129910_().m_5961_().m_64669_();
+-   }
+-
+-   public long m_7328_() {
+-      return this.f_8548_.m_129910_().m_5961_().m_64619_();
+-   }
+-
+-   @Nullable
+-   public EndDragonFight m_8586_() {
+-      return this.f_8559_;
+-   }
+-
+-   public ServerLevel m_6018_() {
+-      return this;
+-   }
+-
+-   @VisibleForTesting
+-   public String m_8590_() {
+-      return String.format("players: %s, entities: %s [%s], block_entities: %d [%s], block_ticks: %d, fluid_ticks: %d, chunk_source: %s", this.f_8546_.size(), this.f_143244_.m_157572_(), m_143301_(this.f_143244_.m_157567_().m_142273_(), (p_207585_) -> {
+-         return Registry.f_122826_.m_7981_(p_207585_.m_6095_()).toString();
+-      }), this.f_151512_.size(), m_143301_(this.f_151512_, TickingBlockEntity::m_142280_), this.m_183326_().m_183574_(), this.m_183324_().m_183574_(), this.m_46464_());
+-   }
+-
+-   private static <T> String m_143301_(Iterable<T> p_143302_, Function<T, String> p_143303_) {
+-      try {
+-         Object2IntOpenHashMap<String> object2intopenhashmap = new Object2IntOpenHashMap<>();
+-
+-         for(T t : p_143302_) {
+-            String s = p_143303_.apply(t);
+-            object2intopenhashmap.addTo(s, 1);
+-         }
+-
+-         return object2intopenhashmap.object2IntEntrySet().stream().sorted(Comparator.<Entry<String>,Integer>comparing(Entry::getIntValue).reversed()).limit(5L).map((p_207570_) -> {
+-            return (String)p_207570_.getKey() + ":" + p_207570_.getIntValue();
+-         }).collect(Collectors.joining(","));
+-      } catch (Exception exception) {
+-         return "";
+-      }
+-   }
+-
+-   public static void m_8617_(ServerLevel p_8618_) {
+-      BlockPos blockpos = f_8562_;
+-      int i = blockpos.m_123341_();
+-      int j = blockpos.m_123342_() - 2;
+-      int k = blockpos.m_123343_();
+-      BlockPos.m_121976_(i - 2, j + 1, k - 2, i + 2, j + 3, k + 2).forEach((p_207578_) -> {
+-         p_8618_.m_46597_(p_207578_, Blocks.f_50016_.m_49966_());
+-      });
+-      BlockPos.m_121976_(i - 2, j, k - 2, i + 2, j, k + 2).forEach((p_184101_) -> {
+-         p_8618_.m_46597_(p_184101_, Blocks.f_50080_.m_49966_());
+-      });
+-   }
+-
+-   public LevelEntityGetter<Entity> m_142646_() {
+-      return this.f_143244_.m_157567_();
+-   }
+-
+-   public void m_143311_(Stream<Entity> p_143312_) {
+-      this.f_143244_.m_157552_(p_143312_);
+-   }
+-
+-   public void m_143327_(Stream<Entity> p_143328_) {
+-      this.f_143244_.m_157559_(p_143328_);
+-   }
+-
+-   public void m_184102_(LevelChunk p_184103_) {
+-      p_184103_.m_187985_(this.m_6106_().m_6793_());
+-   }
+-
+-   public void m_196557_(ChunkAccess p_196558_) {
+-      this.f_8548_.execute(() -> {
+-         this.f_196556_.m_197282_(p_196558_.m_7697_(), p_196558_.m_6633_());
+-      });
+-   }
+-
+-   public void close() throws IOException {
+-      super.close();
+-      this.f_143244_.close();
+-   }
+-
+-   public String m_46464_() {
+-      return "Chunks[S] W: " + this.f_8547_.m_6754_() + " E: " + this.f_143244_.m_157572_();
+-   }
+-
+-   public boolean m_143319_(long p_143320_) {
+-      return this.f_143244_.m_157507_(p_143320_);
+-   }
+-
+-   private boolean m_184110_(long p_184111_) {
+-      return this.m_143319_(p_184111_) && this.f_8547_.m_143239_(p_184111_);
+-   }
+-
+-   public boolean m_143340_(BlockPos p_143341_) {
+-      return this.f_143244_.m_202167_(p_143341_) && this.f_8547_.f_8325_.m_143145_().m_183913_(ChunkPos.m_151388_(p_143341_));
+-   }
+-
+-   public boolean m_201918_(BlockPos p_201919_) {
+-      return this.f_143244_.m_202167_(p_201919_);
+-   }
+-
+-   public boolean m_201916_(ChunkPos p_201917_) {
+-      return this.f_143244_.m_202165_(p_201917_);
+-   }
+-
+-   final class EntityCallbacks implements LevelCallback<Entity> {
+-      public void m_141989_(Entity p_143355_) {
+-      }
+-
+-      public void m_141986_(Entity p_143359_) {
+-         ServerLevel.this.m_6188_().m_83420_(p_143359_);
+-      }
+-
+-      public void m_141987_(Entity p_143363_) {
+-         ServerLevel.this.f_143243_.m_156908_(p_143363_);
+-      }
+-
+-      public void m_141983_(Entity p_143367_) {
+-         ServerLevel.this.f_143243_.m_156912_(p_143367_);
+-      }
+-
+-      public void m_141985_(Entity p_143371_) {
+-         ServerLevel.this.m_7726_().m_8463_(p_143371_);
+-         if (p_143371_ instanceof ServerPlayer) {
+-            ServerPlayer serverplayer = (ServerPlayer)p_143371_;
+-            ServerLevel.this.f_8546_.add(serverplayer);
+-            ServerLevel.this.m_8878_();
+-         }
+-
+-         if (p_143371_ instanceof Mob) {
+-            Mob mob = (Mob)p_143371_;
+-            if (ServerLevel.this.f_200893_) {
+-               String s = "onTrackingStart called during navigation iteration";
+-               Util.m_200890_("onTrackingStart called during navigation iteration", new IllegalStateException("onTrackingStart called during navigation iteration"));
+-            }
+-
+-            ServerLevel.this.f_143246_.add(mob);
+-         }
+-
+-         if (p_143371_ instanceof EnderDragon) {
+-            EnderDragon enderdragon = (EnderDragon)p_143371_;
+-
+-            for(EnderDragonPart enderdragonpart : enderdragon.m_31156_()) {
+-               ServerLevel.this.f_143247_.put(enderdragonpart.m_142049_(), enderdragonpart);
+-            }
+-         }
+-
+-      }
+-
+-      public void m_141981_(Entity p_143375_) {
+-         ServerLevel.this.m_7726_().m_8443_(p_143375_);
+-         if (p_143375_ instanceof ServerPlayer) {
+-            ServerPlayer serverplayer = (ServerPlayer)p_143375_;
+-            ServerLevel.this.f_8546_.remove(serverplayer);
+-            ServerLevel.this.m_8878_();
+-         }
+-
+-         if (p_143375_ instanceof Mob) {
+-            Mob mob = (Mob)p_143375_;
+-            if (ServerLevel.this.f_200893_) {
+-               String s = "onTrackingStart called during navigation iteration";
+-               Util.m_200890_("onTrackingStart called during navigation iteration", new IllegalStateException("onTrackingStart called during navigation iteration"));
+-            }
+-
+-            ServerLevel.this.f_143246_.remove(mob);
+-         }
+-
+-         if (p_143375_ instanceof EnderDragon) {
+-            EnderDragon enderdragon = (EnderDragon)p_143375_;
+-
+-            for(EnderDragonPart enderdragonpart : enderdragon.m_31156_()) {
+-               ServerLevel.this.f_143247_.remove(enderdragonpart.m_142049_());
+-            }
+-         }
+-
+-         GameEventListenerRegistrar gameeventlistenerregistrar = p_143375_.m_146887_();
+-         if (gameeventlistenerregistrar != null) {
+-            gameeventlistenerregistrar.m_157854_(p_143375_.f_19853_);
+-         }
+-
+-      }
+-   }
++        } else {
++            Optional<HolderSet.Named<ConfiguredStructureFeature<?, ?>>> optional = this.m_5962_().m_175515_(Registry.f_122882_).m_203431_(p_207562_);
++            if (optional.isEmpty()) {
++                return null;
++            } else {
++                Pair<BlockPos, Holder<ConfiguredStructureFeature<?, ?>>> pair = this.m_7726_().m_8481_().m_207970_(this, optional.get(), p_207563_, p_207564_, p_207565_);
++                return pair != null ? pair.getFirst() : null;
++            }
++        }
++    }
++
++    @Nullable
++    public Pair<BlockPos, Holder<Biome>> m_207571_(Predicate<Holder<Biome>> p_207572_, BlockPos p_207573_, int p_207574_, int p_207575_) {
++        return this.m_7726_().m_8481_().m_62218_().m_207481_(p_207573_.m_123341_(), p_207573_.m_123342_(), p_207573_.m_123343_(), p_207574_, p_207575_, p_207572_, this.f_46441_, true, this.m_7726_().m_8481_().m_183403_());
++    }
++
++    public RecipeManager m_7465_() {
++        return this.f_8548_.m_129894_();
++    }
++
++    public boolean m_7441_() {
++        return this.f_8564_;
++    }
++
++    public RegistryAccess m_5962_() {
++        return this.f_8548_.m_206579_();
++    }
++
++    public DimensionDataStorage m_8895_() {
++        return this.m_7726_().m_8483_();
++    }
++
++    @Nullable
++    public MapItemSavedData m_7489_(String p_8785_) {
++        return this.m_142572_().m_129783_().m_8895_().m_164858_(MapItemSavedData::m_164807_, p_8785_);
++    }
++
++    public void m_142325_(String p_143305_, MapItemSavedData p_143306_) {
++        this.m_142572_().m_129783_().m_8895_().m_164855_(p_143305_, p_143306_);
++    }
++
++    public int m_7354_() {
++        return this.m_142572_().m_129783_().m_8895_().m_164861_(MapIndex::m_164762_, MapIndex::new, "idcounts").m_77880_();
++    }
++
++    public void m_8733_(BlockPos p_8734_, float p_8735_) {
++        ChunkPos chunkpos = new ChunkPos(new BlockPos(this.f_46442_.m_6789_(), 0, this.f_46442_.m_6526_()));
++        this.f_46442_.m_7250_(p_8734_, p_8735_);
++        this.m_7726_().m_8438_(TicketType.f_9442_, chunkpos, 11, Unit.INSTANCE);
++        this.m_7726_().m_8387_(TicketType.f_9442_, new ChunkPos(p_8734_), 11, Unit.INSTANCE);
++        this.m_142572_().m_6846_().m_11268_(new ClientboundSetDefaultSpawnPositionPacket(p_8734_, p_8735_));
++    }
++
++    public BlockPos m_8900_() {
++        BlockPos blockpos = new BlockPos(this.f_46442_.m_6789_(), this.f_46442_.m_6527_(), this.f_46442_.m_6526_());
++        if (!this.m_6857_().m_61937_(blockpos)) {
++            blockpos = this.m_5452_(Heightmap.Types.MOTION_BLOCKING, new BlockPos(this.m_6857_().m_6347_(), 0.0D, this.m_6857_().m_6345_()));
++        }
++
++        return blockpos;
++    }
++
++    public float m_8901_() {
++        return this.f_46442_.m_6790_();
++    }
++
++    public LongSet m_8902_() {
++        ForcedChunksSavedData forcedchunkssaveddata = this.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
++        return (LongSet) (forcedchunkssaveddata != null ? LongSets.unmodifiable(forcedchunkssaveddata.m_46116_()) : LongSets.EMPTY_SET);
++    }
++
++    public boolean m_8602_(int p_8603_, int p_8604_, boolean p_8605_) {
++        ForcedChunksSavedData forcedchunkssaveddata = this.m_8895_().m_164861_(ForcedChunksSavedData::m_151483_, ForcedChunksSavedData::new, "chunks");
++        ChunkPos chunkpos = new ChunkPos(p_8603_, p_8604_);
++        long i = chunkpos.m_45588_();
++        boolean flag;
++        if (p_8605_) {
++            flag = forcedchunkssaveddata.m_46116_().add(i);
++            if (flag) {
++                this.m_6325_(p_8603_, p_8604_);
++            }
++        } else {
++            flag = forcedchunkssaveddata.m_46116_().remove(i);
++        }
++
++        forcedchunkssaveddata.m_77760_(flag);
++        if (flag) {
++            this.m_7726_().m_6692_(chunkpos, p_8605_);
++        }
++
++        return flag;
++    }
++
++    public List<ServerPlayer> m_6907_() {
++        return this.f_8546_;
++    }
++
++    public void m_6559_(BlockPos p_8751_, BlockState p_8752_, BlockState p_8753_) {
++        Optional<PoiType> optional = PoiType.m_27390_(p_8752_);
++        Optional<PoiType> optional1 = PoiType.m_27390_(p_8753_);
++        if (!Objects.equals(optional, optional1)) {
++            BlockPos blockpos = p_8751_.m_7949_();
++            optional.ifPresent((p_207583_) -> {
++                this.m_142572_().execute(() -> {
++                    this.m_8904_().m_27079_(blockpos);
++                    DebugPackets.m_133716_(this, blockpos);
++                });
++            });
++            optional1.ifPresent((p_184106_) -> {
++                this.m_142572_().execute(() -> {
++                    this.m_8904_().m_27085_(blockpos, p_184106_);
++                    DebugPackets.m_133679_(this, blockpos);
++                });
++            });
++        }
++    }
++
++    public PoiManager m_8904_() {
++        return this.m_7726_().m_8484_();
++    }
++
++    public boolean m_8802_(BlockPos p_8803_) {
++        return this.m_8736_(p_8803_, 1);
++    }
++
++    public boolean m_8762_(SectionPos p_8763_) {
++        return this.m_8802_(p_8763_.m_123250_());
++    }
++
++    public boolean m_8736_(BlockPos p_8737_, int p_8738_) {
++        if (p_8738_ > 6) {
++            return false;
++        } else {
++            return this.m_8828_(SectionPos.m_123199_(p_8737_)) <= p_8738_;
++        }
++    }
++
++    public int m_8828_(SectionPos p_8829_) {
++        return this.m_8904_().m_27098_(p_8829_);
++    }
++
++    public Raids m_8905_() {
++        return this.f_8565_;
++    }
++
++    @Nullable
++    public Raid m_8832_(BlockPos p_8833_) {
++        return this.f_8565_.m_37970_(p_8833_, 9216);
++    }
++
++    public boolean m_8843_(BlockPos p_8844_) {
++        return this.m_8832_(p_8844_) != null;
++    }
++
++    public void m_8670_(ReputationEventType p_8671_, Entity p_8672_, ReputationEventHandler p_8673_) {
++        p_8673_.m_6814_(p_8671_, p_8672_);
++    }
++
++    public void m_8786_(Path p_8787_) throws IOException {
++        ChunkMap chunkmap = this.m_7726_().f_8325_;
++        Writer writer = Files.newBufferedWriter(p_8787_.resolve("stats.txt"));
++
++        try {
++            writer.write(String.format("spawning_chunks: %d\n", chunkmap.m_143145_().m_140816_()));
++            NaturalSpawner.SpawnState naturalspawner$spawnstate = this.m_7726_().m_8485_();
++            if (naturalspawner$spawnstate != null) {
++                for (Entry<MobCategory> entry : naturalspawner$spawnstate.m_47148_().object2IntEntrySet()) {
++                    writer.write(String.format("spawn_count.%s: %d\n", entry.getKey().m_21607_(), entry.getIntValue()));
++                }
++            }
++
++            writer.write(String.format("entities: %s\n", this.f_143244_.m_157572_()));
++            writer.write(String.format("block_entity_tickers: %d\n", this.f_151512_.size()));
++            writer.write(String.format("block_ticks: %d\n", this.m_183326_().m_183574_()));
++            writer.write(String.format("fluid_ticks: %d\n", this.m_183324_().m_183574_()));
++            writer.write("distance_manager: " + chunkmap.m_143145_().m_140837_() + "\n");
++            writer.write(String.format("pending_tasks: %d\n", this.m_7726_().m_8480_()));
++        } catch (Throwable throwable11) {
++            if (writer != null) {
++                try {
++                    writer.close();
++                } catch (Throwable throwable5) {
++                    throwable11.addSuppressed(throwable5);
++                }
++            }
++
++            throw throwable11;
++        }
++
++        if (writer != null) {
++            writer.close();
++        }
++
++        CrashReport crashreport = new CrashReport("Level dump", new Exception("dummy"));
++        this.m_6026_(crashreport);
++        Writer writer3 = Files.newBufferedWriter(p_8787_.resolve("example_crash.txt"));
++
++        try {
++            writer3.write(crashreport.m_127526_());
++        } catch (Throwable throwable10) {
++            if (writer3 != null) {
++                try {
++                    writer3.close();
++                } catch (Throwable throwable4) {
++                    throwable10.addSuppressed(throwable4);
++                }
++            }
++
++            throw throwable10;
++        }
++
++        if (writer3 != null) {
++            writer3.close();
++        }
++
++        Path path = p_8787_.resolve("chunks.csv");
++        Writer writer4 = Files.newBufferedWriter(path);
++
++        try {
++            chunkmap.m_140274_(writer4);
++        } catch (Throwable throwable9) {
++            if (writer4 != null) {
++                try {
++                    writer4.close();
++                } catch (Throwable throwable3) {
++                    throwable9.addSuppressed(throwable3);
++                }
++            }
++
++            throw throwable9;
++        }
++
++        if (writer4 != null) {
++            writer4.close();
++        }
++
++        Path path1 = p_8787_.resolve("entity_chunks.csv");
++        Writer writer5 = Files.newBufferedWriter(path1);
++
++        try {
++            this.f_143244_.m_157548_(writer5);
++        } catch (Throwable throwable8) {
++            if (writer5 != null) {
++                try {
++                    writer5.close();
++                } catch (Throwable throwable2) {
++                    throwable8.addSuppressed(throwable2);
++                }
++            }
++
++            throw throwable8;
++        }
++
++        if (writer5 != null) {
++            writer5.close();
++        }
++
++        Path path2 = p_8787_.resolve("entities.csv");
++        Writer writer1 = Files.newBufferedWriter(path2);
++
++        try {
++            m_8781_(writer1, this.m_142646_().m_142273_());
++        } catch (Throwable throwable7) {
++            if (writer1 != null) {
++                try {
++                    writer1.close();
++                } catch (Throwable throwable1) {
++                    throwable7.addSuppressed(throwable1);
++                }
++            }
++
++            throw throwable7;
++        }
++
++        if (writer1 != null) {
++            writer1.close();
++        }
++
++        Path path3 = p_8787_.resolve("block_entities.csv");
++        Writer writer2 = Files.newBufferedWriter(path3);
++
++        try {
++            this.m_143299_(writer2);
++        } catch (Throwable throwable6) {
++            if (writer2 != null) {
++                try {
++                    writer2.close();
++                } catch (Throwable throwable) {
++                    throwable6.addSuppressed(throwable);
++                }
++            }
++
++            throw throwable6;
++        }
++
++        if (writer2 != null) {
++            writer2.close();
++        }
++
++    }
++
++    private static void m_8781_(Writer p_8782_, Iterable<Entity> p_8783_) throws IOException {
++        CsvOutput csvoutput = CsvOutput.m_13619_().m_13630_("x").m_13630_("y").m_13630_("z").m_13630_("uuid").m_13630_("type").m_13630_("alive").m_13630_("display_name").m_13630_("custom_name").m_13628_(p_8782_);
++
++        for (Entity entity : p_8783_) {
++            Component component = entity.m_7770_();
++            Component component1 = entity.m_5446_();
++            csvoutput.m_13624_(entity.m_20185_(), entity.m_20186_(), entity.m_20189_(), entity.m_142081_(), Registry.f_122826_.m_7981_(entity.m_6095_()), entity.m_6084_(), component1.getString(), component != null ? component.getString() : null);
++        }
++
++    }
++
++    private void m_143299_(Writer p_143300_) throws IOException {
++        CsvOutput csvoutput = CsvOutput.m_13619_().m_13630_("x").m_13630_("y").m_13630_("z").m_13630_("type").m_13628_(p_143300_);
++
++        for (TickingBlockEntity tickingblockentity : this.f_151512_) {
++            BlockPos blockpos = tickingblockentity.m_142689_();
++            csvoutput.m_13624_(blockpos.m_123341_(), blockpos.m_123342_(), blockpos.m_123343_(), tickingblockentity.m_142280_());
++        }
++
++    }
++
++    @VisibleForTesting
++    public void m_8722_(BoundingBox p_8723_) {
++        this.f_8556_.removeIf((p_207568_) -> {
++            return p_8723_.m_71051_(p_207568_.f_45529_());
++        });
++    }
++
++    public void m_6289_(BlockPos p_8743_, Block p_8744_) {
++        if (!this.m_46659_()) {
++            // CraftBukkit start
++            if (populating) {
++                return;
++            }
++            // CraftBukkit end
++            this.m_46672_(p_8743_, p_8744_);
++        }
++
++    }
++
++    public float m_7717_(Direction p_8760_, boolean p_8761_) {
++        return 1.0F;
++    }
++
++    public Iterable<Entity> m_8583_() {
++        return this.m_142646_().m_142273_();
++    }
++
++    public String toString() {
++        return "ServerLevel[" + this.f_8549_.m_5462_() + "]";
++    }
++
++    public boolean m_8584_() {
++        return this.f_8549_.m_5961_().m_64669_(); // CraftBukkit
++    }
++
++    public long m_7328_() {
++        return this.f_8549_.m_5961_().m_64619_();
++    }
++
++    @Nullable
++    public EndDragonFight m_8586_() {
++        return this.f_8559_;
++    }
++
++    public ServerLevel m_6018_() {
++        return this;
++    }
++
++    @VisibleForTesting
++    public String m_8590_() {
++        return String.format("players: %s, entities: %s [%s], block_entities: %d [%s], block_ticks: %d, fluid_ticks: %d, chunk_source: %s", this.f_8546_.size(), this.f_143244_.m_157572_(), m_143301_(this.f_143244_.m_157567_().m_142273_(), (p_207585_) -> {
++            return Registry.f_122826_.m_7981_(p_207585_.m_6095_()).toString();
++        }), this.f_151512_.size(), m_143301_(this.f_151512_, TickingBlockEntity::m_142280_), this.m_183326_().m_183574_(), this.m_183324_().m_183574_(), this.m_46464_());
++    }
++
++    private static <T> String m_143301_(Iterable<T> p_143302_, Function<T, String> p_143303_) {
++        try {
++            Object2IntOpenHashMap<String> object2intopenhashmap = new Object2IntOpenHashMap<>();
++
++            for (T t : p_143302_) {
++                String s = p_143303_.apply(t);
++                object2intopenhashmap.addTo(s, 1);
++            }
++
++            return object2intopenhashmap.object2IntEntrySet().stream().sorted(Comparator.<Entry<String>, Integer>comparing(Entry::getIntValue).reversed()).limit(5L).map((p_207570_) -> {
++                return (String) p_207570_.getKey() + ":" + p_207570_.getIntValue();
++            }).collect(Collectors.joining(","));
++        } catch (Exception exception) {
++            return "";
++        }
++    }
++
++    public static void m_8617_(ServerLevel p_8618_) {
++        // CraftBukkit start
++        makeObsidianPlatform(p_8618_, null);
++    }
++
++    public static void makeObsidianPlatform(ServerLevel p_8618_, Entity entity) {
++        // CraftBukkit end
++        BlockPos blockpos = f_8562_;
++        int i = blockpos.m_123341_();
++        int j = blockpos.m_123342_() - 2;
++        int k = blockpos.m_123343_();
++
++        // CraftBukkit start
++        org.bukkit.craftbukkit.v1_18_R2.util.BlockStateListPopulator blockList = new org.bukkit.craftbukkit.v1_18_R2.util.BlockStateListPopulator(p_8618_);
++
++
++        BlockPos.m_121976_(i - 2, j + 1, k - 2, i + 2, j + 3, k + 2).forEach((p_207578_) -> {
++            blockList.m_7731_(p_207578_, Blocks.f_50016_.m_49966_(), 3);
++        });
++        BlockPos.m_121976_(i - 2, j, k - 2, i + 2, j, k + 2).forEach((p_184101_) -> {
++            blockList.m_7731_(p_184101_, Blocks.f_50080_.m_49966_(), 3);
++        });
++        org.bukkit.World bworld = p_8618_.getWorld();
++        org.bukkit.event.world.PortalCreateEvent portalEvent = new org.bukkit.event.world.PortalCreateEvent((List<org.bukkit.block.BlockState>) (List) blockList.getList(), bworld, (entity == null) ? null : entity.getBukkitEntity(), org.bukkit.event.world.PortalCreateEvent.CreateReason.END_PLATFORM);
++        p_8618_.getCraftServer().getPluginManager().callEvent(portalEvent);
++        if (!portalEvent.isCancelled()) {
++            blockList.updateList();
++        }
++        // CraftBukkit end
++    }
++
++    protected void initCapabilities() {
++        this.gatherCapabilities();
++        capabilityData = this.m_8895_().m_164861_(e -> net.minecraftforge.common.util.WorldCapabilityData.load(e, getCapabilities()), () -> new net.minecraftforge.common.util.WorldCapabilityData(getCapabilities()), net.minecraftforge.common.util.WorldCapabilityData.ID);
++        capabilityData.setCapabilities(getCapabilities());
++    }
++
++    public LevelEntityGetter<Entity> m_142646_() {
++        org.spigotmc.AsyncCatcher.catchOp("Chunk getEntities call"); // Spigot
++        return this.f_143244_.m_157567_();
++    }
++
++    public void m_143311_(Stream<Entity> p_143312_) {
++        this.f_143244_.m_157552_(p_143312_);
++    }
++
++    public void m_143327_(Stream<Entity> p_143328_) {
++        this.f_143244_.m_157559_(p_143328_);
++    }
++
++    public void m_184102_(LevelChunk p_184103_) {
++        p_184103_.m_187985_(this.m_6106_().m_6793_());
++    }
++
++    public void m_196557_(ChunkAccess p_196558_) {
++        this.f_8548_.execute(() -> {
++            this.f_196556_.m_197282_(p_196558_.m_7697_(), p_196558_.m_6633_());
++        });
++    }
++
++    public void close() throws IOException {
++        super.close();
++        this.f_143244_.close();
++    }
++
++    public String m_46464_() {
++        return "Chunks[S] W: " + this.f_8547_.m_6754_() + " E: " + this.f_143244_.m_157572_();
++    }
++
++    public boolean m_143319_(long p_143320_) {
++        return this.f_143244_.m_157507_(p_143320_);
++    }
++
++    private boolean m_184110_(long p_184111_) {
++        return this.m_143319_(p_184111_) && this.f_8547_.m_143239_(p_184111_);
++    }
++
++    public boolean m_143340_(BlockPos p_143341_) {
++        return this.f_143244_.m_202167_(p_143341_) && this.f_8547_.f_8325_.m_143145_().m_183913_(ChunkPos.m_151388_(p_143341_));
++    }
++
++    public boolean m_201918_(BlockPos p_201919_) {
++        return this.f_143244_.m_202167_(p_201919_);
++    }
++
++    public boolean m_201916_(ChunkPos p_201917_) {
++        return this.f_143244_.m_202165_(p_201917_);
++    }
++
++    final class EntityCallbacks implements LevelCallback<Entity> {
++        public void m_141989_(Entity p_143355_) {
++        }
++
++        public void m_141986_(Entity p_143359_) {
++            ServerLevel.this.m_6188_().m_83420_(p_143359_);
++        }
++
++        public void m_141987_(Entity p_143363_) {
++            ServerLevel.this.f_143243_.m_156908_(p_143363_);
++        }
++
++        public void m_141983_(Entity p_143367_) {
++            ServerLevel.this.f_143243_.m_156912_(p_143367_);
++        }
++
++        public void m_141985_(Entity p_143371_) {
++            org.spigotmc.AsyncCatcher.catchOp("entity register"); // Spigot
++            ServerLevel.this.m_7726_().m_8463_(p_143371_);
++            if (p_143371_ instanceof ServerPlayer) {
++                ServerPlayer serverplayer = (ServerPlayer) p_143371_;
++                ServerLevel.this.f_8546_.add(serverplayer);
++                ServerLevel.this.m_8878_();
++            }
++
++            if (p_143371_ instanceof Mob) {
++                Mob mob = (Mob) p_143371_;
++                if (ServerLevel.this.f_200893_) {
++                    String s = "onTrackingStart called during navigation iteration";
++                    Util.m_200890_("onTrackingStart called during navigation iteration", new IllegalStateException("onTrackingStart called during navigation iteration"));
++                }
++
++                ServerLevel.this.f_143246_.add(mob);
++            }
++
++            if (p_143371_.isMultipartEntity()) {
++                for (net.minecraftforge.entity.PartEntity<?> enderdragonpart : p_143371_.getParts()) {
++                    ServerLevel.this.f_143247_.put(enderdragonpart.m_142049_(), enderdragonpart);
++                }
++            }
++
++            p_143371_.valid = true; // CraftBukkit
++        }
++
++        public void m_141981_(Entity p_143375_) {
++            org.spigotmc.AsyncCatcher.catchOp("entity unregister"); // Spigot
++            // Spigot start
++            if (p_143375_ instanceof Player) {
++                m_142572_().f_129762_.values().stream().map(ServerLevel::m_8895_).forEach((worldData) ->
++                {
++                    for (Object o : worldData.f_78144_.values()) {
++                        if (o instanceof MapItemSavedData) {
++                            MapItemSavedData map = (MapItemSavedData) o;
++                            map.f_77896_.remove((Player) p_143375_);
++                            for (Iterator<MapItemSavedData.HoldingPlayer> iter = (Iterator<MapItemSavedData.HoldingPlayer>) map.f_77893_.iterator(); iter.hasNext(); ) {
++                                if (iter.next().f_77959_ == p_143375_) {
++                                    iter.remove();
++                                }
++                            }
++                        }
++                    }
++                });
++            }
++            // Spigot end
++            // Spigot Start
++            if (p_143375_.getBukkitEntity() instanceof org.bukkit.inventory.InventoryHolder && (!(p_143375_ instanceof ServerPlayer) || p_143375_.m_146911_() != Entity.RemovalReason.KILLED)) { // SPIGOT-6876: closeInventory clears death message
++                for (org.bukkit.entity.HumanEntity h : Lists.newArrayList(((org.bukkit.inventory.InventoryHolder) p_143375_.getBukkitEntity()).getInventory().getViewers())) {
++                    h.closeInventory();
++                }
++            }
++            // Spigot End
++            ServerLevel.this.m_7726_().m_8443_(p_143375_);
++            if (p_143375_ instanceof ServerPlayer) {
++                ServerPlayer serverplayer = (ServerPlayer) p_143375_;
++                ServerLevel.this.f_8546_.remove(serverplayer);
++                ServerLevel.this.m_8878_();
++            }
++
++            if (p_143375_ instanceof Mob) {
++                Mob mob = (Mob) p_143375_;
++                if (ServerLevel.this.f_200893_) {
++                    String s = "onTrackingStart called during navigation iteration";
++                    Util.m_200890_("onTrackingStart called during navigation iteration", new IllegalStateException("onTrackingStart called during navigation iteration"));
++                }
++
++                ServerLevel.this.f_143246_.remove(mob);
++            }
++
++            if (p_143375_.isMultipartEntity()) {
++                for (net.minecraftforge.entity.PartEntity<?> enderdragonpart : p_143375_.getParts()) {
++                    ServerLevel.this.f_143247_.remove(enderdragonpart.m_142049_());
++                }
++            }
++
++            GameEventListenerRegistrar gameeventlistenerregistrar = p_143375_.m_146887_();
++            if (gameeventlistenerregistrar != null) {
++                gameeventlistenerregistrar.m_157854_(p_143375_.f_19853_);
++            }
++
++            // CraftBukkit start
++            p_143375_.valid = false;
++            if (!(p_143375_ instanceof ServerPlayer)) {
++                for (ServerPlayer player : f_8546_) {
++                    player.getBukkitEntity().onEntityRemove(p_143375_);
++                }
++            }
++            // CraftBukkit end
++
++            p_143375_.onRemovedFromWorld();
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.EntityLeaveWorldEvent(p_143375_, ServerLevel.this));
++
++        }
++    }
+ }

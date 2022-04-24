@@ -1,0 +1,140 @@
+--- a/net/minecraft/world/entity/monster/EntityZombie.java
++++ b/net/minecraft/world/entity/monster/EntityZombie.java
+@@ -66,6 +66,15 @@
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.IBlockData;
+ 
++// CraftBukkit start
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.entity.Zombie;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityTargetEvent;
++import org.bukkit.event.entity.EntityTransformEvent;
++// CraftBukkit end
++
+ public class EntityZombie extends EntityMonster {
+ 
+     private static final UUID SPEED_MODIFIER_BABY_UUID = UUID.fromString("B9766B59-9566-4402-BC1F-2EE2A276D836");
+@@ -85,6 +94,7 @@
+     private boolean canBreakDoors;
+     private int inWaterTime;
+     public int conversionTime;
++    private int lastTick = MinecraftServer.currentTick; // CraftBukkit - add field
+ 
+     public EntityZombie(EntityTypes<? extends EntityZombie> entitytypes, World world) {
+         super(entitytypes, world);
+@@ -201,7 +211,10 @@
+     public void tick() {
+         if (!this.level.isClientSide && this.isAlive() && !this.isNoAi()) {
+             if (this.isUnderWaterConverting()) {
+-                --this.conversionTime;
++                // CraftBukkit start - Use wall time instead of ticks for conversion
++                int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++                this.conversionTime -= elapsedTicks;
++                // CraftBukkit end
+                 if (this.conversionTime < 0) {
+                     this.doUnderWaterConversion();
+                 }
+@@ -218,6 +231,7 @@
+         }
+ 
+         super.tick();
++        this.lastTick = MinecraftServer.currentTick; // CraftBukkit
+     }
+ 
+     @Override
+@@ -250,6 +264,7 @@
+     }
+ 
+     public void startUnderWaterConversion(int i) {
++        this.lastTick = MinecraftServer.currentTick; // CraftBukkit
+         this.conversionTime = i;
+         this.getEntityData().set(EntityZombie.DATA_DROWNED_CONVERSION_ID, true);
+     }
+@@ -263,11 +278,15 @@
+     }
+ 
+     protected void convertToZombieType(EntityTypes<? extends EntityZombie> entitytypes) {
+-        EntityZombie entityzombie = (EntityZombie) this.convertTo(entitytypes, true);
++        EntityZombie entityzombie = (EntityZombie) this.convertTo(entitytypes, true, EntityTransformEvent.TransformReason.DROWNED, CreatureSpawnEvent.SpawnReason.DROWNED);
+ 
+         if (entityzombie != null) {
+             entityzombie.handleAttributes(entityzombie.level.getCurrentDifficultyAt(entityzombie.blockPosition()).getSpecialMultiplier());
+             entityzombie.setCanBreakDoors(entityzombie.supportsBreakDoorGoal() && this.canBreakDoors());
++            // CraftBukkit start - SPIGOT-5208: End conversion to stop event spam
++        } else {
++            ((Zombie) getBukkitEntity()).setConversionTime(-1);
++            // CraftBukkit end
+         }
+ 
+     }
+@@ -307,9 +326,9 @@
+                     if (SpawnerCreature.isSpawnPositionOk(entitypositiontypes_surface, this.level, blockposition, entitytypes) && EntityPositionTypes.checkSpawnRules(entitytypes, worldserver, EnumMobSpawn.REINFORCEMENT, blockposition, this.level.random)) {
+                         entityzombie.setPos((double) i1, (double) j1, (double) k1);
+                         if (!this.level.hasNearbyAlivePlayer((double) i1, (double) j1, (double) k1, 7.0D) && this.level.isUnobstructed(entityzombie) && this.level.noCollision((Entity) entityzombie) && !this.level.containsAnyLiquid(entityzombie.getBoundingBox())) {
+-                            entityzombie.setTarget(entityliving);
++                            entityzombie.setTarget(entityliving, EntityTargetEvent.TargetReason.REINFORCEMENT_TARGET, true); // CraftBukkit
+                             entityzombie.finalizeSpawn(worldserver, this.level.getCurrentDifficultyAt(entityzombie.blockPosition()), EnumMobSpawn.REINFORCEMENT, (GroupDataEntity) null, (NBTTagCompound) null);
+-                            worldserver.addFreshEntityWithPassengers(entityzombie);
++                            worldserver.addFreshEntityWithPassengers(entityzombie, CreatureSpawnEvent.SpawnReason.REINFORCEMENTS); // CraftBukkit
+                             this.getAttribute(GenericAttributes.SPAWN_REINFORCEMENTS_CHANCE).addPermanentModifier(new AttributeModifier("Zombie reinforcement caller charge", -0.05000000074505806D, AttributeModifier.Operation.ADDITION));
+                             entityzombie.getAttribute(GenericAttributes.SPAWN_REINFORCEMENTS_CHANCE).addPermanentModifier(new AttributeModifier("Zombie reinforcement callee charge", -0.05000000074505806D, AttributeModifier.Operation.ADDITION));
+                             break;
+@@ -330,7 +349,14 @@
+             float f = this.level.getCurrentDifficultyAt(this.blockPosition()).getEffectiveDifficulty();
+ 
+             if (this.getMainHandItem().isEmpty() && this.isOnFire() && this.random.nextFloat() < f * 0.3F) {
+-                entity.setSecondsOnFire(2 * (int) f);
++                // CraftBukkit start
++                EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), entity.getBukkitEntity(), 2 * (int) f); // PAIL: fixme
++                this.level.getCraftServer().getPluginManager().callEvent(event);
++
++                if (!event.isCancelled()) {
++                    entity.setSecondsOnFire(event.getDuration(), false);
++                }
++                // CraftBukkit end
+             }
+         }
+ 
+@@ -411,18 +437,28 @@
+             }
+ 
+             EntityVillager entityvillager = (EntityVillager) entityliving;
+-            EntityZombieVillager entityzombievillager = (EntityZombieVillager) entityvillager.convertTo(EntityTypes.ZOMBIE_VILLAGER, false);
++            // CraftBukkit start
++            zombifyVillager(worldserver, entityvillager, this.blockPosition(), this.isSilent(), CreatureSpawnEvent.SpawnReason.INFECTION);
++        }
++    }
+ 
++    public static EntityZombieVillager zombifyVillager(WorldServer worldserver, EntityVillager entityvillager, net.minecraft.core.BlockPosition blockPosition, boolean silent, CreatureSpawnEvent.SpawnReason spawnReason) {
++        EntityZombieVillager entityzombievillager = (EntityZombieVillager) entityvillager.convertTo(EntityTypes.ZOMBIE_VILLAGER, false, EntityTransformEvent.TransformReason.INFECTION, spawnReason);
++        if (entityzombievillager != null) {
++            // CraftBukkit end
+             entityzombievillager.finalizeSpawn(worldserver, worldserver.getCurrentDifficultyAt(entityzombievillager.blockPosition()), EnumMobSpawn.CONVERSION, new EntityZombie.GroupDataZombie(false, true), (NBTTagCompound) null);
+             entityzombievillager.setVillagerData(entityvillager.getVillagerData());
+             entityzombievillager.setGossips((NBTBase) entityvillager.getGossips().store(DynamicOpsNBT.INSTANCE).getValue());
+             entityzombievillager.setTradeOffers(entityvillager.getOffers().createTag());
+             entityzombievillager.setVillagerXp(entityvillager.getVillagerXp());
+-            if (!this.isSilent()) {
+-                worldserver.levelEvent((EntityHuman) null, 1026, this.blockPosition(), 0);
++            // CraftBukkit start
++            if (!silent) {
++                worldserver.levelEvent((EntityHuman) null, 1026, blockPosition, 0);
+             }
++            // CraftBukkit end
+         }
+ 
++        return entityzombievillager; // CraftBukkit
+     }
+ 
+     @Override
+@@ -473,7 +509,7 @@
+                         entitychicken1.finalizeSpawn(worldaccess, difficultydamagescaler, EnumMobSpawn.JOCKEY, (GroupDataEntity) null, (NBTTagCompound) null);
+                         entitychicken1.setChickenJockey(true);
+                         this.startRiding(entitychicken1);
+-                        worldaccess.addFreshEntity(entitychicken1);
++                        worldaccess.addFreshEntity(entitychicken1, CreatureSpawnEvent.SpawnReason.MOUNT); // CraftBukkit
+                     }
+                 }
+             }

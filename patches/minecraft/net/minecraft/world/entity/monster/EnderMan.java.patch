@@ -1,0 +1,119 @@
+--- a/net/minecraft/world/entity/monster/EnderMan.java
++++ b/net/minecraft/world/entity/monster/EnderMan.java
+@@ -53,7 +_,6 @@
+ import net.minecraft.world.item.alchemy.PotionUtils;
+ import net.minecraft.world.item.alchemy.Potions;
+ import net.minecraft.world.level.ClipContext;
+-import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+@@ -105,7 +_,17 @@
+    }
+ 
+    public void m_6710_(@Nullable LivingEntity p_32537_) {
+-      super.m_6710_(p_32537_);
++      // CraftBukkit start - fire event
++      setTarget(p_32537_, org.bukkit.event.entity.EntityTargetEvent.TargetReason.UNKNOWN, true);
++   }
++
++   @Override
++   public boolean setTarget(LivingEntity p_32537_, org.bukkit.event.entity.EntityTargetEvent.TargetReason reason, boolean fireEvent) {
++      if (!super.setTarget(p_32537_, reason, fireEvent)) {
++         return false;
++      }
++      p_32537_ = m_5448_();
++      // CraftBukkit end
+       AttributeInstance attributeinstance = this.m_21051_(Attributes.f_22279_);
+       if (p_32537_ == null) {
+          this.f_32477_ = 0;
+@@ -120,6 +_,8 @@
+          }
+       }
+ 
++      super.m_6710_(p_32537_); //Forge: Moved down to allow event handlers to write data manager values.
++      return true;
+    }
+ 
+    protected void m_8097_() {
+@@ -194,7 +_,7 @@
+ 
+    boolean m_32534_(Player p_32535_) {
+       ItemStack itemstack = p_32535_.m_150109_().f_35975_.get(3);
+-      if (itemstack.m_150930_(Blocks.f_50143_.m_5456_())) {
++      if (net.minecraftforge.common.ForgeHooks.shouldSuppressEnderManAnger(this, p_32535_, itemstack)) {
+          return false;
+       } else {
+          Vec3 vec3 = p_32535_.m_20252_(1.0F).m_82541_();
+@@ -273,7 +_,9 @@
+       boolean flag = blockstate.m_60767_().m_76334_();
+       boolean flag1 = blockstate.m_60819_().m_205070_(FluidTags.f_13131_);
+       if (flag && !flag1) {
+-         boolean flag2 = this.m_20984_(p_32544_, p_32545_, p_32546_, true);
++         net.minecraftforge.event.entity.EntityTeleportEvent.EnderEntity event = net.minecraftforge.event.ForgeEventFactory.onEnderTeleport(this, p_32544_, p_32545_, p_32546_);
++         if (event.isCanceled()) return false;
++         boolean flag2 = this.m_20984_(event.getTargetX(), event.getTargetY(), event.getTargetZ(), true);
+          if (flag2 && !this.m_20067_()) {
+             this.f_19853_.m_6263_((Player)null, this.f_19854_, this.f_19855_, this.f_19856_, SoundEvents.f_11852_, this.m_5720_(), 1.0F, 1.0F);
+             this.m_5496_(SoundEvents.f_11852_, 1.0F, 1.0F);
+@@ -407,7 +_,7 @@
+       public boolean m_8036_() {
+          if (this.f_32554_.m_32530_() == null) {
+             return false;
+-         } else if (!this.f_32554_.f_19853_.m_46469_().m_46207_(GameRules.f_46132_)) {
++         } else if (!net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_32554_.f_19853_, this.f_32554_)) {
+             return false;
+          } else {
+             return this.f_32554_.m_21187_().nextInt(m_186073_(2000)) == 0;
+@@ -427,17 +_,20 @@
+          BlockState blockstate2 = this.f_32554_.m_32530_();
+          if (blockstate2 != null) {
+             blockstate2 = Block.m_49931_(blockstate2, this.f_32554_.f_19853_, blockpos);
+-            if (this.m_32558_(level, blockpos, blockstate2, blockstate, blockstate1, blockpos1)) {
+-               level.m_7731_(blockpos, blockstate2, 3);
+-               level.m_142346_(this.f_32554_, GameEvent.f_157797_, blockpos);
+-               this.f_32554_.m_32521_((BlockState)null);
++            if (this.m_32558_(level, blockpos, blockstate2, blockstate, blockstate1, blockpos1) && !net.minecraftforge.event.ForgeEventFactory.onBlockPlace(f_32554_, net.minecraftforge.common.util.BlockSnapshot.create(level.m_46472_(), level, blockpos1), net.minecraft.core.Direction.UP)) {
++               // CraftBukkit start - Place event
++               if (!org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityChangeBlockEvent(this.f_32554_, blockpos, blockstate2).isCancelled()) {
++                  level.m_7731_(blockpos, blockstate2, 3);
++                  level.m_142346_(this.f_32554_, GameEvent.f_157797_, blockpos);
++                  this.f_32554_.m_32521_((BlockState) null);
++               }
+             }
+ 
+          }
+       }
+ 
+       private boolean m_32558_(Level p_32559_, BlockPos p_32560_, BlockState p_32561_, BlockState p_32562_, BlockState p_32563_, BlockPos p_32564_) {
+-         return p_32562_.m_60795_() && !p_32563_.m_60795_() && !p_32563_.m_60713_(Blocks.f_50752_) && p_32563_.m_60838_(p_32559_, p_32564_) && p_32561_.m_60710_(p_32559_, p_32560_) && p_32559_.m_45933_(this.f_32554_, AABB.m_82333_(Vec3.m_82528_(p_32560_))).isEmpty();
++         return p_32562_.m_60795_() && !p_32563_.m_60795_() && !p_32563_.m_60713_(Blocks.f_50752_) && !p_32563_.m_204336_(net.minecraftforge.common.Tags.Blocks.ENDERMAN_PLACE_ON_BLACKLIST) && p_32563_.m_60838_(p_32559_, p_32564_) && p_32561_.m_60710_(p_32559_, p_32560_) && p_32559_.m_45933_(this.f_32554_, AABB.m_82333_(Vec3.m_82528_(p_32560_))).isEmpty();
+       }
+    }
+ 
+@@ -527,7 +_,7 @@
+       public boolean m_8036_() {
+          if (this.f_32583_.m_32530_() != null) {
+             return false;
+-         } else if (!this.f_32583_.f_19853_.m_46469_().m_46207_(GameRules.f_46132_)) {
++         } else if (!net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_32583_.f_19853_, this.f_32583_)) {
+             return false;
+          } else {
+             return this.f_32583_.m_21187_().nextInt(m_186073_(20)) == 0;
+@@ -547,9 +_,13 @@
+          BlockHitResult blockhitresult = level.m_45547_(new ClipContext(vec3, vec31, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, this.f_32583_));
+          boolean flag = blockhitresult.m_82425_().equals(blockpos);
+          if (blockstate.m_204336_(BlockTags.f_13046_) && flag) {
+-            level.m_7471_(blockpos, false);
+-            level.m_142346_(this.f_32583_, GameEvent.f_157794_, blockpos);
+-            this.f_32583_.m_32521_(blockstate.m_60734_().m_49966_());
++            // CraftBukkit start - Pickup event
++            if (!org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityChangeBlockEvent(this.f_32583_, blockpos, Blocks.f_50016_.m_49966_()).isCancelled()) {
++               level.m_7471_(blockpos, false);
++               level.m_142346_(this.f_32583_, GameEvent.f_157794_, blockpos);
++               this.f_32583_.m_32521_(blockstate.m_60734_().m_49966_());
++            }
++            // CraftBukkit end
+          }
+ 
+       }

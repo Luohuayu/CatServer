@@ -1,0 +1,119 @@
+--- a/net/minecraft/world/entity/boss/wither/WitherBoss.java
++++ b/net/minecraft/world/entity/boss/wither/WitherBoss.java
+@@ -9,10 +_,13 @@
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.chat.Component;
++import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerBossEvent;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundEvents;
+@@ -49,10 +_,13 @@
+ import net.minecraft.world.entity.projectile.WitherSkull;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Explosion;
+-import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
++import org.bukkit.event.entity.EntityTargetEvent;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ public class WitherBoss extends Monster implements PowerableMob, RangedAttackMob {
+    private static final EntityDataAccessor<Integer> f_31420_ = SynchedEntityData.m_135353_(WitherBoss.class, EntityDataSerializers.f_135028_);
+@@ -219,16 +_,41 @@
+          int k1 = this.m_31502_() - 1;
+          this.f_31430_.m_142711_(1.0F - (float)k1 / 220.0F);
+          if (k1 <= 0) {
+-            Explosion.BlockInteraction explosion$blockinteraction = this.f_19853_.m_46469_().m_46207_(GameRules.f_46132_) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
+-            this.f_19853_.m_46518_(this, this.m_20185_(), this.m_20188_(), this.m_20189_(), 7.0F, false, explosion$blockinteraction);
++            Explosion.BlockInteraction explosion$blockinteraction = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_19853_, this) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
++            // CraftBukkit start
++            // this.level.explode(this, this.getX(), this.getEyeY(), this.getZ(), 7.0F, false, explosion_effect);
++            ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), 7.0F, false);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++
++            if (!event.isCancelled()) {
++               this.f_19853_.m_46518_(this, this.m_20185_(), this.m_20188_(), this.m_20189_(), event.getRadius(), event.getFire(), explosion$blockinteraction);
++            }
++            // CraftBukkit end
+             if (!this.m_20067_()) {
+-               this.f_19853_.m_6798_(1023, this.m_142538_(), 0);
++               // CraftBukkit start - Use relative location for far away sounds
++               // this.world.globalLevelEvent(1023, new BlockPosition(this), 0);
++               int viewDistance = ((ServerLevel) this.f_19853_).getCraftServer().getViewDistance() * 16;
++               for (ServerPlayer player : (List<ServerPlayer>) MinecraftServer.getServer().m_6846_().f_11196_) {
++                  double deltaX = this.m_20185_() - player.m_20185_();
++                  double deltaZ = this.m_20189_() - player.m_20189_();
++                  double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++                  if ( f_19853_.spigotConfig.witherSpawnSoundRadius > 0 && distanceSquared > f_19853_.spigotConfig.witherSpawnSoundRadius * f_19853_.spigotConfig.witherSpawnSoundRadius ) continue; // Spigot
++                  if (distanceSquared > viewDistance * viewDistance) {
++                     double deltaLength = Math.sqrt(distanceSquared);
++                     double relativeX = player.m_20185_() + (deltaX / deltaLength) * viewDistance;
++                     double relativeZ = player.m_20189_() + (deltaZ / deltaLength) * viewDistance;
++                     player.f_8906_.m_141995_(new ClientboundLevelEventPacket(1023, new BlockPos((int) relativeX, (int) this.m_20186_(), (int) relativeZ), 0, true));
++                  } else {
++                     player.f_8906_.m_141995_(new ClientboundLevelEventPacket(1023, this.m_142538_(), 0, true));
++                  }
++               }
++               // CraftBukkit end
+             }
+          }
+ 
+          this.m_31510_(k1);
+          if (this.f_19797_ % 10 == 0) {
+-            this.m_5634_(10.0F);
++            this.heal(10.0F, EntityRegainHealthEvent.RegainReason.WITHER_SPAWN); // CraftBukkit
+          }
+ 
+       } else {
+@@ -266,6 +_,7 @@
+                   List<LivingEntity> list = this.f_19853_.m_45971_(LivingEntity.class, f_31432_, this, this.m_142469_().m_82377_(20.0D, 8.0D, 20.0D));
+                   if (!list.isEmpty()) {
+                      LivingEntity livingentity1 = list.get(this.f_19796_.nextInt(list.size()));
++                     if (CraftEventFactory.callEntityTargetLivingEvent(this, livingentity1, EntityTargetEvent.TargetReason.CLOSEST_ENTITY).isCancelled()) continue; // CraftBukkit
+                      this.m_31454_(i, livingentity1.m_142049_());
+                   }
+                }
+@@ -280,7 +_,7 @@
+ 
+          if (this.f_31429_ > 0) {
+             --this.f_31429_;
+-            if (this.f_31429_ == 0 && this.f_19853_.m_46469_().m_46207_(GameRules.f_46132_)) {
++            if (this.f_31429_ == 0 && net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_19853_, this)) {
+                int j1 = Mth.m_14107_(this.m_20186_());
+                int i2 = Mth.m_14107_(this.m_20185_());
+                int j2 = Mth.m_14107_(this.m_20189_());
+@@ -294,7 +_,7 @@
+                         int i1 = j2 + k2;
+                         BlockPos blockpos = new BlockPos(l2, l, i1);
+                         BlockState blockstate = this.f_19853_.m_8055_(blockpos);
+-                        if (m_31491_(blockstate)) {
++                        if (blockstate.canEntityDestroy(this.f_19853_, blockpos, this) && net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(this, blockpos, blockstate)) {
+                            flag = this.f_19853_.m_46953_(blockpos, true, this) || flag;
+                         }
+                      }
+@@ -308,13 +_,14 @@
+          }
+ 
+          if (this.f_19797_ % 20 == 0) {
+-            this.m_5634_(1.0F);
++            this.heal(1.0F, EntityRegainHealthEvent.RegainReason.REGEN); // CraftBukkit
+          }
+ 
+          this.f_31430_.m_142711_(this.m_21223_() / this.m_21233_());
+       }
+    }
+ 
++   @Deprecated //Forge: DO NOT USE use BlockState.canEntityDestroy
+    public static boolean m_31491_(BlockState p_31492_) {
+       return !p_31492_.m_60795_() && !p_31492_.m_204336_(BlockTags.f_13070_);
+    }

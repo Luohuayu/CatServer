@@ -1,0 +1,169 @@
+--- a/net/minecraft/world/level/storage/PrimaryLevelData.java
++++ b/net/minecraft/world/level/storage/PrimaryLevelData.java
+@@ -11,6 +_,8 @@
+ import java.util.UUID;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
++
++import foxserver.server.FoxServer;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+@@ -23,8 +_,11 @@
+ import net.minecraft.nbt.NbtUtils;
+ import net.minecraft.nbt.StringTag;
+ import net.minecraft.nbt.Tag;
++import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
+ import net.minecraft.resources.RegistryOps;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.level.DataPackConfig;
+@@ -36,6 +_,11 @@
+ import net.minecraft.world.level.levelgen.WorldGenSettings;
+ import net.minecraft.world.level.timers.TimerCallbacks;
+ import net.minecraft.world.level.timers.TimerQueue;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.event.weather.ThunderChangeEvent;
++import org.bukkit.event.weather.WeatherChangeEvent;
+ import org.slf4j.Logger;
+ 
+ public class PrimaryLevelData implements ServerLevelData, WorldData {
+@@ -77,6 +_,21 @@
+    private boolean f_78440_;
+    private final TimerQueue<MinecraftServer> f_78441_;
+ 
++   // CraftBukkit start - Add world and pdc
++   private ServerLevel world;
++   protected static Tag pdc;
++
++   public void setWorld(ServerLevel world) {
++      if (this.world != null) {
++         return;
++      }
++      this.world = world;
++      world.getWorld().readBukkitValues(pdc);
++      pdc = null;
++   }
++   // CraftBukkit end
++   private boolean confirmedExperimentalWarning = false;
++
+    private PrimaryLevelData(@Nullable DataFixer p_164942_, int p_164943_, @Nullable CompoundTag p_164944_, boolean p_164945_, int p_164946_, int p_164947_, int p_164948_, float p_164949_, long p_164950_, long p_164951_, int p_164952_, int p_164953_, int p_164954_, boolean p_164955_, int p_164956_, boolean p_164957_, boolean p_164958_, boolean p_164959_, WorldBorder.Settings p_164960_, int p_164961_, int p_164962_, @Nullable UUID p_164963_, Set<String> p_164964_, TimerQueue<MinecraftServer> p_164965_, @Nullable CompoundTag p_164966_, CompoundTag p_164967_, LevelSettings p_164968_, WorldGenSettings p_164969_, Lifecycle p_164970_) {
+       this.f_78452_ = p_164942_;
+       this.f_78440_ = p_164945_;
+@@ -104,7 +_,9 @@
+       this.f_78441_ = p_164965_;
+       this.f_78466_ = p_164966_;
+       this.f_78465_ = p_164967_;
+-      this.f_78443_ = p_164968_;
++      this.f_78443_ = p_164968_.withLifecycle(p_164970_);
++      if (p_164970_ == Lifecycle.stable()) //Reset to unconfirmed if the lifecycle goes back to stable
++         this.confirmedExperimentalWarning = false;
+       this.f_78444_ = p_164969_;
+       this.f_78445_ = p_164970_;
+    }
+@@ -120,7 +_,7 @@
+       });
+       return new PrimaryLevelData(p_78532_, p_78533_, p_78534_, p_78531_.get("WasModded").asBoolean(false), p_78531_.get("SpawnX").asInt(0), p_78531_.get("SpawnY").asInt(0), p_78531_.get("SpawnZ").asInt(0), p_78531_.get("SpawnAngle").asFloat(0.0F), i, p_78531_.get("DayTime").asLong(i), p_78536_.m_78389_(), p_78531_.get("clearWeatherTime").asInt(0), p_78531_.get("rainTime").asInt(0), p_78531_.get("raining").asBoolean(false), p_78531_.get("thunderTime").asInt(0), p_78531_.get("thundering").asBoolean(false), p_78531_.get("initialized").asBoolean(true), p_78531_.get("DifficultyLocked").asBoolean(false), WorldBorder.Settings.m_62037_(p_78531_, WorldBorder.f_61907_), p_78531_.get("WanderingTraderSpawnDelay").asInt(0), p_78531_.get("WanderingTraderSpawnChance").asInt(0), p_78531_.get("WanderingTraderId").read(SerializableUUID.f_123272_).result().orElse((UUID)null), p_78531_.get("ServerBrands").asStream().flatMap((p_78529_) -> {
+          return p_78529_.asString().result().stream();
+-      }).collect(Collectors.toCollection(Sets::newLinkedHashSet)), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), compoundtag, p_78535_, p_78537_, p_78538_);
++      }).collect(Collectors.toCollection(Sets::newLinkedHashSet)), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), compoundtag, p_78535_, p_78537_, p_78538_).withConfirmedWarning(p_78538_ != Lifecycle.stable() && p_78531_.get("confirmedExperimentalSettings").asBoolean(false));
+    }
+ 
+    public CompoundTag m_6626_(RegistryAccess p_78543_, @Nullable CompoundTag p_78544_) {
+@@ -191,6 +_,14 @@
+          p_78547_.m_128362_("WanderingTraderId", this.f_78438_);
+       }
+ 
++      //world.getWorld().storeBukkitValues(p_78547_); // CraftBukkit - add pdc // FoxServer TODO
++	  
++	  p_78547_.m_128359_("forgeLifecycle", net.minecraftforge.common.ForgeHooks.encodeLifecycle(this.f_78443_.getLifecycle()));
++      p_78547_.m_128379_("confirmedExperimentalSettings", this.confirmedExperimentalWarning);
++
++      if(Bukkit.getServer() != null){
++         p_78547_.m_128359_("Bukkit.Version", FoxServer.NAME + "/" + FoxServer.MINECRAFT_VERSION + "/" + FoxServer.getVersion()); // CraftBukkit
++      }
+    }
+ 
+    public int m_6789_() {
+@@ -288,6 +_,21 @@
+    }
+ 
+    public void m_5557_(boolean p_78562_) {
++
++      // CraftBukkit start
++      if (this.f_78460_ == p_78562_) {
++         return;
++      }
++
++      org.bukkit.World world = Bukkit.getWorld(m_5462_());
++      if (world != null) {
++         ThunderChangeEvent thunder = new ThunderChangeEvent(world, p_78562_);
++         Bukkit.getServer().getPluginManager().callEvent(thunder);
++         if (thunder.isCancelled()) {
++            return;
++         }
++      }
++      // CraftBukkit end
+       this.f_78460_ = p_78562_;
+    }
+ 
+@@ -304,6 +_,20 @@
+    }
+ 
+    public void m_5565_(boolean p_78576_) {
++      // CraftBukkit start
++      if (this.f_78458_ == p_78576_) {
++         return;
++      }
++
++      org.bukkit.World world = Bukkit.getWorld(m_5462_());
++      if (world != null) {
++         WeatherChangeEvent weather = new WeatherChangeEvent(world, p_78576_);
++         Bukkit.getServer().getPluginManager().callEvent(weather);
++         if (weather.isCancelled()) {
++            return;
++         }
++      }
++      // CraftBukkit end
+       this.f_78458_ = p_78576_;
+    }
+ 
+@@ -356,6 +_,12 @@
+    }
+ 
+    public void m_6166_(Difficulty p_78521_) {
++      // CraftBukkit start
++      ServerboundChangeDifficultyPacket packet = new ServerboundChangeDifficultyPacket(p_78521_);
++      for (Player player : Bukkit.getOnlinePlayers()) {
++         ((CraftPlayer)player).getHandle().f_8906_.m_141995_(packet);
++      }
++      // CraftBukkit end
+       this.f_78443_ = this.f_78443_.m_46918_(p_78521_);
+    }
+ 
+@@ -454,4 +_,20 @@
+    public LevelSettings m_5926_() {
+       return this.f_78443_.m_46935_();
+    }
++      //FORGE
++   public boolean hasConfirmedExperimentalWarning() {
++      return this.confirmedExperimentalWarning;
++   }
++   public PrimaryLevelData withConfirmedWarning(boolean confirmedWarning) { //Builder-like to not patch ctor
++      this.confirmedExperimentalWarning = confirmedWarning;
++      return this;
++   }
++
++   // CraftBukkit start - Check if the name stored in NBT is the correct one
++   public void checkName(String name) {
++      if (!this.f_78443_.f_46902_.equals(name)) {
++         this.f_78443_.f_46902_ = name;
++      }
++   }
++   // CraftBukkit end
+ }

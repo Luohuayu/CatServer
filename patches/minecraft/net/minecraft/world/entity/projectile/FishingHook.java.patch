@@ -1,0 +1,192 @@
+--- a/net/minecraft/world/entity/projectile/FishingHook.java
++++ b/net/minecraft/world/entity/projectile/FishingHook.java
+@@ -43,6 +_,8 @@
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ import org.slf4j.Logger;
++import org.bukkit.entity.FishHook;
++import org.bukkit.event.player.PlayerFishEvent;
+ 
+ public class FishingHook extends Projectile {
+    private static final Logger f_201977_ = LogUtils.getLogger();
+@@ -60,10 +_,16 @@
+    private boolean f_37093_ = true;
+    @Nullable
+    public Entity f_37094_;
+-   public FishingHook.FishHookState f_37095_ = FishingHook.FishHookState.FLYING;
++   private FishingHook.FishHookState f_37095_ = FishingHook.FishHookState.FLYING;
+    private final int f_37096_;
+    private final int f_37097_;
+ 
++   // CraftBukkit start - Extra variables to enable modification of fishing wait time, values are minecraft defaults
++   public int minWaitTime = 100;
++   public int maxWaitTime = 600;
++   public boolean applyLure = true;
++   // CraftBukkit end
++
+    private FishingHook(EntityType<? extends FishingHook> p_150141_, Level p_150142_, int p_150143_, int p_150144_) {
+       super(p_150141_, p_150142_);
+       this.f_19811_ = true;
+@@ -240,7 +_,9 @@
+ 
+    private void m_37171_() {
+       HitResult hitresult = ProjectileUtil.m_37294_(this, this::m_5603_);
+-      this.m_6532_(hitresult);
++      if (hitresult.m_6662_() == HitResult.Type.MISS || !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, hitresult))
++         //this.onHit(hitresult);
++         this.preOnHit(hitresult); // CraftBukkit - projectile hit event
+    }
+ 
+    protected boolean m_5603_(Entity p_37135_) {
+@@ -283,6 +_,10 @@
+             this.f_37090_ = 0;
+             this.f_37091_ = 0;
+             this.m_20088_().m_135381_(f_37102_, false);
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) this.m_37168_().getBukkitEntity(), null, ( FishHook ) this.getBukkitEntity(), PlayerFishEvent.State.FAILED_ATTEMPT);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++            // CraftBukkit end
+          }
+       } else if (this.f_37091_ > 0) {
+          this.f_37091_ -= i;
+@@ -295,7 +_,7 @@
+             double d1 = (double)((float)Mth.m_14107_(this.m_20186_()) + 1.0F);
+             double d2 = this.m_20189_() + (double)(f2 * (float)this.f_37091_ * 0.1F);
+             BlockState blockstate = serverlevel.m_8055_(new BlockPos(d0, d1 - 1.0D, d2));
+-            if (blockstate.m_60713_(Blocks.f_49990_)) {
++            if (serverlevel.m_8055_(new BlockPos((int)d0, (int)d1 - 1, (int)d2)).m_60767_() == net.minecraft.world.level.material.Material.f_76305_) {
+                if (this.f_19796_.nextFloat() < 0.15F) {
+                   serverlevel.m_8767_(ParticleTypes.f_123795_, d0, d1 - (double)0.1F, d2, 1, (double)f1, 0.1D, (double)f2, 0.0D);
+                }
+@@ -306,6 +_,13 @@
+                serverlevel.m_8767_(ParticleTypes.f_123816_, d0, d1, d2, 0, (double)(-f4), 0.01D, (double)f3, 1.0D);
+             }
+          } else {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) this.m_37168_().getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.BITE);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return;
++            }
++            // CraftBukkit end
+             this.m_5496_(SoundEvents.f_11940_, 0.25F, 1.0F + (this.f_19796_.nextFloat() - this.f_19796_.nextFloat()) * 0.4F);
+             double d3 = this.m_20186_() + 0.5D;
+             serverlevel.m_8767_(ParticleTypes.f_123795_, this.m_20185_(), d3, this.m_20189_(), (int)(1.0F + this.m_20205_() * 20.0F), (double)this.m_20205_(), 0.0D, (double)this.m_20205_(), (double)0.2F);
+@@ -331,7 +_,7 @@
+             double d5 = (double)((float)Mth.m_14107_(this.m_20186_()) + 1.0F);
+             double d6 = this.m_20189_() + (double)(Mth.m_14089_(f6) * f7) * 0.1D;
+             BlockState blockstate1 = serverlevel.m_8055_(new BlockPos(d4, d5 - 1.0D, d6));
+-            if (blockstate1.m_60713_(Blocks.f_49990_)) {
++            if (serverlevel.m_8055_(new BlockPos(d4, d5 - 1.0D, d6)).m_60767_() == net.minecraft.world.level.material.Material.f_76305_) {
+                serverlevel.m_8767_(ParticleTypes.f_123769_, d4, d5, d6, 2 + this.f_19796_.nextInt(2), (double)0.1F, 0.0D, (double)0.1F, 0.0D);
+             }
+          }
+@@ -341,8 +_,10 @@
+             this.f_37091_ = Mth.m_14072_(this.f_19796_, 20, 80);
+          }
+       } else {
+-         this.f_37090_ = Mth.m_14072_(this.f_19796_, 100, 600);
++         // CraftBukkit start - logic to modify fishing wait time
++         this.f_37090_ = Mth.m_14072_(this.f_19796_, this.minWaitTime, this.maxWaitTime);
+          this.f_37090_ -= this.f_37097_ * 20 * 5;
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -402,26 +_,55 @@
+       Player player = this.m_37168_();
+       if (!this.f_19853_.f_46443_ && player != null && !this.m_37136_(player)) {
+          int i = 0;
++         net.minecraftforge.event.entity.player.ItemFishedEvent event = null;
+          if (this.f_37094_ != null) {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) player.getBukkitEntity(), this.f_37094_.getBukkitEntity(), (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.CAUGHT_ENTITY);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++            // CraftBukkit end
+             this.m_150155_(this.f_37094_);
+             CriteriaTriggers.f_10553_.m_40416_((ServerPlayer)player, p_37157_, this, Collections.emptyList());
+             this.f_19853_.m_7605_(this, (byte)31);
+             i = this.f_37094_ instanceof ItemEntity ? 3 : 5;
+          } else if (this.f_37089_ > 0) {
+             LootContext.Builder lootcontext$builder = (new LootContext.Builder((ServerLevel)this.f_19853_)).m_78972_(LootContextParams.f_81460_, this.m_20182_()).m_78972_(LootContextParams.f_81463_, p_37157_).m_78972_(LootContextParams.f_81455_, this).m_78977_(this.f_19796_).m_78963_((float)this.f_37096_ + player.m_36336_());
++            lootcontext$builder.m_78972_(LootContextParams.f_81458_, this.m_37282_()).m_78972_(LootContextParams.f_81455_, this);
+             LootTable loottable = this.f_19853_.m_142572_().m_129898_().m_79217_(BuiltInLootTables.f_78720_);
+             List<ItemStack> list = loottable.m_79129_(lootcontext$builder.m_78975_(LootContextParamSets.f_81414_));
++            event = new net.minecraftforge.event.entity.player.ItemFishedEvent(list, this.f_19861_ ? 2 : 1, this);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++            if (event.isCanceled()) {
++               this.m_146870_();
++               return event.getRodDamage();
++            }
+             CriteriaTriggers.f_10553_.m_40416_((ServerPlayer)player, p_37157_, this, list);
+ 
+             for(ItemStack itemstack : list) {
+                ItemEntity itementity = new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20186_(), this.m_20189_(), itemstack);
++               // CraftBukkit start
++               PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) player.getBukkitEntity(), itementity.getBukkitEntity(), (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.CAUGHT_FISH);
++               playerFishEvent.setExpToDrop(this.f_19796_.nextInt(6) + 1);
++               this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++
++               if (playerFishEvent.isCancelled()) {
++                  return 0;
++               }
++               // CraftBukkit end
+                double d0 = player.m_20185_() - this.m_20185_();
+                double d1 = player.m_20186_() - this.m_20186_();
+                double d2 = player.m_20189_() - this.m_20189_();
+                double d3 = 0.1D;
+                itementity.m_20334_(d0 * 0.1D, d1 * 0.1D + Math.sqrt(Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2)) * 0.08D, d2 * 0.1D);
+                this.f_19853_.m_7967_(itementity);
+-               player.f_19853_.m_7967_(new ExperienceOrb(player.f_19853_, player.m_20185_(), player.m_20186_() + 0.5D, player.m_20189_() + 0.5D, this.f_19796_.nextInt(6) + 1));
++               // CraftBukkit start - this.random.nextInt(6) + 1 -> playerFishEvent.getExpToDrop()
++               if (playerFishEvent.getExpToDrop() > 0) {
++                  player.f_19853_.m_7967_(new ExperienceOrb(player.f_19853_, player.m_20185_(), player.m_20186_() + 0.5D, player.m_20189_() + 0.5D, playerFishEvent.getExpToDrop()));
++               }
++               // CraftBukkit end
+                if (itemstack.m_204117_(ItemTags.f_13156_)) {
+                   player.m_36222_(Stats.f_12939_, 1);
+                }
+@@ -431,11 +_,29 @@
+          }
+ 
+          if (this.f_19861_) {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) player.getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.IN_GROUND);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++            // CraftBukkit end
+             i = 2;
+          }
++         // CraftBukkit start
++         if (i == 0) {
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent(( org.bukkit.entity.Player ) player.getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.REEL_IN);
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++         }
++         // CraftBukkit end
++
+ 
+          this.m_146870_();
+-         return i;
++         return event == null ? i : event.getRodDamage();
+       } else {
+          return 0;
+       }
+@@ -449,7 +_,7 @@
+       super.m_7822_(p_37123_);
+    }
+ 
+-   protected void m_150155_(Entity p_150156_) {
++   public void m_150155_(Entity p_150156_) {
+       Entity entity = this.m_37282_();
+       if (entity != null) {
+          Vec3 vec3 = (new Vec3(entity.m_20185_() - this.m_20185_(), entity.m_20186_() - this.m_20186_(), entity.m_20189_() - this.m_20189_())).m_82490_(0.1D);

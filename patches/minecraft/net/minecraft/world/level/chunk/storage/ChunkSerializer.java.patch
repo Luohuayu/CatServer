@@ -1,0 +1,124 @@
+--- a/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
++++ b/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
+@@ -9,6 +_,7 @@
+ import it.unimi.dsi.fastutil.shorts.ShortList;
+ import java.util.Arrays;
+ import java.util.EnumSet;
++import java.util.Locale;
+ import java.util.Map;
+ import java.util.Objects;
+ import java.util.Map.Entry;
+@@ -62,7 +_,7 @@
+ import org.slf4j.Logger;
+ 
+ public class ChunkSerializer {
+-   private static final Codec<PalettedContainer<BlockState>> f_188227_ = PalettedContainer.m_188054_(Block.f_49791_, BlockState.f_61039_, PalettedContainer.Strategy.f_188137_, Blocks.f_50016_.m_49966_());
++   public static final Codec<PalettedContainer<BlockState>> f_188227_ = PalettedContainer.m_188054_(Block.f_49791_, BlockState.f_61039_, PalettedContainer.Strategy.f_188137_, Blocks.f_50016_.m_49966_());
+    private static final Logger f_63449_ = LogUtils.getLogger();
+    private static final String f_156511_ = "UpgradeData";
+    private static final String f_188228_ = "block_ticks";
+@@ -146,6 +_,7 @@
+             return Registry.f_122822_.m_6612_(ResourceLocation.m_135820_(p_188285_));
+          }, p_188233_);
+          chunkaccess = new LevelChunk(p_188231_.m_6018_(), p_188233_, upgradedata, levelchunkticks, levelchunkticks1, j1, alevelchunksection, m_196890_(p_188231_, p_188234_), blendingdata);
++         if (p_188234_.m_128441_("ForgeCaps")) ((LevelChunk)chunkaccess).readCapsFromNBT(p_188234_.m_128469_("ForgeCaps"));
+       } else {
+          ProtoChunkTicks<Block> protochunkticks = ProtoChunkTicks.m_193302_(p_188234_.m_128437_("block_ticks", 10), (p_196906_) -> {
+             return Registry.f_122824_.m_6612_(ResourceLocation.m_135820_(p_196906_));
+@@ -170,13 +_,20 @@
+          boolean flag2 = chunkstatus.m_62427_(ChunkStatus.f_62323_) || belowzeroretrogen != null && belowzeroretrogen.m_188466_().m_62427_(ChunkStatus.f_62323_);
+          if (!flag && flag2) {
+             for(BlockPos blockpos : BlockPos.m_121976_(p_188233_.m_45604_(), p_188231_.m_141937_(), p_188233_.m_45605_(), p_188233_.m_45608_(), p_188231_.m_151558_() - 1, p_188233_.m_45609_())) {
+-               if (chunkaccess.m_8055_(blockpos).m_60791_() != 0) {
++               if (chunkaccess.m_8055_(blockpos).getLightEmission(chunkaccess, blockpos) != 0) {
+                   protochunk.m_63277_(blockpos);
+                }
+             }
+          }
+       }
+ 
++      // CraftBukkit start - load chunk persistent data from nbt - SPIGOT-6814: Already load PDC here to account for 1.17 to 1.18 chunk upgrading.
++      net.minecraft.nbt.Tag persistentBase = p_188234_.m_128423_("ChunkBukkitValues");
++      if (persistentBase instanceof CompoundTag) {
++         chunkaccess.persistentDataContainer.putAll((CompoundTag) persistentBase);
++      }
++      // CraftBukkit end
++
+       chunkaccess.m_8094_(flag);
+       CompoundTag compoundtag2 = p_188234_.m_128469_("Heightmaps");
+       EnumSet<Heightmap.Types> enumset = EnumSet.noneOf(Heightmap.Types.class);
+@@ -193,7 +_,7 @@
+       Heightmap.m_64256_(chunkaccess, enumset);
+       CompoundTag compoundtag3 = p_188234_.m_128469_("structures");
+       chunkaccess.m_8040_(m_188254_(StructurePieceSerializationContext.m_192770_(p_188231_), compoundtag3, p_188231_.m_7328_()));
+-      chunkaccess.m_7946_(m_208154_(p_188231_.m_5962_(), p_188233_, compoundtag3));
++      net.minecraftforge.common.ForgeHooks.fixNullStructureReferences(chunkaccess, m_208154_(p_188231_.m_5962_(), p_188233_, compoundtag3));
+       if (p_188234_.m_128471_("shouldSave")) {
+          chunkaccess.m_8092_(true);
+       }
+@@ -209,6 +_,7 @@
+       }
+ 
+       if (chunkstatus$chunktype == ChunkStatus.ChunkType.LEVELCHUNK) {
++         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Load(chunkaccess, p_188234_, chunkstatus$chunktype));
+          return new ImposterProtoChunk((LevelChunk)chunkaccess, false);
+       } else {
+          ProtoChunk protochunk1 = (ProtoChunk)chunkaccess;
+@@ -242,6 +_,7 @@
+             protochunk1.m_188186_(generationstep$carving, new CarvingMask(compoundtag4.m_128467_(s1), chunkaccess.m_141937_()));
+          }
+ 
++         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Load(chunkaccess, p_188234_, chunkstatus$chunktype));
+          return protochunk1;
+       }
+    }
+@@ -350,6 +_,15 @@
+ 
+          compoundtag.m_128365_("CarvingMasks", compoundtag4);
+       }
++      else {
++          LevelChunk levelChunk = (LevelChunk) p_63456_;
++          try {
++              final CompoundTag capTag = levelChunk.writeCapsToNBT();
++              if (capTag != null) compoundtag.m_128365_("ForgeCaps", capTag);
++          } catch (Exception exception) {
++              f_63449_.error("A capability provider has thrown an exception trying to write state. It will not persist. Report this to the mod author", exception);
++          }
++      }
+ 
+       m_188235_(p_63455_, compoundtag, p_63456_.m_183568_());
+       compoundtag.m_128365_("PostProcessing", m_63490_(p_63456_.m_6720_()));
+@@ -363,6 +_,11 @@
+ 
+       compoundtag.m_128365_("Heightmaps", compoundtag2);
+       compoundtag.m_128365_("structures", m_188249_(StructurePieceSerializationContext.m_192770_(p_63455_), chunkpos, p_63456_.m_6633_(), p_63456_.m_7049_()));
++      // CraftBukkit start - store chunk persistent data in nbt
++      if (!p_63456_.persistentDataContainer.isEmpty()) { // SPIGOT-6814: Always save PDC to account for 1.17 to 1.18 chunk upgrading.
++         compoundtag.m_128365_("ChunkBukkitValues", p_63456_.persistentDataContainer.toTagCompound());
++      }
++      // CraftBukkit end
+       return compoundtag;
+    }
+ 
+@@ -385,10 +_,13 @@
+       ListTag listtag = m_196897_(p_196892_, "entities");
+       ListTag listtag1 = m_196897_(p_196892_, "block_entities");
+       return listtag == null && listtag1 == null ? null : (p_196904_) -> {
++         p_196891_.timings.syncChunkLoadEntitiesTimer.startTiming(); // Spigot
+          if (listtag != null) {
+             p_196891_.m_143311_(EntityType.m_147045_(listtag, p_196891_));
+          }
++         p_196891_.timings.syncChunkLoadEntitiesTimer.stopTiming(); // Spigot
+ 
++         p_196891_.timings.syncChunkLoadTileEntitiesTimer.startTiming(); // Spigot
+          if (listtag1 != null) {
+             for(int i = 0; i < listtag1.size(); ++i) {
+                CompoundTag compoundtag = listtag1.m_128728_(i);
+@@ -404,6 +_,7 @@
+                }
+             }
+          }
++         p_196891_.timings.syncChunkLoadTileEntitiesTimer.stopTiming(); // Spigot
+ 
+       };
+    }

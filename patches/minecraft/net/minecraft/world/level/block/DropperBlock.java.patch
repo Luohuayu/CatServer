@@ -1,0 +1,66 @@
+--- a/net/minecraft/world/level/block/DropperBlock.java
++++ b/net/minecraft/world/level/block/DropperBlock.java
+@@ -6,6 +_,7 @@
+ import net.minecraft.core.dispenser.DefaultDispenseItemBehavior;
+ import net.minecraft.core.dispenser.DispenseItemBehavior;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.CompoundContainer;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+@@ -14,6 +_,8 @@
+ import net.minecraft.world.level.block.entity.HopperBlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.event.inventory.InventoryMoveItemEvent;
+ 
+ public class DropperBlock extends DispenserBlock {
+    private static final DispenseItemBehavior f_52939_ = new DefaultDispenseItemBehavior();
+@@ -30,7 +_,7 @@
+       return new DropperBlockEntity(p_153179_, p_153180_);
+    }
+ 
+-   protected void m_5824_(ServerLevel p_52944_, BlockPos p_52945_) {
++   public void m_5824_(ServerLevel p_52944_, BlockPos p_52945_) {
+       BlockSourceImpl blocksourceimpl = new BlockSourceImpl(p_52944_, p_52945_);
+       DispenserBlockEntity dispenserblockentity = blocksourceimpl.m_8118_();
+       int i = dispenserblockentity.m_59248_();
+@@ -38,15 +_,34 @@
+          p_52944_.m_46796_(1001, p_52945_, 0);
+       } else {
+          ItemStack itemstack = dispenserblockentity.m_8020_(i);
+-         if (!itemstack.m_41619_()) {
++         if (!itemstack.m_41619_() && net.minecraftforge.items.VanillaInventoryCodeHooks.dropperInsertHook(p_52944_, p_52945_, dispenserblockentity, i, itemstack)) {
+             Direction direction = p_52944_.m_8055_(p_52945_).m_61143_(f_52659_);
+             Container container = HopperBlockEntity.m_59390_(p_52944_, p_52945_.m_142300_(direction));
+             ItemStack itemstack1;
+             if (container == null) {
+                itemstack1 = f_52939_.m_6115_(blocksourceimpl, itemstack);
+             } else {
+-               itemstack1 = HopperBlockEntity.m_59326_(dispenserblockentity, container, itemstack.m_41777_().m_41620_(1), direction.m_122424_());
+-               if (itemstack1.m_41619_()) {
++               //itemstack1 = HopperBlockEntity.addItem(dispenserblockentity, container, itemstack.copy().split(1), direction.getOpposite());
++               //if (itemstack1.isEmpty()) {
++               // CraftBukkit start - Fire event when pushing items into other inventories
++               CraftItemStack oitemstack = CraftItemStack.asCraftMirror(itemstack.m_41777_().m_41620_(1));
++
++               org.bukkit.inventory.Inventory destinationInventory;
++               // Have to special case large chests as they work oddly
++               if (container instanceof CompoundContainer) {
++                  destinationInventory = new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryDoubleChest((CompoundContainer) container);
++               } else {
++                  destinationInventory = container.getOwner().getInventory();
++               }
++
++               InventoryMoveItemEvent event = new InventoryMoveItemEvent(dispenserblockentity.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
++               p_52944_.getCraftServer().getPluginManager().callEvent(event);
++               if (event.isCancelled()) {
++                  return;
++               }
++               itemstack1 = HopperBlockEntity.m_59326_(dispenserblockentity, container, CraftItemStack.asNMSCopy(event.getItem()), direction.m_122424_());
++               if (event.getItem().equals(oitemstack) && itemstack1.m_41619_()) {
++                  // CraftBukkit end
+                   itemstack1 = itemstack.m_41777_();
+                   itemstack1.m_41774_(1);
+                } else {

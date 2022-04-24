@@ -1,0 +1,76 @@
+--- a/net/minecraft/world/level/chunk/storage/IChunkLoader.java
++++ b/net/minecraft/world/level/chunk/storage/IChunkLoader.java
+@@ -18,6 +18,14 @@
+ import net.minecraft.world.level.levelgen.structure.PersistentStructureLegacy;
+ import net.minecraft.world.level.storage.WorldPersistentData;
+ 
++// CraftBukkit start
++import net.minecraft.server.level.ChunkProviderServer;
++import net.minecraft.server.level.WorldServer;
++import net.minecraft.world.level.GeneratorAccess;
++import net.minecraft.world.level.chunk.ChunkStatus;
++import net.minecraft.world.level.dimension.WorldDimension;
++// CraftBukkit end
++
+ public class IChunkLoader implements AutoCloseable {
+ 
+     public static final int LAST_MONOLYTH_STRUCTURE_DATA_VERSION = 1493;
+@@ -31,9 +39,48 @@
+         this.worker = new IOWorker(path, flag, "chunk");
+     }
+ 
+-    public NBTTagCompound upgradeChunkTag(ResourceKey<World> resourcekey, Supplier<WorldPersistentData> supplier, NBTTagCompound nbttagcompound, Optional<ResourceKey<Codec<? extends ChunkGenerator>>> optional) {
++    // CraftBukkit start
++    private boolean check(ChunkProviderServer cps, int x, int z) throws IOException {
++        ChunkCoordIntPair pos = new ChunkCoordIntPair(x, z);
++        if (cps != null) {
++            com.google.common.base.Preconditions.checkState(org.bukkit.Bukkit.isPrimaryThread(), "primary thread");
++            if (cps.hasChunk(x, z)) {
++                return true;
++            }
++        }
++
++        NBTTagCompound nbt = read(pos);
++        if (nbt != null) {
++            NBTTagCompound level = nbt.getCompound("Level");
++            if (level.getBoolean("TerrainPopulated")) {
++                return true;
++            }
++
++            ChunkStatus status = ChunkStatus.byName(level.getString("Status"));
++            if (status != null && status.isOrAfter(ChunkStatus.FEATURES)) {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    public NBTTagCompound upgradeChunkTag(ResourceKey<WorldDimension> resourcekey, Supplier<WorldPersistentData> supplier, NBTTagCompound nbttagcompound, Optional<ResourceKey<Codec<? extends ChunkGenerator>>> optional, ChunkCoordIntPair pos, @Nullable GeneratorAccess generatoraccess) throws IOException {
++        // CraftBukkit end
+         int i = getVersion(nbttagcompound);
+ 
++        // CraftBukkit start
++        if (i < 1466) {
++            NBTTagCompound level = nbttagcompound.getCompound("Level");
++            if (level.getBoolean("TerrainPopulated") && !level.getBoolean("LightPopulated")) {
++                ChunkProviderServer cps = (generatoraccess == null) ? null : ((WorldServer) generatoraccess).getChunkSource();
++                if (check(cps, pos.x - 1, pos.z) && check(cps, pos.x - 1, pos.z - 1) && check(cps, pos.x, pos.z - 1)) {
++                    level.putBoolean("LightPopulated", true);
++                }
++            }
++        }
++        // CraftBukkit end
++
+         if (i < 1493) {
+             nbttagcompound = GameProfileSerializer.update(this.fixerUpper, DataFixTypes.CHUNK, nbttagcompound, i, 1493);
+             if (nbttagcompound.getCompound("Level").getBoolean("hasLegacyStructureData")) {
+@@ -55,7 +102,7 @@
+         return nbttagcompound;
+     }
+ 
+-    public static void injectDatafixingContext(NBTTagCompound nbttagcompound, ResourceKey<World> resourcekey, Optional<ResourceKey<Codec<? extends ChunkGenerator>>> optional) {
++    public static void injectDatafixingContext(NBTTagCompound nbttagcompound, ResourceKey<WorldDimension> resourcekey, Optional<ResourceKey<Codec<? extends ChunkGenerator>>> optional) { // CraftBukkit
+         NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+ 
+         nbttagcompound1.putString("dimension", resourcekey.location().toString());

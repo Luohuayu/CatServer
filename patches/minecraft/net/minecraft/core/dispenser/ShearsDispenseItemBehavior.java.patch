@@ -1,0 +1,82 @@
+--- a/net/minecraft/core/dispenser/ShearsDispenseItemBehavior.java
++++ b/net/minecraft/core/dispenser/ShearsDispenseItemBehavior.java
+@@ -20,13 +_,40 @@
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.AABB;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public class ShearsDispenseItemBehavior extends OptionalDispenseItemBehavior {
+    protected ItemStack m_7498_(BlockSource p_123580_, ItemStack p_123581_) {
+       Level level = p_123580_.m_7727_();
++      // CraftBukkit start
++      org.bukkit.block.Block bukkitBlock = level.getWorld().getBlockAt(p_123580_.m_7961_().m_123341_(), p_123580_.m_7961_().m_123342_(), p_123580_.m_7961_().m_123343_());
++      CraftItemStack craftItem = CraftItemStack.asCraftMirror(p_123581_);
++
++      BlockDispenseEvent event = new BlockDispenseEvent(bukkitBlock, craftItem.clone(), new org.bukkit.util.Vector(0, 0, 0));
++      if (!DispenserBlock.eventFired) {
++         level.getCraftServer().getPluginManager().callEvent(event);
++      }
++
++      if (event.isCancelled()) {
++         return p_123581_;
++      }
++
++      if (!event.getItem().equals(craftItem)) {
++         // Chain to handler for new item
++         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++         DispenseItemBehavior idispensebehavior = (DispenseItemBehavior) DispenserBlock.f_52661_.get(eventStack.m_41720_());
++         if (idispensebehavior != DispenseItemBehavior.f_123393_ && idispensebehavior != this) {
++            idispensebehavior.m_6115_(p_123580_, eventStack);
++            return p_123581_;
++         }
++      }
++      // CraftBukkit end
++
+       if (!level.m_5776_()) {
+          BlockPos blockpos = p_123580_.m_7961_().m_142300_(p_123580_.m_6414_().m_61143_(DispenserBlock.f_52659_));
+-         this.m_123573_(m_123576_((ServerLevel)level, blockpos) || m_123582_((ServerLevel)level, blockpos));
++         this.m_123573_(m_123576_((ServerLevel)level, blockpos) || tryShearLivingEntity((ServerLevel)level, blockpos, bukkitBlock, craftItem)); // CraftBukkit
+          if (this.m_123570_() && p_123581_.m_41629_(1, level.m_5822_(), (ServerPlayer)null)) {
+             p_123581_.m_41764_(0);
+          }
+@@ -37,9 +_,7 @@
+ 
+    private static boolean m_123576_(ServerLevel p_123577_, BlockPos p_123578_) {
+       BlockState blockstate = p_123577_.m_8055_(p_123578_);
+-      if (blockstate.m_204338_(BlockTags.f_13072_, (p_202454_) -> {
+-         return p_202454_.m_61138_(BeehiveBlock.f_49564_) && p_202454_.m_60734_() instanceof BeehiveBlock;
+-      })) {
++      if (blockstate.m_204336_(BlockTags.f_13072_)) {
+          int i = blockstate.m_61143_(BeehiveBlock.f_49564_);
+          if (i >= 5) {
+             p_123577_.m_5594_((Player)null, p_123578_, SoundEvents.f_11697_, SoundSource.BLOCKS, 1.0F, 1.0F);
+@@ -58,6 +_,26 @@
+          if (livingentity instanceof Shearable) {
+             Shearable shearable = (Shearable)livingentity;
+             if (shearable.m_6220_()) {
++               shearable.m_5851_(SoundSource.BLOCKS);
++               p_123583_.m_142346_((Entity)null, GameEvent.f_157781_, p_123584_);
++               return true;
++            }
++         }
++      }
++
++      return false;
++   }
++
++   private static boolean tryShearLivingEntity(ServerLevel p_123583_, BlockPos p_123584_, org.bukkit.block.Block bukkitBlock, CraftItemStack craftItem) { // CraftBukkit - add args
++      for(LivingEntity livingentity : p_123583_.m_6443_(LivingEntity.class, new AABB(p_123584_), EntitySelector.f_20408_)) {
++         if (livingentity instanceof Shearable) {
++            Shearable shearable = (Shearable)livingentity;
++            if (shearable.m_6220_()) {
++               // CraftBukkit start
++               if (CraftEventFactory.callBlockShearEntityEvent(livingentity, bukkitBlock, craftItem).isCancelled()) {
++                  continue;
++               }
++               // CraftBukkit end
+                shearable.m_5851_(SoundSource.BLOCKS);
+                p_123583_.m_142346_((Entity)null, GameEvent.f_157781_, p_123584_);
+                return true;

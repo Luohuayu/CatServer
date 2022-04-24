@@ -1,0 +1,137 @@
+--- a/net/minecraft/server/level/ChunkHolder.java
++++ b/net/minecraft/server/level/ChunkHolder.java
+@@ -21,6 +_,7 @@
+ import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.DebugBuffer;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.ChunkPos;
+@@ -36,6 +_,7 @@
+ import net.minecraft.world.level.chunk.LevelChunkSection;
+ import net.minecraft.world.level.chunk.ProtoChunk;
+ import net.minecraft.world.level.lighting.LevelLightEngine;
++import org.bukkit.Chunk;
+ 
+ public class ChunkHolder {
+    public static final Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure> f_139995_ = Either.right(ChunkHolder.ChunkLoadingFailure.f_140101_);
+@@ -54,7 +_,7 @@
+    private CompletableFuture<ChunkAccess> f_140005_ = CompletableFuture.completedFuture((ChunkAccess)null);
+    @Nullable
+    private final DebugBuffer<ChunkHolder.ChunkSaveDebug> f_142984_ = null;
+-   private int f_140006_;
++   public int f_140006_;
+    private int f_140007_;
+    private int f_140008_;
+    final ChunkPos f_140009_;
+@@ -67,6 +_,7 @@
+    public final ChunkHolder.PlayerProvider f_140016_;
+    private boolean f_140017_;
+    private boolean f_140018_;
++   LevelChunk currentlyLoading; // Forge: Used to bypass future chain when loading chunks.
+    private CompletableFuture<Void> f_142981_ = CompletableFuture.completedFuture((Void)null);
+ 
+    public ChunkHolder(ChunkPos p_142986_, int p_142987_, LevelHeightAccessor p_142988_, LevelLightEngine p_142989_, ChunkHolder.LevelChangeListener p_142990_, ChunkHolder.PlayerProvider p_142991_) {
+@@ -82,6 +_,20 @@
+       this.f_140011_ = new ShortSet[p_142988_.m_151559_()];
+    }
+ 
++   // CraftBukkit start
++   public LevelChunk getFullChunkNow() {
++      // Note: We use the oldTicketLevel for isLoaded checks.
++      if (!m_140083_(this.f_140006_).m_140114_(ChunkHolder.FullChunkStatus.BORDER)) return null;
++      return this.getFullChunkNowUnchecked();
++   }
++
++   public LevelChunk getFullChunkNowUnchecked() {
++      CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> statusFuture = this.m_140047_(ChunkStatus.f_62326_);
++      Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure> either = (Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>) statusFuture.getNow(null);
++      return (either == null) ? null : (LevelChunk) either.left().orElse(null);
++   }
++    // CraftBukkit end
++
+    public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> m_140047_(ChunkStatus p_140048_) {
+       CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> completablefuture = this.f_140001_.get(p_140048_.m_62445_());
+       return completablefuture == null ? f_139996_ : completablefuture;
+@@ -154,6 +_,7 @@
+       LevelChunk levelchunk = this.m_140085_();
+       if (levelchunk != null) {
+          int i = this.f_142983_.m_151564_(p_140057_.m_123342_());
++         if (i < 0 || i >= this.f_140011_.length) return; // CraftBukkit - SPIGOT-6086, SPIGOT-6296
+          if (this.f_140011_[i] == null) {
+             this.f_140010_ = true;
+             this.f_140011_[i] = new ShortOpenHashSet();
+@@ -350,6 +_,29 @@
+       boolean flag1 = this.f_140007_ <= ChunkMap.f_140127_;
+       ChunkHolder.FullChunkStatus chunkholder$fullchunkstatus = m_140083_(this.f_140006_);
+       ChunkHolder.FullChunkStatus chunkholder$fullchunkstatus1 = m_140083_(this.f_140007_);
++      // CraftBukkit start
++      // ChunkUnloadEvent: Called before the chunk is unloaded: isChunkLoaded is still true and chunk can still be modified by plugins.
++      if (chunkholder$fullchunkstatus.m_140114_(ChunkHolder.FullChunkStatus.BORDER) && !chunkholder$fullchunkstatus1.m_140114_(ChunkHolder.FullChunkStatus.BORDER)) {
++         this.m_140047_(ChunkStatus.f_62326_).thenAccept((either) -> {
++            LevelChunk chunk = (LevelChunk)either.left().orElse(null);
++            if (chunk != null) {
++               p_143004_.callbackExecutor.execute(() -> {
++                  // Minecraft will apply the chunks tick lists to the world once the chunk got loaded, and then store the tick
++                  // lists again inside the chunk once the chunk becomes inaccessible and set the chunk's needsSaving flag.
++                  // These actions may however happen deferred, so we manually set the needsSaving flag already here.
++                  chunk.m_8092_(true);
++                  chunk.unloadCallback();
++               });
++            }
++         }).exceptionally((throwable) -> {
++            // ensure exceptions are printed, by default this is not the case
++            return null;
++         });
++
++         // Run callback right away if the future was already done
++         p_143004_.callbackExecutor.run();
++      }
++      // CraftBukkit end
+       if (flag) {
+          Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure> either = Either.right(new ChunkHolder.ChunkLoadingFailure() {
+             public String toString() {
+@@ -415,6 +_,25 @@
+ 
+       this.f_140015_.m_6250_(this.f_140009_, this::m_140094_, this.f_140007_, this::m_140086_);
+       this.f_140006_ = this.f_140007_;
++      // CraftBukkit start
++      // ChunkLoadEvent: Called after the chunk is loaded: isChunkLoaded returns true and chunk is ready to be modified by plugins.
++      if (!chunkholder$fullchunkstatus.m_140114_(ChunkHolder.FullChunkStatus.BORDER) && chunkholder$fullchunkstatus1.m_140114_(ChunkHolder.FullChunkStatus.BORDER)) {
++         this.m_140047_(ChunkStatus.f_62326_).thenAccept((either) -> {
++            LevelChunk chunk = (LevelChunk)either.left().orElse(null);
++            if (chunk != null) {
++               p_143004_.callbackExecutor.execute(() -> {
++                  chunk.loadCallback();
++               });
++            }
++         }).exceptionally((throwable) -> {
++            // ensure exceptions are printed, by default this is not the case
++            return null;
++         });
++
++         // Run callback right away if the future was already done
++         p_143004_.callbackExecutor.run();
++      }
++      // CraftBukkit end
+    }
+ 
+    public static ChunkStatus m_140074_(int p_140075_) {
+@@ -457,7 +_,15 @@
+       return list;
+    }
+ 
+-   public interface ChunkLoadingFailure {
++   // CraftBukkit start
++   public LevelChunk getFullChunkUnchecked() {
++      CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> statusFuture = this.m_140047_(ChunkStatus.f_62326_);
++      Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure> either = (Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>) statusFuture.getNow(null);
++      return (either == null) ? null : (LevelChunk) either.left().orElse(null);
++   }
++   // CraftBukkit end
++
++    public interface ChunkLoadingFailure {
+       ChunkHolder.ChunkLoadingFailure f_140101_ = new ChunkHolder.ChunkLoadingFailure() {
+          public String toString() {
+             return "UNLOADED";

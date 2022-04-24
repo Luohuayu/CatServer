@@ -1,0 +1,160 @@
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -44,9 +_,15 @@
+ import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+ import net.minecraft.world.level.material.FluidState;
+ import net.minecraft.world.level.pathfinder.PathComputationType;
++import net.minecraft.world.level.storage.LevelData;
++import net.minecraft.world.level.storage.WorldData;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.Bukkit;
++import org.bukkit.entity.SpawnCategory;
++import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.slf4j.Logger;
+ 
++// TODO: ForgeEventFactory.getPotentialSpawns, ForgeHooks.canEntitySpawn
+ public final class NaturalSpawner {
+    private static final Logger f_46977_ = LogUtils.getLogger();
+    private static final int f_151589_ = 24;
+@@ -81,9 +_,9 @@
+             }
+ 
+             mob = (Mob)entity;
+-         } while(mob.m_21532_() || mob.m_8023_());
++         } while(mob.m_6785_(0) && mob.m_21532_());
+ 
+-         MobCategory mobcategory = entity.m_6095_().m_20674_();
++         MobCategory mobcategory = entity.getClassification(true);
+          if (mobcategory != MobCategory.MISC) {
+             Entity entity_f = entity;
+             BlockPos blockpos = entity.m_142538_();
+@@ -109,13 +_,49 @@
+ 
+    public static void m_47029_(ServerLevel p_47030_, LevelChunk p_47031_, NaturalSpawner.SpawnState p_47032_, boolean p_47033_, boolean p_47034_, boolean p_47035_) {
+       p_47030_.m_46473_().m_6180_("spawner");
++      p_47030_.timings.mobSpawn.startTiming(); // Spigot
+ 
+       for(MobCategory mobcategory : f_46979_) {
+-         if ((p_47033_ || !mobcategory.m_21609_()) && (p_47034_ || mobcategory.m_21609_()) && (p_47035_ || !mobcategory.m_21610_()) && p_47032_.m_186548_(mobcategory, p_47031_.m_7697_())) {
++
++         // CraftBukkit start - Use per-world spawn limits
++         boolean spawnThisTick = true;
++         int limit = mobcategory.m_21608_();
++         switch (mobcategory) {
++            case MONSTER:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.MONSTER) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.MONSTER) == 0L;;
++               limit = Bukkit.getSpawnLimit(SpawnCategory.MONSTER);
++               break;
++            case CREATURE:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.ANIMAL) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.ANIMAL) == 0L;;;
++               limit =  Bukkit.getSpawnLimit(SpawnCategory.ANIMAL);
++               break;
++            case WATER_CREATURE:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.WATER_ANIMAL) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.WATER_ANIMAL) == 0L;;;
++               limit =  Bukkit.getSpawnLimit(SpawnCategory.WATER_ANIMAL);
++               break;
++            case UNDERGROUND_WATER_CREATURE:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.WATER_UNDERGROUND_CREATURE) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.WATER_UNDERGROUND_CREATURE) == 0L;;;
++               limit =  Bukkit.getSpawnLimit(SpawnCategory.WATER_UNDERGROUND_CREATURE);
++               break;
++            case AMBIENT:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.AMBIENT) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.AMBIENT) == 0L;;;
++               limit =  Bukkit.getSpawnLimit(SpawnCategory.AMBIENT);
++               break;
++            case WATER_AMBIENT:
++               spawnThisTick = Bukkit.getTicksPerSpawns(SpawnCategory.WATER_AMBIENT) != 0L && Bukkit.getTicksPerSpawns(SpawnCategory.WATER_AMBIENT) == 0L;;;
++               limit =  Bukkit.getSpawnLimit(SpawnCategory.WATER_AMBIENT);
++               break;
++         }
++         if (!spawnThisTick || limit == 0) {
++            continue;
++         }
++
++         if ((p_47033_ || !mobcategory.m_21609_()) && (p_47034_ || mobcategory.m_21609_()) && (p_47035_ || !mobcategory.m_21610_()) && p_47032_.canSpawnForCategory(mobcategory, p_47031_.m_7697_(), limit)) { // Temporary mobcategory.getMaxInstancesPerChunk() as Limit
+             m_47045_(mobcategory, p_47030_, p_47031_, p_47032_::m_47127_, p_47032_::m_47131_);
+          }
+       }
+ 
++      p_47030_.timings.mobSpawn.stopTiming(); // Spigot
+       p_47030_.m_46473_().m_7238_();
+    }
+ 
+@@ -179,13 +_,18 @@
+                         }
+ 
+                         mob.m_7678_(d0, (double)i, d1, p_47040_.f_46441_.nextFloat() * 360.0F, 0.0F);
+-                        if (m_46991_(p_47040_, mob, d2)) {
+-                           spawngroupdata = mob.m_6518_(p_47040_, p_47040_.m_6436_(mob.m_142538_()), MobSpawnType.NATURAL, spawngroupdata, (CompoundTag)null);
+-                           ++j;
+-                           ++l1;
+-                           p_47040_.m_47205_(mob);
+-                           p_47044_.m_47100_(mob, p_47041_);
+-                           if (j >= mob.m_5792_()) {
++                        int canSpawn = net.minecraftforge.common.ForgeHooks.canEntitySpawn(mob, p_47040_, d0, i, d1, null, MobSpawnType.NATURAL);
++                        if (canSpawn != -1 && (canSpawn == 1 || m_46991_(p_47040_, mob, d2))) {
++                           if (!net.minecraftforge.event.ForgeEventFactory.doSpecialSpawn(mob, (LevelAccessor) p_47040_, (float)d0, (float)i, (float)d1, null, MobSpawnType.NATURAL))
++                              // CraftBukkit start
++                            p_47040_.addFreshEntityWithPassengers(mob, CreatureSpawnEvent.SpawnReason.NATURAL);
++                           if (!mob.m_146910_()) {
++                              ++j;
++                              ++k1;
++                              p_47044_.m_47100_(mob, p_47041_);
++                           }
++                           // CraftBukkit end
++                           if (j >= net.minecraftforge.event.ForgeEventFactory.getMaxSpawnPackSize(mob)) {
+                               return;
+                            }
+ 
+@@ -304,6 +_,13 @@
+       if (p_47052_ == SpawnPlacements.Type.NO_RESTRICTIONS) {
+          return true;
+       } else if (p_47055_ != null && p_47053_.m_6857_().m_61937_(p_47054_)) {
++         return p_47052_.canSpawnAt(p_47053_, p_47054_, p_47055_);
++      }
++      return false;
++   }
++
++   public static boolean canSpawnAtBody(SpawnPlacements.Type p_47052_, LevelReader p_47053_, BlockPos p_47054_, @Nullable EntityType<?> p_47055_) {
++      {
+          BlockState blockstate = p_47053_.m_8055_(p_47054_);
+          FluidState fluidstate = p_47053_.m_6425_(p_47054_);
+          BlockPos blockpos = p_47054_.m_7494_();
+@@ -316,14 +_,12 @@
+          case ON_GROUND:
+          default:
+             BlockState blockstate1 = p_47053_.m_8055_(blockpos1);
+-            if (!blockstate1.m_60643_(p_47053_, blockpos1, p_47055_)) {
++            if (!blockstate1.isValidSpawn(p_47053_, blockpos1, p_47052_, p_47055_)) {
+                return false;
+             } else {
+                return m_47056_(p_47053_, p_47054_, blockstate, fluidstate, p_47055_) && m_47056_(p_47053_, blockpos, p_47053_.m_8055_(blockpos), p_47053_.m_6425_(blockpos), p_47055_);
+             }
+          }
+-      } else {
+-         return false;
+       }
+    }
+ 
+@@ -369,9 +_,10 @@
+                         entity.m_7678_(d0, (double)blockpos.m_123342_(), d1, p_204179_.nextFloat() * 360.0F, 0.0F);
+                         if (entity instanceof Mob) {
+                            Mob mob = (Mob)entity;
++                           if (net.minecraftforge.common.ForgeHooks.canEntitySpawn(mob, p_204176_, d0, blockpos.m_123342_(), d1, null, MobSpawnType.CHUNK_GENERATION) == -1) continue;
+                            if (mob.m_5545_(p_204176_, MobSpawnType.CHUNK_GENERATION) && mob.m_6914_(p_204176_)) {
+                               spawngroupdata = mob.m_6518_(p_204176_, p_204176_.m_6436_(mob.m_142538_()), MobSpawnType.CHUNK_GENERATION, spawngroupdata, (CompoundTag)null);
+-                              p_204176_.m_47205_(mob);
++                              p_204176_.addFreshEntityWithPassengers(mob, CreatureSpawnEvent.SpawnReason.CHUNK_GEN); // CraftBukkit
+                               flag = true;
+                            }
+                         }
+@@ -492,8 +_,8 @@
+          return this.f_47113_;
+       }
+ 
+-      boolean m_186548_(MobCategory p_186549_, ChunkPos p_186550_) {
+-         int i = p_186549_.m_21608_() * this.f_47110_ / NaturalSpawner.f_46978_;
++      boolean canSpawnForCategory(MobCategory p_186549_, ChunkPos p_186550_, int limit) {
++         int i = limit * this.f_47110_ / NaturalSpawner.f_46978_;
+          if (this.f_47111_.getInt(p_186549_) >= i) {
+             return false;
+          } else {

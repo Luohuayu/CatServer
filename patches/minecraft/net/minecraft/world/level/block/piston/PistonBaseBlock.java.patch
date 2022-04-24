@@ -1,0 +1,125 @@
+--- a/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -1,7 +_,9 @@
+ package net.minecraft.world.level.block.piston;
+ 
++import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
++import java.util.AbstractList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Map.Entry;
+@@ -35,6 +_,9 @@
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
++import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
++import org.bukkit.event.block.BlockPistonExtendEvent;
++import org.bukkit.event.block.BlockPistonRetractEvent;
+ 
+ public class PistonBaseBlock extends DirectionalBlock {
+    public static final BooleanProperty f_60153_ = BlockStateProperties.f_61432_;
+@@ -125,7 +_,18 @@
+                }
+             }
+          }
++         // CraftBukkit start
++         if (!this.f_60160_) {
++            org.bukkit.block.Block block = p_60168_.getWorld().getBlockAt(p_60169_.m_123341_(), p_60169_.m_123342_(), p_60169_.m_123343_());
++            BlockPistonRetractEvent event = new BlockPistonRetractEvent(block, ImmutableList.<org.bukkit.block.Block>of(), CraftBlock.notchToBlockFace(direction));
++            p_60168_.getCraftServer().getPluginManager().callEvent(event);
+ 
++            if (event.isCancelled()) {
++               return;
++            }
++         }
++         // PAIL: checkME - what happened to setTypeAndData?
++         // CraftBukkit end
+          p_60168_.m_7696_(p_60169_, this, i, direction.m_122411_());
+       }
+ 
+@@ -168,6 +_,7 @@
+       }
+ 
+       if (p_60195_ == 0) {
++         if (net.minecraftforge.event.ForgeEventFactory.onPistonMovePre(p_60193_, p_60194_, direction, true)) return false;
+          if (!this.m_60181_(p_60193_, p_60194_, direction, true)) {
+             return false;
+          }
+@@ -176,6 +_,7 @@
+          p_60193_.m_5594_((Player)null, p_60194_, SoundEvents.f_12312_, SoundSource.BLOCKS, 0.5F, p_60193_.f_46441_.nextFloat() * 0.25F + 0.6F);
+          p_60193_.m_151555_(GameEvent.f_157775_, p_60194_);
+       } else if (p_60195_ == 1 || p_60195_ == 2) {
++         if (net.minecraftforge.event.ForgeEventFactory.onPistonMovePre(p_60193_, p_60194_, direction, false)) return false;
+          BlockEntity blockentity1 = p_60193_.m_7702_(p_60194_.m_142300_(direction));
+          if (blockentity1 instanceof PistonMovingBlockEntity) {
+             ((PistonMovingBlockEntity)blockentity1).m_60401_();
+@@ -216,6 +_,7 @@
+          p_60193_.m_151555_(GameEvent.f_157774_, p_60194_);
+       }
+ 
++      net.minecraftforge.event.ForgeEventFactory.onPistonMovePost(p_60193_, p_60194_, direction, (p_60195_ == 0));
+       return true;
+    }
+ 
+@@ -281,7 +_,47 @@
+          BlockState[] ablockstate = new BlockState[list.size() + list2.size()];
+          Direction direction = p_60185_ ? p_60184_ : p_60184_.m_122424_();
+          int j = 0;
+-
++         // CraftBukkit start
++         final org.bukkit.block.Block bblock = p_60182_.getWorld().getBlockAt(p_60183_.m_123341_(), p_60183_.m_123342_(), p_60183_.m_123343_());
++         final List<BlockPos> moved = pistonstructureresolver.m_60436_();
++         final List<BlockPos> broken = pistonstructureresolver.m_60437_();
++
++         List<org.bukkit.block.Block> blocks = new AbstractList<org.bukkit.block.Block>() {
++
++            @Override
++            public int size() {
++               return moved.size() + broken.size();
++            }
++
++            @Override
++            public org.bukkit.block.Block get(int index) {
++               if (index >= size() || index < 0) {
++                  throw new ArrayIndexOutOfBoundsException(index);
++               }
++               BlockPos pos = (BlockPos) (index < moved.size() ? moved.get(index) : broken.get(index - moved.size()));
++               return bblock.getWorld().getBlockAt(pos.m_123341_(), pos.m_123342_(), pos.m_123343_());
++            }
++         };
++         org.bukkit.event.block.BlockPistonEvent event;
++         if (p_60185_) {
++            event = new BlockPistonExtendEvent(bblock, blocks, CraftBlock.notchToBlockFace(direction));
++         } else {
++            event = new BlockPistonRetractEvent(bblock, blocks, CraftBlock.notchToBlockFace(direction));
++         }
++         p_60182_.getCraftServer().getPluginManager().callEvent(event);
++
++         if (event.isCancelled()) {
++            for (BlockPos b : broken) {
++               p_60182_.m_7260_(b, Blocks.f_50016_.m_49966_(), p_60182_.m_8055_(b), 3);
++            }
++            for (BlockPos b : moved) {
++               p_60182_.m_7260_(b, Blocks.f_50016_.m_49966_(), p_60182_.m_8055_(b), 3);
++               b = b.m_142300_(direction);
++               p_60182_.m_7260_(b, Blocks.f_50016_.m_49966_(), p_60182_.m_8055_(b), 3);
++            }
++            return false;
++         }
++         // CraftBukkit end
+          for(int k = list2.size() - 1; k >= 0; --k) {
+             BlockPos blockpos2 = list2.get(k);
+             BlockState blockstate1 = p_60182_.m_8055_(blockpos2);
+@@ -352,6 +_,10 @@
+ 
+    public BlockState m_6843_(BlockState p_60215_, Rotation p_60216_) {
+       return p_60215_.m_61124_(f_52588_, p_60216_.m_55954_(p_60215_.m_61143_(f_52588_)));
++   }
++
++   public BlockState rotate(BlockState state, net.minecraft.world.level.LevelAccessor world, BlockPos pos, Rotation direction) {
++       return state.m_61143_(f_60153_) ? state : super.rotate(state, world, pos, direction);
+    }
+ 
+    public BlockState m_6943_(BlockState p_60212_, Mirror p_60213_) {

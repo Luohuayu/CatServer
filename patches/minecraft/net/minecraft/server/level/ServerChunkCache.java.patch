@@ -1,0 +1,185 @@
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -44,6 +_,9 @@
+ import net.minecraft.world.level.storage.DimensionDataStorage;
+ import net.minecraft.world.level.storage.LevelData;
+ import net.minecraft.world.level.storage.LevelStorageSource;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++import org.bukkit.Chunk;
+ 
+ public class ServerChunkCache extends ChunkSource {
+    private static final List<ChunkStatus> f_8326_ = ChunkStatus.m_62349_();
+@@ -79,6 +_,16 @@
+       this.m_8488_();
+    }
+ 
++   // CraftBukkit start - properly implement isChunkLoaded
++   public boolean isChunkLoaded(int chunkX, int chunkZ) {
++      ChunkHolder chunk = this.f_8325_.m_140174_(ChunkPos.m_45589_(chunkX, chunkZ));
++      if (chunk == null) {
++         return false;
++      }
++      return chunk.getFullChunkNow() != null;
++   }
++   // CraftBukkit end
++
+    public ThreadedLevelLightEngine m_7827_() {
+       return this.f_8331_;
+    }
+@@ -125,8 +_,10 @@
+          }
+ 
+          profilerfiller.m_6174_("getChunkCacheMiss");
++         f_8329_.timings.syncChunkLoadTimer.startTiming(); // Spigot
+          CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> completablefuture = this.m_8456_(p_8360_, p_8361_, p_8362_, p_8363_);
+          this.f_8332_.m_18701_(completablefuture::isDone);
++         f_8329_.timings.syncChunkLoadTimer.stopTiming(); // Spigot
+          ChunkAccess chunkaccess1 = completablefuture.join().map((p_8406_) -> {
+             return p_8406_;
+          }, (p_8423_) -> {
+@@ -152,7 +_,10 @@
+          for(int j = 0; j < 4; ++j) {
+             if (i == this.f_8337_[j] && this.f_8338_[j] == ChunkStatus.f_62326_) {
+                ChunkAccess chunkaccess = this.f_8339_[j];
+-               return chunkaccess instanceof LevelChunk ? (LevelChunk)chunkaccess : null;
++               if (chunkaccess != null)
++               { // CraftBukkit - the chunk can become accessible in the meantime TODO for non-null chunks it might also make sense to check that the chunk's state hasn't changed in the meantime
++                  return chunkaccess instanceof LevelChunk ? ( LevelChunk ) chunkaccess : null;
++               }
+             }
+          }
+ 
+@@ -160,6 +_,7 @@
+          if (chunkholder == null) {
+             return null;
+          } else {
++            if (chunkholder.currentlyLoading != null) return chunkholder.currentlyLoading; // Forge: If the requested chunk is loading, bypass the future chain to prevent a deadlock.
+             Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure> either = chunkholder.m_140080_(ChunkStatus.f_62326_).getNow((Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>)null);
+             if (either == null) {
+                return null;
+@@ -206,7 +_,15 @@
+       long i = chunkpos.m_45588_();
+       int j = 33 + ChunkStatus.m_62370_(p_8459_);
+       ChunkHolder chunkholder = this.m_8364_(i);
+-      if (p_8460_) {
++      // CraftBukkit start - don't add new ticket for currently unloading chunk
++      boolean currentlyUnloading = false;
++      if (chunkholder != null) {
++         ChunkHolder.FullChunkStatus oldChunkState = ChunkHolder.m_140083_(chunkholder.f_140006_);
++         ChunkHolder.FullChunkStatus currentChunkState = ChunkHolder.m_140083_(chunkholder.m_140093_());
++         currentlyUnloading = (oldChunkState.m_140114_(ChunkHolder.FullChunkStatus.BORDER) && !currentChunkState.m_140114_(ChunkHolder.FullChunkStatus.BORDER));
++      }
++      if (p_8460_ && !currentlyUnloading) {
++         // CraftBukkit end
+          this.f_8327_.m_140792_(TicketType.f_9449_, chunkpos, j, chunkpos);
+          if (this.m_8416_(chunkholder, j)) {
+             ProfilerFiller profilerfiller = this.f_8329_.m_46473_();
+@@ -294,22 +_,46 @@
+    }
+ 
+    public void close() throws IOException {
+-      this.m_8419_(true);
++      // CraftBukkit start
++      close(true);
++   }
++
++   public void close(boolean save) throws IOException {
++      if (save) {
++         this.m_8419_(true);
++      }
++      // CraftBukkit end
+       this.f_8331_.close();
+       this.f_8325_.close();
+    }
+ 
++   // CraftBukkit start - modelled on below
++   public void purgeUnload() {
++      this.f_8329_.m_46473_().m_6180_("purge");
++      this.f_8327_.m_140776_();
++      this.m_8489_();
++      this.f_8329_.m_46473_().m_6182_("unload");
++      this.f_8325_.m_140280_(() -> true);
++      this.f_8329_.m_46473_().m_7238_();
++      this.m_8488_();
++   }
++   // CraftBukkit end
++
+    public void m_201698_(BooleanSupplier p_201913_, boolean p_201914_) {
+       this.f_8329_.m_46473_().m_6180_("purge");
++      this.f_8329_.timings.doChunkMap.startTiming(); // Spigot
+       this.f_8327_.m_140776_();
+       this.m_8489_();
++      this.f_8329_.timings.doChunkMap.stopTiming(); // Spigot
+       this.f_8329_.m_46473_().m_6182_("chunks");
+       if (p_201914_) {
+          this.m_8490_();
+       }
+ 
++      this.f_8329_.timings.doChunkUnload.startTiming(); // Spigot
+       this.f_8329_.m_46473_().m_6182_("unload");
+       this.f_8325_.m_140280_(p_201913_);
++      this.f_8329_.timings.doChunkUnload.stopTiming(); // Spigot
+       this.f_8329_.m_46473_().m_7238_();
+       this.m_8488_();
+    }
+@@ -326,7 +_,7 @@
+          ProfilerFiller profilerfiller = this.f_8329_.m_46473_();
+          profilerfiller.m_6180_("pollingChunks");
+          int k = this.f_8329_.m_46469_().m_46215_(GameRules.f_46143_);
+-         boolean flag1 = leveldata.m_6793_() % 400L == 0L;
++         boolean flag1 = f_8329_.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && leveldata.m_6793_() % f_8329_.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
+          profilerfiller.m_6180_("naturalSpawnCount");
+          int l = this.f_8327_.m_140816_();
+          NaturalSpawner.SpawnState naturalspawner$spawnstate = NaturalSpawner.m_186524_(l, this.f_8329_.m_8583_(), this::m_8370_, new LocalMobCapCalculator(this.f_8325_));
+@@ -342,20 +_,22 @@
+          }
+ 
+          profilerfiller.m_6182_("spawnAndTick");
+-         boolean flag2 = this.f_8329_.m_46469_().m_46207_(GameRules.f_46134_);
++         boolean flag2 = this.f_8329_.m_46469_().m_46207_(GameRules.f_46134_) && !f_8329_.m_6907_().isEmpty(); // CraftBukkit
+          Collections.shuffle(list);
+ 
+          for(ServerChunkCache.ChunkAndHolder serverchunkcache$chunkandholder : list) {
+             LevelChunk levelchunk1 = serverchunkcache$chunkandholder.f_184028_;
+             ChunkPos chunkpos = levelchunk1.m_7697_();
+-            if (this.f_8329_.m_201916_(chunkpos) && this.f_8325_.m_183879_(chunkpos)) {
++            if ((this.f_8329_.m_201916_(chunkpos) && this.f_8325_.m_183879_(chunkpos)) || this.f_8327_.shouldForceTicks(chunkpos.m_45588_())) {
+                levelchunk1.m_187632_(j);
+-               if (flag2 && (this.f_8335_ || this.f_8336_) && this.f_8329_.m_6857_().m_61927_(chunkpos)) {
++               if (flag2 && (this.f_8335_ || this.f_8336_) && this.f_8329_.m_6857_().m_61927_(chunkpos) && this.f_8325_.anyPlayerCloseEnoughForSpawning(chunkpos, true)) { // Spigot
+                   NaturalSpawner.m_47029_(this.f_8329_, levelchunk1, naturalspawner$spawnstate, this.f_8336_, this.f_8335_, flag1);
+                }
+ 
+                if (this.f_8329_.m_183438_(chunkpos.m_45588_())) {
++                  this.f_8329_.timings.doTickTiles.startTiming(); // Spigot
+                   this.f_8329_.m_8714_(levelchunk1, k);
++                  this.f_8329_.timings.doTickTiles.stopTiming(); // Spigot
+                }
+             }
+          }
+@@ -371,7 +_,9 @@
+          });
+          profilerfiller.m_7238_();
+          profilerfiller.m_7238_();
++         this.f_8329_.timings.tracker.startTiming(); // Spigot
+          this.f_8325_.m_140421_();
++         this.f_8329_.timings.tracker.stopTiming(); // Spigot
+       }
+    }
+ 
+@@ -426,6 +_,14 @@
+ 
+    public <T> void m_8438_(TicketType<T> p_8439_, ChunkPos p_8440_, int p_8441_, T p_8442_) {
+       this.f_8327_.m_140849_(p_8439_, p_8440_, p_8441_, p_8442_);
++   }
++
++   public <T> void registerTickingTicket(TicketType<T> type, ChunkPos pos, int distance, T value) {
++      this.f_8327_.registerTicking(type, pos, distance, value);
++   }
++
++   public <T> void releaseTickingTicket(TicketType<T> type, ChunkPos pos, int distance, T value) {
++      this.f_8327_.releaseTicking(type, pos, distance, value);
+    }
+ 
+    public void m_6692_(ChunkPos p_8400_, boolean p_8401_) {

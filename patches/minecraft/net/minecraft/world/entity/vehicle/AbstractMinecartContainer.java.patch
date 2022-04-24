@@ -1,0 +1,109 @@
+--- a/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
++++ b/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
+@@ -29,13 +_,60 @@
+ import net.minecraft.world.level.storage.loot.LootTable;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.inventory.InventoryHolder;
++
++import java.util.List;
+ 
+ public abstract class AbstractMinecartContainer extends AbstractMinecart implements Container, MenuProvider {
+-   private NonNullList<ItemStack> f_38202_ = NonNullList.m_122780_(36, ItemStack.f_41583_);
++   private NonNullList<ItemStack> f_38202_ = NonNullList.m_122780_(this.m_6643_(), ItemStack.f_41583_);
+    @Nullable
+    public ResourceLocation f_38204_;
+    public long f_38205_;
+ 
++   // CraftBukkit start
++   public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++   private int maxStack = MAX_STACK;
++
++   public List<ItemStack> getContents() {
++      return this.f_38202_;
++   }
++
++   public void onOpen(CraftHumanEntity who) {
++      transaction.add(who);
++   }
++
++   public void onClose(CraftHumanEntity who) {
++      transaction.remove(who);
++   }
++
++   public List<HumanEntity> getViewers() {
++      return transaction;
++   }
++
++   public InventoryHolder getOwner() {
++      org.bukkit.entity.Entity cart = getBukkitEntity();
++      if(cart instanceof InventoryHolder) return (InventoryHolder) cart;
++      return null;
++   }
++
++   @Override
++   public int m_6893_() {
++      return maxStack;
++   }
++
++   public void setMaxStackSize(int size) {
++      maxStack = size;
++   }
++
++   @Override
++   public Location getLocation() {
++      return getBukkitEntity().getLocation();
++   }
++   // CraftBukkit end
++
+    protected AbstractMinecartContainer(EntityType<?> p_38213_, Level p_38214_) {
+       super(p_38213_, p_38214_);
+    }
+@@ -156,6 +_,8 @@
+    }
+ 
+    public InteractionResult m_6096_(Player p_38232_, InteractionHand p_38233_) {
++      InteractionResult ret = super.m_6096_(p_38232_, p_38233_);
++      if (ret.m_19077_()) return ret;
+       p_38232_.m_5893_(this);
+       if (!p_38232_.f_19853_.f_46443_) {
+          this.m_146852_(GameEvent.f_157803_, p_38232_);
+@@ -189,6 +_,8 @@
+ 
+          this.f_38204_ = null;
+          LootContext.Builder lootcontext$builder = (new LootContext.Builder((ServerLevel)this.f_19853_)).m_78972_(LootContextParams.f_81460_, this.m_20182_()).m_78965_(this.f_38205_);
++         // Forge: add this entity to loot context, however, currently Vanilla uses 'this' for the player creating the chests. So we take over 'killer_entity' for this.
++         lootcontext$builder.m_78972_(LootContextParams.f_81458_, this);
+          if (p_38255_ != null) {
+             lootcontext$builder.m_78963_(p_38255_.m_36336_()).m_78972_(LootContextParams.f_81455_, p_38255_);
+          }
+@@ -219,4 +_,26 @@
+    }
+ 
+    protected abstract AbstractContainerMenu m_7402_(int p_38222_, Inventory p_38223_);
++
++   // Forge Start
++   private net.minecraftforge.common.util.LazyOptional<?> itemHandler = net.minecraftforge.common.util.LazyOptional.of(() -> new net.minecraftforge.items.wrapper.InvWrapper(this));
++
++   @Override
++   public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable net.minecraft.core.Direction facing) {
++      if (this.m_6084_() && capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY)
++         return itemHandler.cast();
++      return super.getCapability(capability, facing);
++   }
++
++   @Override
++   public void invalidateCaps() {
++      super.invalidateCaps();
++      itemHandler.invalidate();
++   }
++
++   @Override
++   public void reviveCaps() {
++      super.reviveCaps();
++      itemHandler = net.minecraftforge.common.util.LazyOptional.of(() -> new net.minecraftforge.items.wrapper.InvWrapper(this));
++   }
+ }

@@ -1,0 +1,91 @@
+--- a/net/minecraft/world/entity/monster/Creeper.java
++++ b/net/minecraft/world/entity/monster/Creeper.java
+@@ -38,9 +_,11 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Explosion;
+-import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.gameevent.GameEvent;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ public class Creeper extends Monster implements PowerableMob {
+    private static final EntityDataAccessor<Integer> f_32268_ = SynchedEntityData.m_135353_(Creeper.class, EntityDataSerializers.f_135028_);
+@@ -79,7 +_,7 @@
+ 
+    public boolean m_142535_(float p_149687_, float p_149688_, DamageSource p_149689_) {
+       boolean flag = super.m_142535_(p_149687_, p_149688_, p_149689_);
+-      this.f_32270_ += (int)(p_149687_ * 1.5F);
++      this.f_32270_ = (int)((float)this.f_32270_ + p_149687_ * 1.5F);
+       if (this.f_32270_ > this.f_32271_ - 5) {
+          this.f_32270_ = this.f_32271_ - 5;
+       }
+@@ -198,8 +_,18 @@
+ 
+    public void m_8038_(ServerLevel p_32286_, LightningBolt p_32287_) {
+       super.m_8038_(p_32286_, p_32287_);
+-      this.f_19804_.m_135381_(f_32274_, true);
+-   }
++      // CraftBukkit start
++      if (CraftEventFactory.callCreeperPowerEvent(this, p_32287_, org.bukkit.event.entity.CreeperPowerEvent.PowerCause.LIGHTNING).isCancelled()) {
++         return;
++      }
++
++      this.setPowered(true);
++   }
++
++   public void setPowered(boolean powered) {
++      this.f_19804_.m_135381_(f_32274_, powered);
++   }
++   // CraftBukkit end
+ 
+    protected InteractionResult m_6071_(Player p_32301_, InteractionHand p_32302_) {
+       ItemStack itemstack = p_32301_.m_21120_(p_32302_);
+@@ -218,14 +_,22 @@
+       }
+    }
+ 
+-   private void m_32315_() {
++   public void m_32315_() {
+       if (!this.f_19853_.f_46443_) {
+-         Explosion.BlockInteraction explosion$blockinteraction = this.f_19853_.m_46469_().m_46207_(GameRules.f_46132_) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
++         Explosion.BlockInteraction explosion$blockinteraction = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_19853_, this) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
+          float f = this.m_7090_() ? 2.0F : 1.0F;
+-         this.f_20890_ = true;
+-         this.f_19853_.m_46511_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), (float)this.f_32272_ * f, explosion$blockinteraction);
+-         this.m_146870_();
+-         this.m_32316_();
++         // CraftBukkit start
++         ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), this.f_32272_ * f, false);
++         this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++         if (!event.isCancelled()) {
++            this.f_20890_ = true;
++            this.f_19853_.m_46518_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), event.getRadius(), event.getFire(), explosion$blockinteraction);
++            this.m_146870_();
++            this.m_32316_();
++         } else {
++            f_32270_ = 0;
++         }
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -234,6 +_,7 @@
+       Collection<MobEffectInstance> collection = this.m_21220_();
+       if (!collection.isEmpty()) {
+          AreaEffectCloud areaeffectcloud = new AreaEffectCloud(this.f_19853_, this.m_20185_(), this.m_20186_(), this.m_20189_());
++         areaeffectcloud.m_19718_(this); // CraftBukkit
+          areaeffectcloud.m_19712_(2.5F);
+          areaeffectcloud.m_19732_(-0.5F);
+          areaeffectcloud.m_19740_(10);
+@@ -244,7 +_,7 @@
+             areaeffectcloud.m_19716_(new MobEffectInstance(mobeffectinstance));
+          }
+ 
+-         this.f_19853_.m_7967_(areaeffectcloud);
++         this.f_19853_.addFreshEntity(areaeffectcloud, CreatureSpawnEvent.SpawnReason.EXPLOSION); // CraftBukkit
+       }
+ 
+    }

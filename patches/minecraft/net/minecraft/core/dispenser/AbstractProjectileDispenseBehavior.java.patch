@@ -1,0 +1,58 @@
+--- a/net/minecraft/core/dispenser/AbstractProjectileDispenseBehavior.java
++++ b/net/minecraft/core/dispenser/AbstractProjectileDispenseBehavior.java
+@@ -3,10 +_,14 @@
+ import net.minecraft.core.BlockSource;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.Position;
++import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.projectile.Projectile;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.DispenserBlock;
++import net.minecraft.world.level.block.entity.DispenserBlockEntity;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public abstract class AbstractProjectileDispenseBehavior extends DefaultDispenseItemBehavior {
+    public ItemStack m_7498_(BlockSource p_123366_, ItemStack p_123367_) {
+@@ -14,9 +_,38 @@
+       Position position = DispenserBlock.m_52720_(p_123366_);
+       Direction direction = p_123366_.m_6414_().m_61143_(DispenserBlock.f_52659_);
+       Projectile projectile = this.m_6895_(level, position, p_123367_);
+-      projectile.m_6686_((double)direction.m_122429_(), (double)((float)direction.m_122430_() + 0.1F), (double)direction.m_122431_(), this.m_7104_(), this.m_7101_());
++      // CraftBukkit start
++      // iprojectile.shoot((double) enumdirection.getStepX(), (double) ((float) enumdirection.getStepY() + 0.1F), (double) enumdirection.getStepZ(), this.getPower(), this.getUncertainty());
++      ItemStack itemstack1 = p_123367_.m_41620_(1);
++      org.bukkit.block.Block block = level.getWorld().getBlockAt(p_123366_.m_7961_().m_123341_(), p_123366_.m_7961_().m_123342_(), p_123366_.m_7961_().m_123343_());
++      CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack1);
++
++      BlockDispenseEvent event = new BlockDispenseEvent(block, craftItem.clone(), new org.bukkit.util.Vector((double) direction.m_122429_(), (double) ((float) direction.m_122430_() + 0.1F), (double) direction.m_122431_()));
++      if (!DispenserBlock.eventFired) {
++         level.getCraftServer().getPluginManager().callEvent(event);
++      }
++
++      if (event.isCancelled()) {
++         p_123367_.m_41769_(1);
++         return p_123367_;
++      }
++
++      if (!event.getItem().equals(craftItem)) {
++         p_123367_.m_41769_(1);
++         // Chain to handler for new item
++         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++         DispenseItemBehavior idispensebehavior = (DispenseItemBehavior) DispenserBlock.f_52661_.get(eventStack.m_41720_());
++         if (idispensebehavior != DispenseItemBehavior.f_123393_ && idispensebehavior != this) {
++            idispensebehavior.m_6115_(p_123366_, eventStack);
++            return p_123367_;
++         }
++      }
++
++      projectile.m_6686_(event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), this.m_7104_(), this.m_7101_());
++      ((Entity) projectile).projectileSource = new org.bukkit.craftbukkit.v1_18_R2.projectiles.CraftBlockProjectileSource((DispenserBlockEntity) p_123366_.m_8118_());
++      // CraftBukkit end
+       level.m_7967_(projectile);
+-      p_123367_.m_41774_(1);
++      // p_123367_.shrink(1); // CraftBukkit - Handled during event processing
+       return p_123367_;
+    }
+ 

@@ -1,0 +1,215 @@
+--- a/net/minecraft/world/entity/monster/Zombie.java
++++ b/net/minecraft/world/entity/monster/Zombie.java
+@@ -13,6 +_,7 @@
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundEvents;
+@@ -64,6 +_,10 @@
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityTargetEvent;
++import org.bukkit.event.entity.EntityTransformEvent;
+ 
+ public class Zombie extends Monster {
+    private static final UUID f_34259_ = UUID.fromString("B9766B59-9566-4402-BC1F-2EE2A276D836");
+@@ -83,6 +_,7 @@
+    private boolean f_34264_;
+    private int f_34265_;
+    public int f_34266_;
++   private int lastTick = MinecraftServer.currentTick; // CraftBukkit - add field
+ 
+    public Zombie(EntityType<? extends Zombie> p_34271_, Level p_34272_) {
+       super(p_34271_, p_34272_);
+@@ -105,7 +_,8 @@
+       this.f_21345_.m_25352_(7, new WaterAvoidingRandomStrollGoal(this, 1.0D));
+       this.f_21346_.m_25352_(1, (new HurtByTargetGoal(this)).m_26044_(ZombifiedPiglin.class));
+       this.f_21346_.m_25352_(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+-      this.f_21346_.m_25352_(3, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, false));
++      //this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, false));
++      if ( f_19853_.spigotConfig.zombieAggressiveTowardsVillager ) this.f_21346_.m_25352_(3, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, false)); // Spigot
+       this.f_21346_.m_25352_(3, new NearestAttackableTargetGoal<>(this, IronGolem.class, true));
+       this.f_21346_.m_25352_(5, new NearestAttackableTargetGoal<>(this, Turtle.class, 10, true, false, Turtle.f_30122_));
+    }
+@@ -157,7 +_,7 @@
+ 
+    protected int m_6552_(Player p_34322_) {
+       if (this.m_6162_()) {
+-         this.f_21364_ = (int)((double)this.f_21364_ * 2.5D);
++         this.f_21364_ = (int)((float)this.f_21364_ * 2.5F);
+       }
+ 
+       return super.m_6552_(p_34322_);
+@@ -190,8 +_,11 @@
+    public void m_8119_() {
+       if (!this.f_19853_.f_46443_ && this.m_6084_() && !this.m_21525_()) {
+          if (this.m_34329_()) {
+-            --this.f_34266_;
+-            if (this.f_34266_ < 0) {
++            // CraftBukkit start - Use wall time instead of ticks for conversion
++            int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++            this.f_34266_ -= elapsedTicks;
++            // CraftBukkit end
++            if (this.f_34266_ < 0 && net.minecraftforge.event.ForgeEventFactory.canLivingConvert(this, EntityType.f_20501_, (timer) -> this.f_34266_ = timer)) {
+                this.m_7595_();
+             }
+          } else if (this.m_7593_()) {
+@@ -207,6 +_,7 @@
+       }
+ 
+       super.m_8119_();
++      this.lastTick = MinecraftServer.currentTick; // CraftBukkit
+    }
+ 
+    public void m_8107_() {
+@@ -235,7 +_,8 @@
+       super.m_8107_();
+    }
+ 
+-   private void m_34278_(int p_34279_) {
++   public void m_34278_(int p_34279_) {
++      this.lastTick = MinecraftServer.currentTick; // CraftBukkit
+       this.f_34266_ = p_34279_;
+       this.m_20088_().m_135381_(f_34261_, true);
+    }
+@@ -249,10 +_,15 @@
+    }
+ 
+    protected void m_34310_(EntityType<? extends Zombie> p_34311_) {
+-      Zombie zombie = this.m_21406_(p_34311_, true);
++      Zombie zombie = this.convertTo(p_34311_, true, EntityTransformEvent.TransformReason.DROWNED, CreatureSpawnEvent.SpawnReason.DROWNED);
+       if (zombie != null) {
+          zombie.m_34339_(zombie.f_19853_.m_6436_(zombie.m_142538_()).m_19057_());
+          zombie.m_34336_(zombie.m_7586_() && this.m_34330_());
++         net.minecraftforge.event.ForgeEventFactory.onLivingConvert(this, zombie);
++         // CraftBukkit start - SPIGOT-5208: End conversion to stop event spam
++      } else {
++         (( org.bukkit.entity.Zombie ) getBukkitEntity()).setConversionTime(-1);
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -273,11 +_,14 @@
+             livingentity = (LivingEntity)p_34288_.m_7639_();
+          }
+ 
+-         if (livingentity != null && this.f_19853_.m_46791_() == Difficulty.HARD && (double)this.f_19796_.nextFloat() < this.m_21133_(Attributes.f_22287_) && this.f_19853_.m_46469_().m_46207_(GameRules.f_46134_)) {
+             int i = Mth.m_14107_(this.m_20185_());
+             int j = Mth.m_14107_(this.m_20186_());
+             int k = Mth.m_14107_(this.m_20189_());
+-            Zombie zombie = new Zombie(this.f_19853_);
++         net.minecraftforge.event.entity.living.ZombieEvent.SummonAidEvent event = net.minecraftforge.event.ForgeEventFactory.fireZombieSummonAid(this, f_19853_, i, j, k, livingentity, this.m_21051_(Attributes.f_22287_).m_22135_());
++         if (event.getResult() == net.minecraftforge.eventbus.api.Event.Result.DENY) return true;
++         if (event.getResult() == net.minecraftforge.eventbus.api.Event.Result.ALLOW  ||
++            livingentity != null && this.f_19853_.m_46791_() == Difficulty.HARD && (double)this.f_19796_.nextFloat() < this.m_21051_(Attributes.f_22287_).m_22135_() && this.f_19853_.m_46469_().m_46207_(GameRules.f_46134_)) {
++            Zombie zombie = event.getCustomSummonedAid() != null && event.getResult() == net.minecraftforge.eventbus.api.Event.Result.ALLOW ? event.getCustomSummonedAid() : EntityType.f_20501_.m_20615_(this.f_19853_);
+ 
+             for(int l = 0; l < 50; ++l) {
+                int i1 = i + Mth.m_14072_(this.f_19796_, 7, 40) * Mth.m_14072_(this.f_19796_, -1, 1);
+@@ -289,9 +_,10 @@
+                if (NaturalSpawner.m_47051_(spawnplacements$type, this.f_19853_, blockpos, entitytype) && SpawnPlacements.m_21759_(entitytype, serverlevel, MobSpawnType.REINFORCEMENT, blockpos, this.f_19853_.f_46441_)) {
+                   zombie.m_6034_((double)i1, (double)j1, (double)k1);
+                   if (!this.f_19853_.m_45914_((double)i1, (double)j1, (double)k1, 7.0D) && this.f_19853_.m_45784_(zombie) && this.f_19853_.m_45786_(zombie) && !this.f_19853_.m_46855_(zombie.m_142469_())) {
+-                     zombie.m_6710_(livingentity);
++                     if (livingentity != null)
++                     zombie.setTarget(livingentity, EntityTargetEvent.TargetReason.REINFORCEMENT_TARGET, true); // CraftBukkit
+                      zombie.m_6518_(serverlevel, this.f_19853_.m_6436_(zombie.m_142538_()), MobSpawnType.REINFORCEMENT, (SpawnGroupData)null, (CompoundTag)null);
+-                     serverlevel.m_47205_(zombie);
++                     serverlevel.addFreshEntityWithPassengers(zombie, CreatureSpawnEvent.SpawnReason.REINFORCEMENTS); // CraftBukkit
+                      this.m_21051_(Attributes.f_22287_).m_22125_(new AttributeModifier("Zombie reinforcement caller charge", (double)-0.05F, AttributeModifier.Operation.ADDITION));
+                      zombie.m_21051_(Attributes.f_22287_).m_22125_(new AttributeModifier("Zombie reinforcement callee charge", (double)-0.05F, AttributeModifier.Operation.ADDITION));
+                      break;
+@@ -309,7 +_,14 @@
+       if (flag) {
+          float f = this.f_19853_.m_6436_(this.m_142538_()).m_19056_();
+          if (this.m_21205_().m_41619_() && this.m_6060_() && this.f_19796_.nextFloat() < f * 0.3F) {
+-            p_34276_.m_20254_(2 * (int)f);
++            // CraftBukkit start
++            EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), p_34276_.getBukkitEntity(), 2 * (int) f); // PAIL: fixme
++            this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++
++            if (!event.isCancelled()) {
++               p_34276_.setSecondsOnFire(event.getDuration(), false);
++            }
++            // CraftBukkit end
+          }
+       }
+ 
+@@ -374,23 +_,33 @@
+ 
+    public void m_5837_(ServerLevel p_34281_, LivingEntity p_34282_) {
+       super.m_5837_(p_34281_, p_34282_);
+-      if ((p_34281_.m_46791_() == Difficulty.NORMAL || p_34281_.m_46791_() == Difficulty.HARD) && p_34282_ instanceof Villager) {
++      if ((p_34281_.m_46791_() == Difficulty.NORMAL || p_34281_.m_46791_() == Difficulty.HARD) && p_34282_ instanceof Villager && net.minecraftforge.event.ForgeEventFactory.canLivingConvert(p_34282_, EntityType.f_20530_, (timer) -> {
++      })) {
+          if (p_34281_.m_46791_() != Difficulty.HARD && this.f_19796_.nextBoolean()) {
+             return;
+          }
++         Villager villager = (Villager) p_34282_;
++         // CraftBukkit start
++         zombifyVillager(p_34281_, villager, this.m_142538_(), this.m_20067_(), CreatureSpawnEvent.SpawnReason.INFECTION);
++      }
++   }
+ 
+-         Villager villager = (Villager)p_34282_;
+-         ZombieVillager zombievillager = villager.m_21406_(EntityType.f_20530_, false);
+-         zombievillager.m_6518_(p_34281_, p_34281_.m_6436_(zombievillager.m_142538_()), MobSpawnType.CONVERSION, new Zombie.ZombieGroupData(false, true), (CompoundTag)null);
+-         zombievillager.m_141967_(villager.m_7141_());
+-         zombievillager.m_34391_(villager.m_35517_().m_26179_(NbtOps.f_128958_).getValue());
+-         zombievillager.m_34411_(villager.m_6616_().m_45388_());
+-         zombievillager.m_34373_(villager.m_7809_());
+-         if (!this.m_20067_()) {
+-            p_34281_.m_5898_((Player)null, 1026, this.m_142538_(), 0);
++   public static ZombieVillager zombifyVillager(ServerLevel worldserver, Villager entityvillager, BlockPos blockPosition, boolean silent, CreatureSpawnEvent.SpawnReason spawnReason) {
++      ZombieVillager zombievillager = (ZombieVillager) entityvillager.convertTo(EntityType.f_20530_, false, EntityTransformEvent.TransformReason.INFECTION, spawnReason);
++      if (zombievillager != null) {
++         zombievillager.m_6518_(worldserver, worldserver.m_6436_(zombievillager.m_142538_()), MobSpawnType.CONVERSION, new Zombie.ZombieGroupData(false, true), (CompoundTag)null);
++         zombievillager.m_141967_(entityvillager.m_7141_());
++         zombievillager.m_34391_(entityvillager.m_35517_().m_26179_(NbtOps.f_128958_).getValue());
++         zombievillager.m_34411_(entityvillager.m_6616_().m_45388_());
++         zombievillager.m_34373_(entityvillager.m_7809_());
++         net.minecraftforge.event.ForgeEventFactory.onLivingConvert(entityvillager, zombievillager); // FoxServer TODO
++         // CraftBukkit start
++         if (!silent) {
++            worldserver.m_5898_((Player) null, 1026, blockPosition, 0);
+          }
++         // CraftBukkit end
+       }
+-
++      return zombievillager;
+    }
+ 
+    protected float m_6431_(Pose p_34313_, EntityDimensions p_34314_) {
+@@ -432,7 +_,7 @@
+                   chicken1.m_6518_(p_34297_, p_34298_, MobSpawnType.JOCKEY, (SpawnGroupData)null, (CompoundTag)null);
+                   chicken1.m_28273_(true);
+                   this.m_20329_(chicken1);
+-                  p_34297_.m_7967_(chicken1);
++                  p_34297_.addFreshEntity(chicken1, CreatureSpawnEvent.SpawnReason.MOUNT); // CraftBukkit
+                }
+             }
+          }
+@@ -457,7 +_,7 @@
+    }
+ 
+    public static boolean m_34302_(Random p_34303_) {
+-      return p_34303_.nextFloat() < 0.05F;
++      return p_34303_.nextFloat() < net.minecraftforge.common.ForgeConfig.SERVER.zombieBabyChance.get();
+    }
+ 
+    protected void m_34339_(float p_34340_) {
+@@ -477,7 +_,7 @@
+    }
+ 
+    protected void m_7572_() {
+-      this.m_21051_(Attributes.f_22287_).m_22100_(this.f_19796_.nextDouble() * (double)0.1F);
++      this.m_21051_(Attributes.f_22287_).m_22100_(this.f_19796_.nextDouble() * net.minecraftforge.common.ForgeConfig.SERVER.zombieBaseSummonChance.get());
+    }
+ 
+    public double m_6049_() {

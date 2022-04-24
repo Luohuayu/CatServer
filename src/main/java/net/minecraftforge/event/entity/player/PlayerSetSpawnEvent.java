@@ -1,0 +1,54 @@
+/*
+ * Minecraft Forge - Forge Development LLC
+ * SPDX-License-Identifier: LGPL-2.1-only
+ */
+
+package net.minecraftforge.event.entity.player;
+
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.BlockPos;
+import net.minecraftforge.eventbus.api.Cancelable;
+
+import javax.annotation.Nullable;
+
+/**
+ * This event is fired when a player's spawn point is set or reset.<br>
+ * The event can be canceled, which will prevent the spawn point from being changed.
+ */
+@Cancelable
+public class PlayerSetSpawnEvent extends PlayerEvent
+{
+    private final ResourceKey<Level> spawnWorld;
+    private final boolean forced;
+    @Nullable
+    private final BlockPos newSpawn;
+    
+    public PlayerSetSpawnEvent(Player player, ResourceKey<Level> spawnWorld, @Nullable BlockPos newSpawn, boolean forced)
+    {
+        super(player);
+        this.spawnWorld = spawnWorld;
+        this.newSpawn = newSpawn;
+        this.forced = forced;
+    }
+
+    public boolean isForced()
+    {
+        return forced;
+    }
+
+    /**
+     * The new spawn position, or null if the spawn position is being reset.
+     */
+    @Nullable
+    public BlockPos getNewSpawn()
+    {
+        return newSpawn;
+    }
+
+    public ResourceKey<Level> getSpawnWorld()
+    {
+        return spawnWorld;
+    }
+}

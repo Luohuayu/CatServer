@@ -1,0 +1,173 @@
+--- a/net/minecraft/world/item/BlockItem.java
++++ b/net/minecraft/world/item/BlockItem.java
+@@ -12,7 +_,6 @@
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvent;
+-import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.player.Player;
+@@ -30,6 +_,14 @@
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ 
++// CraftBukkit start
++import net.minecraft.server.level.ServerLevel;
++import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
++import org.bukkit.event.block.BlockCanBuildEvent;
++// CraftBukkit end
++
++
+ public class BlockItem extends Item {
+    private static final String f_150696_ = "BlockEntityTag";
+    public static final String f_150697_ = "BlockStateTag";
+@@ -61,6 +_,12 @@
+             return InteractionResult.FAIL;
+          } else {
+             BlockState blockstate = this.m_5965_(blockplacecontext);
++            // CraftBukkit start - special case for handling block placement with water lilies and snow buckets
++            org.bukkit.block.BlockState bblockstate = null;
++            if (this instanceof WaterLilyBlockItem || this instanceof SolidBucketItem) {
++               bblockstate = org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockStates.getBlockState(blockplacecontext.m_43725_(), blockplacecontext.m_8083_());
++            }
++            // CraftBukkit end
+             if (blockstate == null) {
+                return InteractionResult.FAIL;
+             } else if (!this.m_7429_(blockplacecontext, blockstate)) {
+@@ -75,15 +_,28 @@
+                   blockstate1 = this.m_40602_(blockpos, level, itemstack, blockstate1);
+                   this.m_7274_(blockpos, level, player, itemstack, blockstate1);
+                   blockstate1.m_60734_().m_6402_(level, blockpos, blockstate1, player, itemstack);
++                  // CraftBukkit start
++                  if (bblockstate != null) {
++                     org.bukkit.event.block.BlockPlaceEvent placeEvent = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callBlockPlaceEvent((ServerLevel ) level, player, blockplacecontext.m_43724_(), bblockstate, blockpos.m_123341_(), blockpos.m_123342_(), blockpos.m_123343_());
++                     if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild())) {
++                        bblockstate.update(true, false);
++
++                        if (this instanceof SolidBucketItem) {
++                           ((ServerPlayer) player).getBukkitEntity().updateInventory(); // SPIGOT-4541
++                        }
++                        return InteractionResult.FAIL;
++                     }
++                  }
++                  // CraftBukkit end
+                   if (player instanceof ServerPlayer) {
+                      CriteriaTriggers.f_10591_.m_59469_((ServerPlayer)player, blockpos, itemstack);
+                   }
+                }
+ 
+-               SoundType soundtype = blockstate1.m_60827_();
+-               level.m_5594_(player, blockpos, this.m_40587_(blockstate1), SoundSource.BLOCKS, (soundtype.m_56773_() + 1.0F) / 2.0F, soundtype.m_56774_() * 0.8F);
+                level.m_142346_(player, GameEvent.f_157797_, blockpos);
+-               if (player == null || !player.m_150110_().f_35937_) {
++               SoundType soundtype = blockstate1.getSoundType(level, blockpos, p_40577_.m_43723_());
++               //level.playSound(player, blockpos, this.getPlaceSound(blockstate1, level, blockpos, p_40577_.getPlayer()), SoundSource.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F);
++               if (player == null || !player.m_150110_().f_35937_ && itemstack != ItemStack.f_41583_) { // CraftBukkit
+                   itemstack.m_41774_(1);
+                }
+ 
+@@ -93,10 +_,16 @@
+       }
+    }
+ 
++   @Deprecated //Forge: Use more sensitive version {@link BlockItem#getPlaceSound(BlockState, IBlockReader, BlockPos, Entity) }
+    protected SoundEvent m_40587_(BlockState p_40588_) {
+       return p_40588_.m_60827_().m_56777_();
+    }
+ 
++   //Forge: Sensitive version of BlockItem#getPlaceSound
++   protected SoundEvent getPlaceSound(BlockState state, Level world, BlockPos pos, Player entity) {
++      return state.getSoundType(world, pos, entity).m_56777_();
++   }
++
+    @Nullable
+    public BlockPlaceContext m_7732_(BlockPlaceContext p_40609_) {
+       return p_40609_;
+@@ -117,22 +_,32 @@
+       CompoundTag compoundtag = p_40605_.m_41783_();
+       if (compoundtag != null) {
+          CompoundTag compoundtag1 = compoundtag.m_128469_("BlockStateTag");
+-         StateDefinition<Block, BlockState> statedefinition = p_40606_.m_60734_().m_49965_();
++         // CraftBukkit start
++         blockstate = getBlockState(blockstate, compoundtag1);
++      }
++
++      if (blockstate != p_40606_) {
++         p_40604_.m_7731_(p_40603_, blockstate, 2);
++      }
++
++      return blockstate;
++   }
++
++   public static BlockState getBlockState(BlockState iblockdata, CompoundTag compoundtag1) {
++      BlockState iblockdata1 = iblockdata;
++      {
++         // CraftBukkit end
++         StateDefinition<Block, BlockState> statedefinition = iblockdata.m_60734_().m_49965_();
+ 
+          for(String s : compoundtag1.m_128431_()) {
+             Property<?> property = statedefinition.m_61081_(s);
+             if (property != null) {
+                String s1 = compoundtag1.m_128423_(s).m_7916_();
+-               blockstate = m_40593_(blockstate, property, s1);
++               iblockdata1 = m_40593_(iblockdata1, property, s1);
+             }
+          }
+       }
+-
+-      if (blockstate != p_40606_) {
+-         p_40604_.m_7731_(p_40603_, blockstate, 2);
+-      }
+-
+-      return blockstate;
++      return iblockdata1;
+    }
+ 
+    private static <T extends Comparable<T>> BlockState m_40593_(BlockState p_40594_, Property<T> p_40595_, String p_40596_) {
+@@ -144,7 +_,14 @@
+    protected boolean m_40610_(BlockPlaceContext p_40611_, BlockState p_40612_) {
+       Player player = p_40611_.m_43723_();
+       CollisionContext collisioncontext = player == null ? CollisionContext.m_82749_() : CollisionContext.m_82750_(player);
+-      return (!this.m_6652_() || p_40612_.m_60710_(p_40611_.m_43725_(), p_40611_.m_8083_())) && p_40611_.m_43725_().m_45752_(p_40612_, p_40611_.m_8083_(), collisioncontext);
++      // CraftBukkit start - store default return
++      boolean defaultReturn = (!this.m_6652_() || p_40612_.m_60710_(p_40611_.m_43725_(), p_40611_.m_8083_())) && p_40611_.m_43725_().m_45752_(p_40612_, p_40611_.m_8083_(), collisioncontext);
++      org.bukkit.entity.Player bplayer = (p_40611_.m_43723_() instanceof ServerPlayer) ? (org.bukkit.entity.Player) p_40611_.m_43723_().getBukkitEntity() : null;
++
++      BlockCanBuildEvent event = new BlockCanBuildEvent(CraftBlock.at(p_40611_.m_43725_(), p_40611_.m_8083_()), bplayer, CraftBlockData.fromData(p_40612_), defaultReturn);
++      p_40611_.m_43725_().getCraftServer().getPluginManager().callEvent(event);
++      return event.isBuildable();
++      // CraftBukkit end
+    }
+ 
+    protected boolean m_6652_() {
+@@ -164,7 +_,7 @@
+          if (compoundtag != null) {
+             BlockEntity blockentity = p_40583_.m_7702_(p_40585_);
+             if (blockentity != null) {
+-               if (!p_40583_.f_46443_ && blockentity.m_6326_() && (p_40584_ == null || !p_40584_.m_36337_())) {
++               if (!p_40583_.f_46443_ && blockentity.m_6326_() && (p_40584_ == null || !p_40584_.m_36337_() || (p_40584_.m_150110_().f_35937_ && p_40584_.getBukkitEntity().hasPermission("minecraft.nbt.place")))) { // Spigot - add permission
+                   return false;
+                }
+ 
+@@ -200,11 +_,19 @@
+    }
+ 
+    public Block m_40614_() {
++      return this.getBlockRaw() == null ? null : this.getBlockRaw().delegate.get();
++   }
++
++   private Block getBlockRaw() {
+       return this.f_40563_;
+    }
+ 
+    public void m_6192_(Map<Block, Item> p_40607_, Item p_40608_) {
+       p_40607_.put(this.m_40614_(), p_40608_);
++   }
++
++   public void removeFromBlockToItemMap(Map<Block, Item> blockToItemMap, Item itemIn) {
++      blockToItemMap.remove(this.m_40614_());
+    }
+ 
+    public boolean m_142095_() {

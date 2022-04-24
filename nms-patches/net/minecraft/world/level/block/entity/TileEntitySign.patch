@@ -1,0 +1,107 @@
+--- a/net/minecraft/world/level/block/entity/TileEntitySign.java
++++ b/net/minecraft/world/level/block/entity/TileEntitySign.java
+@@ -24,7 +24,7 @@
+ import net.minecraft.world.phys.Vec2F;
+ import net.minecraft.world.phys.Vec3D;
+ 
+-public class TileEntitySign extends TileEntity {
++public class TileEntitySign extends TileEntity implements ICommandListener { // CraftBukkit - implements
+ 
+     public static final int LINES = 4;
+     private static final String[] RAW_TEXT_FIELD_NAMES = new String[]{"Text1", "Text2", "Text3", "Text4"};
+@@ -64,6 +64,12 @@
+             }
+         }
+ 
++        // CraftBukkit start
++        if (Boolean.getBoolean("convertLegacySigns")) {
++            nbttagcompound.putBoolean("Bukkit.isConverted", true);
++        }
++        // CraftBukkit end
++
+         nbttagcompound.putString("Color", this.color.getName());
+         nbttagcompound.putBoolean("GlowingText", this.hasGlowingText);
+     }
+@@ -74,8 +80,24 @@
+         super.load(nbttagcompound);
+         this.color = EnumColor.byName(nbttagcompound.getString("Color"), EnumColor.BLACK);
+ 
++        // CraftBukkit start - Add an option to convert signs correctly
++        // This is done with a flag instead of all the time because
++        // we have no way to tell whether a sign is from 1.7.10 or 1.8
++        boolean oldSign = Boolean.getBoolean("convertLegacySigns") && !nbttagcompound.getBoolean("Bukkit.isConverted");
++        // CraftBukkit end
++
+         for (int i = 0; i < 4; ++i) {
+             String s = nbttagcompound.getString(TileEntitySign.RAW_TEXT_FIELD_NAMES[i]);
++            // CraftBukkit start
++            if (s != null && s.length() > 2048) {
++                s = "\"\"";
++            }
++
++            if (oldSign) {
++                messages[i] = org.bukkit.craftbukkit.util.CraftChatMessage.fromString(s)[0];
++                continue;
++            }
++            // CraftBukkit end
+             IChatBaseComponent ichatbasecomponent = this.loadLine(s);
+ 
+             this.messages[i] = ichatbasecomponent;
+@@ -113,6 +135,10 @@
+             if (ichatmutablecomponent != null) {
+                 return ichatmutablecomponent;
+             }
++            // CraftBukkit start
++        } catch (com.google.gson.JsonParseException jsonparseexception) {
++            return new ChatComponentText(s);
++            // CraftBukkit end
+         } catch (Exception exception) {
+             ;
+         }
+@@ -204,11 +230,37 @@
+         return true;
+     }
+ 
++    // CraftBukkit start
++    @Override
++    public void sendMessage(IChatBaseComponent ichatbasecomponent, java.util.UUID uuid) {}
++
++    @Override
++    public org.bukkit.command.CommandSender getBukkitSender(CommandListenerWrapper wrapper) {
++        return wrapper.getEntity() != null ? wrapper.getEntity().getBukkitSender(wrapper) : new org.bukkit.craftbukkit.command.CraftBlockCommandSender(wrapper, this);
++    }
++
++    @Override
++    public boolean acceptsSuccess() {
++        return false;
++    }
++
++    @Override
++    public boolean acceptsFailure() {
++        return false;
++    }
++
++    @Override
++    public boolean shouldInformAdmins() {
++        return false;
++    }
++    // CraftBukkit end
++
+     public CommandListenerWrapper createCommandSourceStack(@Nullable EntityPlayer entityplayer) {
+         String s = entityplayer == null ? "Sign" : entityplayer.getName().getString();
+         Object object = entityplayer == null ? new ChatComponentText("Sign") : entityplayer.getDisplayName();
+ 
+-        return new CommandListenerWrapper(ICommandListener.NULL, Vec3D.atCenterOf(this.worldPosition), Vec2F.ZERO, (WorldServer) this.level, 2, s, (IChatBaseComponent) object, this.level.getServer(), entityplayer);
++        // CraftBukkit - this
++        return new CommandListenerWrapper(this, Vec3D.atCenterOf(this.worldPosition), Vec2F.ZERO, (WorldServer) this.level, 2, s, (IChatBaseComponent) object, this.level.getServer(), entityplayer);
+     }
+ 
+     public EnumColor getColor() {
+@@ -241,6 +293,6 @@
+ 
+     private void markUpdated() {
+         this.setChanged();
+-        this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
++        if (this.level != null) this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3); // CraftBukkit - skip notify if world is null (SPIGOT-5122)
+     }
+ }

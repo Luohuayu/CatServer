@@ -1,0 +1,61 @@
+--- a/net/minecraft/world/entity/decoration/EntityLeash.java
++++ b/net/minecraft/world/entity/decoration/EntityLeash.java
+@@ -24,6 +24,12 @@
+ import net.minecraft.world.phys.AxisAlignedBB;
+ import net.minecraft.world.phys.Vec3D;
+ 
++// CraftBukkit start
++import net.minecraft.network.protocol.game.PacketPlayOutAttachEntity;
++import net.minecraft.server.level.EntityPlayer;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++// CraftBukkit end
++
+ public class EntityLeash extends EntityHanging {
+ 
+     public static final double OFFSET_Y = 0.375D;
+@@ -95,22 +101,42 @@
+             while (iterator.hasNext()) {
+                 entityinsentient = (EntityInsentient) iterator.next();
+                 if (entityinsentient.getLeashHolder() == entityhuman) {
++                    // CraftBukkit start
++                    if (CraftEventFactory.callPlayerLeashEntityEvent(entityinsentient, this, entityhuman).isCancelled()) {
++                        ((EntityPlayer) entityhuman).connection.send(new PacketPlayOutAttachEntity(entityinsentient, entityinsentient.getLeashHolder()));
++                        continue;
++                    }
++                    // CraftBukkit end
+                     entityinsentient.setLeashedTo(this, true);
+                     flag = true;
+                 }
+             }
+ 
+             if (!flag) {
+-                this.discard();
+-                if (entityhuman.getAbilities().instabuild) {
++                // CraftBukkit start - Move below
++                // this.discard();
++                boolean die = true;
++                // CraftBukkit end
++                if (true || entityhuman.getAbilities().instabuild) { // CraftBukkit - Process for non-creative as well
+                     iterator = list.iterator();
+ 
+                     while (iterator.hasNext()) {
+                         entityinsentient = (EntityInsentient) iterator.next();
+                         if (entityinsentient.isLeashed() && entityinsentient.getLeashHolder() == this) {
+-                            entityinsentient.dropLeash(true, false);
++                            // CraftBukkit start
++                            if (CraftEventFactory.callPlayerUnleashEntityEvent(entityinsentient, entityhuman).isCancelled()) {
++                                die = false;
++                                continue;
++                            }
++                            entityinsentient.dropLeash(true, !entityhuman.getAbilities().instabuild); // false -> survival mode boolean
++                            // CraftBukkit end
+                         }
+                     }
++                    // CraftBukkit start
++                    if (die) {
++                        this.discard();
++                    }
++                    // CraftBukkit end
+                 }
+             }
+ 

@@ -1,0 +1,118 @@
+--- a/net/minecraft/world/level/block/entity/BlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BlockEntity.java
+@@ -14,8 +_,12 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.state.BlockState;
+ import org.slf4j.Logger;
++import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer;
++import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry;
++import org.bukkit.inventory.InventoryHolder;
++import org.spigotmc.CustomTimingsHandler;
+ 
+-public abstract class BlockEntity {
++public abstract class BlockEntity extends net.minecraftforge.common.capabilities.CapabilityProvider<BlockEntity> implements net.minecraftforge.common.extensions.IForgeBlockEntity {
+    private static final Logger f_58854_ = LogUtils.getLogger();
+    private final BlockEntityType<?> f_58855_;
+    @Nullable
+@@ -23,11 +_,20 @@
+    protected final BlockPos f_58858_;
+    protected boolean f_58859_;
+    private BlockState f_58856_;
++   private CompoundTag customTileData;
++
++   public CustomTimingsHandler tickTimer = org.bukkit.craftbukkit.v1_18_R2.SpigotTimings.getTileEntityTimings(this); // Spigot
++   // CraftBukkit start - data containers
++   private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
++   public CraftPersistentDataContainer persistentDataContainer;
++   // CraftBukkit end
+ 
+    public BlockEntity(BlockEntityType<?> p_155228_, BlockPos p_155229_, BlockState p_155230_) {
++      super(BlockEntity.class);
+       this.f_58855_ = p_155228_;
+       this.f_58858_ = p_155229_.m_7949_();
+       this.f_58856_ = p_155230_;
++      this.gatherCapabilities();
+    }
+ 
+    public static BlockPos m_187472_(CompoundTag p_187473_) {
+@@ -48,9 +_,19 @@
+    }
+ 
+    public void m_142466_(CompoundTag p_155245_) {
++      if (p_155245_.m_128441_("ForgeData")) this.customTileData = p_155245_.m_128469_("ForgeData");
++      if (getCapabilities() != null && p_155245_.m_128441_("ForgeCaps")) deserializeCaps(p_155245_.m_128469_("ForgeCaps"));
++      this.persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++
++      net.minecraft.nbt.Tag persistentDataTag = p_155245_.m_128423_("PublicBukkitValues");
++      if (persistentDataTag instanceof CompoundTag) {
++         this.persistentDataContainer.putAll((CompoundTag) persistentDataTag);
++      }
+    }
+ 
+    protected void m_183515_(CompoundTag p_187471_) {
++      if (this.customTileData != null) p_187471_.m_128365_("ForgeData", this.customTileData.m_6426_());
++      if (getCapabilities() != null) p_187471_.m_128365_("ForgeCaps", serializeCaps());
+    }
+ 
+    public final CompoundTag m_187480_() {
+@@ -68,6 +_,11 @@
+    public final CompoundTag m_187482_() {
+       CompoundTag compoundtag = new CompoundTag();
+       this.m_183515_(compoundtag);
++      // CraftBukkit start - store container
++      if (this.persistentDataContainer != null && !this.persistentDataContainer.isEmpty()) {
++         compoundtag.m_128365_("PublicBukkitValues", this.persistentDataContainer.toTagCompound());
++      }
++      // CraftBukkit end
+       return compoundtag;
+    }
+ 
+@@ -93,6 +_,8 @@
+       p_187479_.m_128405_("x", this.f_58858_.m_123341_());
+       p_187479_.m_128405_("y", this.f_58858_.m_123342_());
+       p_187479_.m_128405_("z", this.f_58858_.m_123343_());
++         if (this.customTileData != null) p_187479_.m_128365_("ForgeData", this.customTileData.m_6426_());
++         if (getCapabilities() != null) p_187479_.m_128365_("ForgeCaps", serializeCaps());
+    }
+ 
+    @Nullable
+@@ -163,6 +_,13 @@
+ 
+    public void m_7651_() {
+       this.f_58859_ = true;
++      this.invalidateCaps();
++      requestModelDataUpdate();
++   }
++
++   @Override
++   public void onChunkUnloaded() {
++      this.invalidateCaps();
+    }
+ 
+    public void m_6339_() {
+@@ -191,9 +_,25 @@
+       return this.f_58855_;
+    }
+ 
++   @Override
++   public CompoundTag getTileData() {
++      if (this.customTileData == null)
++         this.customTileData = new CompoundTag();
++      return this.customTileData;
++   }
++
+    /** @deprecated */
+    @Deprecated
+    public void m_155250_(BlockState p_155251_) {
+       this.f_58856_ = p_155251_;
+    }
++
++   // CraftBukkit start - add method
++   public InventoryHolder getOwner() {
++      if (f_58857_ == null) return null;
++      org.bukkit.block.BlockState state = f_58857_.getWorld().getBlockAt(f_58858_.m_123341_(), f_58858_.m_123342_(), f_58858_.m_123343_()).getState();
++      if (state instanceof InventoryHolder) return (InventoryHolder) state;
++      return null;
++   }
++   // CraftBukkit end
+ }

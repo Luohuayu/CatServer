@@ -1,0 +1,78 @@
+--- a/net/minecraft/commands/CommandSourceStack.java
++++ b/net/minecraft/commands/CommandSourceStack.java
+@@ -7,6 +_,7 @@
+ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+ import com.mojang.brigadier.suggestion.Suggestions;
+ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
++import com.mojang.brigadier.tree.CommandNode;
+ import java.util.Collection;
+ import java.util.Objects;
+ import java.util.Set;
+@@ -35,7 +_,7 @@
+ import net.minecraft.world.phys.Vec2;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public class CommandSourceStack implements SharedSuggestionProvider {
++public class CommandSourceStack implements SharedSuggestionProvider, net.minecraftforge.common.extensions.IForgeCommandSourceStack {
+    public static final SimpleCommandExceptionType f_81286_ = new SimpleCommandExceptionType(new TranslatableComponent("permissions.requires.player"));
+    public static final SimpleCommandExceptionType f_81287_ = new SimpleCommandExceptionType(new TranslatableComponent("permissions.requires.entity"));
+    public final CommandSource f_81288_;
+@@ -53,6 +_,8 @@
+    private final EntityAnchorArgument.Anchor f_81298_;
+    private final Vec2 f_81299_;
+ 
++   public volatile CommandNode currentCommand; // CraftBukkit
++
+    public CommandSourceStack(CommandSource p_81302_, Vec3 p_81303_, Vec2 p_81304_, ServerLevel p_81305_, int p_81306_, String p_81307_, Component p_81308_, MinecraftServer p_81309_, @Nullable Entity p_81310_) {
+       this(p_81302_, p_81303_, p_81304_, p_81305_, p_81306_, p_81307_, p_81308_, p_81309_, p_81310_, false, (p_81361_, p_81362_, p_81363_) -> {
+       }, EntityAnchorArgument.Anchor.FEET);
+@@ -148,9 +_,22 @@
+    }
+ 
+    public boolean m_6761_(int p_81370_) {
++      // CraftBukkit start
++      CommandNode currentCommand = this.currentCommand;
++      if (currentCommand != null) {
++         return hasPermission(p_81370_, org.bukkit.craftbukkit.v1_18_R2.command.VanillaCommandWrapper.getPermission(currentCommand));
++      }
++      // CraftBukkit end
+       return this.f_81291_ >= p_81370_;
+    }
+ 
++   // CraftBukkit start
++   public boolean hasPermission(int i, String bukkitPermission) {
++      // World is null when loading functions
++      return ((m_81372_() == null || !m_81372_().getCraftServer().ignoreVanillaPermissions) && this.f_81291_ >= i) || getBukkitSender().hasPermission(bukkitPermission);
++   }
++   // CraftBukkit end
++
+    public Vec3 m_81371_() {
+       return this.f_81289_;
+    }
+@@ -207,13 +_,13 @@
+       Component component = (new TranslatableComponent("chat.type.admin", this.m_81357_(), p_81367_)).m_130944_(new ChatFormatting[]{ChatFormatting.GRAY, ChatFormatting.ITALIC});
+       if (this.f_81294_.m_129900_().m_46207_(GameRules.f_46144_)) {
+          for(ServerPlayer serverplayer : this.f_81294_.m_6846_().m_11314_()) {
+-            if (serverplayer != this.f_81288_ && this.f_81294_.m_6846_().m_11303_(serverplayer.m_36316_())) {
++            if (serverplayer != this.f_81288_ && serverplayer.getBukkitEntity().hasPermission("minecraft.admin.command_feedback")) { // CraftBukkit
+                serverplayer.m_6352_(component, Util.f_137441_);
+             }
+          }
+       }
+ 
+-      if (this.f_81288_ != this.f_81294_ && this.f_81294_.m_129900_().m_46207_(GameRules.f_46141_)) {
++      if (this.f_81288_ != this.f_81294_ && this.f_81294_.m_129900_().m_46207_(GameRules.f_46141_) && !org.spigotmc.SpigotConfig.silentCommandBlocks) { // Spigot
+          this.f_81294_.m_6352_(component, Util.f_137441_);
+       }
+ 
+@@ -267,4 +_,10 @@
+    public RegistryAccess m_5894_() {
+       return this.f_81294_.m_206579_();
+    }
++
++   // CraftBukkit start
++   public org.bukkit.command.CommandSender getBukkitSender() {
++      return f_81288_.getBukkitSender(this);
++   }
++   // CraftBukkit end
+ }

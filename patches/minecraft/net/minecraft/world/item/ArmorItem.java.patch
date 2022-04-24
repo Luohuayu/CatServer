@@ -1,0 +1,62 @@
+--- a/net/minecraft/world/item/ArmorItem.java
++++ b/net/minecraft/world/item/ArmorItem.java
+@@ -10,6 +_,7 @@
+ import net.minecraft.core.BlockSource;
+ import net.minecraft.core.dispenser.DefaultDispenseItemBehavior;
+ import net.minecraft.core.dispenser.DispenseItemBehavior;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.world.InteractionHand;
+@@ -25,6 +_,8 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.DispenserBlock;
+ import net.minecraft.world.phys.AABB;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseArmorEvent;
+ 
+ public class ArmorItem extends Item implements Wearable {
+    private static final UUID[] f_40380_ = new UUID[]{UUID.fromString("845DB27C-C624-495F-8C9F-6020A9A58B6B"), UUID.fromString("D8499B04-0E66-4726-AB29-64469D734E0D"), UUID.fromString("9F3D476D-C118-4544-8365-64846904B48E"), UUID.fromString("2AD3F246-FEE1-4E67-B886-69FD380BB150")};
+@@ -49,7 +_,32 @@
+          LivingEntity livingentity = list.get(0);
+          EquipmentSlot equipmentslot = Mob.m_147233_(p_40400_);
+          ItemStack itemstack = p_40400_.m_41620_(1);
+-         livingentity.m_8061_(equipmentslot, itemstack);
++         // CraftBukkit start
++         ServerLevel world = p_40399_.m_7727_();
++         org.bukkit.block.Block block = world.getWorld().getBlockAt(p_40399_.m_7961_().m_123341_(), p_40399_.m_7961_().m_123342_(), p_40399_.m_7961_().m_123343_());
++         CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack);
++
++         BlockDispenseArmorEvent event = new BlockDispenseArmorEvent(block, craftItem.clone(), (org.bukkit.craftbukkit.v1_18_R2.entity.CraftLivingEntity) livingentity.getBukkitEntity());
++         if (!DispenserBlock.eventFired) {
++            world.getCraftServer().getPluginManager().callEvent(event);
++         }
++
++         if (event.isCancelled()) {
++            itemstack.m_41769_(1);
++            return false;
++         }
++
++         if (!event.getItem().equals(craftItem)) {
++            itemstack.m_41769_(1);
++            // Chain to handler for new item
++            ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++            DispenseItemBehavior idispensebehavior = (DispenseItemBehavior) DispenserBlock.f_52661_.get(eventStack.m_41720_());
++            if (idispensebehavior != DispenseItemBehavior.f_123393_ && idispensebehavior != ArmorItem.f_40376_) {
++               idispensebehavior.m_6115_(p_40399_, eventStack);
++               return true;
++            }
++         }
++         livingentity.m_8061_(equipmentslot, CraftItemStack.asNMSCopy(event.getItem()));
+          if (livingentity instanceof Mob) {
+             ((Mob)livingentity).m_21409_(equipmentslot, 2.0F);
+             ((Mob)livingentity).m_21530_();
+@@ -71,7 +_,7 @@
+       UUID uuid = f_40380_[p_40387_.m_20749_()];
+       builder.put(Attributes.f_22284_, new AttributeModifier(uuid, "Armor modifier", (double)this.f_40381_, AttributeModifier.Operation.ADDITION));
+       builder.put(Attributes.f_22285_, new AttributeModifier(uuid, "Armor toughness", (double)this.f_40382_, AttributeModifier.Operation.ADDITION));
+-      if (p_40386_ == ArmorMaterials.NETHERITE) {
++      if (this.f_40378_ > 0) {
+          builder.put(Attributes.f_22278_, new AttributeModifier(uuid, "Armor knockback resistance", (double)this.f_40378_, AttributeModifier.Operation.ADDITION));
+       }
+ 

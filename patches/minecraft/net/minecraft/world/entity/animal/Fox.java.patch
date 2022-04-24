@@ -1,0 +1,125 @@
+--- a/net/minecraft/world/entity/animal/Fox.java
++++ b/net/minecraft/world/entity/animal/Fox.java
+@@ -343,7 +_,7 @@
+       return Fox.Type.m_28812_(this.f_19804_.m_135370_(f_28437_));
+    }
+ 
+-   private void m_28464_(Fox.Type p_28465_) {
++   public void m_28464_(Fox.Type p_28465_) {
+       this.f_19804_.m_135381_(f_28437_, p_28465_.m_28820_());
+    }
+ 
+@@ -427,7 +_,7 @@
+       return this.m_28608_(32);
+    }
+ 
+-   void m_28626_(boolean p_28627_) {
++   public void m_28626_(boolean p_28627_) {
+       this.m_28532_(32, p_28627_);
+    }
+ 
+@@ -476,7 +_,8 @@
+ 
+    protected void m_7581_(ItemEntity p_28514_) {
+       ItemStack itemstack = p_28514_.m_32055_();
+-      if (this.m_7252_(itemstack)) {
++      if (!org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityPickupItemEvent(this, p_28514_, itemstack.m_41613_() - 1, !this.m_7252_(itemstack)).isCancelled()) { // CraftBukkit - call EntityPickupItemEvent
++         itemstack = p_28514_.m_32055_(); // CraftBukkit - update ItemStack from event
+          int i = itemstack.m_41613_();
+          if (i > 1) {
+             this.m_28605_(itemstack.m_41620_(i - 1));
+@@ -649,13 +_,17 @@
+    }
+ 
+    protected void m_6668_(DamageSource p_28536_) {
++      super.m_6668_(p_28536_);
++   }
++
++   protected void m_5907_() { // Forge: move extra drops to dropEquipment to allow them to be captured by LivingDropsEvent
++      super.m_5907_();
+       ItemStack itemstack = this.m_6844_(EquipmentSlot.MAINHAND);
+       if (!itemstack.m_41619_()) {
+          this.m_19983_(itemstack);
+          this.m_8061_(EquipmentSlot.MAINHAND, ItemStack.f_41583_);
+       }
+ 
+-      super.m_6668_(p_28536_);
+    }
+ 
+    public static boolean m_28471_(Fox p_28472_, LivingEntity p_28473_) {
+@@ -805,6 +_,17 @@
+       protected void m_8026_() {
+          ServerLevel serverlevel = (ServerLevel)this.f_25114_;
+          Fox fox = (Fox)this.f_25113_.m_142606_(serverlevel, this.f_25115_);
++         final net.minecraftforge.event.entity.living.BabyEntitySpawnEvent event = new net.minecraftforge.event.entity.living.BabyEntitySpawnEvent(f_25113_, f_25115_, fox);
++         final boolean cancelled = net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++         fox = (Fox) event.getChild();
++         if (cancelled) {
++            //Reset the "inLove" state for the animals
++            this.f_25113_.m_146762_(6000);
++            this.f_25115_.m_146762_(6000);
++            this.f_25113_.m_27594_();
++            this.f_25115_.m_27594_();
++            return;
++         }
+          if (fox != null) {
+             ServerPlayer serverplayer = this.f_25113_.m_27592_();
+             ServerPlayer serverplayer1 = this.f_25115_.m_27592_();
+@@ -818,7 +_,16 @@
+             if (serverplayer1 != null && serverplayer != serverplayer1) {
+                fox.m_28515_(serverplayer1.m_142081_());
+             }
+-
++            // CraftBukkit start - call EntityBreedEvent
++            fox.m_146762_(-24000);
++            fox.m_7678_(this.f_25113_.m_20185_(), this.f_25113_.m_20186_(), this.f_25113_.m_20189_(), 0.0F, 0.0F);
++            int experience = this.f_25113_.m_21187_().nextInt(7) + 1;
++            org.bukkit.event.entity.EntityBreedEvent entityBreedEvent = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityBreedEvent(fox, f_25113_, f_25115_, serverplayer, this.f_25113_.breedItem, experience);
++            if (entityBreedEvent.isCancelled()) {
++               return;
++            }
++            experience = entityBreedEvent.getExperience();
++            // CraftBukkit end
+             if (serverplayer2 != null) {
+                serverplayer2.m_36220_(Stats.f_12937_);
+                CriteriaTriggers.f_10581_.m_147278_(serverplayer2, this.f_25113_, this.f_25115_, fox);
+@@ -828,12 +_,14 @@
+             this.f_25115_.m_146762_(6000);
+             this.f_25113_.m_27594_();
+             this.f_25115_.m_27594_();
+-            fox.m_146762_(-24000);
+-            fox.m_7678_(this.f_25113_.m_20185_(), this.f_25113_.m_20186_(), this.f_25113_.m_20189_(), 0.0F, 0.0F);
+-            serverlevel.m_47205_(fox);
++            serverlevel.addFreshEntityWithPassengers(fox, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING); // CraftBukkit - added SpawnReason
+             this.f_25114_.m_7605_(this.f_25113_, (byte)18);
+             if (this.f_25114_.m_46469_().m_46207_(GameRules.f_46135_)) {
+-               this.f_25114_.m_7967_(new ExperienceOrb(this.f_25114_, this.f_25113_.m_20185_(), this.f_25113_.m_20186_(), this.f_25113_.m_20189_(), this.f_25113_.m_21187_().nextInt(7) + 1));
++               // CraftBukkit start - use event experience
++               if (experience > 0) {
++                  this.f_25114_.m_7967_(new ExperienceOrb(this.f_25114_, this.f_25113_.m_20185_(), this.f_25113_.m_20186_(), this.f_25113_.m_20189_(), experience));
++               }
++               // CraftBukkit end
+             }
+ 
+          }
+@@ -876,7 +_,7 @@
+       }
+ 
+       protected void m_28686_() {
+-         if (Fox.this.f_19853_.m_46469_().m_46207_(GameRules.f_46132_)) {
++         if (net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(Fox.this.f_19853_, Fox.this)) {
+             BlockState blockstate = Fox.this.f_19853_.m_8055_(this.f_25602_);
+             if (blockstate.m_60713_(Blocks.f_50685_)) {
+                this.m_148928_(blockstate);
+@@ -894,6 +_,11 @@
+       private void m_148928_(BlockState p_148929_) {
+          int i = p_148929_.m_61143_(SweetBerryBushBlock.f_57244_);
+          p_148929_.m_61124_(SweetBerryBushBlock.f_57244_, Integer.valueOf(1));
++         // CraftBukkit start - call EntityChangeBlockEvent
++         if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityChangeBlockEvent(Fox.this, this.f_25602_, p_148929_.m_61124_(SweetBerryBushBlock.f_57244_, 1)).isCancelled()) {
++            return;
++         }
++         // CraftBukkit end
+          int j = 1 + Fox.this.f_19853_.f_46441_.nextInt(2) + (i == 3 ? 1 : 0);
+          ItemStack itemstack = Fox.this.m_6844_(EquipmentSlot.MAINHAND);
+          if (itemstack.m_41619_()) {

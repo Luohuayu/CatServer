@@ -1,0 +1,122 @@
+--- a/net/minecraft/world/level/storage/LevelStorageSource.java
++++ b/net/minecraft/world/level/storage/LevelStorageSource.java
+@@ -52,6 +_,7 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelSettings;
+ import net.minecraft.world.level.dimension.DimensionType;
++import net.minecraft.world.level.dimension.LevelStem;
+ import net.minecraft.world.level.levelgen.WorldGenSettings;
+ import org.slf4j.Logger;
+ 
+@@ -203,7 +_,11 @@
+             LevelVersion levelversion = LevelVersion.m_78390_(dynamic);
+             LevelSettings levelsettings = LevelSettings.m_46924_(dynamic, p_211739_);
+             Lifecycle lifecycle = pair.getSecond().add(p_211740_);
+-            return PrimaryLevelData.m_78530_(dynamic, p_211746_, i, compoundtag2, levelsettings, levelversion, pair.getFirst(), lifecycle);
++            // CraftBukkit start - Add PDC to world
++            PrimaryLevelData worldDataServer = PrimaryLevelData.m_78530_(dynamic, p_211746_, i, compoundtag2, levelsettings, levelversion, (WorldGenSettings) pair.getFirst(), lifecycle);
++            PrimaryLevelData.pdc = compoundtag1.m_128423_("BukkitValues");
++            return worldDataServer;
++            // CraftBukkit end
+          } catch (Exception exception) {
+             f_78191_.error("Exception reading {}", p_211745_, exception);
+             return null;
+@@ -272,16 +_,44 @@
+    }
+ 
+    public LevelStorageSource.LevelStorageAccess m_78260_(String p_78261_) throws IOException {
+-      return new LevelStorageSource.LevelStorageAccess(p_78261_);
+-   }
+-
+-   public class LevelStorageAccess implements AutoCloseable {
++      return new LevelStorageSource.LevelStorageAccess(p_78261_, LevelStem.f_63971_); // FoxServer TODO
++   }
++
++   public LevelStorageAccess createAccess(String name, ResourceKey<LevelStem> dimensionType) throws IOException{
++      return new LevelStorageSource.LevelStorageAccess(name, dimensionType);
++   }
++
++   public static Path getStorageFolder(Path path, ResourceKey<LevelStem> dimensionType) {
++      if (dimensionType == LevelStem.f_63971_) {
++         return path;
++      } else if (dimensionType == LevelStem.f_63972_) {
++         return path.resolve("DIM-1");
++      } else if (dimensionType == LevelStem.f_63973_) {
++         return path.resolve("DIM1");
++      } else {
++         return path.resolve("dimensions").resolve(dimensionType.m_135782_().m_135827_()).resolve(dimensionType.m_135782_().m_135815_());
++      }
++   }
++   // CraftBukkit end
++
++    public class LevelStorageAccess implements AutoCloseable {
+       final DirectoryLock f_78270_;
+-      final Path f_78271_;
++      public final Path f_78271_;
+       private final String f_78272_;
+       private final Map<LevelResource, Path> f_78273_ = Maps.newHashMap();
+ 
++      // CraftBukkit start
++      public final ResourceKey<LevelStem> dimensionType;
++
+       public LevelStorageAccess(String p_78276_) throws IOException {
++         this.dimensionType = null; // FoxServer TODO
++         this.f_78272_ = p_78276_;
++         this.f_78271_ = LevelStorageSource.this.f_78194_.resolve(p_78276_);
++         this.f_78270_ = DirectoryLock.m_13640_(this.f_78271_);
++      }
++
++      public LevelStorageAccess(String p_78276_, ResourceKey<LevelStem> dimensionType) throws IOException {
++         this.dimensionType = dimensionType;
+          this.f_78272_ = p_78276_;
+          this.f_78271_ = LevelStorageSource.this.f_78194_.resolve(p_78276_);
+          this.f_78270_ = DirectoryLock.m_13640_(this.f_78271_);
+@@ -298,7 +_,7 @@
+       }
+ 
+       public Path m_197394_(ResourceKey<Level> p_197395_) {
+-         return DimensionType.m_196975_(p_197395_, this.f_78271_);
++         return getStorageFolder(this.f_78271_, this.dimensionType); // CraftBukkit
+       }
+ 
+       private void m_78313_() {
+@@ -324,6 +_,19 @@
+          return LevelStorageSource.this.m_78229_(this.f_78271_.toFile(), LevelStorageSource.m_211737_(p_211748_, p_211749_, p_211750_));
+       }
+ 
++      public void readAdditionalLevelSaveData() {
++         m_78313_();
++         LevelStorageSource.this.m_78229_(this.f_78271_.toFile(), (file, dataFixer) -> {
++            try {
++               CompoundTag compoundTag = NbtIo.m_128937_(file);
++               net.minecraftforge.common.ForgeHooks.readAdditionalLevelSaveData(compoundTag);
++            } catch (Exception e) {
++                f_78191_.error("Exception reading {}", file, e);
++            }
++            return ""; // Return non-null to prevent level.dat-old inject
++         });
++      }
++
+       @Nullable
+       public DataPackConfig m_78309_() {
+          this.m_78313_();
+@@ -340,6 +_,8 @@
+          CompoundTag compoundtag1 = new CompoundTag();
+          compoundtag1.m_128365_("Data", compoundtag);
+ 
++         net.minecraftforge.common.ForgeHooks.writeAdditionalLevelSaveData(p_78292_, compoundtag1);
++
+          try {
+             File file2 = File.createTempFile("level", ".dat", file1);
+             NbtIo.m_128944_(compoundtag1, file2);
+@@ -354,6 +_,10 @@
+ 
+       public Optional<Path> m_182514_() {
+          return !this.f_78270_.m_13639_() ? Optional.empty() : Optional.of(this.f_78271_.resolve("icon.png"));
++      }
++
++      public Path getWorldDir() {
++         return f_78271_;
+       }
+ 
+       public void m_78311_() throws IOException {

@@ -1,0 +1,71 @@
+--- a/net/minecraft/network/FriendlyByteBuf.java
++++ b/net/minecraft/network/FriendlyByteBuf.java
+@@ -51,8 +_,9 @@
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
+ 
+-public class FriendlyByteBuf extends ByteBuf {
++public class FriendlyByteBuf extends ByteBuf implements net.minecraftforge.common.extensions.IForgeFriendlyByteBuf {
+    private static final int f_178335_ = 5;
+    private static final int f_178336_ = 10;
+    private static final int f_178337_ = 2097152;
+@@ -403,8 +_,8 @@
+       } else {
+          try {
+             NbtIo.m_128941_(p_130080_, new ByteBufOutputStream(this));
+-         } catch (IOException ioexception) {
+-            throw new EncoderException(ioexception);
++         } catch (Exception exception) { // CraftBukkit - IOException -> Exception
++            throw new EncoderException(exception);
+          }
+       }
+ 
+@@ -439,7 +_,16 @@
+    }
+ 
+    public FriendlyByteBuf m_130055_(ItemStack p_130056_) {
+-      if (p_130056_.m_41619_()) {
++      return writeItemStack(p_130056_, true);
++   }
++
++   /**
++    * Most ItemStack serialization is Server to Client,and doesn't need to know the FULL tag details.
++    * One exception is items from the creative menu, which must be sent from Client to Server with their full NBT.
++    * If you want to send the FULL tag set limitedTag to false
++    */
++   public FriendlyByteBuf writeItemStack(ItemStack p_130056_, boolean limitedTag) {
++      if (p_130056_.m_41619_() || p_130056_.m_41720_() == null) { // CraftBukkit - NPE fix itemstack.getItem()
+          this.writeBoolean(false);
+       } else {
+          this.writeBoolean(true);
+@@ -447,8 +_,12 @@
+          this.m_130130_(Item.m_41393_(item));
+          this.writeByte(p_130056_.m_41613_());
+          CompoundTag compoundtag = null;
+-         if (item.m_41465_() || item.m_41468_()) {
+-            compoundtag = p_130056_.m_41783_();
++         if (item.isDamageable(p_130056_) || item.m_41468_()) {
++            // Spigot start - filter
++            p_130056_ = p_130056_.m_41777_();
++            CraftItemStack.setItemMeta(p_130056_, CraftItemStack.getItemMeta(p_130056_));
++            // Spigot end
++            compoundtag = limitedTag ? p_130056_.getShareTag() : p_130056_.m_41783_();
+          }
+ 
+          this.m_130079_(compoundtag);
+@@ -464,7 +_,12 @@
+          int i = this.m_130242_();
+          int j = this.readByte();
+          ItemStack itemstack = new ItemStack(Item.m_41445_(i), j);
+-         itemstack.m_41751_(this.m_130260_());
++         itemstack.readShareTag(this.m_130260_());
++         // CraftBukkit start
++         if (itemstack.m_41783_() != null) {
++            CraftItemStack.setItemMeta(itemstack, CraftItemStack.getItemMeta(itemstack));
++         }
++         // CraftBukkit end
+          return itemstack;
+       }
+    }

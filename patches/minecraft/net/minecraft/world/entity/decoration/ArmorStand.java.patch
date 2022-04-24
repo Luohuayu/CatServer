@@ -1,0 +1,216 @@
+--- a/net/minecraft/world/entity/decoration/ArmorStand.java
++++ b/net/minecraft/world/entity/decoration/ArmorStand.java
+@@ -35,12 +_,14 @@
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LightLayer;
+-import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.material.PushReaction;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.v1_18_R2.CraftEquipmentSlot;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+ 
+ public class ArmorStand extends LivingEntity {
+    public static final int f_149592_ = 5;
+@@ -71,7 +_,7 @@
+    public static final EntityDataAccessor<Rotations> f_31550_ = SynchedEntityData.m_135353_(ArmorStand.class, EntityDataSerializers.f_135037_);
+    public static final EntityDataAccessor<Rotations> f_31527_ = SynchedEntityData.m_135353_(ArmorStand.class, EntityDataSerializers.f_135037_);
+    private static final Predicate<Entity> f_31537_ = (p_31582_) -> {
+-      return p_31582_ instanceof AbstractMinecart && ((AbstractMinecart)p_31582_).m_6064_() == AbstractMinecart.Type.RIDEABLE;
++      return p_31582_ instanceof AbstractMinecart && ((AbstractMinecart)p_31582_).canBeRidden();
+    };
+    private final NonNullList<ItemStack> f_31538_ = NonNullList.m_122780_(2, ItemStack.f_41583_);
+    private final NonNullList<ItemStack> f_31539_ = NonNullList.m_122780_(4, ItemStack.f_41583_);
+@@ -95,6 +_,13 @@
+       this.m_6034_(p_31557_, p_31558_, p_31559_);
+    }
+ 
++   // CraftBukkit start - SPIGOT-3607, SPIGOT-3637
++   @Override
++   public float getBukkitYaw() {
++      return this.m_146908_();
++   }
++   // CraftBukkit end
++
+    public void m_6210_() {
+       double d0 = this.m_20185_();
+       double d1 = this.m_20186_();
+@@ -141,15 +_,23 @@
+       }
+    }
+ 
++   @Override
+    public void m_8061_(EquipmentSlot p_31584_, ItemStack p_31585_) {
++      // CraftBukkit start
++      this.setItemSlot(p_31584_, p_31585_, false);
++   }
++
++   @Override
++   public void setItemSlot(EquipmentSlot p_31584_, ItemStack p_31585_, boolean silent) {
++      // CraftBukkit end
+       this.m_181122_(p_31585_);
+       switch(p_31584_.m_20743_()) {
+       case HAND:
+-         this.m_147218_(p_31585_);
++         this.equipEventAndSound(p_31585_, silent); // CraftBukkit
+          this.f_31538_.set(p_31584_.m_20749_(), p_31585_);
+          break;
+       case ARMOR:
+-         this.m_147218_(p_31585_);
++         this.equipEventAndSound(p_31585_, silent);
+          this.f_31539_.set(p_31584_.m_20749_(), p_31585_);
+       }
+ 
+@@ -352,6 +_,21 @@
+ 
+    private boolean m_31588_(Player p_31589_, EquipmentSlot p_31590_, ItemStack p_31591_, InteractionHand p_31592_) {
+       ItemStack itemstack = this.m_6844_(p_31590_);
++      // CraftBukkit start
++      org.bukkit.inventory.ItemStack armorStandItem = CraftItemStack.asCraftMirror(itemstack);
++      org.bukkit.inventory.ItemStack playerHeldItem = CraftItemStack.asCraftMirror(p_31591_);
++
++      org.bukkit.entity.Player player = ( org.bukkit.entity.Player ) p_31589_.getBukkitEntity();
++      org.bukkit.entity.ArmorStand self = ( org.bukkit.entity.ArmorStand ) this.getBukkitEntity();
++
++      org.bukkit.inventory.EquipmentSlot slot = CraftEquipmentSlot.getSlot(p_31590_);
++      PlayerArmorStandManipulateEvent armorStandManipulateEvent = new PlayerArmorStandManipulateEvent(player, self, playerHeldItem, armorStandItem, slot);
++      this.f_19853_.getCraftServer().getPluginManager().callEvent(armorStandManipulateEvent);
++
++      if (armorStandManipulateEvent.isCancelled()) {
++         return false;
++      }
++      // CraftBukkit end
+       if (!itemstack.m_41619_() && (this.f_31541_ & 1 << p_31590_.m_20750_() + 8) != 0) {
+          return false;
+       } else if (itemstack.m_41619_() && (this.f_31541_ & 1 << p_31590_.m_20750_() + 16) != 0) {
+@@ -366,6 +_,7 @@
+             return false;
+          } else {
+             ItemStack itemstack1 = p_31591_.m_41777_();
++
+             itemstack1.m_41764_(1);
+             this.m_8061_(p_31590_, itemstack1);
+             p_31591_.m_41774_(1);
+@@ -381,9 +_,19 @@
+    public boolean m_6469_(DamageSource p_31579_, float p_31580_) {
+       if (!this.f_19853_.f_46443_ && !this.m_146910_()) {
+          if (DamageSource.f_19317_.equals(p_31579_)) {
++            // CraftBukkit start
++            if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_31579_, p_31580_)) {
++               return false;
++            }
++            // CraftBukkit end
+             this.m_6074_();
+             return false;
+-         } else if (!this.m_6673_(p_31579_) && !this.f_31540_ && !this.m_31677_()) {
++         } else if (!this.m_6673_(p_31579_) && (true || !this.f_31540_) && !this.m_31677_()) { // CraftBukkit
++            // CraftBukkit start
++            if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_31579_, p_31580_, true, this.f_31540_)) {
++               return false;
++            }
++            // CraftBukkit end
+             if (p_31579_.m_19372_()) {
+                this.m_31653_(p_31579_);
+                this.m_6074_();
+@@ -421,7 +_,7 @@
+                   } else {
+                      this.m_31646_(p_31579_);
+                      this.m_31565_();
+-                     this.m_6074_();
++                     this.m_146870_(); // CraftBukkit - SPIGOT-4890: remain as this.die() since above damagesource method will call death event
+                   }
+ 
+                   return true;
+@@ -478,18 +_,18 @@
+    }
+ 
+    private void m_31646_(DamageSource p_31647_) {
+-      Block.m_49840_(this.f_19853_, this.m_142538_(), new ItemStack(Items.f_42650_));
++      drops.add(org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asBukkitCopy(new ItemStack(Items.f_42650_))); // CraftBukkit - add to drops
+       this.m_31653_(p_31647_);
+    }
+ 
+    private void m_31653_(DamageSource p_31654_) {
+       this.m_31566_();
+-      this.m_6668_(p_31654_);
++      // this.dropAllDeathLoot(p_31654_); // CraftBukkit - moved down
+ 
+       for(int i = 0; i < this.f_31538_.size(); ++i) {
+          ItemStack itemstack = this.f_31538_.get(i);
+          if (!itemstack.m_41619_()) {
+-            Block.m_49840_(this.f_19853_, this.m_142538_().m_7494_(), itemstack);
++            drops.add(org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asBukkitCopy(itemstack)); // CraftBukkit - add to drops
+             this.f_31538_.set(i, ItemStack.f_41583_);
+          }
+       }
+@@ -497,11 +_,11 @@
+       for(int j = 0; j < this.f_31539_.size(); ++j) {
+          ItemStack itemstack1 = this.f_31539_.get(j);
+          if (!itemstack1.m_41619_()) {
+-            Block.m_49840_(this.f_19853_, this.m_142538_().m_7494_(), itemstack1);
++            drops.add(org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asBukkitCopy(itemstack1)); // CraftBukkit - add to drops
+             this.f_31539_.set(j, ItemStack.f_41583_);
+          }
+       }
+-
++      this.m_6668_(p_31654_); // CraftBukkit - moved from above
+    }
+ 
+    private void m_31566_() {
+@@ -585,7 +_,16 @@
+       return this.m_31666_();
+    }
+ 
++   // CraftBukkit start
++   @Override
++   protected boolean m_6149_() {
++      return true; // MC-157395, SPIGOT-5193 even baby (small) armor stands should drop
++   }
++   // CraftBukkit end
++
++
+    public void m_6074_() {
++      org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityDeathEvent(this, drops); // CraftBukkit - call event
+       this.m_142687_(Entity.RemovalReason.KILLED);
+    }
+ 
+@@ -597,7 +_,7 @@
+       return this.m_31677_() ? PushReaction.IGNORE : super.m_7752_();
+    }
+ 
+-   private void m_31603_(boolean p_31604_) {
++   public void m_31603_(boolean p_31604_) {
+       this.f_19804_.m_135381_(f_31524_, this.m_31569_(this.f_19804_.m_135370_(f_31524_), 1, p_31604_));
+    }
+ 
+@@ -605,7 +_,7 @@
+       return (this.f_19804_.m_135370_(f_31524_) & 1) != 0;
+    }
+ 
+-   private void m_31675_(boolean p_31676_) {
++   public void m_31675_(boolean p_31676_) {
+       this.f_19804_.m_135381_(f_31524_, this.m_31569_(this.f_19804_.m_135370_(f_31524_), 4, p_31676_));
+    }
+ 
+@@ -613,7 +_,7 @@
+       return (this.f_19804_.m_135370_(f_31524_) & 4) != 0;
+    }
+ 
+-   private void m_31678_(boolean p_31679_) {
++   public void m_31678_(boolean p_31679_) {
+       this.f_19804_.m_135381_(f_31524_, this.m_31569_(this.f_19804_.m_135370_(f_31524_), 8, p_31679_));
+    }
+ 
+@@ -621,7 +_,7 @@
+       return (this.f_19804_.m_135370_(f_31524_) & 8) != 0;
+    }
+ 
+-   private void m_31681_(boolean p_31682_) {
++   public void m_31681_(boolean p_31682_) {
+       this.f_19804_.m_135381_(f_31524_, this.m_31569_(this.f_19804_.m_135370_(f_31524_), 16, p_31682_));
+    }
+ 

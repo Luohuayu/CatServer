@@ -1,0 +1,130 @@
+--- a/net/minecraft/world/entity/player/Inventory.java
++++ b/net/minecraft/world/entity/player/Inventory.java
+@@ -1,6 +_,8 @@
+ package net.minecraft.world.entity.player;
+ 
+ import com.google.common.collect.ImmutableList;
++
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.function.Predicate;
+ import net.minecraft.CrashReport;
+@@ -23,6 +_,9 @@
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.block.state.BlockState;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
+ 
+ public class Inventory implements Container, Nameable {
+    public static final int f_150064_ = 5;
+@@ -40,6 +_,54 @@
+    public final Player f_35978_;
+    private int f_35981_;
+ 
++   // CraftBukkit start - add fields and methods
++   public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++   private int maxStack = MAX_STACK;
++
++   public List<ItemStack> getContents() {
++      List<ItemStack> combined = new ArrayList<ItemStack>(f_35974_.size() + f_35975_.size() + f_35976_.size());
++      for (List<net.minecraft.world.item.ItemStack> sub : this.f_35979_) {
++         combined.addAll(sub);
++      }
++
++      return combined;
++   }
++
++   public List<ItemStack> getArmorContents() {
++      return this.f_35975_;
++   }
++
++   public void onOpen(CraftHumanEntity who) {
++      transaction.add(who);
++   }
++
++   public void onClose(CraftHumanEntity who) {
++      transaction.remove(who);
++   }
++
++   public List<HumanEntity> getViewers() {
++      return transaction;
++   }
++
++   public org.bukkit.inventory.InventoryHolder getOwner() {
++      return this.f_35978_.getBukkitEntity();
++   }
++
++   @Override
++   public int m_6893_() {
++      return maxStack;
++   }
++
++   public void setMaxStackSize(int size) {
++      maxStack = size;
++   }
++
++   @Override
++   public Location getLocation() {
++      return f_35978_.getBukkitEntity().getLocation();
++   }
++   // CraftBukkit end
++
+    public Inventory(Player p_35983_) {
+       this.f_35978_ = p_35983_;
+    }
+@@ -178,7 +_,8 @@
+       int i = p_36049_.m_41613_();
+       ItemStack itemstack = this.m_8020_(p_36048_);
+       if (itemstack.m_41619_()) {
+-         itemstack = new ItemStack(item, 0);
++         itemstack = p_36049_.m_41777_(); // Forge: Replace Item clone above to preserve item capabilities when picking the item up.
++         itemstack.m_41764_(0);
+          if (p_36049_.m_41782_()) {
+             itemstack.m_41751_(p_36049_.m_41783_().m_6426_());
+          }
+@@ -229,7 +_,7 @@
+             }
+          }
+       }
+-
++      f_35975_.forEach(e -> e.onArmorTick(f_35978_.f_19853_, f_35978_));
+    }
+ 
+    public boolean m_36054_(ItemStack p_36055_) {
+@@ -278,6 +_,8 @@
+          } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.m_127521_(throwable, "Adding item to inventory");
+             CrashReportCategory crashreportcategory = crashreport.m_127514_("Item being added");
++            crashreportcategory.m_128165_("Registry Name", () -> String.valueOf(p_36042_.m_41720_().getRegistryName()));
++            crashreportcategory.m_128165_("Item Class", () -> p_36042_.m_41720_().getClass().getName());
+             crashreportcategory.m_128159_("Item ID", Item.m_41393_(p_36042_.m_41720_()));
+             crashreportcategory.m_128159_("Item data", p_36042_.m_41773_());
+             crashreportcategory.m_128165_("Item name", () -> {
+@@ -585,4 +_,25 @@
+       ItemStack itemstack = this.m_36056_();
+       return itemstack.m_41619_() ? ItemStack.f_41583_ : this.m_7407_(this.f_35977_, p_182404_ ? itemstack.m_41613_() : 1);
+    }
++
++   // CraftBukkit start - Watch method above! :D
++   public int canHold(ItemStack itemstack) {
++      int remains = itemstack.m_41613_();
++      for (int i = 0; i < this.f_35974_.size(); ++i) {
++         ItemStack itemstack1 = this.m_8020_(i);
++         if (itemstack1.m_41619_()) return itemstack.m_41613_();
++
++         if (this.m_36014_(itemstack1, itemstack)) {
++            remains -= (itemstack1.m_41741_() < this.m_6893_() ? itemstack1.m_41741_() : this.m_6893_()) - itemstack1.m_41613_();
++         }
++         if (remains <= 0) return itemstack.m_41613_();
++      }
++      ItemStack offhandItemStack = this.m_8020_(this.f_35974_.size() + this.f_35975_.size());
++      if (this.m_36014_(offhandItemStack, itemstack)) {
++         remains -= (offhandItemStack.m_41741_() < this.m_6893_() ? offhandItemStack.m_41741_() : this.m_6893_()) - offhandItemStack.m_41613_();
++      }
++      if (remains <= 0) return itemstack.m_41613_();
++      return itemstack.m_41613_() - remains;
++   }
++   // CraftBukkit end
+ }

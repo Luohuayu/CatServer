@@ -1,0 +1,111 @@
+--- a/net/minecraft/world/effect/MobEffect.java
++++ b/net/minecraft/world/effect/MobEffect.java
+@@ -9,6 +_,8 @@
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
++import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+@@ -17,8 +_,10 @@
+ import net.minecraft.world.entity.ai.attributes.AttributeMap;
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ import net.minecraft.world.entity.player.Player;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
+ 
+-public class MobEffect {
++public class MobEffect extends net.minecraftforge.registries.ForgeRegistryEntry<MobEffect> implements net.minecraftforge.common.extensions.IForgeMobEffect {
+    private final Map<Attribute, AttributeModifier> f_19446_ = Maps.newHashMap();
+    private final MobEffectCategory f_19447_;
+    private final int f_19448_;
+@@ -34,15 +_,18 @@
+       return Registry.f_122823_.m_7447_(p_19460_);
+    }
+ 
+-   protected MobEffect(MobEffectCategory p_19451_, int p_19452_) {
++   public MobEffect(MobEffectCategory p_19451_, int p_19452_) {
+       this.f_19447_ = p_19451_;
+       this.f_19448_ = p_19452_;
++      initClient();
+    }
+ 
+    public void m_6742_(LivingEntity p_19467_, int p_19468_) {
+       if (this == MobEffects.f_19605_) {
+          if (p_19467_.m_21223_() < p_19467_.m_21233_()) {
++            p_19467_.putHealRegainReason(EntityRegainHealthEvent.RegainReason.MAGIC_REGEN);
+             p_19467_.m_5634_(1.0F);
++            p_19467_.resetHealRegainReason();
+          }
+       } else if (this == MobEffects.f_19614_) {
+          if (p_19467_.m_21223_() > 1.0F) {
+@@ -55,13 +_,27 @@
+       } else if (this == MobEffects.f_19618_ && p_19467_ instanceof Player) {
+          if (!p_19467_.f_19853_.f_46443_) {
+             ((Player)p_19467_).m_36324_().m_38707_(p_19468_ + 1, 1.0F);
++            // CraftBukkit start
++            Player entityhuman = (Player) p_19467_;
++            int oldFoodLevel = entityhuman.m_36324_().f_38696_;
++
++            org.bukkit.event.entity.FoodLevelChangeEvent event = CraftEventFactory.callFoodLevelChangeEvent(entityhuman, p_19468_ + 1 + oldFoodLevel);
++
++            if (!event.isCancelled()) {
++               entityhuman.m_36324_().m_38707_(event.getFoodLevel() - oldFoodLevel, 1.0F);
++            }
++
++            ((ServerPlayer) entityhuman).f_8906_.m_141995_(new ClientboundSetHealthPacket(((ServerPlayer) entityhuman).getBukkitEntity().getScaledHealth(), entityhuman.m_36324_().f_38696_, entityhuman.m_36324_().f_38697_));
++            // CraftBukkit end
+          }
+       } else if ((this != MobEffects.f_19601_ || p_19467_.m_21222_()) && (this != MobEffects.f_19602_ || !p_19467_.m_21222_())) {
+          if (this == MobEffects.f_19602_ && !p_19467_.m_21222_() || this == MobEffects.f_19601_ && p_19467_.m_21222_()) {
+             p_19467_.m_6469_(DamageSource.f_19319_, (float)(6 << p_19468_));
+          }
+       } else {
++         p_19467_.putHealRegainReason(EntityRegainHealthEvent.RegainReason.MAGIC);
+          p_19467_.m_5634_((float)Math.max(4 << p_19468_, 0));
++         p_19467_.resetHealRegainReason();
+       }
+ 
+    }
+@@ -80,7 +_,9 @@
+          }
+       } else {
+          int i = (int)(p_19466_ * (double)(4 << p_19465_) + 0.5D);
++         p_19464_.putHealRegainReason(EntityRegainHealthEvent.RegainReason.MAGIC);
+          p_19464_.m_5634_((float)i);
++         p_19464_.resetHealRegainReason();
+       }
+ 
+    }
+@@ -179,4 +_,29 @@
+    public boolean m_19486_() {
+       return this.f_19447_ == MobEffectCategory.BENEFICIAL;
+    }
++
++   // FORGE START
++   private Object effectRenderer;
++
++   /*
++      DO NOT CALL, IT WILL DISAPPEAR IN THE FUTURE
++      Call RenderProperties.getEffectRenderer instead
++    */
++   public Object getEffectRendererInternal() {
++      return effectRenderer;
++   }
++
++   private void initClient() {
++      // Minecraft instance isn't available in datagen, so don't call initializeClient if in datagen
++      if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT && !net.minecraftforge.fml.loading.FMLLoader.getLaunchHandler().isData()) {
++         initializeClient(properties -> {
++            this.effectRenderer = properties;
++         });
++      }
++   }
++
++   public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.EffectRenderer> consumer) {
++   }
++   // END FORGE
++
+ }

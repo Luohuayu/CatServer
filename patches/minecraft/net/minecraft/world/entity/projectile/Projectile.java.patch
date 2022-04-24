@@ -1,0 +1,76 @@
+--- a/net/minecraft/world/entity/projectile/Projectile.java
++++ b/net/minecraft/world/entity/projectile/Projectile.java
+@@ -12,7 +_,6 @@
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.player.Player;
+-import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
+@@ -20,6 +_,7 @@
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
++import org.bukkit.projectiles.ProjectileSource;
+ 
+ public abstract class Projectile extends Entity {
+    @Nullable
+@@ -29,6 +_,10 @@
+    private boolean f_37246_;
+    private boolean f_150164_;
+ 
++   // CraftBukkit start
++   private boolean hitCancelled = false;
++   // CraftBukkit end
++
+    protected Projectile(EntityType<? extends Projectile> p_37248_, Level p_37249_) {
+       super(p_37248_, p_37249_);
+    }
+@@ -38,7 +_,7 @@
+          this.f_37244_ = p_37263_.m_142081_();
+          this.f_150163_ = p_37263_;
+       }
+-
++      this.projectileSource = (p_37263_ != null && p_37263_.getBukkitEntity() instanceof ProjectileSource) ? (ProjectileSource) p_37263_.getBukkitEntity() : null; // CraftBukkit
+    }
+ 
+    @Nullable
+@@ -129,6 +_,16 @@
+       this.m_20256_(this.m_20184_().m_82520_(vec3.f_82479_, p_37252_.m_20096_() ? 0.0D : vec3.f_82480_, vec3.f_82481_));
+    }
+ 
++   // CraftBukkit start - call projectile hit event
++   protected void preOnHit(HitResult movingobjectposition) {
++      org.bukkit.event.entity.ProjectileHitEvent event = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callProjectileHitEvent(this, movingobjectposition);
++      this.hitCancelled = event != null && event.isCancelled();
++      if (movingobjectposition.m_6662_() == HitResult.Type.BLOCK || !this.hitCancelled) {
++         this.m_6532_(movingobjectposition);
++      }
++   }
++   // CraftBukkit end
++
+    protected void m_6532_(HitResult p_37260_) {
+       HitResult.Type hitresult$type = p_37260_.m_6662_();
+       if (hitresult$type == HitResult.Type.ENTITY) {
+@@ -147,6 +_,11 @@
+    }
+ 
+    protected void m_8060_(BlockHitResult p_37258_) {
++      // CraftBukkit start - cancellable hit event
++      if (hitCancelled) {
++         return;
++      }
++      // CraftBukkit end
+       BlockState blockstate = this.f_19853_.m_8055_(p_37258_.m_82425_());
+       blockstate.m_60669_(this.f_19853_, blockstate, p_37258_, this);
+    }
+@@ -211,7 +_,7 @@
+       if (entity instanceof Player) {
+          return entity.m_142265_(p_150167_, p_150168_);
+       } else {
+-         return entity == null || p_150167_.m_46469_().m_46207_(GameRules.f_46132_);
++         return entity == null || net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(p_150167_, entity);
+       }
+    }
+ }
