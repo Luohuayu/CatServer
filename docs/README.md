@@ -8,10 +8,14 @@
 CatServer是一个高性能的Forge+Bukkit+Spigot服务端核心<br>
 早期的1.16.5版本交付 LoliServer 项目组并共同开发, 目前已支持大部分MOD和插件同时稳定运行<br>
 现在将作为 LoliServer 的分支继续维护, 提供更好的优化和兼容性<br>
-你可以从 [构建站](https://cdn.ci.loliidc.cn:30011/job/CatServer-1.16.5/lastSuccessfulBuild/) 下载到最新版本<br>
+你可以从 [构建站](https://jenkins.rbqcloud.cn:30011/job/CatServer-1.16.5/lastSuccessfulBuild/) 下载到最新版本<br>
 
 CatServer所有版本:
-[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
+|     版本      |     状态      |
+| ------------- | ------------- |
+| [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  可用           |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  长期支持       |
+| [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  长期支持/稳定  |
 
 其他分支:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
