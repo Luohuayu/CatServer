@@ -5,7 +5,7 @@
 
 ##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md)
 
-CatServer是一个高性能的Forge+Bukkit+Spigot服务端核心<br>
+CatServer是一个高性能和高兼容性的Forge+Bukkit+Spigot服务端核心<br>
 国内最早开发的1.12.2版本核心, 支持大部分MOD和插件同时稳定运行<br>
 你可以从 [国内镜像](https://catserver.moe/download/universal) 或 [GitHub Releases](https://github.com/Luohuayu/CatServer/releases) 下载到最新版本<br>
 
@@ -21,6 +21,9 @@ CatServer所有版本:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
 
 QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
+
+#### 如何支持我们
+不必赞助, 只需要给本仓库点击"Star"和"Fork", 如果愿意收到通知可以点击"Watch"
 
 ### 服务端特性
 使用原创优化和部分Paper优化大幅度提升性能<br>
