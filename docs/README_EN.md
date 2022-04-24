@@ -1,4 +1,4 @@
-# CatServer
+# CatServer (1.12.2)
 ![](https://img.shields.io/badge/Minecraft-1.12.2-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Forge-14.23.5.2860-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2-brightgreen.svg?colorB=469C00)
@@ -8,7 +8,11 @@ The longest continuous update time, supporting most mods and plugins to run stab
 You can download the latest version from [Mirror Site](https://catserver.moe/download/universal) or [GitHub Releases](https://github.com/Luohuayu/CatServer/releases)<br>
 
 All versions of CatServer:
-[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
+|    Version    |    Status     |
+| ------------- | ------------- |
+| [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Active      |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
+| [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/STABLE  |
 
 Other fork:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)

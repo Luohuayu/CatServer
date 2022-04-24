@@ -1,16 +1,21 @@
-# CatServer
+# CatServer (1.12.2)
 ![](https://img.shields.io/badge/Minecraft-1.12.2-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Forge-14.23.5.2860-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2-brightgreen.svg?colorB=469C00)
 
 ##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md)
 
-CatServer是1.12.2的Forge+Bukkit+Spigot服务端核心<br>
-国内最早开发的高版本核心, 支持大部分MOD和插件同时稳定运行<br>
+CatServer是一个高性能的Forge+Bukkit+Spigot服务端核心<br>
+国内最早开发的1.12.2版本核心, 支持大部分MOD和插件同时稳定运行<br>
 你可以从 [国内镜像](https://catserver.moe/download/universal) 或 [GitHub Releases](https://github.com/Luohuayu/CatServer/releases) 下载到最新版本<br>
 
 CatServer所有版本:
-[1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2) | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)
+|     版本      |     状态      |
+| ------------- | ------------- |
+| [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  可用           |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  长期支持       |
+| [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  长期支持/稳定  |
+
 
 其他分支:
 [LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)

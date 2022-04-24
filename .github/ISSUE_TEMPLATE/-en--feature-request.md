@@ -1,7 +1,7 @@
 ---
 name: "[EN] Feature request"
 about: Suggest an idea for this project
-title: "[1.12.2] "
+title: "[1.12.2] Please modify the title to description"
 labels: ''
 assignees: ''
 
