@@ -4,10 +4,21 @@
 
 **Warn: The current version has not been formally tested and do not use it in production environment**
 
-### 稍安勿躁, 猫端正在开发中.. (Don't be restless, CatServer is in development..)
+### 稍安勿躁, 猫端(1.18.2)正在开发中.. (Don't be restless, CatServer(1.18.2) is in development..)
 你可以参与开发或测试, 为项目作出贡献
 
 You can contribute to the project by join in development or testing.
+
+#### 开发进度 (Development progress)
+- CraftBukkit Patches (Almost done)
+- Spigot Patches (Done)
+- Patches Compatibility (In progress)
+- FoxLaunch (Done)
+- BukkitInjector (Not impl)
+- Plugin Remapper (Not impl)
+- Plugin ASM Patcher (Not impl)
+- MOD ASM Patcher (Not impl)
+- CatServer API (Not impl)
 
 ### 如何构建和开发? (How to build and develop?)
 步骤:
