@@ -13,7 +13,7 @@ public class CatServerLaunch {
     private static final boolean skipCheckLibraries = Boolean.parseBoolean(System.getProperty("catserver.skipCheckLibraries"));
 
     public static void main(String[] args) throws Throwable {
-        if (!checkJavaVersion()) {
+        if (!checkJavaVersion() && !Java14Launcher.setup()) {
             System.out.println(
                     "The current Java version may not be compatible, you may need to add these parameters before -jar: \n" +
                     "--add-exports=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.base/java.util.jar=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED"
