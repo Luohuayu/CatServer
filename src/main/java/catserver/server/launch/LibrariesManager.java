@@ -12,19 +12,18 @@ import java.util.*;
 
 public class LibrariesManager {
     private static final List<String> librariesSources = new ArrayList<>();
+    public static final File serverJarDir = findJarDir();
+    public static final File librariesDir =  new File(serverJarDir, "libraries");
     public static final String sparkPluginFileName = "spark-1.8.19-bukkit.jar";
     public static final String sparkPluginMD5 = "ab5e7e1cd1bcd7cc910c2b7a59e7b7e5";
 
     public static void checkLibraries() {
-        File jarDir = findJarDir();
-
-        File libDir = new File(jarDir, "libraries");
-        if (!libDir.exists()) libDir.mkdir();
+        if (!librariesDir.exists()) librariesDir.mkdir();
 
         InputStream listStream = ClassLoader.getSystemResourceAsStream("libraries.info");
         if (listStream == null) return;
 
-        updateMCServerJar(jarDir, libDir);
+        updateMCServerJar(serverJarDir, librariesDir);
 
         Map<File, String> librariesNeedDownload = new HashMap<>();
 
@@ -38,7 +37,7 @@ public class LibrariesManager {
                     String value = args[1];
 
                     try {
-                        File file = new File(jarDir, key);
+                        File file = new File(serverJarDir, key);
                         if (!file.exists() || !Md5Utils.getFileMD5String(file).equals(value)) {
                             librariesNeedDownload.put(file, value);
                         }
@@ -48,7 +47,7 @@ public class LibrariesManager {
                 }
             }
             if (Boolean.parseBoolean(System.getProperty("catserver.spark.enable", "true"))) {
-                File sparkPluginFile = new File(libDir, sparkPluginFileName);
+                File sparkPluginFile = new File(librariesDir, sparkPluginFileName);
                 if (!sparkPluginFile.exists() || !Md5Utils.getFileMD5String(sparkPluginFile).equals(sparkPluginMD5)) {
                     librariesNeedDownload.put(sparkPluginFile, sparkPluginMD5);
                 }

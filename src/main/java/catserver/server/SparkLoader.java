@@ -21,15 +21,22 @@ public class SparkLoader {
 
     public static void tryLoadSparkPlugin(SimplePluginManager pluginManager) {
         if (!isDefaultInstallSpark() || pluginManager.getPlugin("spark") != null) return;
+
         try {
-            File sparkPluginOriginFile = new File("libraries", LibrariesManager.sparkPluginFileName);
+            File sparkPluginOriginFile = new File(LibrariesManager.librariesDir, LibrariesManager.sparkPluginFileName);
             File sparkPluginFile = new File("plugins", sparkPluginOriginFile.getName());
+
             if (sparkPluginOriginFile.exists() && !sparkPluginFile.exists()) {
                 Files.copy(sparkPluginOriginFile.toPath(), sparkPluginFile.toPath());
             }
-            Plugin sparkPlugin = pluginManager.loadPlugin(sparkPluginFile);
-            sparkPlugin.onLoad();
-            pluginManager.enablePlugin(sparkPlugin);
+
+            if (sparkPluginFile.exists()) {
+                Plugin sparkPlugin = pluginManager.loadPlugin(sparkPluginFile);
+                sparkPlugin.onLoad();
+                pluginManager.enablePlugin(sparkPlugin);
+            } else {
+                CatServer.log.warn("Missing " + sparkPluginOriginFile.getAbsolutePath());
+            }
         } catch (Exception e) {
             new RuntimeException("Failed to load spark!", e).printStackTrace();
         }
