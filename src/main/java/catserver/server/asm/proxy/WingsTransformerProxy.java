@@ -34,18 +34,28 @@ public class WingsTransformerProxy implements IClassTransformer {
         ClassNode originNode = new ClassNode();
         originReader.accept(originNode, 0);
 
+        // updateSize
         Optional<MethodNode> optional_func_184808_cD = patchedNode.methods.stream().filter(methodNode -> "func_184808_cD".equals(methodNode.name) && "()V".equals(methodNode.desc)).findFirst();
         if (optional_func_184808_cD.isPresent()) {
             originNode.methods.removeIf(methodNode -> "func_184808_cD".equals(methodNode.name) && "()V".equals(methodNode.desc));
             originNode.methods.add(optional_func_184808_cD.get());
         }
 
+        // getEyeHeight
+        Optional<MethodNode> optional_func_70047_e = patchedNode.methods.stream().filter(methodNode -> "func_70047_e".equals(methodNode.name) && "()V".equals(methodNode.desc)).findFirst();
+        if (optional_func_70047_e.isPresent()) {
+            originNode.methods.removeIf(methodNode -> "func_70047_e".equals(methodNode.name) && "()F".equals(methodNode.desc));
+            originNode.methods.add(optional_func_70047_e.get());
+        }
+
+        // addMovementStat
         Optional<MethodNode> optional_func_71000_j = patchedNode.methods.stream().filter(methodNode -> "func_71000_j".equals(methodNode.name) && "(DDD)V".equals(methodNode.desc)).findFirst();
         if (optional_func_71000_j.isPresent()) {
             originNode.methods.removeIf(methodNode -> "func_71000_j".equals(methodNode.name) && "(DDD)V".equals(methodNode.desc));
             originNode.methods.add(optional_func_71000_j.get());
         }
 
+        // replaceItemInInventory
         Optional<MethodNode> optional_func_174820_d = patchedNode.methods.stream().filter(methodNode -> "func_174820_d".equals(methodNode.name) && "(ILnet/minecraft/item/ItemStack;)Z".equals(methodNode.desc)).findFirst();
         if (optional_func_174820_d.isPresent()) {
             originNode.methods.removeIf(methodNode -> "func_174820_d".equals(methodNode.name) && "(ILnet/minecraft/item/ItemStack;)Z".equals(methodNode.desc));
