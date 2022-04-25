@@ -77,21 +77,10 @@ public class LegacyLauncher {
                 sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
 
                 Class<?> internalModulesClass = Class.forName("jdk.internal.module.Modules");
-                Object module = Class.class.getMethod("getModule").invoke(internalModulesClass);
+                Object jdkInternalModule = Class.class.getMethod("getModule").invoke(internalModulesClass);
 
-                Class<?> moduleClass = Class.forName("java.lang.Module");
-                Object moduleDescriptor = moduleClass.getMethod("getDescriptor").invoke(module);
-
-                Class<?> moduleDescriptorrClass = Class.forName("java.lang.module.ModuleDescriptor");
-                Field packagesField = moduleDescriptorrClass.getDeclaredField("packages");
-                Field openField = moduleDescriptorrClass.getDeclaredField("open");
-
-                Set<String> originPackages = (Set<String>) unsafe.getObject(moduleDescriptor, unsafe.objectFieldOffset(packagesField));
-                Set<String> modifyPackages = new HashSet<>(originPackages);
-                modifyPackages.add(JVMHack.class.getPackage().getName());
-
-                unsafe.getAndSetObject(moduleDescriptor, unsafe.objectFieldOffset(packagesField), modifyPackages);
-                unsafe.getAndSetObject(moduleDescriptor, unsafe.objectFieldOffset(openField), Boolean.TRUE);
+                Field moduleField = Class.class.getDeclaredField("module");
+                unsafe.getAndSetObject(JVMHack.class, unsafe.objectFieldOffset(moduleField), jdkInternalModule);
 
                 init = true;
             } catch (Throwable throwable) {
@@ -108,10 +97,14 @@ public class LegacyLauncher {
             Optional<Object> foundModuleOptional = (Optional<Object>) internalModulesClass.getMethod("findLoadedModule", String.class).invoke(null, module);
             Object foundModule = foundModuleOptional.orElseThrow(IllegalArgumentException::new);
 
-            Optional<Object> foundTargetModuleOptional = (Optional<Object>) internalModulesClass.getMethod("findLoadedModule", String.class).invoke(null, targetModule);
-            Object foundTargetModule = foundTargetModuleOptional.orElseThrow(IllegalArgumentException::new);
+            if (targetModule != null) {
+                Optional<Object> foundTargetModuleOptional = (Optional<Object>) internalModulesClass.getMethod("findLoadedModule", String.class).invoke(null, targetModule);
+                Object foundTargetModule = foundTargetModuleOptional.orElseThrow(IllegalArgumentException::new);
 
-            internalModulesClass.getMethod(option, moduleClass, String.class, moduleClass).invoke(null, foundModule, pkg, foundTargetModule);
+                internalModulesClass.getMethod(option, moduleClass, String.class, moduleClass).invoke(null, foundModule, pkg, foundTargetModule);
+            } else {
+                internalModulesClass.getMethod(option, moduleClass, String.class).invoke(null, foundModule, pkg);
+            }
         }
     }
 }
