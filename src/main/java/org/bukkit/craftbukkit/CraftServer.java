@@ -729,7 +729,12 @@ public final class CraftServer implements Server {
 
     @Override
     public void reload() {
-        if (true) return; // CatServer - disable reload
+        if (true) return; // CatServer - Disable reload
+    }
+
+    // CatServer - Move from reload method
+    @Deprecated
+    public void reloadConfirm() {
         reloadCount++;
         configuration = YamlConfiguration.loadConfiguration(getConfigFile());
         commandsConfiguration = YamlConfiguration.loadConfiguration(getCommandsConfigFile());
@@ -823,6 +828,7 @@ public final class CraftServer implements Server {
         enablePlugins(PluginLoadOrder.POSTWORLD);
     }
 
+    // CatServer start
     public void reloadConfig() {
         configuration = YamlConfiguration.loadConfiguration(getConfigFile());
         commandsConfiguration = YamlConfiguration.loadConfiguration(getCommandsConfigFile());
@@ -881,6 +887,7 @@ public final class CraftServer implements Server {
 
         overrideAllCommandBlockCommands = commandsConfiguration.getStringList("command-block-overrides").contains("*");
     }
+    // CatServer end
 
     @Override
     public void reloadData() {

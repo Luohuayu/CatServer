@@ -20,6 +20,8 @@ public class LanguageUtils {
         CN.put("versioncheck.new_version", "检查到CatServer有新版本(%s), 请到官网(https://catmc.org)下载更新或在catserver.yml中关闭版本检查");
         CN.put("versioncheck.failure", "CatServer更新检查失败, 请检查网络: %s");
         CN.put("spark.recommend", "服务端已安装spark插件, 推荐使用spark更好的分析性能使用情况!");
+        CN.put("command.reload.warn", "在CatServer上使用/reload命令是非常危险的, 如果只需要重载配置文件请使用/catserver reloadall命令!");
+        CN.put("command.reload.warn.confirm", "如果依然要使用/reload命令, 请增加确认参数: /reload confirm");
 
         EN.put("launch.java_wrong", "Current Java version (%s) is not supported, please replace to Java8");
         EN.put("launch.java11_compatibility", "Trying to use Java11 compatibility mode to start (even if the server can start, some mods and plugins may not work, please use Java8 if an error occurs)");
@@ -31,6 +33,8 @@ public class LanguageUtils {
         EN.put("versioncheck.new_version", "Check CatServer has a new version(%s), you can download the update from https://catmc.org or disable the version check in catserver.yml");
         EN.put("versioncheck.failure", "CatServer version check failed, please check network: %s");
         EN.put("spark.recommend", "Spark plugin has been installed on the server, recommended to use spark to better analyze performance usage!");
+        EN.put("command.reload.warn", "Using the /reload command on CatServer is very dangerous, if you only need to reload the configuration file please use the /catserver reloadall command!");
+        EN.put("command.reload.warn.confirm", "If you still want to use the /reload command, please add the confirmation parameter: /reload confirm");
 
         current = ("zh".equals(Locale.getDefault().getLanguage()) ? CN : EN);
     }
