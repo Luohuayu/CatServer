@@ -9,10 +9,9 @@ import org.bukkit.plugin.SimplePluginManager;
 
 public class SparkLoader {
     private static final boolean enableSpark = Boolean.parseBoolean(System.getProperty("catserver.spark.enable", "true"));
-    private static boolean sparkPluginEnabled = false;
 
-    public static boolean isEnableSpark() {
-        return enableSpark;
+    private static boolean isDefaultInstallSpark() {
+        return enableSpark && CatServer.getConfig().defaultInstallPluginSpark;
     }
 
     public static boolean isSparkPluginEnabled() {
@@ -21,7 +20,7 @@ public class SparkLoader {
     }
 
     public static void tryLoadSparkPlugin(SimplePluginManager pluginManager) {
-        if (!isEnableSpark() || pluginManager.getPlugin("spark") != null) return;
+        if (!isDefaultInstallSpark() || pluginManager.getPlugin("spark") != null) return;
         try {
             File sparkPluginOriginFile = new File("libraries", LibrariesManager.sparkPluginFileName);
             File sparkPluginFile = new File("plugins", sparkPluginOriginFile.getName());

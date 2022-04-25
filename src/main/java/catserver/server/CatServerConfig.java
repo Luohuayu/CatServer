@@ -38,6 +38,7 @@ public class CatServerConfig {
     public boolean enableWorldEditCompatible = true;
     public boolean enableCitizensCompatible = true;
     public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
+    public boolean defaultInstallPluginSpark = true;
 
     public boolean waitForgeServerChatEvent = false;
 
@@ -81,6 +82,7 @@ public class CatServerConfig {
         enableWorldEditCompatible = getOrWriteBooleanConfig("plugin.patcher.enableWorldEditCompatible", enableWorldEditCompatible);
         enableCitizensCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCitizensCompatible", enableCitizensCompatible);
         disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
+        defaultInstallPluginSpark = getOrWriteBooleanConfig("plugin.defaultInstall.spark", defaultInstallPluginSpark);
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
         // general
