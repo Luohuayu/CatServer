@@ -200,7 +200,7 @@ public class Main {
                     }
                 }
 
-                System.out.println("Loading libraries, please wait...");
+                // System.out.println("Loading libraries, please wait...");
                 // MinecraftServer.main(options);
             } catch (Throwable t) {
                 t.printStackTrace();

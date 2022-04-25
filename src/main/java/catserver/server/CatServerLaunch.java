@@ -7,9 +7,12 @@ import catserver.server.utils.LanguageUtils;
 import java.net.URLClassLoader;
 
 public class CatServerLaunch {
+    private static final boolean skipCheckLibraries = Boolean.parseBoolean(System.getProperty("catserver.skipCheckLibraries"));
+
     public static void main(String[] args) throws Throwable {
+        System.out.println("Loading libraries, please wait...");
         checkJavaVersion();
-        if (!"true".equals(System.getProperty("catserver.skipCheckLibraries"))) LibrariesManager.checkLibraries();
+        if (!skipCheckLibraries) LibrariesManager.checkLibraries();
         Class.forName("net.minecraftforge.fml.relauncher.ServerLaunchWrapper").getDeclaredMethod("main", String[].class).invoke(null, new Object[] { args });
     }
 
