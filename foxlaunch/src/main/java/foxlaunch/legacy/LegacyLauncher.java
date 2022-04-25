@@ -25,13 +25,13 @@ public class LegacyLauncher {
                     String[] param = fmlArg.substring(12).split("=");
                     String[] param2 = param[0].split("/");
                     if (param2.length == 2) {
-                        JVMHack.dynamicAddModuleOption("addOpens", param2[0], param2[1], param[1]);
+                        JVMHack.addModuleOptionDynamic("addOpens", param2[0], param2[1], param[1]);
                     }
                 } else if (fmlArg.startsWith("--add-exports ")) {
                     String[] param = fmlArg.substring(14).split("=");
                     String[] param2 = param[0].split("/");
                     if (param2.length == 2) {
-                        JVMHack.dynamicAddModuleOption("addExports", param2[0], param2[1], param[1]);
+                        JVMHack.addModuleOptionDynamic("addExports", param2[0], param2[1], param[1]);
                     }
                 } else if (fmlArg.startsWith("-p ")) {
                     for (String cp : fmlArg.substring(3).replace("\\:", "\\;").split(";")) {
@@ -99,7 +99,7 @@ public class LegacyLauncher {
             }
         }
 
-        static void dynamicAddModuleOption(String option, String module, String pkg, String targetModule) throws Exception {
+        static void addModuleOptionDynamic(String option, String module, String pkg, String targetModule) throws Exception {
             if (!init) throw new RuntimeException();
 
             Class<?> internalModulesClass = Class.forName("jdk.internal.module.Modules");
