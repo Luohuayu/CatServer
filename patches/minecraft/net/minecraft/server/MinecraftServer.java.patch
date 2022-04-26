@@ -1,11 +1,10 @@
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -10,7 +_,10 @@
+@@ -10,7 +_,9 @@
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.logging.LogUtils;
 +import com.mojang.serialization.DynamicOps;
-+import com.mojang.serialization.Lifecycle;
  import it.unimi.dsi.fastutil.longs.LongIterator;
 +
  import java.awt.image.BufferedImage;
@@ -29,38 +28,8 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -75,6 +_,8 @@
- import net.minecraft.resources.ResourceKey;
- import net.minecraft.resources.ResourceLocation;
- import net.minecraft.server.bossevents.CustomBossEvents;
-+import net.minecraft.server.dedicated.DedicatedServer;
-+import net.minecraft.server.dedicated.DedicatedServerProperties;
- import net.minecraft.server.level.DemoMode;
- import net.minecraft.server.level.PlayerRespawnLogic;
- import net.minecraft.server.level.ServerChunkCache;
-@@ -104,6 +_,7 @@
- import net.minecraft.util.NativeModuleLister;
- import net.minecraft.util.ProgressListener;
- import net.minecraft.util.Unit;
-+import net.minecraft.util.datafix.DataFixers;
- import net.minecraft.util.profiling.EmptyProfileResults;
- import net.minecraft.util.profiling.ProfileResults;
- import net.minecraft.util.profiling.ProfilerFiller;
-@@ -133,1704 +_,2158 @@
- import net.minecraft.world.level.Level;
- import net.minecraft.world.level.LevelSettings;
- import net.minecraft.world.level.biome.BiomeManager;
-+import net.minecraft.world.level.biome.BiomeSource;
- import net.minecraft.world.level.border.BorderChangeListener;
- import net.minecraft.world.level.border.WorldBorder;
- import net.minecraft.world.level.chunk.ChunkGenerator;
- import net.minecraft.world.level.dimension.DimensionType;
- import net.minecraft.world.level.dimension.LevelStem;
--import net.minecraft.world.level.levelgen.Heightmap;
--import net.minecraft.world.level.levelgen.PatrolSpawner;
--import net.minecraft.world.level.levelgen.PhantomSpawner;
--import net.minecraft.world.level.levelgen.WorldGenSettings;
-+import net.minecraft.world.level.levelgen.*;
+@@ -144,1693 +_,1992 @@
+ import net.minecraft.world.level.levelgen.WorldGenSettings;
  import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
 -import net.minecraft.world.level.storage.CommandStorage;
@@ -377,7 +346,7 @@
 +    private String f_129739_;
 +    public MinecraftServer.ReloadableResources f_129740_;
 +    private final StructureManager f_129741_;
-+    protected WorldData f_129749_;
++    protected final WorldData f_129749_;
 +    private volatile boolean f_195494_;
 +
 +    // CraftBukkit start
@@ -481,21 +450,22 @@
 +
 +    protected abstract boolean m_7038_() throws IOException;
 +
-+    protected void loadLevel(String s) { // CraftBukkit
++    protected void m_130006_() {
 +        if (!JvmProfiler.f_185340_.m_183608_()) {
 +        }
 +
 +        boolean flag = false;
 +        ProfiledDuration profiledduration = JvmProfiler.f_185340_.m_183494_();
-+        /*
-+        this.detectBundledResources();
-+        this.worldData.setModdedInfo(this.getServerModName(), this.getModdedStatus().shouldReportAsModified());
-+        ChunkProgressListener chunkprogresslistener = this.progressListenerFactory.create(11);
-+         */
-+        loadWorld0(s); // CraftBukkit
++        this.m_130007_();
++        this.f_129749_.m_7955_(this.m_130001_(), this.m_183471_().m_184597_());
++        ChunkProgressListener chunkprogresslistener = this.f_129756_.m_9620_(11);
++        this.m_129815_(chunkprogresslistener);
++        this.m_7044_();
++        this.m_129940_(chunkprogresslistener);
 +        if (profiledduration != null) {
 +            profiledduration.m_185413_();
 +        }
++
 +        if (flag) {
 +            try {
 +                JvmProfiler.f_185340_.m_183243_();
@@ -503,189 +473,41 @@
 +                f_129750_.warn("Failed to stop JFR profiling", throwable);
 +            }
 +        }
++
 +    }
-+
-+    // CraftBukkit start
-+    private void loadWorld0(String s) {
-+        LevelStorageSource.LevelStorageAccess worldSession = this.f_129744_;
-+        RegistryAccess.Frozen iregistrycustom_dimension = this.f_129746_;
-+        PrimaryLevelData overworldData = (PrimaryLevelData) worldSession.m_211747_(registryreadops, datapackconfiguration, iregistrycustom_dimension.m_211816_());
-+        if (overworldData == null) {
-+            LevelSettings worldsettings;
-+            WorldGenSettings generatorsettings;
-+            if (this.m_129794_()) {
-+                worldsettings = MinecraftServer.f_129743_;
-+                generatorsettings = WorldGenSettings.m_64645_(iregistrycustom_dimension);
-+            } else {
-+                DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) this).m_7913_();
-+                worldsettings = new LevelSettings(dedicatedserverproperties.f_139741_, dedicatedserverproperties.f_139740_, dedicatedserverproperties.f_139752_, dedicatedserverproperties.f_139739_, false, new GameRules(), datapackconfiguration);
-+                generatorsettings = options.has("bonusChest") ? dedicatedserverproperties.m_180927_(iregistrycustom_dimension).m_64671_() : dedicatedserverproperties.m_180927_(iregistrycustom_dimension);
-+            }
-+
-+            overworldData = new PrimaryLevelData(worldsettings, generatorsettings, Lifecycle.stable());
-+        }
-+
-+        WorldGenSettings overworldSettings = overworldData.m_5961_();
-+        Registry<LevelStem> iregistry = overworldSettings.m_204655_();
-+        for (LevelStem worldDimension : iregistry) {
-+            ResourceKey<LevelStem> dimensionKey = iregistry.m_7854_(worldDimension).get();
-+            ServerLevel world;
-+            int dimension = 0;
-+            if (dimensionKey == LevelStem.f_63972_) {
-+                if (m_7079_()) {
-+                    dimension = -1;
-+                } else {
-+                    continue;
-+                }
-+            } else if (dimensionKey == LevelStem.f_63973_) {
-+                if (server.getAllowEnd()) {
-+                    dimension = 1;
-+                } else {
-+                    continue;
-+                }
-+            } else if (dimensionKey != LevelStem.f_63971_) {
-+                dimension = -999;
-+            }
-+            String worldType = (dimension == -999) ? dimensionKey.m_135782_().m_135827_() + "_" + dimensionKey.m_135782_().m_135815_() : org.bukkit.World.Environment.getEnvironment(dimension).toString().toLowerCase();
-+            String name = (dimensionKey == LevelStem.f_63971_) ? s : s + "_" + worldType;
-+            if (dimension != 0) {
-+                File newWorld = LevelStorageSource.getStorageFolder(new File(name).toPath(), dimensionKey).toFile();
-+                File oldWorld = LevelStorageSource.getStorageFolder(new File(s).toPath(), dimensionKey).toFile();
-+                File oldLevelDat = new File(new File(s), "level.dat"); // The data folders exist on first run as they are created in the PersistentCollection constructor above, but the level.dat won't
-+                if (!newWorld.isDirectory() && oldWorld.isDirectory() && oldLevelDat.isFile()) {
-+                    MinecraftServer.f_129750_.info("---- Migration of old " + worldType + " folder required ----");
-+                    MinecraftServer.f_129750_.info("Unfortunately due to the way that Minecraft implemented multiworld support in 1.6, Bukkit requires that you move your " + worldType + " folder to a new location in order to operate correctly.");
-+                    MinecraftServer.f_129750_.info("We will move this folder for you, but it will mean that you need to move it back should you wish to stop using Bukkit in the future.");
-+                    MinecraftServer.f_129750_.info("Attempting to move " + oldWorld + " to " + newWorld + "...");
-+                    if (newWorld.exists()) {
-+                        MinecraftServer.f_129750_.warn("A file or folder already exists at " + newWorld + "!");
-+                        MinecraftServer.f_129750_.info("---- Migration of old " + worldType + " folder failed ----");
-+                    } else if (newWorld.getParentFile().mkdirs()) {
-+                        if (oldWorld.renameTo(newWorld)) {
-+                            MinecraftServer.f_129750_.info("Success! To restore " + worldType + " in the future, simply move " + newWorld + " to " + oldWorld);
-+                            // Migrate world data too.
-+                            try {
-+                                com.google.common.io.Files.copy(oldLevelDat, new File(new File(name), "level.dat"));
-+                                org.apache.commons.io.FileUtils.copyDirectory(new File(new File(s), "data"), new File(new File(name), "data"));
-+                            } catch (IOException exception) {
-+                                MinecraftServer.f_129750_.warn("Unable to migrate world data.");
-+                            }
-+                            MinecraftServer.f_129750_.info("---- Migration of old " + worldType + " folder complete ----");
-+                        } else {
-+                            MinecraftServer.f_129750_.warn("Could not move folder " + oldWorld + " to " + newWorld + "!");
-+                            MinecraftServer.f_129750_.info("---- Migration of old " + worldType + " folder failed ----");
-+                        }
-+                    } else {
-+                        MinecraftServer.f_129750_.warn("Could not create path for " + newWorld + "!");
-+                        MinecraftServer.f_129750_.info("---- Migration of old " + worldType + " folder failed ----");
-+                    }
-+                }
-+
-+                try {
-+                    worldSession = LevelStorageSource.m_78242_(server.getWorldContainer().toPath()).createAccess(name, dimensionKey);
-+                } catch (IOException ex) {
-+                    throw new RuntimeException(ex);
-+                }
-+            }
-+            org.bukkit.generator.ChunkGenerator gen = this.server.getGenerator(name);
-+            org.bukkit.generator.BiomeProvider biomeProvider = this.server.getBiomeProvider(name);
-+            PrimaryLevelData worlddata = (PrimaryLevelData) worldSession.m_211747_((DynamicOps) registryreadops, datapackconfiguration, iregistrycustom_dimension.m_211816_());
-+            if (worlddata == null) {
-+                LevelSettings worldsettings;
-+                WorldGenSettings generatorsettings;
-+                if (this.m_129794_()) {
-+                    worldsettings = MinecraftServer.f_129743_;
-+                    generatorsettings = WorldGenSettings.m_64645_(iregistrycustom_dimension);
-+                } else {
-+                    DedicatedServerProperties dedicatedserverproperties = ((DedicatedServer) this).m_7913_();
-+                    worldsettings = new LevelSettings(dedicatedserverproperties.f_139741_, dedicatedserverproperties.f_139740_, dedicatedserverproperties.f_139752_, dedicatedserverproperties.f_139739_, false, new GameRules(), datapackconfiguration);
-+                    generatorsettings = options.has("bonusChest") ? dedicatedserverproperties.m_180927_(iregistrycustom_dimension).m_64671_() : dedicatedserverproperties.m_180927_(iregistrycustom_dimension);
-+                }
-+                worlddata = new PrimaryLevelData(worldsettings, generatorsettings, Lifecycle.stable());
-+            }
-+            worlddata.checkName(name); // CraftBukkit - Migration did not rewrite the level.dat; This forces 1.8 to take the last loaded world as respawn (in this case the end)
-+            if (options.has("forceUpgrade")) {
-+                net.minecraft.server.Main.m_195488_(worldSession, DataFixers.m_14512_(), options.has("eraseCache"), () -> {
-+                    return true;
-+                }, worlddata.m_5961_());
-+            }
-+            ServerLevelData iworlddataserver = worlddata;
-+            WorldGenSettings generatorsettings = worlddata.m_5961_();
-+            boolean flag = generatorsettings.m_64668_();
-+            long i = generatorsettings.m_64619_();
-+            long j = BiomeManager.m_47877_(i);
-+            List<CustomSpawner> list = ImmutableList.of(new PhantomSpawner(), new PatrolSpawner(), new CatSpawner(), new VillageSiege(), new WanderingTraderSpawner(iworlddataserver));
-+            LevelStem worlddimension = (LevelStem) iregistry.m_6246_(dimensionKey);
-+            Holder<DimensionType> holder;
-+            ChunkGenerator chunkgenerator;
-+            if (worlddimension == null) {
-+                holder = this.m_206579_().m_175515_(Registry.f_122818_).m_203538_(DimensionType.f_63845_);
-+                chunkgenerator = WorldGenSettings.m_190027_(this.f_129746_, (new Random()).nextLong());
-+            } else {
-+                holder = worlddimension.m_204521_();
-+                chunkgenerator = worlddimension.m_63990_();
-+            }
-+            org.bukkit.generator.WorldInfo worldInfo = new org.bukkit.craftbukkit.v1_18_R2.generator.CraftWorldInfo(iworlddataserver, worldSession, org.bukkit.World.Environment.getEnvironment(dimension), holder.m_203334_());
-+            if (biomeProvider == null && gen != null) {
-+                biomeProvider = gen.getDefaultBiomeProvider(worldInfo);
-+            }
-+            if (biomeProvider != null) {
-+                BiomeSource worldChunkManager = new org.bukkit.craftbukkit.v1_18_R2.generator.CustomWorldChunkManager(worldInfo, biomeProvider, f_129746_.m_206191_(Registry.f_122885_));
-+                if (chunkgenerator instanceof NoiseBasedChunkGenerator cga) {
-+                    chunkgenerator = new NoiseBasedChunkGenerator(cga.f_207955_, cga.f_188604_, worldChunkManager, chunkgenerator.f_212255_, cga.f_64318_);
-+                }
-+            }
-+            ResourceKey<Level> worldKey = ResourceKey.m_135785_(Registry.f_122819_, dimensionKey.m_135782_());
-+            if (dimensionKey == LevelStem.f_63971_) {
-+                this.f_129749_ = worlddata;
-+                this.f_129749_.m_5458_(((DedicatedServer) this).m_7913_().f_139740_); // From DedicatedServer.init
-+                ChunkProgressListener worldloadlistener = this.f_129756_.m_9620_(11);
-+                world = new ServerLevel(this, this.f_129738_, worldSession, iworlddataserver, worldKey, holder, worldloadlistener, chunkgenerator, flag, j, list, true, org.bukkit.World.Environment.getEnvironment(dimension), gen, biomeProvider);
-+                DimensionDataStorage worldpersistentdata = world.m_8895_();
-+                this.m_129841_(worldpersistentdata);
-+                this.server.scoreboardManager = new org.bukkit.craftbukkit.v1_18_R2.scoreboard.CraftScoreboardManager(this, world.m_6188_());
-+                this.f_129732_ = new CommandStorage(worldpersistentdata);
-+            } else {
-+                ChunkProgressListener worldloadlistener = this.f_129756_.m_9620_(11);
-+                world = new ServerLevel(this, this.f_129738_, worldSession, iworlddataserver, worldKey, holder, worldloadlistener, chunkgenerator, flag, j, ImmutableList.of(), true, org.bukkit.World.Environment.getEnvironment(dimension), gen, biomeProvider);
-+            }
-+            worlddata.m_7955_(this.m_130001_(), this.m_183471_().m_184597_());
-+            this.initWorld(world, worlddata, f_129749_, worlddata.m_5961_());
-+            this.f_129762_.put(world.m_46472_(), world);
-+            this.m_6846_().m_184209_(world);
-+            if (worlddata.m_6587_() != null) {
-+                this.m_129901_().m_136295_(worlddata.m_6587_());
-+            }
-+        }
-+        this.m_7044_();
-+        for (ServerLevel worldserver : this.m_129785_()) {
-+            this.prepareLevels(worldserver.m_7726_().f_8325_.f_140144_, worldserver);
-+            worldserver.f_143244_.m_157506_(); // SPIGOT-6526: Load pending entities so they are available to the API
-+            this.server.getPluginManager().callEvent(new org.bukkit.event.world.WorldLoadEvent(worldserver.getWorld()));
-+        }
-+        this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
-+        this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
-+        this.f_129755_.acceptConnections();
-+    }
-+    // CraftBukkit end
 +
 +    protected void m_7044_() {
 +    }
 +
-+    // CraftBukkit start
-+    public void initWorld(ServerLevel serverlevel, ServerLevelData serverleveldata, WorldData saveData, WorldGenSettings generatorsettings) {
-+        boolean flag = generatorsettings.m_64668_();
-+        // CraftBukkit start
-+        if (serverlevel.generator != null) {
-+            serverlevel.getWorld().getPopulators().addAll(serverlevel.generator.getDefaultPopulators(serverlevel.getWorld()));
++    protected void m_129815_(ChunkProgressListener p_129816_) {
++        ServerLevelData serverleveldata = this.f_129749_.m_5996_();
++        WorldGenSettings worldgensettings = this.f_129749_.m_5961_();
++        boolean flag = worldgensettings.m_64668_();
++        long i = worldgensettings.m_64619_();
++        long j = BiomeManager.m_47877_(i);
++        List<CustomSpawner> list = ImmutableList.of(new PhantomSpawner(), new PatrolSpawner(), new CatSpawner(), new VillageSiege(), new WanderingTraderSpawner(serverleveldata));
++        Registry<LevelStem> registry = worldgensettings.m_204655_();
++        LevelStem levelstem = registry.m_6246_(LevelStem.f_63971_);
++        ChunkGenerator chunkgenerator;
++        Holder<DimensionType> holder;
++        if (levelstem == null) {
++            holder = this.m_206579_().<DimensionType>m_175515_(Registry.f_122818_).m_203538_(DimensionType.f_63845_);
++            chunkgenerator = WorldGenSettings.m_190027_(this.m_206579_(), (new Random()).nextLong());
++        } else {
++            holder = levelstem.m_204521_();
++            chunkgenerator = levelstem.m_63990_();
 +        }
++
++        ServerLevel serverlevel = new ServerLevel(this, this.f_129738_, this.f_129744_, serverleveldata, Level.f_46428_, holder, p_129816_, chunkgenerator, flag, j, list, true);
++        this.f_129762_.put(Level.f_46428_, serverlevel);
++        DimensionDataStorage dimensiondatastorage = serverlevel.m_8895_();
++        this.m_129841_(dimensiondatastorage);
++        this.f_129732_ = new CommandStorage(dimensiondatastorage);
 +        WorldBorder worldborder = serverlevel.m_6857_();
-+        worldborder.m_61931_(serverleveldata.m_5813_()); // CraftBukkit - move up so that WorldBorder is set during WorldInitEvent
-+        this.server.getPluginManager().callEvent(new org.bukkit.event.world.WorldInitEvent(serverlevel.getWorld())); // CraftBukkit - SPIGOT-5569: Call WorldInitEvent before any chunks are generated
 +        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(f_129762_.get(Level.f_46428_)));
 +        if (!serverleveldata.m_6535_()) {
 +            try {
-+                m_177896_(serverlevel, serverleveldata, generatorsettings.m_64660_(), flag);
++                m_177896_(serverlevel, serverleveldata, worldgensettings.m_64660_(), flag);
 +                serverleveldata.m_5555_(true);
 +                if (flag) {
 +                    this.m_129847_(this.f_129749_);
@@ -2174,8 +1996,29 @@
 -      }
 -   }
 +        }
++
++        this.m_6846_().m_184209_(serverlevel);
++        if (this.f_129749_.m_6587_() != null) {
++            this.m_129901_().m_136295_(this.f_129749_.m_6587_());
++        }
++
++        for (Entry<ResourceKey<LevelStem>, LevelStem> entry : registry.m_6579_()) {
++            ResourceKey<LevelStem> resourcekey = entry.getKey();
++            if (resourcekey != LevelStem.f_63971_) {
++                ResourceKey<Level> resourcekey1 = ResourceKey.m_135785_(Registry.f_122819_, resourcekey.m_135782_());
++                Holder<DimensionType> holder1 = entry.getValue().m_204521_();
++                ChunkGenerator chunkgenerator1 = entry.getValue().m_63990_();
++                DerivedLevelData derivedleveldata = new DerivedLevelData(this.f_129749_, serverleveldata);
++                ServerLevel serverlevel1 = new ServerLevel(this, this.f_129738_, this.f_129744_, derivedleveldata, resourcekey1, holder1, p_129816_, chunkgenerator1, flag, j, ImmutableList.of(), false);
++                worldborder.m_61929_(new BorderChangeListener.DelegateBorderChangeListener(serverlevel1.m_6857_()));
++                this.f_129762_.put(resourcekey1, serverlevel1);
++                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(f_129762_.get(resourcekey)));
++            }
++        }
++        this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
++        this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
++        worldborder.m_61931_(serverleveldata.m_5813_());
 +    }
-+    // CraftBukkit end
 +
 +    private static void m_177896_(ServerLevel p_177897_, ServerLevelData p_177898_, boolean p_177899_, boolean p_177900_) {
 +        if (p_177900_) {
@@ -2184,20 +2027,6 @@
 +            ChunkGenerator chunkgenerator = p_177897_.m_7726_().m_8481_();
 +            if (net.minecraftforge.event.ForgeEventFactory.onCreateWorldSpawn(p_177897_, p_177898_)) return;
 +            ChunkPos chunkpos = new ChunkPos(chunkgenerator.m_183403_().m_183230_());
-+            // CraftBukkit start
-+            if (p_177897_.generator != null) {
-+                Random rand = new Random(p_177897_.m_7328_());
-+                org.bukkit.Location spawn = p_177897_.generator.getFixedSpawnLocation(p_177897_.getWorld(), rand);
-+                if (spawn != null) {
-+                    if (spawn.getWorld() != p_177897_.getWorld()) {
-+                        throw new IllegalStateException("Cannot set spawn point for " + p_177898_.m_5462_() + " to be in another world (" + spawn.getWorld().getName() + ")");
-+                    } else {
-+                        p_177898_.m_7250_(new BlockPos(spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ()), spawn.getYaw());
-+                        return;
-+                    }
-+                }
-+            }
-+            // CraftBukkit end
 +            int i = chunkgenerator.m_142051_(p_177897_);
 +            if (i < p_177897_.m_141937_()) {
 +                BlockPos blockpos = chunkpos.m_45615_();
@@ -2249,35 +2078,25 @@
 +        serverleveldata.m_5458_(GameType.SPECTATOR);
 +    }
 +
-+    // CraftBukkit start
-+    public void prepareLevels(ChunkProgressListener p_129941_, ServerLevel serverlevel) {
-+        //ServerLevel serverlevel = this.overworld();
-+        this.forceTicks = true;
-+        // CraftBukkit end
++    private void m_129940_(ChunkProgressListener p_129941_) {
++        ServerLevel serverlevel = this.m_129783_();
 +        f_129750_.info("Preparing start region for dimension {}", (Object) serverlevel.m_46472_().m_135782_());
 +        BlockPos blockpos = serverlevel.m_8900_();
 +        p_129941_.m_7647_(new ChunkPos(blockpos));
 +        ServerChunkCache serverchunkcache = serverlevel.m_7726_();
 +        serverchunkcache.m_7827_().m_9310_(500);
 +        this.f_129726_ = Util.m_137550_();
-+        //serverchunkcache.addRegionTicket(TicketType.START, new ChunkPos(blockpos), 11, Unit.INSTANCE);
-+        // Craftbukkit start
-+        // CraftBukkit start
-+        if (serverlevel.getWorld().getKeepSpawnInMemory()) {
-+            serverchunkcache.m_8387_(TicketType.f_9442_, new ChunkPos(blockpos), 11, Unit.INSTANCE);
++        serverchunkcache.m_8387_(TicketType.f_9442_, new ChunkPos(blockpos), 11, Unit.INSTANCE);
 +
-+            while (serverchunkcache.m_8427_() != 441) {
-+                // this.nextTickTime = SystemUtils.getMillis() + 10L;
-+                this.executeModerately();
-+            }
++        while (serverchunkcache.m_8427_() != 441) {
++            this.f_129726_ = Util.m_137550_() + 10L;
++            this.m_130012_();
 +        }
 +
-+        this.executeModerately();
++        this.f_129726_ = Util.m_137550_() + 10L;
++        this.m_130012_();
 +
-+        //for (ServerLevel serverlevel1 : this.levels.values()) {
-+        if (true) {
-+            ServerLevel serverlevel1 = serverlevel;
-+            // CraftBukkit end
++        for (ServerLevel serverlevel1 : this.f_129762_.values()) {
 +            ForcedChunksSavedData forcedchunkssaveddata = serverlevel1.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
 +            if (forcedchunkssaveddata != null) {
 +                LongIterator longiterator = forcedchunkssaveddata.m_46116_().iterator();
@@ -2291,17 +2110,11 @@
 +            }
 +        }
 +
-+        // CraftBukkit start
-+        // this.nextTickTime = SystemUtils.getMillis() + 10L;
-+        this.executeModerately();
-+        // CraftBukkit end
++        this.f_129726_ = Util.m_137550_() + 10L;
++        this.m_130012_();
 +        p_129941_.m_7646_();
 +        serverchunkcache.m_7827_().m_9310_(5);
-+        // CraftBukkit start
-+        // this.updateMobSpawningFlags();
-+        serverlevel.m_46703_(this.m_7004_(), this.m_6998_());
-+        this.forceTicks = false;
-+        // CraftBukkit end
++        this.m_129962_();
 +    }
 +
 +    protected void m_130007_() {
@@ -2344,15 +2157,11 @@
 +            flag = true;
 +        }
 +
-+        // CraftBukkit start - moved to WorldServer.save
-+
-+        /*
-+        ServerLevel serverlevel2 = this.overworld();
-+        ServerLevelData serverleveldata = this.worldData.overworldData();
-+        serverleveldata.setWorldBorder(serverlevel2.getWorldBorder().createSettings());
-+        this.worldData.setCustomBossEvents(this.getCustomBossEvents().save());
-+        this.storageSource.saveDataTag(this.registryAccess(), this.worldData, this.getPlayerList().getSingleplayerData());
-+         */
++        ServerLevel serverlevel2 = this.m_129783_();
++        ServerLevelData serverleveldata = this.f_129749_.m_5996_();
++        serverleveldata.m_7831_(serverlevel2.m_6857_().m_61970_());
++        this.f_129749_.m_5917_(this.m_129901_().m_136307_());
++        this.f_129744_.m_78290_(this.m_206579_(), this.f_129749_, this.m_6846_().m_6960_());
 +        if (p_129887_) {
 +            for (ServerLevel serverlevel1 : this.m_129785_()) {
 +                f_129750_.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", (Object) serverlevel1.m_7726_().f_8325_.m_182285_());
@@ -3773,6 +3582,9 @@
 +    }
 +
 +    public void initWorld(ServerLevel internal, PrimaryLevelData worlddata, PrimaryLevelData worlddata1, WorldGenSettings worldGenSettings) {
++    }
++
++    public void prepareLevels(ChunkProgressListener progressListener, ServerLevel internal) {
 +    }
 +
 +    public static record ReloadableResources(CloseableResourceManager f_206584_,

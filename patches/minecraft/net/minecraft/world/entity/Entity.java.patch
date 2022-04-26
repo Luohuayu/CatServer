@@ -24,7 +24,7 @@
  import net.minecraft.world.level.block.HoneyBlock;
  import net.minecraft.world.level.block.Mirror;
  import net.minecraft.world.level.block.RenderShape;
-@@ -115,3010 +_,3622 @@
+@@ -115,3010 +_,3648 @@
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Team;
  import org.slf4j.Logger;
@@ -4312,7 +4312,7 @@
 +        this.f_19855_ = p_20250_;
 +        this.f_19856_ = d1;
 +        this.m_6034_(d0, p_20250_, d1);
-+        if (valid) f_19853_.m_6325_((int) Math.floor(this.m_20185_()) >> 4, (int) Math.floor(this.m_20189_()) >> 4);
++        if (valid) f_19853_.m_6325_((int) Math.floor(this.m_20185_()) >> 4, (int) Math.floor(this.m_20189_()) >> 4); // CraftBukkit
 +    }
 +
 +    public void m_20219_(Vec3 p_20220_) {
@@ -4967,7 +4967,9 @@
 +
 +                this.m_20124_(Pose.STANDING);
 +                this.f_19824_ = p_19966_;
-+                this.f_19824_.m_20348_(this);
++                if (!this.f_19824_.cBAddPassenger(this)) {
++                    this.f_19824_ = null;
++                }
 +                p_19966_.m_146920_().filter((p_185984_) -> {
 +                    return p_185984_ instanceof ServerPlayer;
 +                }).forEach((p_185982_) -> {
@@ -5000,7 +5002,10 @@
 +            Entity entity = this.f_19824_;
 +            if (!net.minecraftforge.event.ForgeEventFactory.canMountEntity(this, entity, false)) return;
 +            this.f_19824_ = null;
-+            entity.m_20351_(this);
++            //entity.removePassenger(this);
++            if (!entity.cBRemovePassenger(this)) {
++                this.f_19824_ = entity;
++            }
 +        }
 +
 +    }
@@ -5181,7 +5186,14 @@
 +                    this.f_19853_.m_46473_().m_6180_("portal");
 +                    this.f_19818_ = i;
 +                    this.m_20091_();
-+                    this.m_5489_(serverlevel1);
++                    //this.changeDimension(serverlevel1);
++                    // CraftBukkit start
++                    if (this instanceof ServerPlayer) {
++                        ((ServerPlayer) this).changeDimension(serverlevel1, PlayerTeleportEvent.TeleportCause.NETHER_PORTAL);
++                    } else {
++                        this.m_5489_(serverlevel1);
++                    }
++                    // CraftBukkit end
 +                    this.f_19853_.m_46473_().m_7238_();
 +                }
 +
@@ -5607,7 +5619,12 @@
 +    public Entity changeDimension(ServerLevel p_20118_, net.minecraftforge.common.util.ITeleporter teleporter) {
 +        if (this.f_19853_ instanceof ServerLevel && !this.m_146910_()) {
 +            this.f_19853_.m_46473_().m_6180_("changeDimension");
-+            this.m_19877_();
++            // this.unRide();
++            // CraftBukkit start
++            if (p_20118_ == null) {
++                return null;
++            }
++            // CraftBukkit end
 +            this.f_19853_.m_46473_().m_6180_("reposition");
 +            PortalInfo portalinfo = teleporter.getPortalInfo(this, p_20118_, this::m_7937_);
 +            if (portalinfo == null) {
@@ -5653,6 +5670,10 @@
 +
 +    @Nullable
 +    protected PortalInfo m_7937_(ServerLevel p_19923_) {
++        if (p_19923_ == null) {
++            return null;
++        }
++
 +        boolean flag = this.f_19853_.m_46472_() == Level.f_46430_ && p_19923_.m_46472_() == Level.f_46428_;
 +        boolean flag1 = p_19923_.m_46472_() == Level.f_46430_;
 +        if (!flag && !flag1) {
@@ -5667,7 +5688,12 @@
 +                if (event == null) {
 +                    return null;
 +                }
-+                return this.m_183318_(p_19923_, blockpos1, flag2, worldborder).map((p_185941_) -> {
++                final ServerLevel worldserverFinal = p_19923_ = ((CraftWorld) event.getTo().getWorld()).getHandle();
++                worldborder = worldserverFinal.m_6857_();
++                blockpos1 = worldborder.m_187569_(event.getTo().getX(), event.getTo().getY(), event.getTo().getZ());
++
++                //return this.getExitPortal(p_19923_, blockpos1, flag2, worldborder).map((p_185941_) -> {
++                return this.getExitPortal(p_19923_, blockpos1, flag2, worldborder, event.getSearchRadius(), event.getCanCreatePortal(), event.getCreationRadius()).map((p_185941_) -> {
 +                    BlockState blockstate = this.f_19853_.m_8055_(this.f_19819_);
 +                    Direction.Axis direction$axis;
 +                    Vec3 vec3;
@@ -5682,7 +5708,7 @@
 +                        vec3 = new Vec3(0.5D, 0.0D, 0.0D);
 +                    }
 +
-+                    return PortalShape.createPortalInfo(p_19923_, p_185941_, direction$axis, vec3, this.m_6972_(this.m_20089_()), this.m_20184_(), this.m_146908_(), this.m_146909_(), event);
++                    return PortalShape.createPortalInfo(worldserverFinal, p_185941_, direction$axis, vec3, this.m_6972_(this.m_20089_()), this.m_20184_(), this.m_146908_(), this.m_146909_(), event);
 +                }).orElse((PortalInfo) null);
 +            }
 +        } else {

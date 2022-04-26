@@ -1003,13 +1003,7 @@ public final class CraftServer implements Server {
                 throw new IllegalArgumentException("Illegal dimension");
         }
 
-        LevelStorageSource.LevelStorageAccess worldSession = null;
-        try {
-            worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name,
-                    actualDimension);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        LevelStorageSource.LevelStorageAccess worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name, actualDimension);
 
         if (worldSession == null) return null;
 
