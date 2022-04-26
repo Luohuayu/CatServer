@@ -9,6 +9,7 @@ import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -40,9 +41,13 @@ public class LibrariesDownloader {
     }
 
     public static void tryDownload(File file, String sha256) {
+        tryDownload(file, sha256, null);
+    }
+
+    public static void tryDownload(File file, String sha256, String dir) {
         Iterator<String> iterator = librariesSources.iterator();
         while (iterator.hasNext()) {
-            String downloadUrl = iterator.next() + file.getName();
+            String downloadUrl = iterator.next() + (dir == null ? "" : dir + "/") + file.getName();
             try {
                 if (sha256 == null && downloadUrl.startsWith("http://")) {
                     System.out.println(String.format("[Warning] Trying to download a file (%s) that missing SHA256 from http protocol, possible security risk!", file.getName()));
@@ -54,14 +59,22 @@ public class LibrariesDownloader {
 
                 new Downloader(downloadUrl, file);
 
+                if (file.exists() && file.getName().equals(".packed")) {
+                    file = Utils.unpackSingleFileZip(file);
+                }
+
                 if (!file.exists() || (sha256 != null && !Objects.equals(Utils.getFileSHA256(file), sha256))) {
                     System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_check"), file.getName(), downloadUrl));
                 }
 
                 return;
             } catch (IOException e) {
-                System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download"), e.toString(), downloadUrl));
-                if (e instanceof ConnectException || e instanceof SocketTimeoutException) iterator.remove();
+                if (e instanceof ConnectException || e instanceof SocketTimeoutException || e instanceof UnknownHostException) {
+                    System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download_source_error"), downloadUrl, e.toString()));
+                    iterator.remove();
+                } else {
+                    System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_failure_download"), e.toString(), downloadUrl));
+                }
             }
         }
     }

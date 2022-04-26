@@ -170,6 +170,7 @@ public class DataManager {
 
     public static void downloadLibraries() {
         Map<File, String> needDownloadLibrariesMap = new TreeMap<>();
+        Map<File, String> needDownloadMappingDataMap = new TreeMap<>();
 
         for (Map.Entry<String, File> libraryEntry : librariesMap.entrySet()) {
             String filename = libraryEntry.getKey();
@@ -183,11 +184,27 @@ public class DataManager {
             }
         }
 
-        if (needDownloadLibrariesMap.size() > 0) {
+        String minecraftVersion = versionData.get("minecraft"), mcpVersion = versionData.get("mcp");
+        if (minecraftVersion != null && mcpVersion != null) {
+            File mcpZip = new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s.zip", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
+            if (!mcpZip.exists() || !Objects.equals(Utils.getFileSHA256(mcpZip), Utils.getMissingSHA256(mcpZip.getName()))) {
+                needDownloadMappingDataMap.put(mcpZip, Utils.getMissingSHA256(mcpZip.getName()));
+            }
+
+            File minecraftMappings = new File(String.format("foxlaunch-data/server-%s-mappings.txt", minecraftVersion));
+            if (!minecraftMappings.exists() || !Objects.equals(Utils.getFileSHA256(minecraftMappings), Utils.getMissingSHA256(minecraftMappings.getName()))) {
+                needDownloadMappingDataMap.put(new File(String.format("foxlaunch-data/server-%s-mappings.packed", minecraftVersion)), Utils.getMissingSHA256(minecraftMappings.getName()));
+            }
+        }
+
+        if (needDownloadLibrariesMap.size() > 0 || needDownloadMappingDataMap.size() > 0) {
             System.out.println(LanguageUtils.I18nToString("launch.lib_missing"));
             LibrariesDownloader.setupDownloadSource();
             for (Map.Entry<File, String> libraryEntry : needDownloadLibrariesMap.entrySet()) {
                 LibrariesDownloader.tryDownload(libraryEntry.getKey(), libraryEntry.getValue());
+            }
+            for (Map.Entry<File, String> libraryEntry : needDownloadMappingDataMap.entrySet()) {
+                LibrariesDownloader.tryDownload(libraryEntry.getKey(), libraryEntry.getValue(), "mappings-data");
             }
             System.out.println(LanguageUtils.I18nToString("launch.lib_download_completed"));
         }

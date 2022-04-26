@@ -2,11 +2,18 @@ package foxlaunch;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.MessageDigest;
+import java.util.Enumeration;
 import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 public class Utils {
     public static String getFileSHA256(File file) {
@@ -33,6 +40,10 @@ public class Utils {
         switch (filename) {
             case "minecraft_server.1.18.2.jar":
                 return "57BE9D1E35AA91CFDFA246ADB63A0EA11A946081E0464D08BC3D36651718A343";
+            case "server-1.18.2-mappings.txt":
+                return "2A674D9721824BEB424337DAB39A2EC3553BABF0FA4C75FDE66706C73C17539A";
+            case "mcp_config-1.18.2-20220404.173914.zip": // 重要: Update it when updating MCP version
+                return "F60527297DD4E81E3DA93DC95981E426A81D3B03457CF2F94AF8281E2DB5A8F2";
             case "authlib-3.3.39.jar":
                 return "21132E3BDE5EEAC556437DA9580221931BB00DBF350B453F100526C9AA232FEE";
             case "brigadier-1.0.18.jar":
@@ -98,6 +109,33 @@ public class Utils {
             return false;
         } catch (Exception e) {
             return true;
+        }
+    }
+
+    public static File unpackSingleFileZip(File file) throws IOException {
+        try (ZipFile zipFile = new ZipFile(file)) {
+            if (zipFile.size() > 1) {
+                throw new IOException("Not single file zip!");
+            }
+
+            Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
+            if (enumeration.hasMoreElements()) {
+                ZipEntry zipEntry = enumeration.nextElement();
+                File outFile = new File(file.getParentFile(), zipFile.getName());
+                try (FileOutputStream out = new FileOutputStream(outFile)) {
+                    try (InputStream in = zipFile.getInputStream(zipEntry)) {
+                        byte[] bytes = new byte[4096];
+                        int readSize;
+                        while ((readSize = in.read(bytes)) > 0) {
+                            out.write(bytes, 0, readSize);
+                        }
+                    }
+                    out.flush();
+                    return outFile;
+                }
+            } else {
+                throw new IOException("Empty zip!");
+            }
         }
     }
 }

@@ -14,6 +14,7 @@ public class LanguageUtils {
         CN.put("launch.lib_missing", "需要下载缺少的库文件, 请耐心等待..");
         CN.put("launch.lib_failure_check", "文件 %s 校验失败, 你也可以手动下载: %s");
         CN.put("launch.lib_failure_download", "下载文件失败(HTTP状态: %s), 你也可以手动下载: %s");
+        CN.put("launch.lib_failure_download_source_error", "下载源不可用(地址: %s | HTTP状态: %s), 已切换其他下载源");
         CN.put("launch.lib_downloading", "正在下载文件 %s 大小: %s");
         CN.put("launch.lib_download_completed", "库文件下载完成, 如果出现错误只需要重新运行服务端");
 
@@ -21,6 +22,7 @@ public class LanguageUtils {
         EN.put("launch.lib_missing", "Missing libraries file, downloading.. (Add -Dcatserver.skipCheckLibraries=true to the jvm flag to skip it)");
         EN.put("launch.lib_failure_check", "File %s verification failed, URL: %s");
         EN.put("launch.lib_failure_download", "File download failed(HTTP Status: %s), URL: %s");
+        EN.put("launch.lib_failure_download_source_error", "Download source not available(URL: %s | HTTP Status: %s), switched to another download source");
         EN.put("launch.lib_downloading", "Downloading %s Size: %s");
         EN.put("launch.lib_download_completed", "The libraries file download completed, if an error occurs only need re-run the server");
 

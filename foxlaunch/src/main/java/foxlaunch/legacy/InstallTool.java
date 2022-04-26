@@ -15,7 +15,7 @@ import java.util.Objects;
 
 public class InstallTool {
     public static void install(String minecraftVersion, String mcpVersion, String forgeVersion) throws Exception {
-        if(minecraftVersion == null || mcpVersion == null || forgeVersion == null) {
+        if (minecraftVersion == null || mcpVersion == null || forgeVersion == null) {
             throw new RuntimeException(String.format("Missing version data: [minecraft: %s, mcp: %s, forge: %s]", minecraftVersion, mcpVersion, forgeVersion));
         }
 
@@ -69,8 +69,8 @@ public class InstallTool {
         File mcpMappings = new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s-mappings.txt", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
 
         File minecraftServer = new File("foxlaunch-data/minecraft_server." + minecraftVersion + ".jar");
-        File minecraftUnpack = new File(String.format("libraries/net/minecraft/server/%s/server-%s.jar", minecraftVersion, minecraftVersion));
-        File minecraftMappings = new File(String.format("libraries/net/minecraft/server/%s-%s/server-%s-%s-mappings.txt", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
+        File minecraftUnpack = new File(String.format("foxlaunch-data/server-%s.jar", minecraftVersion));
+        File minecraftMappings = new File(String.format("foxlaunch-data/server-%s-mappings.txt", minecraftVersion));
 
         File mergedMappings = new File(String.format("libraries/net/minecraft/server/%s-%s/server-%s-%s-mappings-merged.txt", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
 
@@ -81,10 +81,16 @@ public class InstallTool {
         File forgeUniversalJar = new File(String.format("libraries/net/minecraftforge/forge/%s-%s/forge-%s-%s-universal.jar", minecraftVersion, forgeVersion, minecraftVersion, forgeVersion));
         File forgeServerJar = new File(String.format("libraries/net/minecraftforge/forge/%s-%s/forge-%s-%s-server.jar", minecraftVersion, forgeVersion, minecraftVersion, forgeVersion));
 
+        for (File checkFile : new File[]{ minecraftServer, mcpZip, serverLZMA, forgeUniversalJar }) {
+            if (!checkFile.exists()) {
+                throw new RuntimeException("Missing " + checkFile.getAbsolutePath() + " File!");
+            }
+        }
+
         try {
             if (installHASH.exists()) {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(installHASH)))) {
-                    if (Objects.equals(reader.readLine(), Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Utils.getFileSHA256(serverLZMA) + Utils.getFileSHA256(forgeUniversalJar) + Utils.getFileSHA256(forgeServerJar))) {
+                    if (Objects.equals(reader.readLine(), Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(serverLZMA), serverLZMA.getName()))) {
                         return;
                     }
                 }
@@ -121,10 +127,6 @@ public class InstallTool {
 
         // MCP_DATA
         originOutPrint.println("Initializing MCP data..");
-
-        if (!mcpZip.exists()) {
-            throw new RuntimeException("Missing MCP Data!");
-        }
 
         if(!mcpMappings.exists()) {
             Utils.relaunch(
@@ -263,7 +265,7 @@ public class InstallTool {
         System.setOut(originOutPrint);
 
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(installHASH)))) {
-            writer.write( Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(serverLZMA), serverLZMA.getName()) + Objects.requireNonNull(Utils.getFileSHA256(forgeUniversalJar), forgeUniversalJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(forgeServerJar), forgeServerJar.getName()));
+            writer.write( Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(serverLZMA), serverLZMA.getName()));
         }
     }
 }
