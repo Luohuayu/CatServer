@@ -40,7 +40,7 @@
  import net.minecraft.world.level.block.HorizontalDirectionalBlock;
  import net.minecraft.world.level.block.NetherPortalBlock;
  import net.minecraft.world.level.block.entity.BlockEntity;
-@@ -132,9 +_,21 @@
+@@ -132,9 +_,22 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Score;
@@ -50,6 +50,7 @@
 +import org.bukkit.Location;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftWorldBorder;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftPortalEvent;
 +import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.v1_18_R2.util.CraftDimensionUtil;
 +import org.bukkit.event.player.*;
@@ -395,11 +396,12 @@
           }
        }
  
-@@ -670,7 +_,7 @@
+@@ -670,7 +_,8 @@
     }
  
     private boolean m_9216_() {
 -      return this.f_8924_.m_129799_();
++      // CraftBukkit - this.server.isPvpAllowed() -> this.world.pvpMode
 +      return this.f_19853_.pvpMode;
     }
  
@@ -463,7 +465,7 @@
 +           }
 +
 +            Location enter = this.getBukkitEntity().getLocation();
-+            Location exit = (serverlevel.get() == null) ? null : new Location(portalinfo.level.getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
++            Location exit = (serverlevel.get() == null) ? null : new Location(p_9180_.getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
 +            PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, cause);
 +            Bukkit.getServer().getPluginManager().callEvent(tpEvent);
 +            if (tpEvent.isCancelled() || tpEvent.getTo() == null) {
@@ -496,7 +498,7 @@
              this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
              playerlist.m_11229_(this, p_9180_);
              playerlist.m_11292_(this);
-@@ -732,10 +_,16 @@
+@@ -732,15 +_,34 @@
                 this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), mobeffectinstance));
              }
  
@@ -513,6 +515,24 @@
           }
  
           return this;
+       }
+    }
++   // CraftBukkit start
++   @Override
++   protected CraftPortalEvent callPortalEvent(Entity entity, ServerLevel exitWorldServer, BlockPos exitPosition, PlayerTeleportEvent.TeleportCause cause, int searchRadius, int creationRadius) {
++      Location enter = this.getBukkitEntity().getLocation();
++      Location exit = new Location(exitWorldServer.getWorld(), exitPosition.m_123341_(), exitPosition.m_123342_(), exitPosition.m_123343_(), m_146908_(), m_146909_());
++      PlayerPortalEvent event = new PlayerPortalEvent(this.getBukkitEntity(), enter, exit, cause, searchRadius, true, creationRadius);
++      Bukkit.getServer().getPluginManager().callEvent(event);
++      if (event.isCancelled() || event.getTo() == null || event.getTo().getWorld() == null) {
++         return null;
++      }
++      return new CraftPortalEvent(event);
++   }
++   // CraftBukkit end
+ 
+    private void m_9006_(ServerLevel p_9007_, BlockPos p_9008_) {
+       BlockPos.MutableBlockPos blockpos$mutableblockpos = p_9008_.m_122032_();
 @@ -755,14 +_,13 @@
        }
  
@@ -529,11 +549,26 @@
           if (!optional1.isPresent()) {
              f_8907_.error("Unable to create a portal, likely target out of worldborder");
           }
-@@ -771,16 +_,29 @@
+@@ -771,16 +_,44 @@
        }
     }
  
 -   private void m_9209_(ServerLevel p_9210_) {
++   protected Optional<BlockUtil.FoundRectangle> getExitPortal(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
++      Optional<BlockUtil.FoundRectangle> optional = super.getExitPortal(p_184131_, p_184132_, p_184133_, p_184134_, searchRadius, canCreatePortal, createRadius);
++      if (optional.isPresent() || !canCreatePortal) { // CraftBukkit
++         return optional;
++      } else {
++         Direction.Axis direction$axis = this.f_19853_.m_8055_(this.f_19819_).m_61145_(NetherPortalBlock.f_54904_).orElse(Direction.Axis.X);
++         Optional<BlockUtil.FoundRectangle> optional1 = p_184131_.m_8871_().createPortal(p_184132_, direction$axis, this, createRadius); // CraftBukkit
++         if (!optional1.isPresent()) {
++            //LOGGER.error("Unable to create a portal, likely target out of worldborder");
++         }
++
++         return optional1;
++      }
++   }
++
 +   public void m_9209_ ( ServerLevel p_9210_ ) {
        ResourceKey<Level> resourcekey = p_9210_.m_46472_();
        ResourceKey<Level> resourcekey1 = this.f_19853_.m_46472_();
