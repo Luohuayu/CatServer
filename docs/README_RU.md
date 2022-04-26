@@ -17,9 +17,6 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/STABLE  |
 
-Другая версия:
-[LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
-
 ### Особенности
 Использует самописную оптимизацию и оптимизацию Paper, чтобы повысить производительность<br>
 Имеет мощную Remap систему для обеспечения хорошей совместимости плагинов.<br>

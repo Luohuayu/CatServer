@@ -14,9 +14,6 @@ All versions of CatServer:
 | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/STABLE  |
 
-Other fork:
-[LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
-
 QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [Click to join](https://discord.gg/wvBJN4d)<br>
 
 #### How to support us

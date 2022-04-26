@@ -16,10 +16,6 @@ CatServer所有版本:
 | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  长期支持       |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  长期支持/稳定  |
 
-
-其他分支:
-[LoliServer (1.16.5)](https://github.com/Loli-Server/LoliServer) | [FoxServer (1.18.2)](https://github.com/Luohuayu/FoxServer)
-
 QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
 
 #### 如何支持我们
