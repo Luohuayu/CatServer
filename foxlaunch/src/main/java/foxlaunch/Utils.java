@@ -13,7 +13,6 @@ import java.util.Enumeration;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 public class Utils {
     public static String getFileSHA256(File file) {
@@ -121,7 +120,7 @@ public class Utils {
             Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
             if (enumeration.hasMoreElements()) {
                 ZipEntry zipEntry = enumeration.nextElement();
-                File outFile = new File(file.getParentFile(), zipFile.getName());
+                File outFile = new File(file.getParentFile(), zipEntry.getName());
                 try (FileOutputStream out = new FileOutputStream(outFile)) {
                     try (InputStream in = zipFile.getInputStream(zipEntry)) {
                         byte[] bytes = new byte[4096];
@@ -136,6 +135,8 @@ public class Utils {
             } else {
                 throw new IOException("Empty zip!");
             }
+        } finally {
+            try { file.delete(); } catch (Exception ignored) {}
         }
     }
 }

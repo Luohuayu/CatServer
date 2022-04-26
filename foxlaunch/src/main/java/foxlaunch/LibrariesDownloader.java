@@ -59,7 +59,7 @@ public class LibrariesDownloader {
 
                 new Downloader(downloadUrl, file);
 
-                if (file.exists() && file.getName().equals(".packed")) {
+                if (file.exists() && file.getName().endsWith(".packed")) {
                     file = Utils.unpackSingleFileZip(file);
                 }
 
