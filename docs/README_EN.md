@@ -34,12 +34,9 @@ Provide API to allow plugins to interact with mods easily<br>
 #### Clone
 - 1.Clone 1.16.5 branch: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
 - 2.Change directory: `cd CatServer`
-- 3.Initialize submodule: `git submodule update --init`
-
-#### Build
-- 1.Setup project: `gradlew setup`
-- 2.Generate patch(If you modify the Minecraft code): `gradlew genPatches`
-- 3.Build: `gradlew buildCatServer`
+- 3.Setup project: `gradlew setup`
+- 4.Generate patch(If you modify the Minecraft code): `gradlew genPatches`
+- 5.Build: `gradlew buildCatServer`
 
 ### Generate dependency
 ##### TODO
