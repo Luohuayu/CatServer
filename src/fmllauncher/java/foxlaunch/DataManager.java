@@ -16,6 +16,7 @@ import java.util.jar.JarFile;
 
 public class DataManager {
     private static final Map<String, File> librariesMap = new TreeMap<>();
+    private static final Map<String, File> librariesWithoutLaunchMap = new TreeMap<>();
     private static final Map<String, String> librariesHashMap = new TreeMap<>();
     private static final Map<String, File> foxLaunchLibsMap = new TreeMap<>();
     private static final Map<String, String> versionData = new TreeMap<>();
@@ -116,7 +117,11 @@ public class DataManager {
                                     while ((line = reader.readLine()) != null) {
                                         String[] split = line.split("\\|");
                                         if (split.length == 2) {
-                                            librariesHashMap.put(new File(split[0]).getName(), split[1].toUpperCase());
+                                            File libFile = new File(split[0]);
+                                            librariesHashMap.put(libFile.getName(), split[1].toUpperCase());
+                                            if (!librariesMap.containsKey((libFile.getName())) && libFile.getName().endsWith(".jar")) {
+                                                librariesWithoutLaunchMap.put(libFile.getName(), libFile.getParentFile());
+                                            }
                                         }
                                     }
                                 }
@@ -134,13 +139,15 @@ public class DataManager {
         Map<File, String> needDownloadLibrariesMap = new TreeMap<>();
         Map<File, String> needDownloadMappingDataMap = new TreeMap<>();
 
-        for (Map.Entry<String, File> libraryEntry : librariesMap.entrySet()) {
-            String filename = libraryEntry.getKey();
-            String md5 = librariesHashMap.get(filename);
+        for (Map<String, File> librariesMap : new Map[]{ librariesMap, librariesWithoutLaunchMap }) {
+            for (Map.Entry<String, File> libraryEntry : librariesMap.entrySet()) {
+                String filename = libraryEntry.getKey();
+                String md5 = librariesHashMap.get(filename);
 
-            File file = new File(libraryEntry.getValue(), libraryEntry.getKey());
-            if (!file.exists() || (md5 != null && !Objects.equals(Utils.getFileMD5(file), md5))) {
-                needDownloadLibrariesMap.put(file, md5);
+                File file = new File(libraryEntry.getValue(), libraryEntry.getKey());
+                if (!file.exists() || (md5 != null && !Objects.equals(Utils.getFileMD5(file), md5))) {
+                    needDownloadLibrariesMap.put(file, md5);
+                }
             }
         }
 
@@ -149,6 +156,12 @@ public class DataManager {
             File mcpZip = new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s.zip", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
             if (!mcpZip.exists() || !Objects.equals(Utils.getFileMD5(mcpZip), librariesHashMap.get(mcpZip.getName()))) {
                 needDownloadMappingDataMap.put(mcpZip, librariesHashMap.get(mcpZip.getName()));
+            }
+
+            File mcpMappings = new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s-mappings.txt", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
+            String mcpMappingsMD5 = "428EBB172F1E2D80FCC03331DE0EB42E";
+            if (!mcpMappings.exists() || !Objects.equals(Utils.getFileMD5(mcpMappings), mcpMappingsMD5)) {
+                needDownloadMappingDataMap.put(new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s-mappings.packed", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion)), mcpMappingsMD5);
             }
         }
 
@@ -176,6 +189,7 @@ public class DataManager {
     @Deprecated
     protected static void gc() {
         librariesMap.clear();
+        librariesWithoutLaunchMap.clear();
         librariesHashMap.clear();
         foxLaunchLibsMap.clear();
         versionData.clear();

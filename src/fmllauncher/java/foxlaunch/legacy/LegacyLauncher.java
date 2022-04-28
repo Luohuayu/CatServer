@@ -28,6 +28,7 @@ public class LegacyLauncher {
 
         String minecraftVersion = DataManager.getVersionData("minecraft"), mcpVersion = DataManager.getVersionData("mcp");
         JarLoader.loadJar(new File(String.format("libraries/net/minecraft/server/%s-%s/server-%s-%s-extra.jar", DataManager.getVersionData("minecraft"), mcpVersion, minecraftVersion, mcpVersion)));
+        JarLoader.loadJar(new File("libraries/com/google/guava/guava/25.1-jre/guava-25.1-jre.jar"));
     }
 
     static class JVMHack {

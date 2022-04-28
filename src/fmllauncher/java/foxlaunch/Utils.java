@@ -60,7 +60,7 @@ public class Utils {
     }
 
     public static void relaunch(String mainClass, URL[] classPath, String[] args, boolean closeClassLoader) throws Exception {
-        URLClassLoader ucl = new URLClassLoader(classPath);
+        URLClassLoader ucl = new URLClassLoader(classPath, null);
         Class.forName(mainClass, true, ucl).getMethod("main", String[].class).invoke(null, new Object[] { args });
         if (closeClassLoader) {
             ucl.close();
