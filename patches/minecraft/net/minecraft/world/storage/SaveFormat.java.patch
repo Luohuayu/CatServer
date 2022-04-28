@@ -1,0 +1,119 @@
+--- a/net/minecraft/world/storage/SaveFormat.java
++++ b/net/minecraft/world/storage/SaveFormat.java
+@@ -49,6 +_,7 @@
+ import net.minecraft.util.registry.Registry;
+ import net.minecraft.util.registry.RegistryLookupCodec;
+ import net.minecraft.util.text.TranslationTextComponent;
++import net.minecraft.world.Dimension;
+ import net.minecraft.world.DimensionType;
+ import net.minecraft.world.World;
+ import net.minecraft.world.WorldSettings;
+@@ -95,7 +_,7 @@
+          }
+       }
+ 
+-      Dynamic<T> dynamic1 = p_237259_1_.update(TypeReferences.field_233375_y_, dynamic, p_237259_2_, SharedConstants.func_215069_a().getWorldVersion());
++      Dynamic<T> dynamic1 = net.minecraftforge.common.ForgeHooks.fixUpDimensionsData(p_237259_1_.update(TypeReferences.field_233375_y_, dynamic, p_237259_2_, SharedConstants.func_215069_a().getWorldVersion()));
+       DataResult<DimensionGeneratorSettings> dataresult = DimensionGeneratorSettings.field_236201_a_.parse(dynamic1);
+       return Pair.of(dataresult.resultOrPartial(Util.func_240982_a_("WorldGenSettings: ", field_215785_a::error)).orElseGet(() -> {
+          Registry<DimensionType> registry = RegistryLookupCodec.func_244331_a(Registry.field_239698_ad_).codec().parse(dynamic1).resultOrPartial(Util.func_240982_a_("Dimension type registry: ", field_215785_a::error)).orElseThrow(() -> {
+@@ -182,6 +_,10 @@
+    }
+ 
+    private static BiFunction<File, DataFixer, ServerWorldInfo> func_237270_b_(DynamicOps<INBT> p_237270_0_, DatapackCodec p_237270_1_) {
++       return getReader(p_237270_0_, p_237270_1_, null);
++   }
++
++   private static BiFunction<File, DataFixer, ServerWorldInfo> getReader(DynamicOps<INBT> p_237270_0_, DatapackCodec p_237270_1_, @Nullable LevelSave levelSave) {
+       return (p_242976_2_, p_242976_3_) -> {
+          try {
+             CompoundNBT compoundnbt = CompressedStreamTools.func_244263_a(p_242976_2_);
+@@ -193,7 +_,10 @@
+             Pair<DimensionGeneratorSettings, Lifecycle> pair = func_237259_a_(dynamic, p_242976_3_, i);
+             VersionData versiondata = VersionData.func_237324_a_(dynamic);
+             WorldSettings worldsettings = WorldSettings.func_234951_a_(dynamic, p_237270_1_);
+-            return ServerWorldInfo.func_237369_a_(dynamic, p_242976_3_, i, compoundnbt2, worldsettings, versiondata, pair.getFirst(), pair.getSecond());
++            ServerWorldInfo info = ServerWorldInfo.func_237369_a_(dynamic, p_242976_3_, i, compoundnbt2, worldsettings, versiondata, pair.getFirst(), pair.getSecond());
++            if (levelSave != null)
++                net.minecraftforge.fml.WorldPersistenceHooks.handleWorldDataLoad(levelSave, info, compoundnbt);
++            return info;
+          } catch (Exception exception) {
+             field_215785_a.error("Exception reading {}", p_242976_2_, exception);
+             return null;
+@@ -255,18 +_,41 @@
+    }
+ 
+    public SaveFormat.LevelSave func_237274_c_(String p_237274_1_) throws IOException {
+-      return new SaveFormat.LevelSave(p_237274_1_);
+-   }
++      return new SaveFormat.LevelSave(p_237274_1_, null);
++   }
++
++   // CraftBukkit start
++   public SaveFormat.LevelSave cBCreateAccess(String saveName, RegistryKey<Dimension> dimensionType) throws IOException {
++      return new SaveFormat.LevelSave(saveName, dimensionType);
++   }
++
++   public static File getFolder(File file, RegistryKey<Dimension> dimensionType) {
++      if (dimensionType == Dimension.field_236053_b_) {
++         return file;
++      } else if (dimensionType == Dimension.field_236054_c_) {
++         return new File(file, "DIM-1");
++      } else if (dimensionType == Dimension.field_236055_d_) {
++         return new File(file, "DIM1");
++      } else {
++         return new File(file, "dimensions/" + dimensionType.func_240901_a_().func_110624_b() + "/" + dimensionType.func_240901_a_().func_110623_a());
++      }
++   }
++   // CraftBukkit end
+ 
+    public class LevelSave implements AutoCloseable {
+       private final SessionLockManager field_237278_b_;
+-      private final Path field_237279_c_;
++      public final Path field_237279_c_; // private->public CraftBukkit
+       private final String field_237280_d_;
+       private final Map<FolderName, Path> field_237281_e_ = Maps.newHashMap();
+ 
+-      public LevelSave(String p_i232152_2_) throws IOException {
+-         this.field_237280_d_ = p_i232152_2_;
+-         this.field_237279_c_ = SaveFormat.this.field_215786_c.resolve(p_i232152_2_);
++      // CraftBukkit start
++      private final RegistryKey<Dimension> dimensionType;
++
++      public LevelSave(String saveName, RegistryKey<Dimension> dimensionType) throws IOException {
++         this.dimensionType = dimensionType;
++         // CraftBukkit end
++         this.field_237280_d_ = saveName;
++         this.field_237279_c_ = SaveFormat.this.field_215786_c.resolve(saveName);
+          this.field_237278_b_ = SessionLockManager.func_232998_a_(this.field_237279_c_);
+       }
+ 
+@@ -314,7 +_,7 @@
+       @Nullable
+       public IServerConfiguration func_237284_a_(DynamicOps<INBT> p_237284_1_, DatapackCodec p_237284_2_) {
+          this.func_237301_i_();
+-         return SaveFormat.this.func_237266_a_(this.field_237279_c_.toFile(), SaveFormat.func_237270_b_(p_237284_1_, p_237284_2_));
++         return SaveFormat.this.func_237266_a_(this.field_237279_c_.toFile(), SaveFormat.getReader(p_237284_1_, p_237284_2_, this));
+       }
+ 
+       @Nullable
+@@ -335,6 +_,8 @@
+          CompoundNBT compoundnbt1 = new CompoundNBT();
+          compoundnbt1.func_218657_a("Data", compoundnbt);
+ 
++         net.minecraftforge.fml.WorldPersistenceHooks.handleWorldDataSave(this, p_237288_2_, compoundnbt1);
++
+          try {
+             File file2 = File.createTempFile("level", ".dat", file1);
+             CompressedStreamTools.func_244264_a(compoundnbt1, file2);
+@@ -350,6 +_,10 @@
+       public File func_237298_f_() {
+          this.func_237301_i_();
+          return this.field_237279_c_.resolve("icon.png").toFile();
++      }
++
++      public Path getWorldDir() {
++          return field_237279_c_;
+       }
+ 
+       @OnlyIn(Dist.CLIENT)

@@ -1,0 +1,94 @@
+--- a/net/minecraft/entity/monster/CreeperEntity.java
++++ b/net/minecraft/entity/monster/CreeperEntity.java
+@@ -34,11 +_,14 @@
+ import net.minecraft.util.SoundEvents;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.world.Explosion;
+-import net.minecraft.world.GameRules;
+ import net.minecraft.world.World;
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
++import org.bukkit.event.entity.CreeperPowerEvent;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ @OnlyIn(
+    value = Dist.CLIENT,
+@@ -49,9 +_,9 @@
+    private static final DataParameter<Boolean> field_184714_b = EntityDataManager.func_187226_a(CreeperEntity.class, DataSerializers.field_187198_h);
+    private static final DataParameter<Boolean> field_184715_c = EntityDataManager.func_187226_a(CreeperEntity.class, DataSerializers.field_187198_h);
+    private int field_70834_e;
+-   private int field_70833_d;
+-   private int field_82225_f = 30;
+-   private int field_82226_g = 3;
++   public int field_70833_d;
++   public int field_82225_f = 30;
++   public int field_82226_g = 3;
+    private int field_175494_bm;
+ 
+    public CreeperEntity(EntityType<? extends CreeperEntity> p_i50213_1_, World p_i50213_2_) {
+@@ -194,8 +_,17 @@
+ 
+    public void func_241841_a(ServerWorld p_241841_1_, LightningBoltEntity p_241841_2_) {
+       super.func_241841_a(p_241841_1_, p_241841_2_);
+-      this.field_70180_af.func_187227_b(field_184714_b, true);
+-   }
++      // CraftBukkit start
++      if (CraftEventFactory.callCreeperPowerEvent(this, p_241841_2_, CreeperPowerEvent.PowerCause.LIGHTNING).isCancelled()) {
++         return;
++      }
++      this.setPowered(true);
++   }
++
++   public void setPowered(boolean powered) {
++      this.field_70180_af.func_187227_b(field_184714_b, powered);
++   }
++   // CraftBukkit end
+ 
+    protected ActionResultType func_230254_b_(PlayerEntity p_230254_1_, Hand p_230254_2_) {
+       ItemStack itemstack = p_230254_1_.func_184586_b(p_230254_2_);
+@@ -214,14 +_,22 @@
+       }
+    }
+ 
+-   private void func_146077_cc() {
++   public void func_146077_cc() {
+       if (!this.field_70170_p.field_72995_K) {
+-         Explosion.Mode explosion$mode = this.field_70170_p.func_82736_K().func_223586_b(GameRules.field_223599_b) ? Explosion.Mode.DESTROY : Explosion.Mode.NONE;
++         Explosion.Mode explosion$mode = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.field_70170_p, this) ? Explosion.Mode.DESTROY : Explosion.Mode.NONE;
+          float f = this.func_225509_J__() ? 2.0F : 1.0F;
++         // CraftBukkit start
++         ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), this.field_82226_g * f, false);
++         this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++         if (!event.isCancelled()) {
+          this.field_70729_aU = true;
+-         this.field_70170_p.func_217385_a(this, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), (float)this.field_82226_g * f, explosion$mode);
++            this.field_70170_p.func_217398_a(this, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), event.getRadius(), event.getFire(), explosion$mode);
+          this.func_70106_y();
+          this.func_190741_do();
++         } else {
++            field_70833_d = 0;
++         }
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -230,6 +_,7 @@
+       Collection<EffectInstance> collection = this.func_70651_bq();
+       if (!collection.isEmpty()) {
+          AreaEffectCloudEntity areaeffectcloudentity = new AreaEffectCloudEntity(this.field_70170_p, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_());
++         areaeffectcloudentity.func_184481_a(this); // CraftBukkit
+          areaeffectcloudentity.func_184483_a(2.5F);
+          areaeffectcloudentity.func_184495_b(-0.5F);
+          areaeffectcloudentity.func_184485_d(10);
+@@ -240,7 +_,7 @@
+             areaeffectcloudentity.func_184496_a(new EffectInstance(effectinstance));
+          }
+ 
+-         this.field_70170_p.func_217376_c(areaeffectcloudentity);
++         this.field_70170_p.addEntity(areaeffectcloudentity, SpawnReason.EXPLOSION); // CraftBukkit - reason
+       }
+ 
+    }

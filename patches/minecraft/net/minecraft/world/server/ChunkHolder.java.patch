@@ -1,0 +1,70 @@
+--- a/net/minecraft/world/server/ChunkHolder.java
++++ b/net/minecraft/world/server/ChunkHolder.java
+@@ -18,6 +_,7 @@
+ import net.minecraft.network.play.server.SMultiBlockChangePacket;
+ import net.minecraft.network.play.server.SUpdateLightPacket;
+ import net.minecraft.network.play.server.SUpdateTileEntityPacket;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.tileentity.TileEntity;
+ import net.minecraft.util.Util;
+ import net.minecraft.util.math.BlockPos;
+@@ -48,7 +_,7 @@
+    private volatile CompletableFuture<Either<Chunk, ChunkHolder.IChunkLoadingError>> field_219313_h = field_219309_d;
+    private volatile CompletableFuture<Either<Chunk, ChunkHolder.IChunkLoadingError>> field_219314_i = field_219309_d;
+    private CompletableFuture<IChunk> field_219315_j = CompletableFuture.completedFuture((IChunk)null);
+-   private int field_219316_k;
++   public int field_219316_k;
+    private int field_219317_l;
+    private int field_219318_m;
+    private final ChunkPos field_219319_n;
+@@ -58,9 +_,10 @@
+    private int field_219325_t;
+    private final WorldLightManager field_219326_u;
+    private final ChunkHolder.IListener field_219327_v;
+-   private final ChunkHolder.IPlayerProvider field_219328_w;
++   public final ChunkHolder.IPlayerProvider field_219328_w;
+    private boolean field_219329_x;
+    private boolean field_244384_x;
++   Chunk currentlyLoading; //Forge - Used to bypass future chain when loading chunks.
+ 
+    public ChunkHolder(ChunkPos p_i50716_1_, int p_i50716_2_, WorldLightManager p_i50716_3_, ChunkHolder.IListener p_i50716_4_, ChunkHolder.IPlayerProvider p_i50716_5_) {
+       this.field_219319_n = p_i50716_1_;
+@@ -73,6 +_,21 @@
+       this.func_219292_a(p_i50716_2_);
+    }
+ 
++   // CraftBukkit start
++   public Chunk getFullChunk() {
++      if (!func_219286_c(this.field_219316_k).func_219065_a(LocationType.BORDER)) {
++         return null; // note: using oldTicketLevel for isLoaded checks
++      }
++      return this.getFullChunkUnchecked();
++   }
++
++   public Chunk getFullChunkUnchecked() {
++      CompletableFuture<Either<IChunk, IChunkLoadingError>> statusFuture = this.func_219301_a(ChunkStatus.field_222617_m);
++      Either<IChunk, IChunkLoadingError> either = (Either<IChunk, IChunkLoadingError>) statusFuture.getNow(null);
++      return (either == null) ? null : (Chunk) either.left().orElse(null);
++   }
++   // CraftBukkit end
++
+    public CompletableFuture<Either<IChunk, ChunkHolder.IChunkLoadingError>> func_219301_a(ChunkStatus p_219301_1_) {
+       CompletableFuture<Either<IChunk, ChunkHolder.IChunkLoadingError>> completablefuture = this.field_219312_g.get(p_219301_1_.func_222584_c());
+       return completablefuture == null ? field_219307_b : completablefuture;
+@@ -139,6 +_,7 @@
+       Chunk chunk = this.func_219298_c();
+       if (chunk != null) {
+          byte b0 = (byte)SectionPos.func_218159_a(p_244386_1_.func_177956_o());
++         if (b0 < 0 || b0 > 15) return;
+          if (this.field_244383_q[b0] == null) {
+             this.field_244382_p = true;
+             this.field_244383_q[b0] = new ShortArraySet();
+@@ -204,7 +_,7 @@
+    }
+ 
+    private void func_244385_a(World p_244385_1_, BlockPos p_244385_2_, BlockState p_244385_3_) {
+-      if (p_244385_3_.func_177230_c().func_235695_q_()) {
++      if (p_244385_3_.hasTileEntity()) {
+          this.func_219305_a(p_244385_1_, p_244385_2_);
+       }
+ 

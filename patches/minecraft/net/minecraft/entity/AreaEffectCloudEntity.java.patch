@@ -1,0 +1,126 @@
+--- a/net/minecraft/entity/AreaEffectCloudEntity.java
++++ b/net/minecraft/entity/AreaEffectCloudEntity.java
+@@ -25,12 +_,16 @@
+ import net.minecraft.potion.Potion;
+ import net.minecraft.potion.PotionUtils;
+ import net.minecraft.potion.Potions;
++import net.minecraft.util.ResourceLocation;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.registry.Registry;
+ import net.minecraft.world.World;
+ import net.minecraft.world.server.ServerWorld;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftLivingEntity;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.AreaEffectCloudApplyEvent;
+ 
+ public class AreaEffectCloudEntity extends Entity {
+    private static final Logger field_195060_a = LogManager.getLogger();
+@@ -39,15 +_,15 @@
+    private static final DataParameter<Boolean> field_184500_c = EntityDataManager.func_187226_a(AreaEffectCloudEntity.class, DataSerializers.field_187198_h);
+    private static final DataParameter<IParticleData> field_184501_d = EntityDataManager.func_187226_a(AreaEffectCloudEntity.class, DataSerializers.field_198166_i);
+    private Potion field_184502_e = Potions.field_185229_a;
+-   private final List<EffectInstance> field_184503_f = Lists.newArrayList();
++   public final List<EffectInstance> field_184503_f = Lists.newArrayList(); // private->public CraftBukkit
+    private final Map<Entity, Integer> field_184504_g = Maps.newHashMap();
+    private int field_184505_h = 600;
+-   private int field_184506_as = 20;
+-   private int field_184507_at = 20;
++   public int field_184506_as = 20; // private->public CraftBukkit
++   public int field_184507_at = 20; // private->public CraftBukkit
+    private boolean field_184508_au;
+-   private int field_184509_av;
+-   private float field_184510_aw;
+-   private float field_184511_ax;
++   public int field_184509_av; // private->public CraftBukkit
++   public float field_184510_aw; // private->public CraftBukkit
++   public float field_184511_ax; // private->public CraftBukkit
+    private LivingEntity field_184512_ay;
+    private UUID field_184513_az;
+ 
+@@ -113,6 +_,22 @@
+ 
+    }
+ 
++   // CraftBukkit start accessor methods
++   public void refreshEffects() {
++      if (!this.field_184508_au) {
++         this.func_184212_Q().func_187227_b(AreaEffectCloudEntity.field_184499_b, PotionUtils.func_185181_a(PotionUtils.func_185186_a(this.field_184502_e, this.field_184503_f)));
++      }
++   }
++
++   public String getTypeCB() {
++      return ((ResourceLocation)Registry.field_212621_j.func_177774_c(this.field_184502_e)).toString();
++   }
++
++   public void setType(final String string) {
++      this.func_184484_a(Registry.field_212621_j.func_82594_a(new ResourceLocation(string)));
++   }
++   // CraftBukkit end
++
+    public int func_184492_k() {
+       return this.func_184212_Q().func_187225_a(field_184499_b);
+    }
+@@ -146,10 +_,27 @@
+       this.field_184505_h = p_184486_1_;
+    }
+ 
++   // Spigot start - copied from below
++   @Override
++   public void inactiveTick() {
++      super.inactiveTick();
++      if (this.field_70173_aa >= this.field_184506_as + this.field_184505_h) {
++         this.func_70106_y();
++         return;
++      }
++   }
++   // Spigot end
++
+    public void func_70071_h_() {
+       super.func_70071_h_();
+       boolean flag = this.func_184497_n();
+       float f = this.func_184490_j();
++      // Paper start - fix MC-114618
++      if (f < 0.0F) {
++         this.func_70106_y();
++         return;
++      }
++      // Paper end
+       if (this.field_70170_p.field_72995_K) {
+          IParticleData iparticledata = this.func_195058_l();
+          if (flag) {
+@@ -217,6 +_,7 @@
+          if (this.field_70173_aa % 5 == 0) {
+             Iterator<Entry<Entity, Integer>> iterator = this.field_184504_g.entrySet().iterator();
+ 
++            List<org.bukkit.entity.LivingEntity> entities = new java.util.ArrayList<org.bukkit.entity.LivingEntity>(); // CraftBukkit
+             while(iterator.hasNext()) {
+                Entry<Entity, Integer> entry = iterator.next();
+                if (this.field_70173_aa >= entry.getValue()) {
+@@ -242,13 +_,24 @@
+                         double d1 = livingentity.func_226281_cx_() - this.func_226281_cx_();
+                         double d2 = d0 * d0 + d1 * d1;
+                         if (d2 <= (double)(f * f)) {
++                           // CraftBukkit start
++                           entities.add((org.bukkit.entity.LivingEntity) livingentity.getBukkitEntity());
++                        }
++                     }
++                  }
++                  AreaEffectCloudApplyEvent event = CraftEventFactory.callAreaEffectCloudApplyEvent(this, entities);
++                  if(!event.isCancelled()){
++                     for(org.bukkit.entity.LivingEntity entity : event.getAffectedEntities()) {
++                        if(entity instanceof CraftLivingEntity){
++                           LivingEntity livingentity = ((CraftLivingEntity) entity).getHandle();
++                           // CraftBukkit end
+                            this.field_184504_g.put(livingentity, this.field_70173_aa + this.field_184507_at);
+ 
+                            for(EffectInstance effectinstance : list) {
+                               if (effectinstance.func_188419_a().func_76403_b()) {
+                                  effectinstance.func_188419_a().func_180793_a(this, this.func_184494_w(), livingentity, effectinstance.func_76458_c(), 0.5D);
+                               } else {
+-                                 livingentity.func_195064_c(new EffectInstance(effectinstance));
++                                 livingentity.addEffect(new EffectInstance(effectinstance), org.bukkit.event.entity.EntityPotionEffectEvent.Cause.AREA_EFFECT_CLOUD); // CraftBukkit
+                               }
+                            }
+ 

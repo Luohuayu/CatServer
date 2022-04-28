@@ -1,0 +1,210 @@
+--- a/net/minecraft/entity/projectile/FishingBobberEntity.java
++++ b/net/minecraft/entity/projectile/FishingBobberEntity.java
+@@ -43,12 +_,15 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.entity.FishHook;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerFishEvent;
+ 
+ public class FishingBobberEntity extends ProjectileEntity {
+    private final Random field_234596_b_ = new Random();
+    private boolean field_234597_c_;
+    private int field_234598_d_;
+-   private static final DataParameter<Integer> field_184528_c = EntityDataManager.func_187226_a(FishingBobberEntity.class, DataSerializers.field_187192_b);
++   public static final DataParameter<Integer> field_184528_c = EntityDataManager.func_187226_a(FishingBobberEntity.class, DataSerializers.field_187192_b);
+    private static final DataParameter<Boolean> field_234599_f_ = EntityDataManager.func_187226_a(FishingBobberEntity.class, DataSerializers.field_187198_h);
+    private int field_146049_av;
+    private int field_146045_ax;
+@@ -56,11 +_,17 @@
+    private int field_146038_az;
+    private float field_146054_aA;
+    private boolean field_234595_aq_ = true;
+-   private Entity field_146043_c;
+-   private FishingBobberEntity.State field_190627_av = FishingBobberEntity.State.FLYING;
++   public Entity field_146043_c;
++   public FishingBobberEntity.State field_190627_av = FishingBobberEntity.State.FLYING;
+    private final int field_191518_aw;
+    private final int field_191519_ax;
+ 
++   // CraftBukkit start - Extra variables to enable modification of fishing wait time, values are minecraft defaults
++   public int minWaitTime = 100;
++   public int maxWaitTime = 600;
++   public boolean applyLure = true;
++   // CraftBukkit end
++
+    private FishingBobberEntity(World p_i50219_1_, PlayerEntity p_i50219_2_, int p_i50219_3_, int p_i50219_4_) {
+       super(EntityType.field_200730_aI, p_i50219_1_);
+       this.field_70158_ak = true;
+@@ -245,7 +_,9 @@
+ 
+    private void func_190624_r() {
+       RayTraceResult raytraceresult = ProjectileHelper.func_234618_a_(this, this::func_230298_a_);
+-      this.func_70227_a(raytraceresult);
++      if (raytraceresult.func_216346_c() == RayTraceResult.Type.MISS || !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, raytraceresult)) {
++         this.preOnHit(raytraceresult);
++      }
+    }
+ 
+    protected boolean func_230298_a_(Entity p_230298_1_) {
+@@ -288,6 +_,10 @@
+             this.field_146040_ay = 0;
+             this.field_146038_az = 0;
+             this.func_184212_Q().func_187227_b(field_234599_f_, false);
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.FAILED_ATTEMPT);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++            // CraftBukkit end
+          }
+       } else if (this.field_146038_az > 0) {
+          this.field_146038_az -= i;
+@@ -300,7 +_,7 @@
+             double d1 = (double)((float)MathHelper.func_76128_c(this.func_226278_cu_()) + 1.0F);
+             double d2 = this.func_226281_cx_() + (double)(f2 * (float)this.field_146038_az * 0.1F);
+             BlockState blockstate = serverworld.func_180495_p(new BlockPos(d0, d1 - 1.0D, d2));
+-            if (blockstate.func_203425_a(Blocks.field_150355_j)) {
++            if (serverworld.func_180495_p(new BlockPos((int)d0, (int)d1 - 1, (int)d2)).func_185904_a() == net.minecraft.block.material.Material.field_151586_h) {
+                if (this.field_70146_Z.nextFloat() < 0.15F) {
+                   serverworld.func_195598_a(ParticleTypes.field_197612_e, d0, d1 - (double)0.1F, d2, 1, (double)f1, 0.1D, (double)f2, 0.0D);
+                }
+@@ -311,6 +_,13 @@
+                serverworld.func_195598_a(ParticleTypes.field_197630_w, d0, d1, d2, 0, (double)(-f4), 0.01D, (double)f3, 1.0D);
+             }
+          } else {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.BITE);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return;
++            }
++            // CraftBukkit end
+             this.func_184185_a(SoundEvents.field_187609_F, 0.25F, 1.0F + (this.field_70146_Z.nextFloat() - this.field_70146_Z.nextFloat()) * 0.4F);
+             double d3 = this.func_226278_cu_() + 0.5D;
+             serverworld.func_195598_a(ParticleTypes.field_197612_e, this.func_226277_ct_(), d3, this.func_226281_cx_(), (int)(1.0F + this.func_213311_cf() * 20.0F), (double)this.func_213311_cf(), 0.0D, (double)this.func_213311_cf(), (double)0.2F);
+@@ -336,7 +_,7 @@
+             double d5 = (double)((float)MathHelper.func_76128_c(this.func_226278_cu_()) + 1.0F);
+             double d6 = this.func_226281_cx_() + (double)(MathHelper.func_76134_b(f6) * f7 * 0.1F);
+             BlockState blockstate1 = serverworld.func_180495_p(new BlockPos(d4, d5 - 1.0D, d6));
+-            if (blockstate1.func_203425_a(Blocks.field_150355_j)) {
++            if (serverworld.func_180495_p(new BlockPos(d4, d5 - 1.0D, d6)).func_185904_a() == net.minecraft.block.material.Material.field_151586_h) {
+                serverworld.func_195598_a(ParticleTypes.field_218422_X, d4, d5, d6, 2 + this.field_70146_Z.nextInt(2), (double)0.1F, 0.0D, (double)0.1F, 0.0D);
+             }
+          }
+@@ -346,8 +_,10 @@
+             this.field_146038_az = MathHelper.func_76136_a(this.field_70146_Z, 20, 80);
+          }
+       } else {
+-         this.field_146040_ay = MathHelper.func_76136_a(this.field_70146_Z, 100, 600);
+-         this.field_146040_ay -= this.field_191519_ax * 20 * 5;
++         // CraftBukkit start - logic to modify fishing wait time
++         this.field_146040_ay = MathHelper.func_76136_a(this.field_70146_Z, this.minWaitTime, this.maxWaitTime); // PAIL rename waitTime
++         this.field_146040_ay -= (this.applyLure) ? this.field_191519_ax * 20 * 5 : 0; // PAIL rename waitTime, lureLevel
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -407,25 +_,53 @@
+       PlayerEntity playerentity = this.func_234606_i_();
+       if (!this.field_70170_p.field_72995_K && playerentity != null) {
+          int i = 0;
++         net.minecraftforge.event.entity.player.ItemFishedEvent event = null;
+          if (this.field_146043_c != null) {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), this.field_146043_c.getBukkitEntity(), (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.CAUGHT_ENTITY);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++            // CraftBukkit end
+             this.func_184527_k();
+             CriteriaTriggers.field_204811_D.func_204820_a((ServerPlayerEntity)playerentity, p_146034_1_, this, Collections.emptyList());
+             this.field_70170_p.func_72960_a(this, (byte)31);
+             i = this.field_146043_c instanceof ItemEntity ? 3 : 5;
+          } else if (this.field_146045_ax > 0) {
+             LootContext.Builder lootcontext$builder = (new LootContext.Builder((ServerWorld)this.field_70170_p)).func_216015_a(LootParameters.field_237457_g_, this.func_213303_ch()).func_216015_a(LootParameters.field_216289_i, p_146034_1_).func_216015_a(LootParameters.field_216281_a, this).func_216023_a(this.field_70146_Z).func_186469_a((float)this.field_191518_aw + playerentity.func_184817_da());
++            lootcontext$builder.func_216015_a(LootParameters.field_216284_d, this.func_234616_v_()).func_216015_a(LootParameters.field_216281_a, this);
+             LootTable loottable = this.field_70170_p.func_73046_m().func_200249_aQ().func_186521_a(LootTables.field_186387_al);
+             List<ItemStack> list = loottable.func_216113_a(lootcontext$builder.func_216022_a(LootParameterSets.field_216262_c));
++            event = new net.minecraftforge.event.entity.player.ItemFishedEvent(list, this.field_70122_E ? 2 : 1, this);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++            if (event.isCanceled()) {
++               this.func_70106_y();
++               return event.getRodDamage();
++            }
+             CriteriaTriggers.field_204811_D.func_204820_a((ServerPlayerEntity)playerentity, p_146034_1_, this, list);
+ 
+             for(ItemStack itemstack : list) {
+                ItemEntity itementity = new ItemEntity(this.field_70170_p, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), itemstack);
++               // CraftBukkit start
++               PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), itementity.getBukkitEntity(), (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.CAUGHT_FISH);
++               playerFishEvent.setExpToDrop(this.field_70146_Z.nextInt(6) + 1);
++               this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++               if (playerFishEvent.isCancelled()) {
++                  return 0;
++               }
++               // CraftBukkit end
+                double d0 = playerentity.func_226277_ct_() - this.func_226277_ct_();
+                double d1 = playerentity.func_226278_cu_() - this.func_226278_cu_();
+                double d2 = playerentity.func_226281_cx_() - this.func_226281_cx_();
+                double d3 = 0.1D;
+                itementity.func_213293_j(d0 * 0.1D, d1 * 0.1D + Math.sqrt(Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2)) * 0.08D, d2 * 0.1D);
+                this.field_70170_p.func_217376_c(itementity);
++               // CraftBukkit start - this.random.nextInt(6) + 1 -> playerFishEvent.getExpToDrop()
++               if (playerFishEvent.getExpToDrop() > 0) {
++                  this.func_234606_i_().field_70170_p.func_217376_c(new ExperienceOrbEntity(this.func_234606_i_().field_70170_p, this.func_234606_i_().func_226277_ct_(), this.func_234606_i_().func_226278_cu_() + 0.5D, this.func_234606_i_().func_226281_cx_() + 0.5D, playerFishEvent.getExpToDrop()));
++               }
++               // CraftBukkit end
+                playerentity.field_70170_p.func_217376_c(new ExperienceOrbEntity(playerentity.field_70170_p, playerentity.func_226277_ct_(), playerentity.func_226278_cu_() + 0.5D, playerentity.func_226281_cx_() + 0.5D, this.field_70146_Z.nextInt(6) + 1));
+                if (itemstack.func_77973_b().func_206844_a(ItemTags.field_206964_G)) {
+                   playerentity.func_195067_a(Stats.field_188071_E, 1);
+@@ -436,11 +_,27 @@
+          }
+ 
+          if (this.field_70122_E) {
++            // CraftBukkit start
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.IN_GROUND);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++            // CraftBukkit end
+             i = 2;
+          }
++         // CraftBukkit start
++         if (i == 0) {
++            PlayerFishEvent playerFishEvent = new PlayerFishEvent((Player) this.func_234606_i_().getBukkitEntity(), null, (FishHook) this.getBukkitEntity(), PlayerFishEvent.State.REEL_IN);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerFishEvent);
++            if (playerFishEvent.isCancelled()) {
++               return 0;
++            }
++         }
++         // CraftBukkit end
+ 
+          this.func_70106_y();
+-         return i;
++         return event == null ? i : event.getRodDamage();
+       } else {
+          return 0;
+       }
+@@ -455,7 +_,7 @@
+       super.func_70103_a(p_70103_1_);
+    }
+ 
+-   protected void func_184527_k() {
++   public void func_184527_k() {
+       Entity entity = this.func_234616_v_();
+       if (entity != null) {
+          Vector3d vector3d = (new Vector3d(entity.func_226277_ct_() - this.func_226277_ct_(), entity.func_226278_cu_() - this.func_226278_cu_(), entity.func_226281_cx_() - this.func_226281_cx_())).func_186678_a(0.1D);
+@@ -467,8 +_,9 @@
+       return false;
+    }
+ 
+-   public void func_70106_y() {
+-      super.func_70106_y();
++   @Override
++   public void remove(boolean keepData) {
++      super.remove(keepData);
+       PlayerEntity playerentity = this.func_234606_i_();
+       if (playerentity != null) {
+          playerentity.field_71104_cf = null;

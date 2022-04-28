@@ -1,0 +1,59 @@
+--- a/net/minecraft/block/SweetBerryBushBlock.java
++++ b/net/minecraft/block/SweetBerryBushBlock.java
+@@ -1,5 +_,6 @@
+ package net.minecraft.block;
+ 
++import java.util.Collections;
+ import java.util.Random;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityType;
+@@ -23,6 +_,10 @@
+ import net.minecraft.world.IBlockReader;
+ import net.minecraft.world.World;
+ import net.minecraft.world.server.ServerWorld;
++import org.bukkit.craftbukkit.v1_16_R3.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.event.player.PlayerHarvestBlockEvent;
+ 
+ public class SweetBerryBushBlock extends BushBlock implements IGrowable {
+    public static final IntegerProperty field_220125_a = BlockStateProperties.field_208168_U;
+@@ -52,8 +_,9 @@
+ 
+    public void func_225542_b_(BlockState p_225542_1_, ServerWorld p_225542_2_, BlockPos p_225542_3_, Random p_225542_4_) {
+       int i = p_225542_1_.func_177229_b(field_220125_a);
+-      if (i < 3 && p_225542_4_.nextInt(5) == 0 && p_225542_2_.func_226659_b_(p_225542_3_.func_177984_a(), 0) >= 9) {
+-         p_225542_2_.func_180501_a(p_225542_3_, p_225542_1_.func_206870_a(field_220125_a, Integer.valueOf(i + 1)), 2);
++      if (i < 3 && p_225542_4_.nextInt(Math.max(1, (int) (100.0F / p_225542_2_.spigotConfig.sweetBerryModifier) * 5)) == 0 && p_225542_2_.func_226659_b_(p_225542_3_.func_177984_a(), 0) >= 9 && net.minecraftforge.common.ForgeHooks.onCropsGrowPre(p_225542_2_, p_225542_3_, p_225542_1_, p_225542_4_.nextInt(5) == 0)) {
++         CraftEventFactory.handleBlockGrowEvent(p_225542_2_, p_225542_3_, p_225542_1_.func_206870_a(field_220125_a, Integer.valueOf(i + 1)), 2); // CraftBukkit
++         net.minecraftforge.common.ForgeHooks.onCropsGrowPost(p_225542_2_, p_225542_3_, p_225542_1_);
+       }
+ 
+    }
+@@ -65,7 +_,9 @@
+             double d0 = Math.abs(p_196262_4_.func_226277_ct_() - p_196262_4_.field_70142_S);
+             double d1 = Math.abs(p_196262_4_.func_226281_cx_() - p_196262_4_.field_70136_U);
+             if (d0 >= (double)0.003F || d1 >= (double)0.003F) {
++               CraftEventFactory.blockDamage = CraftBlock.at(p_196262_2_, p_196262_3_); // CraftBukkit
+                p_196262_4_.func_70097_a(DamageSource.field_220302_v, 1.0F);
++               CraftEventFactory.blockDamage = null; // CraftBukkit
+             }
+          }
+ 
+@@ -79,7 +_,15 @@
+          return ActionResultType.PASS;
+       } else if (i > 1) {
+          int j = 1 + p_225533_2_.field_73012_v.nextInt(2);
+-         func_180635_a(p_225533_2_, p_225533_3_, new ItemStack(Items.field_222112_pR, j + (flag ? 1 : 0)));
++         // CraftBukkit start
++         PlayerHarvestBlockEvent event = CraftEventFactory.callPlayerHarvestBlockEvent(p_225533_2_, p_225533_3_, p_225533_4_, Collections.singletonList(new ItemStack(Items.field_222112_pR, j + (flag ? 1 : 0))));
++         if (event.isCancelled()) {
++            return ActionResultType.SUCCESS; // We need to return a success either way, because making it PASS or FAIL will result in a bug where cancelling while harvesting w/ block in hand places block
++         }
++         for (org.bukkit.inventory.ItemStack itemStack : event.getItemsHarvested()) {
++            func_180635_a(p_225533_2_, p_225533_3_, CraftItemStack.asNMSCopy(itemStack));
++         }
++         // CraftBukkit end
+          p_225533_2_.func_184133_a((PlayerEntity)null, p_225533_3_, SoundEvents.field_219693_lB, SoundCategory.BLOCKS, 1.0F, 0.8F + p_225533_2_.field_73012_v.nextFloat() * 0.4F);
+          p_225533_2_.func_180501_a(p_225533_3_, p_225533_1_.func_206870_a(field_220125_a, Integer.valueOf(1)), 2);
+          return ActionResultType.func_233537_a_(p_225533_2_.field_72995_K);

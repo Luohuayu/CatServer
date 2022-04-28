@@ -1,0 +1,74 @@
+--- a/net/minecraft/block/NoteBlock.java
++++ b/net/minecraft/block/NoteBlock.java
+@@ -18,6 +_,8 @@
+ import net.minecraft.util.math.BlockRayTraceResult;
+ import net.minecraft.world.IWorld;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.block.NotePlayEvent;
+ 
+ public class NoteBlock extends Block {
+    public static final EnumProperty<NoteBlockInstrument> field_196483_a = BlockStateProperties.field_208143_ar;
+@@ -41,7 +_,10 @@
+       boolean flag = p_220069_2_.func_175640_z(p_220069_3_);
+       if (flag != p_220069_1_.func_177229_b(field_196484_b)) {
+          if (flag) {
++            this.bukkitState = p_220069_1_;
+             this.func_196482_a(p_220069_2_, p_220069_3_);
++            this.bukkitState = null;
++            p_220069_1_ = p_220069_2_.func_180495_p(p_220069_3_); // CraftBukkit - SPIGOT-5617: update in case changed in event
+          }
+ 
+          p_220069_2_.func_180501_a(p_220069_3_, p_220069_1_.func_206870_a(field_196484_b, Boolean.valueOf(flag)), 3);
+@@ -49,20 +_,29 @@
+ 
+    }
+ 
++   private transient BlockState bukkitState;
+    private void func_196482_a(World p_196482_1_, BlockPos p_196482_2_) {
+-      if (p_196482_1_.func_180495_p(p_196482_2_.func_177984_a()).func_196958_f()) {
+-         p_196482_1_.func_175641_c(p_196482_2_, this, 0, 0);
++      if (p_196482_1_.func_175623_d(p_196482_2_.func_177984_a())) {
++         // CraftBukkit start
++         NotePlayEvent event = CraftEventFactory.callNotePlayEvent(p_196482_1_, p_196482_2_, bukkitState.func_177229_b(field_196483_a), bukkitState.func_177229_b(field_196485_c));
++         if (!event.isCancelled()) {
++            p_196482_1_.func_175641_c(p_196482_2_, this, 0, 0);
++         }
++         // CraftBukkit end
+       }
+-
+    }
+ 
+    public ActionResultType func_225533_a_(BlockState p_225533_1_, World p_225533_2_, BlockPos p_225533_3_, PlayerEntity p_225533_4_, Hand p_225533_5_, BlockRayTraceResult p_225533_6_) {
+       if (p_225533_2_.field_72995_K) {
+          return ActionResultType.SUCCESS;
+       } else {
+-         p_225533_1_ = p_225533_1_.func_235896_a_(field_196485_c);
++         int _new = net.minecraftforge.common.ForgeHooks.onNoteChange(p_225533_2_, p_225533_3_, p_225533_1_, p_225533_1_.func_177229_b(field_196485_c), p_225533_1_.func_235896_a_(field_196485_c).func_177229_b(field_196485_c));
++         if (_new == -1) return ActionResultType.FAIL;
++         p_225533_1_ = p_225533_1_.func_206870_a(field_196485_c, _new);
+          p_225533_2_.func_180501_a(p_225533_3_, p_225533_1_, 3);
++         this.bukkitState = p_225533_1_;
+          this.func_196482_a(p_225533_2_, p_225533_3_);
++         this.bukkitState = null;
+          p_225533_4_.func_195066_a(Stats.field_188087_U);
+          return ActionResultType.CONSUME;
+       }
+@@ -70,12 +_,17 @@
+ 
+    public void func_196270_a(BlockState p_196270_1_, World p_196270_2_, BlockPos p_196270_3_, PlayerEntity p_196270_4_) {
+       if (!p_196270_2_.field_72995_K) {
++         this.bukkitState = p_196270_1_;
+          this.func_196482_a(p_196270_2_, p_196270_3_);
++         this.bukkitState = null;
+          p_196270_4_.func_195066_a(Stats.field_188086_T);
+       }
+    }
+ 
+    public boolean func_189539_a(BlockState p_189539_1_, World p_189539_2_, BlockPos p_189539_3_, int p_189539_4_, int p_189539_5_) {
++      net.minecraftforge.event.world.NoteBlockEvent.Play e = new net.minecraftforge.event.world.NoteBlockEvent.Play(p_189539_2_, p_189539_3_, p_189539_1_, p_189539_1_.func_177229_b(field_196485_c), p_189539_1_.func_177229_b(field_196483_a));
++      if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(e)) return false;
++      p_189539_1_ = p_189539_1_.func_206870_a(field_196485_c, e.getVanillaNoteId()).func_206870_a(field_196483_a, e.getInstrument());
+       int i = p_189539_1_.func_177229_b(field_196485_c);
+       float f = (float)Math.pow(2.0D, (double)(i - 12) / 12.0D);
+       p_189539_2_.func_184133_a((PlayerEntity)null, p_189539_3_, p_189539_1_.func_177229_b(field_196483_a).func_208088_a(), SoundCategory.RECORDS, 3.0F, f);

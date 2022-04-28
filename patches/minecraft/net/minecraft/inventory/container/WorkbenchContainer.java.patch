@@ -1,0 +1,107 @@
+--- a/net/minecraft/inventory/container/WorkbenchContainer.java
++++ b/net/minecraft/inventory/container/WorkbenchContainer.java
+@@ -19,13 +_,22 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryCrafting;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryView;
++import org.bukkit.inventory.InventoryView;
+ 
+ public class WorkbenchContainer extends RecipeBookContainer<CraftingInventory> {
+-   private final CraftingInventory field_75162_e = new CraftingInventory(this, 3, 3);
+-   private final CraftResultInventory field_75160_f = new CraftResultInventory();
+-   private final IWorldPosCallable field_217070_e;
++   private final CraftingInventory field_75162_e = new CraftingInventory(this, 3, 3); // LoliServer
++   public final CraftResultInventory field_75160_f;
++   public final IWorldPosCallable field_217070_e;
+    private final PlayerEntity field_192390_i;
+ 
++   // CraftBukkit start
++   private CraftInventoryView bukkitEntity = null;
++   private PlayerInventory playerCB;
++   // CraftBukkit end
++
+    public WorkbenchContainer(int p_i50089_1_, PlayerInventory p_i50089_2_) {
+       this(p_i50089_1_, p_i50089_2_, IWorldPosCallable.field_221489_a);
+    }
+@@ -33,6 +_,11 @@
+    public WorkbenchContainer(int p_i50090_1_, PlayerInventory p_i50090_2_, IWorldPosCallable p_i50090_3_) {
+       super(ContainerType.field_221518_l, p_i50090_1_);
+       this.field_217070_e = p_i50090_3_;
++      // CraftBukkit start - Switched order of IInventory construction and stored player
++      this.field_75162_e.setOwner(p_i50090_2_.field_70458_d); // LoliServer
++      this.field_75160_f = new CraftResultInventory();
++      this.playerCB = p_i50090_2_;
++      // CraftBukkit end
+       this.field_192390_i = p_i50090_2_.field_70458_d;
+       this.func_75146_a(new CraftingResultSlot(p_i50090_2_.field_70458_d, this.field_75162_e, this.field_75160_f, 0, 124, 35));
+ 
+@@ -65,15 +_,39 @@
+                itemstack = icraftingrecipe.func_77572_b(p_217066_3_);
+             }
+          }
+-
+          p_217066_4_.func_70299_a(0, itemstack);
+          serverplayerentity.field_71135_a.func_147359_a(new SSetSlotPacket(p_217066_0_, 0, itemstack));
+       }
+    }
+ 
++   // LoliServer start - Fix Quark Oddities dupe backpacks error
++   protected static void slotChangedCraftingGrid(int id, World world, PlayerEntity player, CraftingInventory inventory, CraftResultInventory inventoryResult, Container container) {
++      if (!world.field_72995_K) {
++         ServerPlayerEntity serverplayerentity = (ServerPlayerEntity) player;
++         ItemStack itemstack = ItemStack.field_190927_a;
++         Optional<ICraftingRecipe> optional = world.func_73046_m().func_199529_aN().func_215371_a(IRecipeType.field_222149_a, inventory, world);
++         if (optional.isPresent()) {
++            ICraftingRecipe icraftingrecipe = optional.get();
++            if (inventoryResult.func_201561_a(world, serverplayerentity, icraftingrecipe)) {
++               itemstack = icraftingrecipe.func_77572_b(inventory);
++            }
++         }
++         CraftEventFactory.callPreCraftEvent(inventory, inventoryResult, itemstack, container.getBukkitView(), false); // CraftBukkit
++
++         InventoryView view = null;
++         if (container == null) {
++            view = new CraftInventoryView(serverplayerentity.getBukkitEntity(), new CraftInventoryCrafting(inventory, inventoryResult), serverplayerentity.field_71070_bA);
++         }
++         itemstack = CraftEventFactory.callPreCraftEvent(inventory, inventoryResult, itemstack, container != null ? container.getBukkitView() : view, false); // CraftBukkit
++         inventoryResult.func_70299_a(0, itemstack);
++         serverplayerentity.field_71135_a.func_147359_a(new SSetSlotPacket(id, 0, itemstack));
++      }
++   }
++   // LoliServer end
++
+    public void func_75130_a(IInventory p_75130_1_) {
+       this.field_217070_e.func_221486_a((p_217069_1_, p_217069_2_) -> {
+-         func_217066_a(this.field_75152_c, p_217069_1_, this.field_192390_i, this.field_75162_e, this.field_75160_f);
++         this.slotChangedCraftingGrid(this.field_75152_c, p_217069_1_, this.field_192390_i, this.field_75162_e, this.field_75160_f, this); // CraftBukkit
+       });
+    }
+ 
+@@ -98,6 +_,7 @@
+    }
+ 
+    public boolean func_75145_c(PlayerEntity p_75145_1_) {
++      if (!this.checkReachable) return true; // CraftBukkit
+       return func_216963_a(this.field_217070_e, p_75145_1_, Blocks.field_150462_ai);
+    }
+ 
+@@ -174,4 +_,16 @@
+    public RecipeBookCategory func_241850_m() {
+       return RecipeBookCategory.CRAFTING;
+    }
++
++   // CraftBukkit start
++   @Override
++   public CraftInventoryView getBukkitView() {
++      if (bukkitEntity != null) {
++         return bukkitEntity;
++      }
++      CraftInventoryCrafting inventory = new CraftInventoryCrafting(this.field_75162_e, this.field_75160_f);
++      bukkitEntity = new CraftInventoryView(this.playerCB.field_70458_d.getBukkitEntity(), inventory, this);
++      return bukkitEntity;
++   }
++   // CraftBukkit end
+ }

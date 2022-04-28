@@ -1,0 +1,257 @@
+--- a/net/minecraft/inventory/container/EnchantmentContainer.java
++++ b/net/minecraft/inventory/container/EnchantmentContainer.java
+@@ -1,9 +_,11 @@
+ package net.minecraft.inventory.container;
+ 
+ import java.util.List;
++import java.util.Map;
+ import java.util.Random;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.block.Blocks;
++import net.minecraft.enchantment.Enchantment;
+ import net.minecraft.enchantment.EnchantmentData;
+ import net.minecraft.enchantment.EnchantmentHelper;
+ import net.minecraft.entity.player.PlayerEntity;
+@@ -23,6 +_,16 @@
+ import net.minecraft.util.registry.Registry;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryEnchanting;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryView;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.v1_16_R3.util.CraftNamespacedKey;
++import org.bukkit.enchantments.EnchantmentOffer;
++import org.bukkit.entity.Player;
++import org.bukkit.event.enchantment.EnchantItemEvent;
++import org.bukkit.event.enchantment.PrepareItemEnchantEvent;
+ 
+ public class EnchantmentContainer extends Container {
+    private final IInventory field_75168_e = new Inventory(2) {
+@@ -30,6 +_,13 @@
+          super.func_70296_d();
+          EnchantmentContainer.this.func_75130_a(this);
+       }
++
++      // CraftBukkit start
++      @Override
++      public Location getLocation() {
++         return field_217006_g.getLocation();
++      }
++      // CraftBukkit end
+    };
+    private final IWorldPosCallable field_217006_g;
+    private final Random field_75169_l = new Random();
+@@ -38,6 +_,11 @@
+    public final int[] field_185001_h = new int[]{-1, -1, -1};
+    public final int[] field_185002_i = new int[]{-1, -1, -1};
+ 
++   // CraftBukkit start
++   private CraftInventoryView bukkitEntity = null;
++   private Player player_bukkit;
++   // CraftBukkit end
++
+    public EnchantmentContainer(int p_i50085_1_, PlayerInventory p_i50085_2_) {
+       this(p_i50085_1_, p_i50085_2_, IWorldPosCallable.field_221489_a);
+    }
+@@ -56,7 +_,7 @@
+       });
+       this.func_75146_a(new Slot(this.field_75168_e, 1, 35, 47) {
+          public boolean func_75214_a(ItemStack p_75214_1_) {
+-            return p_75214_1_.func_77973_b() == Items.field_196128_bn;
++            return net.minecraftforge.common.Tags.Items.GEMS_LAPIS.func_230235_a_(p_75214_1_.func_77973_b());
+          }
+       });
+ 
+@@ -80,56 +_,80 @@
+       this.func_216958_a(IntReferenceHolder.func_221497_a(this.field_185002_i, 0));
+       this.func_216958_a(IntReferenceHolder.func_221497_a(this.field_185002_i, 1));
+       this.func_216958_a(IntReferenceHolder.func_221497_a(this.field_185002_i, 2));
++      // CraftBukkit start
++      player_bukkit = (Player) p_i50086_2_.field_70458_d.getBukkitEntity();
++      // CraftBukkit end
++   }
++
++   private float getPower(net.minecraft.world.World world, net.minecraft.util.math.BlockPos pos) {
++      return world.func_180495_p(pos).getEnchantPowerBonus(world, pos);
+    }
+ 
+    public void func_75130_a(IInventory p_75130_1_) {
+       if (p_75130_1_ == this.field_75168_e) {
+          ItemStack itemstack = p_75130_1_.func_70301_a(0);
+-         if (!itemstack.func_190926_b() && itemstack.func_77956_u()) {
++         if (!itemstack.func_190926_b()) { // CraftBukkit - relax condition
+             this.field_217006_g.func_221486_a((p_217002_2_, p_217002_3_) -> {
+-               int j = 0;
++               int power = 0;
+ 
+                for(int k = -1; k <= 1; ++k) {
+                   for(int l = -1; l <= 1; ++l) {
+                      if ((k != 0 || l != 0) && p_217002_2_.func_175623_d(p_217002_3_.func_177982_a(l, 0, k)) && p_217002_2_.func_175623_d(p_217002_3_.func_177982_a(l, 1, k))) {
+-                        if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l * 2, 0, k * 2)).func_203425_a(Blocks.field_150342_X)) {
+-                           ++j;
+-                        }
+-
+-                        if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l * 2, 1, k * 2)).func_203425_a(Blocks.field_150342_X)) {
+-                           ++j;
+-                        }
++                        power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l * 2, 0, k * 2));
++                        power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l * 2, 1, k * 2));
+ 
+                         if (l != 0 && k != 0) {
+-                           if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l * 2, 0, k)).func_203425_a(Blocks.field_150342_X)) {
+-                              ++j;
+-                           }
+-
+-                           if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l * 2, 1, k)).func_203425_a(Blocks.field_150342_X)) {
+-                              ++j;
+-                           }
+-
+-                           if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l, 0, k * 2)).func_203425_a(Blocks.field_150342_X)) {
+-                              ++j;
+-                           }
+-
+-                           if (p_217002_2_.func_180495_p(p_217002_3_.func_177982_a(l, 1, k * 2)).func_203425_a(Blocks.field_150342_X)) {
+-                              ++j;
+-                           }
++                           power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l * 2, 0, k));
++                           power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l * 2, 1, k));
++                           power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l, 0, k * 2));
++                           power += getPower(p_217002_2_, p_217002_3_.func_177982_a(l, 1, k * 2));
+                         }
+                      }
+                   }
+                }
++
++               // CraftBukkit start
++               CraftItemStack item = CraftItemStack.asCraftMirror(itemstack);
++               org.bukkit.enchantments.EnchantmentOffer[] offers = new EnchantmentOffer[3];
++               for (int j = 0; j < 3; ++j) {
++                  org.bukkit.enchantments.Enchantment enchantment = (this.field_185001_h[j] >= 0) ? org.bukkit.enchantments.Enchantment.getByKey(CraftNamespacedKey.fromMinecraft(Registry.field_212628_q.func_177774_c(Registry.field_212628_q.func_148745_a(this.field_185001_h[j])))) : null;
++                  offers[j] = (enchantment != null) ? new EnchantmentOffer(enchantment, this.field_185002_i[j], this.field_75167_g[j]) : null;
++               }
++               PrepareItemEnchantEvent event = new PrepareItemEnchantEvent(player_bukkit, this.getBukkitView(), field_217006_g.getLocation().getBlock(), item, offers, power);
++               event.setCancelled(!itemstack.func_77956_u());
++               p_217002_2_.getCBServer().getPluginManager().callEvent(event);
++               if (event.isCancelled()) {
++                  for (int j = 0; j < 3; ++j) {
++                     this.field_75167_g[j] = 0;
++                     this.field_185001_h[j] = -1;
++                     this.field_185002_i[j] = -1;
++                  }
++                  return;
++               }
++               for (int j = 0; j < 3; j++) {
++                  EnchantmentOffer offer = event.getOffers()[j];
++                  if (offer != null) {
++                     this.field_75167_g[j] = offer.getCost();
++                     this.field_185001_h[j] = Registry.field_212628_q.func_148757_b(Registry.field_212628_q.func_82594_a(CraftNamespacedKey.toMinecraft(offer.getEnchantment().getKey())));
++                     this.field_185002_i[j] = offer.getEnchantmentLevel();
++                  } else {
++                     this.field_75167_g[j] = 0;
++                     this.field_185001_h[j] = -1;
++                     this.field_185002_i[j] = -1;
++                  }
++               }
++               // CraftBukkit end
+ 
+                this.field_75169_l.setSeed((long)this.field_178149_f.func_221495_b());
+ 
+                for(int i1 = 0; i1 < 3; ++i1) {
+-                  this.field_75167_g[i1] = EnchantmentHelper.func_77514_a(this.field_75169_l, i1, j, itemstack);
++                  this.field_75167_g[i1] = EnchantmentHelper.func_77514_a(this.field_75169_l, i1, (int)power, itemstack);
+                   this.field_185001_h[i1] = -1;
+                   this.field_185002_i[i1] = -1;
+                   if (this.field_75167_g[i1] < i1 + 1) {
+                      this.field_75167_g[i1] = 0;
+                   }
++                  this.field_75167_g[i1] = net.minecraftforge.event.ForgeEventFactory.onEnchantmentLevelSet(p_217002_2_, p_217002_3_, i1, (int)power, itemstack, field_75167_g[i1]);
+                }
+ 
+                for(int j1 = 0; j1 < 3; ++j1) {
+@@ -168,9 +_,24 @@
+          this.field_217006_g.func_221486_a((p_217003_6_, p_217003_7_) -> {
+             ItemStack itemstack2 = itemstack;
+             List<EnchantmentData> list = this.func_178148_a(itemstack, p_75140_2_, this.field_75167_g[p_75140_2_]);
+-            if (!list.isEmpty()) {
+-               p_75140_1_.func_192024_a(itemstack, i);
++            // CraftBukkit start
++            if (true | !list.isEmpty()) {
++               // playerIn.onEnchant(itemstack, i); // Moved down
+                boolean flag = itemstack.func_77973_b() == Items.field_151122_aG;
++
++               Map<org.bukkit.enchantments.Enchantment, Integer> enchants = new java.util.HashMap<org.bukkit.enchantments.Enchantment, Integer>();
++               for (Object obj : list) {
++                  EnchantmentData instance = (EnchantmentData) obj;
++                  enchants.put(org.bukkit.enchantments.Enchantment.getByKey(CraftNamespacedKey.fromMinecraft(Registry.field_212628_q.func_177774_c(instance.field_76302_b))), instance.field_76303_c);
++               }
++               CraftItemStack item = CraftItemStack.asCraftMirror(itemstack2);
++               EnchantItemEvent event = new EnchantItemEvent((Player) p_75140_1_.getBukkitEntity(), this.getBukkitView(), field_217006_g.getLocation().getBlock(), item, this.field_75167_g[p_75140_2_], enchants, p_75140_2_);
++               p_217003_6_.getCBServer().getPluginManager().callEvent(event);
++               int level = event.getExpLevelCost();
++               if (event.isCancelled() || (level > p_75140_1_.field_71068_ca && !p_75140_1_.field_71075_bZ.field_75098_d) || event.getEnchantsToAdd().isEmpty()) {
++                  return;
++               }
++
+                if (flag) {
+                   itemstack2 = new ItemStack(Items.field_151134_bR);
+                   CompoundNBT compoundnbt = itemstack.func_77978_p();
+@@ -181,15 +_,28 @@
+                   this.field_75168_e.func_70299_a(0, itemstack2);
+                }
+ 
+-               for(int j = 0; j < list.size(); ++j) {
+-                  EnchantmentData enchantmentdata = list.get(j);
++               for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> entry : event.getEnchantsToAdd().entrySet()) {
++                  try {
+                   if (flag) {
+-                     EnchantedBookItem.func_92115_a(itemstack2, enchantmentdata);
++                        NamespacedKey enchantId = entry.getKey().getKey();
++                        Enchantment nms = Registry.field_212628_q.func_82594_a(CraftNamespacedKey.toMinecraft(enchantId));
++                        if (nms == null) {
++                           continue;
++                        }
++                        EnchantmentData weightedrandomenchant = new EnchantmentData(nms, entry.getValue());
++                        EnchantedBookItem.func_92115_a(itemstack2, weightedrandomenchant);
+                   } else {
+-                     itemstack2.func_77966_a(enchantmentdata.field_76302_b, enchantmentdata.field_76303_c);
++                        item.addUnsafeEnchantment(entry.getKey(), entry.getValue());
++                     }
++                  } catch (IllegalArgumentException e) {
++                     /* Just swallow invalid enchantments */
+                   }
+                }
+ 
++               p_75140_1_.func_192024_a(itemstack, i);
++               // CraftBukkit end
++
++               // CraftBukkit - TODO: let plugins change this
+                if (!p_75140_1_.field_71075_bZ.field_75098_d) {
+                   itemstack1.func_190918_g(i);
+                   if (itemstack1.func_190926_b()) {
+@@ -242,6 +_,7 @@
+    }
+ 
+    public boolean func_75145_c(PlayerEntity p_75145_1_) {
++      if (!this.checkReachable) return true; // CraftBukkit
+       return func_216963_a(this.field_217006_g, p_75145_1_, Blocks.field_150381_bn);
+    }
+ 
+@@ -289,4 +_,16 @@
+ 
+       return itemstack;
+    }
++
++   // CraftBukkit start
++   @Override
++   public CraftInventoryView getBukkitView() {
++      if (bukkitEntity != null) {
++         return bukkitEntity;
++      }
++      CraftInventoryEnchanting inventory = new CraftInventoryEnchanting(this.field_75168_e);
++      bukkitEntity = new CraftInventoryView(this.player_bukkit, inventory, this);
++      return bukkitEntity;
++   }
++   // CraftBukkit end
+ }

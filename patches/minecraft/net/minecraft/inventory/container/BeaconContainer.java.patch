@@ -1,0 +1,108 @@
+--- a/net/minecraft/inventory/container/BeaconContainer.java
++++ b/net/minecraft/inventory/container/BeaconContainer.java
+@@ -1,8 +_,11 @@
+ package net.minecraft.inventory.container;
+ 
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.event.player.PlayerChangeBeaconEffectEvent;
+ import net.minecraft.block.Blocks;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.PlayerInventory;
+ import net.minecraft.inventory.IInventory;
+ import net.minecraft.inventory.Inventory;
+ import net.minecraft.item.ItemStack;
+@@ -13,6 +_,12 @@
+ import net.minecraft.util.IntArray;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryBeacon;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryView;
++import org.bukkit.entity.Player;
++import org.bukkit.potion.PotionEffectType;
+ 
+ public class BeaconContainer extends Container {
+    private final IInventory field_82866_e = new Inventory(1) {
+@@ -28,6 +_,11 @@
+    private final IWorldPosCallable field_216971_e;
+    private final IIntArray field_216972_f;
+ 
++   // CraftBukkit start
++   private CraftInventoryView bukkitEntity = null;
++   private PlayerInventory player;
++   // CraftBukkit end
++
+    public BeaconContainer(int p_i50099_1_, IInventory p_i50099_2_) {
+       this(p_i50099_1_, p_i50099_2_, new IntArray(3), IWorldPosCallable.field_221489_a);
+    }
+@@ -35,6 +_,7 @@
+    public BeaconContainer(int p_i50100_1_, IInventory p_i50100_2_, IIntArray p_i50100_3_, IWorldPosCallable p_i50100_4_) {
+       super(ContainerType.field_221515_i, p_i50100_1_);
+       func_216959_a(p_i50100_3_, 3);
++      player = (PlayerInventory) p_i50100_2_;  // CraftBukkit - TODO: check this
+       this.field_216972_f = p_i50100_3_;
+       this.field_216971_e = p_i50100_4_;
+       this.field_82864_f = new BeaconContainer.BeaconSlot(this.field_82866_e, 0, 136, 110);
+@@ -67,6 +_,7 @@
+    }
+ 
+    public boolean func_75145_c(PlayerEntity p_75145_1_) {
++      if (!this.checkReachable) return true; // CraftBukkit
+       return func_216963_a(this.field_216971_e, p_75145_1_, Blocks.field_150461_bJ);
+    }
+ 
+@@ -75,6 +_,18 @@
+       this.func_75142_b();
+    }
+ 
++   // CraftBukkit start
++   @Override
++   public CraftInventoryView getBukkitView() {
++      if (bukkitEntity != null) {
++         return bukkitEntity;
++   }
++      CraftInventory inventory = new CraftInventoryBeacon(this.field_82866_e);
++      bukkitEntity = new CraftInventoryView(this.player.field_70458_d.getBukkitEntity(), inventory, this);
++      return bukkitEntity;
++   }
++   // CraftBukkit end
++
+    public ItemStack func_82846_b(PlayerEntity p_82846_1_, int p_82846_2_) {
+       ItemStack itemstack = ItemStack.field_190927_a;
+       Slot slot = this.field_75151_b.get(p_82846_2_);
+@@ -87,10 +_,8 @@
+             }
+ 
+             slot.func_75220_a(itemstack1, itemstack);
+-         } else if (!this.field_82864_f.func_75216_d() && this.field_82864_f.func_75214_a(itemstack1) && itemstack1.func_190916_E() == 1) {
+-            if (!this.func_75135_a(itemstack1, 0, 1, false)) {
+-               return ItemStack.field_190927_a;
+-            }
++         } else if (this.func_75135_a(itemstack1, 0, 1, false)) { //Forge Fix Shift Clicking in beacons with stacks larger then 1.
++            return ItemStack.field_190927_a;
+          } else if (p_82846_2_ >= 1 && p_82846_2_ < 28) {
+             if (!this.func_75135_a(itemstack1, 28, 37, false)) {
+                return ItemStack.field_190927_a;
+@@ -138,9 +_,17 @@
+ 
+    public void func_216966_c(int p_216966_1_, int p_216966_2_) {
+       if (this.field_82864_f.func_75216_d()) {
+-         this.field_216972_f.func_221477_a(1, p_216966_1_);
+-         this.field_216972_f.func_221477_a(2, p_216966_2_);
+-         this.field_82864_f.func_75209_a(1);
++         // Paper start
++         PlayerChangeBeaconEffectEvent event = new PlayerChangeBeaconEffectEvent((Player) this.player.field_70458_d.getBukkitEntity(), PotionEffectType.getById(p_216966_1_), PotionEffectType.getById(p_216966_2_), this.field_216971_e.getLocation().getBlock());
++         if (event.callEvent()) {
++            this.field_216972_f.func_221477_a(1, event.getPrimary() == null ? 0 : event.getPrimary().getId());
++            this.field_216972_f.func_221477_a(2, event.getSecondary() == null ? 0 : event.getSecondary().getId());
++            if (!event.willConsumeItem()) {
++               return;
++            }
++            this.field_82864_f.func_75209_a(1);
++         }
++         // Paper end
+       }
+ 
+    }

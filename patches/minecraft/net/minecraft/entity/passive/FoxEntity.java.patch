@@ -1,0 +1,86 @@
+--- a/net/minecraft/entity/passive/FoxEntity.java
++++ b/net/minecraft/entity/passive/FoxEntity.java
+@@ -82,12 +_,13 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.event.entity.CreatureSpawnEvent;
+ 
+ public class FoxEntity extends AnimalEntity {
+    private static final DataParameter<Integer> field_213523_bz = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187192_b);
+    private static final DataParameter<Byte> field_213524_bA = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187191_a);
+-   private static final DataParameter<Optional<UUID>> field_213509_bB = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187203_m);
+-   private static final DataParameter<Optional<UUID>> field_213510_bD = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187203_m);
++   public static final DataParameter<Optional<UUID>> field_213509_bB = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187203_m);
++   public static final DataParameter<Optional<UUID>> field_213510_bD = EntityDataManager.func_187226_a(FoxEntity.class, DataSerializers.field_187203_m);
+    private static final Predicate<ItemEntity> field_213511_bE = (p_213489_0_) -> {
+       return !p_213489_0_.func_174874_s() && p_213489_0_.func_70089_S();
+    };
+@@ -325,7 +_,7 @@
+       return FoxEntity.Type.func_221080_a(this.field_70180_af.func_187225_a(field_213523_bz));
+    }
+ 
+-   private void func_213474_a(FoxEntity.Type p_213474_1_) {
++   public void func_213474_a(FoxEntity.Type p_213474_1_) {
+       this.field_70180_af.func_187227_b(field_213523_bz, p_213474_1_.func_221083_c());
+    }
+ 
+@@ -409,7 +_,7 @@
+       return this.func_213507_r(32);
+    }
+ 
+-   private void func_213485_x(boolean p_213485_1_) {
++   public void func_213485_x(boolean p_213485_1_) {
+       this.func_213505_d(32, p_213485_1_);
+    }
+ 
+@@ -458,7 +_,8 @@
+ 
+    protected void func_175445_a(ItemEntity p_175445_1_) {
+       ItemStack itemstack = p_175445_1_.func_92059_d();
+-      if (this.func_175448_a(itemstack)) {
++      if (!org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityPickupItemEvent(this, p_175445_1_, itemstack.func_190916_E() - 1, !this.func_175448_a(itemstack)).isCancelled()) { // CraftBukkit - call EntityPickupItemEvent
++         itemstack = p_175445_1_.func_92059_d(); // CraftBukkit - update ItemStack from event
+          int i = itemstack.func_190916_E();
+          if (i > 1) {
+             this.func_213486_l(itemstack.func_77979_a(i - 1));
+@@ -761,7 +_,7 @@
+       }
+ 
+       protected void func_220730_m() {
+-         if (FoxEntity.this.field_70170_p.func_82736_K().func_223586_b(GameRules.field_223599_b)) {
++         if (net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(FoxEntity.this.field_70170_p, FoxEntity.this)) {
+             BlockState blockstate = FoxEntity.this.field_70170_p.func_180495_p(this.field_179494_b);
+             if (blockstate.func_203425_a(Blocks.field_222434_lW)) {
+                int i = blockstate.func_177229_b(SweetBerryBushBlock.field_220125_a);
+@@ -1001,6 +_,17 @@
+       protected void func_75388_i() {
+          ServerWorld serverworld = (ServerWorld)this.field_75394_a;
+          FoxEntity foxentity = (FoxEntity)this.field_75390_d.func_241840_a(serverworld, this.field_75391_e);
++         final net.minecraftforge.event.entity.living.BabyEntitySpawnEvent event = new net.minecraftforge.event.entity.living.BabyEntitySpawnEvent(field_75390_d, field_75391_e, foxentity);
++         final boolean cancelled = net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++         foxentity = (FoxEntity) event.getChild();
++         if (cancelled) {
++            //Reset the "inLove" state for the animals
++            this.field_75390_d.func_70873_a(6000);
++            this.field_75391_e.func_70873_a(6000);
++            this.field_75390_d.func_70875_t();
++            this.field_75391_e.func_70875_t();
++            return;
++         }
+          if (foxentity != null) {
+             ServerPlayerEntity serverplayerentity = this.field_75390_d.func_191993_do();
+             ServerPlayerEntity serverplayerentity1 = this.field_75391_e.func_191993_do();
+@@ -1024,9 +_,10 @@
+             this.field_75391_e.func_70873_a(6000);
+             this.field_75390_d.func_70875_t();
+             this.field_75391_e.func_70875_t();
+-            foxentity.func_70873_a(-24000);
+-            foxentity.func_70012_b(this.field_75390_d.func_226277_ct_(), this.field_75390_d.func_226278_cu_(), this.field_75390_d.func_226281_cx_(), 0.0F, 0.0F);
++            serverworld.dummyFreshEntitySpawn = true;
+             serverworld.func_242417_l(foxentity);
++            serverworld.dummyFreshEntitySpawn = false;
++            serverworld.addAllEntities(foxentity, CreatureSpawnEvent.SpawnReason.BREEDING);// CraftBukkit - added SpawnReason
+             this.field_75394_a.func_72960_a(this.field_75390_d, (byte)18);
+             if (this.field_75394_a.func_82736_K().func_223586_b(GameRules.field_223602_e)) {
+                this.field_75394_a.func_217376_c(new ExperienceOrbEntity(this.field_75394_a, this.field_75390_d.func_226277_ct_(), this.field_75390_d.func_226278_cu_(), this.field_75390_d.func_226281_cx_(), this.field_75390_d.func_70681_au().nextInt(7) + 1));

@@ -1,0 +1,83 @@
+--- a/net/minecraft/network/PacketBuffer.java
++++ b/net/minecraft/network/PacketBuffer.java
+@@ -22,6 +_,7 @@
+ import java.util.Date;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
+ import net.minecraft.item.Item;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.nbt.CompoundNBT;
+@@ -29,6 +_,7 @@
+ import net.minecraft.nbt.INBT;
+ import net.minecraft.nbt.NBTDynamicOps;
+ import net.minecraft.nbt.NBTSizeTracker;
++import net.minecraft.tileentity.SkullTileEntity;
+ import net.minecraft.util.Direction;
+ import net.minecraft.util.ResourceLocation;
+ import net.minecraft.util.math.BlockPos;
+@@ -37,7 +_,7 @@
+ import net.minecraft.util.math.vector.Vector3d;
+ import net.minecraft.util.text.ITextComponent;
+ 
+-public class PacketBuffer extends ByteBuf {
++public class PacketBuffer extends ByteBuf implements net.minecraftforge.common.extensions.IForgePacketBuffer {
+    private final ByteBuf field_150794_a;
+ 
+    public PacketBuffer(ByteBuf p_i45154_1_) {
+@@ -287,7 +_,16 @@
+    }
+ 
+    public PacketBuffer func_150788_a(ItemStack p_150788_1_) {
+-      if (p_150788_1_.func_190926_b()) {
++      return writeItemStack(p_150788_1_, true);
++   }
++
++   /**
++    * Most ItemStack serialization is Server to Client,and doesn't need to know the FULL tag details.
++    * One exception is items from the creative menu, which must be sent from Client to Server with their full NBT.
++    * If you want to send the FULL tag set limitedTag to false
++    */
++   public PacketBuffer writeItemStack(ItemStack p_150788_1_, boolean limitedTag) {
++      if (p_150788_1_.func_190926_b() || p_150788_1_.func_77973_b() == null) { // CraftBukkit - NPE fix itemstack.getItem()
+          this.writeBoolean(false);
+       } else {
+          this.writeBoolean(true);
+@@ -295,8 +_,21 @@
+          this.func_150787_b(Item.func_150891_b(item));
+          this.writeByte(p_150788_1_.func_190916_E());
+          CompoundNBT compoundnbt = null;
+-         if (item.func_77645_m() || item.func_77651_p()) {
+-            compoundnbt = p_150788_1_.func_77978_p();
++         if (item.isDamageable(p_150788_1_) || item.func_77651_p()) {
++            // Spigot start - filter
++            p_150788_1_ = p_150788_1_.func_77946_l();
++            //CraftItemStack.setItemMeta(stack, CraftItemStack.getItemMeta(stack)); // Paper - This is no longer needed due to NBT being supported
++            // Spigot end
++            compoundnbt = limitedTag ? p_150788_1_.getShareTag() : p_150788_1_.func_77978_p();
++            // Paper start
++            if (compoundnbt != null && compoundnbt.func_150297_b("SkullOwner", 10)) {
++               CompoundNBT owner = compoundnbt.func_74775_l("SkullOwner");
++               if (owner.func_186855_b("Id")) {
++                  compoundnbt.func_186854_a("SkullOwnerOrig", owner.func_186857_a("Id"));
++                  SkullTileEntity.sanitizeUUID(owner);
++               }
++            }
++            // Paper end
+          }
+ 
+          this.func_150786_a(compoundnbt);
+@@ -312,7 +_,12 @@
+          int i = this.func_150792_a();
+          int j = this.readByte();
+          ItemStack itemstack = new ItemStack(Item.func_150899_d(i), j);
+-         itemstack.func_77982_d(this.func_150793_b());
++         itemstack.readShareTag(this.func_150793_b());
++         // CraftBukkit start
++         if (itemstack.func_77978_p() != null) {
++            org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.setItemMeta(itemstack, org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.getItemMeta(itemstack));
++         }
++         // CraftBukkit end
+          return itemstack;
+       }
+    }

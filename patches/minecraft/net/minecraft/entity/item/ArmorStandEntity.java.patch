@@ -1,0 +1,286 @@
+--- a/net/minecraft/entity/item/ArmorStandEntity.java
++++ b/net/minecraft/entity/item/ArmorStandEntity.java
+@@ -1,5 +_,6 @@
+ package net.minecraft.entity.item;
+ 
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+@@ -42,6 +_,13 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.CraftEquipmentSlot;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.entity.ArmorStand;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
++import org.bukkit.inventory.EquipmentSlot;
+ 
+ public class ArmorStandEntity extends LivingEntity {
+    private static final Rotations field_175435_a = new Rotations(0.0F, 0.0F, 0.0F);
+@@ -60,19 +_,19 @@
+    public static final DataParameter<Rotations> field_184806_f = EntityDataManager.func_187226_a(ArmorStandEntity.class, DataSerializers.field_187199_i);
+    public static final DataParameter<Rotations> field_184807_g = EntityDataManager.func_187226_a(ArmorStandEntity.class, DataSerializers.field_187199_i);
+    private static final Predicate<Entity> field_184798_bv = (p_200617_0_) -> {
+-      return p_200617_0_ instanceof AbstractMinecartEntity && ((AbstractMinecartEntity)p_200617_0_).func_184264_v() == AbstractMinecartEntity.Type.RIDEABLE;
++      return p_200617_0_ instanceof AbstractMinecartEntity && ((AbstractMinecartEntity)p_200617_0_).canBeRidden();
+    };
+    private final NonNullList<ItemStack> field_184799_bw = NonNullList.func_191197_a(2, ItemStack.field_190927_a);
+    private final NonNullList<ItemStack> field_184800_bx = NonNullList.func_191197_a(4, ItemStack.field_190927_a);
+    private boolean field_175436_h;
+    public long field_175437_i;
+-   private int field_175442_bg;
+-   private Rotations field_175443_bh = field_175435_a;
+-   private Rotations field_175444_bi = field_175433_b;
+-   private Rotations field_175438_bj = field_175434_c;
+-   private Rotations field_175439_bk = field_175431_d;
+-   private Rotations field_175440_bl = field_175432_e;
+-   private Rotations field_175441_bm = field_175429_f;
++   public int field_175442_bg;
++   public Rotations field_175443_bh = field_175435_a;
++   public Rotations field_175444_bi = field_175433_b;
++   public Rotations field_175438_bj = field_175434_c;
++   public Rotations field_175439_bk = field_175431_d;
++   public Rotations field_175440_bl = field_175432_e;
++   public Rotations field_175441_bm = field_175429_f;
+ 
+    public ArmorStandEntity(EntityType<? extends ArmorStandEntity> p_i50225_1_, World p_i50225_2_) {
+       super(p_i50225_1_, p_i50225_2_);
+@@ -84,6 +_,13 @@
+       this.func_70107_b(p_i45855_2_, p_i45855_4_, p_i45855_6_);
+    }
+ 
++   // CraftBukkit start - SPIGOT-3607, SPIGOT-3637
++   @Override
++   public float getBukkitYaw() {
++      return this.field_70177_z;
++   }
++   // CraftBukkit end
++
+    public void func_213323_x_() {
+       double d0 = this.func_226277_ct_();
+       double d1 = this.func_226278_cu_();
+@@ -121,24 +_,30 @@
+ 
+    public ItemStack func_184582_a(EquipmentSlotType p_184582_1_) {
+       switch(p_184582_1_.func_188453_a()) {
+-      case HAND:
+-         return this.field_184799_bw.get(p_184582_1_.func_188454_b());
+-      case ARMOR:
+-         return this.field_184800_bx.get(p_184582_1_.func_188454_b());
+-      default:
+-         return ItemStack.field_190927_a;
++         case HAND:
++            return this.field_184799_bw.get(p_184582_1_.func_188454_b());
++         case ARMOR:
++            return this.field_184800_bx.get(p_184582_1_.func_188454_b());
++         default:
++            return ItemStack.field_190927_a;
+       }
+    }
+ 
+    public void func_184201_a(EquipmentSlotType p_184201_1_, ItemStack p_184201_2_) {
++      // CraftBukkit start
++      this.setItemStackToSlot(p_184201_1_, p_184201_2_, false);
++   }
++
++   public void setItemStackToSlot(EquipmentSlotType p_184201_1_, ItemStack p_184201_2_, boolean silent) {
++      // CraftBukkit end
+       switch(p_184201_1_.func_188453_a()) {
+-      case HAND:
+-         this.func_184606_a_(p_184201_2_);
+-         this.field_184799_bw.set(p_184201_1_.func_188454_b(), p_184201_2_);
+-         break;
+-      case ARMOR:
+-         this.func_184606_a_(p_184201_2_);
+-         this.field_184800_bx.set(p_184201_1_.func_188454_b(), p_184201_2_);
++         case HAND:
++            this.playEquipSound(p_184201_2_, silent); // CraftBukkit
++            this.field_184799_bw.set(p_184201_1_.func_188454_b(), p_184201_2_);
++            break;
++         case ARMOR:
++            this.playEquipSound(p_184201_2_, silent); // CraftBukkit
++            this.field_184800_bx.set(p_184201_1_.func_188454_b(), p_184201_2_);
+       }
+ 
+    }
+@@ -372,7 +_,23 @@
+          return false;
+       } else if (itemstack.func_190926_b() && (this.field_175442_bg & 1 << p_226529_2_.func_188452_c() + 16) != 0) {
+          return false;
+-      } else if (p_226529_1_.field_71075_bZ.field_75098_d && itemstack.func_190926_b() && !p_226529_3_.func_190926_b()) {
++      }
++      // CraftBukkit start
++      org.bukkit.inventory.ItemStack armorStandItem = CraftItemStack.asCraftMirror(itemstack);
++      org.bukkit.inventory.ItemStack playerHeldItem = CraftItemStack.asCraftMirror(p_226529_3_);
++
++      Player bukkitPlayer = (Player) p_226529_1_.getBukkitEntity();
++      ArmorStand self = (ArmorStand) this.getBukkitEntity();
++
++      EquipmentSlot equipmentSlot = CraftEquipmentSlot.getSlot(p_226529_2_);
++      PlayerArmorStandManipulateEvent armorStandManipulateEvent = new PlayerArmorStandManipulateEvent(bukkitPlayer, self, playerHeldItem, armorStandItem, equipmentSlot);
++      this.field_70170_p.getCBServer().getPluginManager().callEvent(armorStandManipulateEvent);
++
++      if (armorStandManipulateEvent.isCancelled()) {
++         return true;
++      }
++      // CraftBukkit end
++      if (p_226529_1_.field_71075_bZ.field_75098_d && itemstack.func_190926_b() && !p_226529_3_.func_190926_b()) {
+          ItemStack itemstack2 = p_226529_3_.func_77946_l();
+          itemstack2.func_190920_e(1);
+          this.func_184201_a(p_226529_2_, itemstack2);
+@@ -397,12 +_,22 @@
+    public boolean func_70097_a(DamageSource p_70097_1_, float p_70097_2_) {
+       if (!this.field_70170_p.field_72995_K && !this.field_70128_L) {
+          if (DamageSource.field_76380_i.equals(p_70097_1_)) {
+-            this.func_70106_y();
++            // CraftBukkit start
++            if (CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_70097_1_, p_70097_2_)) {
++               return false;
++            }
++            // CraftBukkit end
++            this.func_174812_G(); // CraftBukkit - this.remove() -> this.onKillCommand()
+             return false;
+-         } else if (!this.func_180431_b(p_70097_1_) && !this.field_175436_h && !this.func_181026_s()) {
++         } else if (!this.func_180431_b(p_70097_1_) && (true || !this.field_175436_h) && !this.func_181026_s()) { // CraftBukkit
++            // CraftBukkit start
++            if (CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_70097_1_, p_70097_2_,true, this.field_175436_h)) {
++               return false;
++            }
++            // CraftBukkit end
+             if (p_70097_1_.func_94541_c()) {
+                this.func_213816_g(p_70097_1_);
+-               this.func_70106_y();
++               this.func_174812_G(); // CraftBukkit - this.remove() -> this.onKillCommand()
+                return false;
+             } else if (DamageSource.field_76372_a.equals(p_70097_1_)) {
+                if (this.func_70027_ad()) {
+@@ -426,7 +_,7 @@
+                } else if (p_70097_1_.func_180136_u()) {
+                   this.func_190773_I();
+                   this.func_175412_z();
+-                  this.func_70106_y();
++                  this.func_174812_G(); // CraftBukkit - this.remove() -> this.onKillCommand()
+                   return flag1;
+                } else {
+                   long i = this.field_70170_p.func_82737_E();
+@@ -486,7 +_,7 @@
+       f = f - p_213817_2_;
+       if (f <= 0.5F) {
+          this.func_213816_g(p_213817_1_);
+-         this.func_70106_y();
++         this.func_174812_G(); // CraftBukkit - this.remove() -> this.onKillCommand()
+       } else {
+          this.func_70606_j(f);
+       }
+@@ -497,15 +_,29 @@
+       Block.func_180635_a(this.field_70170_p, this.func_233580_cy_(), new ItemStack(Items.field_179565_cj));
+       this.func_213816_g(p_213815_1_);
+    }
++   // LoliServer - fix Armor stand don't drop armor (no test
++   private void asMirror(ItemStack itemStack){
++      drops.add(CraftItemStack.asCraftMirror(itemStack));
++   }
+ 
+    private void func_213816_g(DamageSource p_213816_1_) {
+       this.func_190773_I();
+-      this.func_213345_d(p_213816_1_);
++      //this.spawnDrops(source); // CraftBukkit - moved down
+ 
+       for(int i = 0; i < this.field_184799_bw.size(); ++i) {
+          ItemStack itemstack = this.field_184799_bw.get(i);
+          if (!itemstack.func_190926_b()) {
+-            Block.func_180635_a(this.field_70170_p, this.func_233580_cy_().func_177984_a(), itemstack);
++            asMirror(itemstack);
++            double d0 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            double d1 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            double d2 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            ItemEntity itemEntity = new ItemEntity(this.field_70170_p, (double) this.func_233580_cy_().func_177984_a().func_177958_n() + d0, (double) this.func_233580_cy_().func_177984_a().func_177956_o() + d1, (double) this.func_233580_cy_().func_177984_a().func_177952_p() + d2, itemstack);
++            itemEntity.func_174869_p();
++            if (captureDrops() != null) {
++               captureDrops().add(itemEntity);
++            } else {
++               this.field_70170_p.func_217376_c(itemEntity);
++            }
+             this.field_184799_bw.set(i, ItemStack.field_190927_a);
+          }
+       }
+@@ -513,11 +_,22 @@
+       for(int j = 0; j < this.field_184800_bx.size(); ++j) {
+          ItemStack itemstack1 = this.field_184800_bx.get(j);
+          if (!itemstack1.func_190926_b()) {
+-            Block.func_180635_a(this.field_70170_p, this.func_233580_cy_().func_177984_a(), itemstack1);
++            // LoliServer - fix armor stand don't drop armor(no test
++            asMirror(itemstack1);
++            double d0 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            double d1 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            double d2 = (double) (this.field_70170_p.field_73012_v.nextFloat() * 0.5F) + 0.25D;
++            ItemEntity itementity1 = new ItemEntity(this.field_70170_p, (double) this.func_233580_cy_().func_177984_a().func_177958_n() + d0, (double) this.func_233580_cy_().func_177984_a().func_177956_o() + d1, (double) this.func_233580_cy_().func_177984_a().func_177952_p() + d2, itemstack1);
++            itementity1.func_174869_p();
++            if (captureDrops() != null) {
++               captureDrops().add(itementity1);
++            } else {
++               this.field_70170_p.func_217376_c(itementity1);
++            }
+             this.field_184800_bx.set(j, ItemStack.field_190927_a);
+          }
+       }
+-
++      this.func_213345_d(p_213816_1_); // CraftBukkit - moved from above
+    }
+ 
+    private void func_190773_I() {
+@@ -601,6 +_,14 @@
+       return this.func_175410_n();
+    }
+ 
++
++   // CraftBukkit start
++   @Override
++   protected boolean func_146066_aG() {
++      return true; // MC-157395, SPIGOT-5193 even baby (small) armor stands should drop
++   }
++   // CraftBukkit end
++
+    public void func_174812_G() {
+       this.func_70106_y();
+    }
+@@ -613,7 +_,7 @@
+       return this.func_181026_s() ? PushReaction.IGNORE : super.func_184192_z();
+    }
+ 
+-   private void func_175420_a(boolean p_175420_1_) {
++   public void func_175420_a(boolean p_175420_1_) {
+       this.field_70180_af.func_187227_b(field_184801_a, this.func_184797_a(this.field_70180_af.func_187225_a(field_184801_a), 1, p_175420_1_));
+    }
+ 
+@@ -621,7 +_,7 @@
+       return (this.field_70180_af.func_187225_a(field_184801_a) & 1) != 0;
+    }
+ 
+-   private void func_175413_k(boolean p_175413_1_) {
++   public void func_175413_k(boolean p_175413_1_) {
+       this.field_70180_af.func_187227_b(field_184801_a, this.func_184797_a(this.field_70180_af.func_187225_a(field_184801_a), 4, p_175413_1_));
+    }
+ 
+@@ -629,7 +_,7 @@
+       return (this.field_70180_af.func_187225_a(field_184801_a) & 4) != 0;
+    }
+ 
+-   private void func_175426_l(boolean p_175426_1_) {
++   public void func_175426_l(boolean p_175426_1_) {
+       this.field_70180_af.func_187227_b(field_184801_a, this.func_184797_a(this.field_70180_af.func_187225_a(field_184801_a), 8, p_175426_1_));
+    }
+ 
+@@ -637,7 +_,7 @@
+       return (this.field_70180_af.func_187225_a(field_184801_a) & 8) != 0;
+    }
+ 
+-   private void func_181027_m(boolean p_181027_1_) {
++   public void func_181027_m(boolean p_181027_1_) {
+       this.field_70180_af.func_187227_b(field_184801_a, this.func_184797_a(this.field_70180_af.func_187225_a(field_184801_a), 16, p_181027_1_));
+    }
+ 

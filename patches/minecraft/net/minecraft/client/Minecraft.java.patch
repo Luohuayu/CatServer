@@ -1,0 +1,562 @@
+--- a/net/minecraft/client/Minecraft.java
++++ b/net/minecraft/client/Minecraft.java
+@@ -241,7 +_,7 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ @OnlyIn(Dist.CLIENT)
+-public class Minecraft extends RecursiveEventLoop<Runnable> implements ISnooperInfo, IWindowEventListener {
++public class Minecraft extends RecursiveEventLoop<Runnable> implements ISnooperInfo, IWindowEventListener, net.minecraftforge.client.extensions.IForgeMinecraft {
+    private static Minecraft field_71432_P;
+    private static final Logger field_147123_G = LogManager.getLogger();
+    public static final boolean field_142025_a = Util.func_110647_a() == Util.OS.OSX;
+@@ -368,6 +_,7 @@
+    public Minecraft(GameConfiguration p_i45547_1_) {
+       super("Client");
+       field_71432_P = this;
++      net.minecraftforge.client.ForgeHooksClient.invalidateLog4jThreadCache();
+       this.field_71412_D = p_i45547_1_.field_178744_c.field_178760_a;
+       File file1 = p_i45547_1_.field_178744_c.field_178759_c;
+       this.field_130070_K = p_i45547_1_.field_178744_c.field_178758_b;
+@@ -382,7 +_,6 @@
+       this.field_244734_au = this.func_244735_a(yggdrasilauthenticationservice, p_i45547_1_);
+       this.field_71449_j = p_i45547_1_.field_178745_a.field_178752_a;
+       field_147123_G.info("Setting user: {}", (Object)this.field_71449_j.func_111285_a());
+-      field_147123_G.debug("(Session ID is {})", (Object)this.field_71449_j.func_111286_b());
+       this.field_71459_aj = p_i45547_1_.field_178741_d.field_178756_a;
+       this.field_238175_ae_ = !p_i45547_1_.field_178741_d.field_239099_d_;
+       this.field_238176_af_ = !p_i45547_1_.field_178741_d.field_239100_e_;
+@@ -428,13 +_,13 @@
+ 
+       this.field_195558_d.func_216526_a(this.field_71474_y.field_74350_i);
+       this.field_71417_B = new MouseHelper(this);
+-      this.field_71417_B.func_198029_a(this.field_195558_d.func_198092_i());
+       this.field_195559_v = new KeyboardListener(this);
+       this.field_195559_v.func_197968_a(this.field_195558_d.func_198092_i());
+       RenderSystem.initRenderer(this.field_71474_y.field_209231_W, false);
+       this.field_147124_at = new Framebuffer(this.field_195558_d.func_198109_k(), this.field_195558_d.func_198091_l(), true, field_142025_a);
+       this.field_147124_at.func_147604_a(0.0F, 0.0F, 0.0F, 0.0F);
+       this.field_110451_am = new SimpleReloadableResourceManager(ResourcePackType.CLIENT_RESOURCES);
++      net.minecraftforge.fml.client.ClientModLoader.begin(this, this.field_110448_aq, this.field_110451_am, this.field_195554_ax);
+       this.field_110448_aq.func_198983_a();
+       this.field_71474_y.func_198017_a(this.field_110448_aq);
+       this.field_135017_as = new LanguageManager(this.field_71474_y.field_74363_ab);
+@@ -476,6 +_,7 @@
+       this.func_193986_ar();
+       this.field_110451_am.func_219534_a(this.field_193995_ae);
+       this.field_71452_i = new ParticleManager(this.field_71441_e, this.field_71446_o);
++      net.minecraftforge.fml.ModLoader.get().postEvent(new net.minecraftforge.client.event.ParticleFactoryRegisterEvent());
+       this.field_110451_am.func_219534_a(this.field_71452_i);
+       this.field_213272_aL = new PaintingSpriteUploader(this.field_71446_o);
+       this.field_110451_am.func_219534_a(this.field_213272_aL);
+@@ -483,7 +_,8 @@
+       this.field_110451_am.func_219534_a(this.field_213273_aM);
+       this.field_241557_ar_ = new GPUWarning();
+       this.field_110451_am.func_219534_a(this.field_241557_ar_);
+-      this.field_71456_v = new IngameGui(this);
++      this.field_71456_v = new net.minecraftforge.client.gui.ForgeIngameGui(this);
++      this.field_71417_B.func_198029_a(this.field_195558_d.func_198092_i()); //Forge: Moved below ingameGUI setting to prevent NPEs in handeler.
+       this.field_184132_p = new DebugRenderer(this);
+       RenderSystem.setErrorCallback(this::func_195545_a);
+       if (this.field_71474_y.field_74353_u && !this.field_195558_d.func_198113_j()) {
+@@ -495,11 +_,6 @@
+       this.field_195558_d.func_224798_d(this.field_71474_y.field_225307_E);
+       this.field_195558_d.func_227801_c_();
+       this.func_213226_a();
+-      if (s != null) {
+-         this.func_147108_a(new ConnectingScreen(new MainMenuScreen(), this, s, i));
+-      } else {
+-         this.func_147108_a(new MainMenuScreen(true));
+-      }
+ 
+       ResourceLoadProgressGui.func_212970_a(this);
+       List<IResourcePack> list = this.field_110448_aq.func_232623_f_();
+@@ -508,7 +_,14 @@
+             if (SharedConstants.field_206244_b) {
+                this.func_213256_aB();
+             }
+-
++            if (net.minecraftforge.fml.client.ClientModLoader.completeModLoading()) return; // Do not overwrite the error screen
++            // FORGE: Move opening initial screen to after startup and events are enabled.
++            // Also Fixes MC-145102
++            if (s != null) {
++               this.func_147108_a(new ConnectingScreen(new MainMenuScreen(), this, s, i));
++            } else {
++               this.func_147108_a(new MainMenuScreen(true));
++            }
+          });
+       }, false));
+    }
+@@ -556,7 +_,7 @@
+    }
+ 
+    private void func_229988_a_(Throwable p_229988_1_) {
+-      if (this.field_110448_aq.func_232621_d_().size() > 1) {
++      if (this.field_110448_aq.func_198980_d().stream().anyMatch(e -> !e.func_195797_g())) { //Forge: This caused infinite loop if any resource packs are forced. Such as mod resources. So check if we can disable any.
+          ITextComponent itextcomponent;
+          if (p_229988_1_ instanceof SimpleReloadableResourceManager.FailedPackException) {
+             itextcomponent = new StringTextComponent(((SimpleReloadableResourceManager.FailedPackException)p_229988_1_).func_241203_a().func_195762_a());
+@@ -644,7 +_,7 @@
+          return Stream.of(Registry.field_212630_s.func_177774_c(p_213251_0_.func_77973_b()));
+       });
+       SearchTreeReloadable<ItemStack> searchtreereloadable = new SearchTreeReloadable<>((p_213235_0_) -> {
+-         return ItemTags.func_199903_a().func_199913_a(p_213235_0_.func_77973_b()).stream();
++         return p_213235_0_.func_77973_b().getTags().stream();
+       });
+       NonNullList<ItemStack> nonnulllist = NonNullList.func_191196_a();
+ 
+@@ -714,13 +_,13 @@
+       Bootstrap.func_179870_a(p_71377_0_.func_71502_e());
+       if (p_71377_0_.func_71497_f() != null) {
+          Bootstrap.func_179870_a("#@!@# Game crashed! Crash report saved to: #@!@# " + p_71377_0_.func_71497_f());
+-         System.exit(-1);
++         net.minecraftforge.fml.server.ServerLifecycleHooks.handleExit(-1);
+       } else if (p_71377_0_.func_147149_a(file2)) {
+          Bootstrap.func_179870_a("#@!@# Game crashed! Crash report saved to: #@!@# " + file2.getAbsolutePath());
+-         System.exit(-1);
++         net.minecraftforge.fml.server.ServerLifecycleHooks.handleExit(-1);
+       } else {
+          Bootstrap.func_179870_a("#@?@# Game crashed! Crash report could not be saved. #@?@#");
+-         System.exit(-2);
++         net.minecraftforge.fml.server.ServerLifecycleHooks.handleExit(-2);
+       }
+ 
+    }
+@@ -729,6 +_,7 @@
+       return this.field_71474_y.field_211842_aO;
+    }
+ 
++   @Deprecated // Forge: Use selective refreshResources method in FMLClientHandler
+    public CompletableFuture<Void> func_213237_g() {
+       if (this.field_213276_aV != null) {
+          return this.field_213276_aV;
+@@ -817,10 +_,6 @@
+    }
+ 
+    public void func_147108_a(@Nullable Screen p_147108_1_) {
+-      if (this.field_71462_r != null) {
+-         this.field_71462_r.func_231164_f_();
+-      }
+-
+       if (p_147108_1_ == null && this.field_71441_e == null) {
+          p_147108_1_ = new MainMenuScreen();
+       } else if (p_147108_1_ == null && this.field_71439_g.func_233643_dh_()) {
+@@ -831,6 +_,15 @@
+          }
+       }
+ 
++      net.minecraftforge.client.ForgeHooksClient.clearGuiLayers(this);
++      Screen old = this.field_71462_r;
++      net.minecraftforge.client.event.GuiOpenEvent event = new net.minecraftforge.client.event.GuiOpenEvent(p_147108_1_);
++      if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) return;
++
++      p_147108_1_ = event.getGui();
++      if (old != null && p_147108_1_ != old)
++         old.func_231164_f_();
++
+       if (p_147108_1_ instanceof MainMenuScreen || p_147108_1_ instanceof MultiplayerScreen) {
+          this.field_71474_y.field_74330_P = false;
+          this.field_71456_v.func_146158_b().func_146231_a(true);
+@@ -962,11 +_,13 @@
+       RenderSystem.enableCull();
+       this.field_71424_I.func_76319_b();
+       if (!this.field_71454_w) {
++         net.minecraftforge.fml.hooks.BasicEventHooks.onRenderTickStart(this.field_71445_n ? this.field_193996_ah : this.field_71428_T.field_194147_b);
+          this.field_71424_I.func_219895_b("gameRenderer");
+          this.field_71460_t.func_195458_a(this.field_71445_n ? this.field_193996_ah : this.field_71428_T.field_194147_b, i, p_195542_1_);
+          this.field_71424_I.func_219895_b("toasts");
+          this.field_193034_aS.func_238541_a_(new MatrixStack());
+          this.field_71424_I.func_76319_b();
++         net.minecraftforge.fml.hooks.BasicEventHooks.onRenderTickEnd(this.field_71445_n ? this.field_193996_ah : this.field_71428_T.field_194147_b);
+       }
+ 
+       if (this.field_238174_aV_ != null) {
+@@ -1061,10 +_,12 @@
+       this.field_195558_d.func_216525_a((double)i);
+       if (this.field_71462_r != null) {
+          this.field_71462_r.func_231152_a_(this, this.field_195558_d.func_198107_o(), this.field_195558_d.func_198087_p());
++         net.minecraftforge.client.ForgeHooksClient.resizeGuiLayers(this, this.field_195558_d.func_198107_o(), this.field_195558_d.func_198087_p());
+       }
+ 
+       Framebuffer framebuffer = this.func_147110_a();
+       framebuffer.func_216491_a(this.field_195558_d.func_198109_k(), this.field_195558_d.func_198091_l(), field_142025_a);
++      if (this.field_71460_t != null)
+       this.field_71460_t.func_147704_a(this.field_195558_d.func_198109_k(), this.field_195558_d.func_198091_l());
+       this.field_71417_B.func_198021_g();
+    }
+@@ -1253,11 +_,21 @@
+          if (p_147115_1_ && this.field_71476_x != null && this.field_71476_x.func_216346_c() == RayTraceResult.Type.BLOCK) {
+             BlockRayTraceResult blockraytraceresult = (BlockRayTraceResult)this.field_71476_x;
+             BlockPos blockpos = blockraytraceresult.func_216350_a();
+-            if (!this.field_71441_e.func_180495_p(blockpos).func_196958_f()) {
++            if (!this.field_71441_e.func_175623_d(blockpos)) {
++               net.minecraftforge.client.event.InputEvent.ClickInputEvent inputEvent = net.minecraftforge.client.ForgeHooksClient.onClickInput(0, this.field_71474_y.field_74312_F, Hand.MAIN_HAND);
++               if (inputEvent.isCanceled()) {
++                  if (inputEvent.shouldSwingHand()) {
++                     this.field_71452_i.addBlockHitEffects(blockpos, blockraytraceresult);
++                     this.field_71439_g.func_184609_a(Hand.MAIN_HAND);
++                  }
++                  return;
++               }
+                Direction direction = blockraytraceresult.func_216354_b();
+                if (this.field_71442_b.func_180512_c(blockpos, direction)) {
+-                  this.field_71452_i.func_180532_a(blockpos, direction);
++                  if (inputEvent.shouldSwingHand()) {
++                  this.field_71452_i.addBlockHitEffects(blockpos, blockraytraceresult);
+                   this.field_71439_g.func_184609_a(Hand.MAIN_HAND);
++                  }
+                }
+             }
+ 
+@@ -1276,6 +_,8 @@
+             }
+ 
+          } else if (!this.field_71439_g.func_184838_M()) {
++            net.minecraftforge.client.event.InputEvent.ClickInputEvent inputEvent = net.minecraftforge.client.ForgeHooksClient.onClickInput(0, this.field_71474_y.field_74312_F, Hand.MAIN_HAND);
++            if (!inputEvent.isCanceled())
+             switch(this.field_71476_x.func_216346_c()) {
+             case ENTITY:
+                this.field_71442_b.func_78764_a(this.field_71439_g, ((EntityRayTraceResult)this.field_71476_x).func_216348_a());
+@@ -1283,7 +_,7 @@
+             case BLOCK:
+                BlockRayTraceResult blockraytraceresult = (BlockRayTraceResult)this.field_71476_x;
+                BlockPos blockpos = blockraytraceresult.func_216350_a();
+-               if (!this.field_71441_e.func_180495_p(blockpos).func_196958_f()) {
++               if (!this.field_71441_e.func_175623_d(blockpos)) {
+                   this.field_71442_b.func_180511_b(blockpos, blockraytraceresult.func_216354_b());
+                   break;
+                }
+@@ -1293,8 +_,10 @@
+                }
+ 
+                this.field_71439_g.func_184821_cY();
++               net.minecraftforge.common.ForgeHooks.onEmptyLeftClick(this.field_71439_g);
+             }
+ 
++            if (inputEvent.shouldSwingHand())
+             this.field_71439_g.func_184609_a(Hand.MAIN_HAND);
+          }
+       }
+@@ -1309,6 +_,11 @@
+             }
+ 
+             for(Hand hand : Hand.values()) {
++               net.minecraftforge.client.event.InputEvent.ClickInputEvent inputEvent = net.minecraftforge.client.ForgeHooksClient.onClickInput(1, this.field_71474_y.field_74313_G, hand);
++               if (inputEvent.isCanceled()) {
++                  if (inputEvent.shouldSwingHand()) this.field_71439_g.func_184609_a(hand);
++                  return;
++               }
+                ItemStack itemstack = this.field_71439_g.func_184586_b(hand);
+                if (this.field_71476_x != null) {
+                   switch(this.field_71476_x.func_216346_c()) {
+@@ -1322,6 +_,7 @@
+ 
+                      if (actionresulttype.func_226246_a_()) {
+                         if (actionresulttype.func_226247_b_()) {
++                           if (inputEvent.shouldSwingHand())
+                            this.field_71439_g.func_184609_a(hand);
+                         }
+ 
+@@ -1334,6 +_,7 @@
+                      ActionResultType actionresulttype1 = this.field_71442_b.func_217292_a(this.field_71439_g, this.field_71441_e, hand, blockraytraceresult);
+                      if (actionresulttype1.func_226246_a_()) {
+                         if (actionresulttype1.func_226247_b_()) {
++                           if (inputEvent.shouldSwingHand())
+                            this.field_71439_g.func_184609_a(hand);
+                            if (!itemstack.func_190926_b() && (itemstack.func_190916_E() != i || this.field_71442_b.func_78758_h())) {
+                               this.field_71460_t.field_78516_c.func_187460_a(hand);
+@@ -1349,6 +_,9 @@
+                   }
+                }
+ 
++               if (itemstack.func_190926_b() && (this.field_71476_x == null || this.field_71476_x.func_216346_c() == RayTraceResult.Type.MISS))
++                  net.minecraftforge.common.ForgeHooks.onEmptyClick(this.field_71439_g, hand);
++
+                if (!itemstack.func_190926_b()) {
+                   ActionResultType actionresulttype2 = this.field_71442_b.func_187101_a(this.field_71439_g, this.field_71441_e, hand);
+                   if (actionresulttype2.func_226246_a_()) {
+@@ -1375,6 +_,8 @@
+          --this.field_71467_ac;
+       }
+ 
++      net.minecraftforge.fml.hooks.BasicEventHooks.onPreClientTick();
++
+       this.field_71424_I.func_76320_a("gui");
+       if (!this.field_71445_n) {
+          this.field_71456_v.func_73831_a();
+@@ -1500,6 +_,8 @@
+       this.field_71424_I.func_219895_b("keyboard");
+       this.field_195559_v.func_204870_b();
+       this.field_71424_I.func_76319_b();
++
++      net.minecraftforge.fml.hooks.BasicEventHooks.onPostClientTick();
+    }
+ 
+    private boolean func_244600_aM() {
+@@ -1638,11 +_,11 @@
+    }
+ 
+    public void func_238191_a_(String p_238191_1_) {
+-      this.func_238195_a_(p_238191_1_, DynamicRegistries.func_239770_b_(), Minecraft::func_238180_a_, Minecraft::func_238181_a_, false, Minecraft.WorldSelectionType.BACKUP);
++      this.loadWorld(p_238191_1_, DynamicRegistries.func_239770_b_(), Minecraft::func_238180_a_, Minecraft::func_238181_a_, false, Minecraft.WorldSelectionType.BACKUP, false);
+    }
+ 
+    public void func_238192_a_(String p_238192_1_, WorldSettings p_238192_2_, DynamicRegistries.Impl p_238192_3_, DimensionGeneratorSettings p_238192_4_) {
+-      this.func_238195_a_(p_238192_1_, p_238192_3_, (p_238179_1_) -> {
++      this.loadWorld(p_238192_1_, p_238192_3_, (p_238179_1_) -> {
+          return p_238192_2_.func_234958_g_();
+       }, (p_238187_3_, p_238187_4_, p_238187_5_, p_238187_6_) -> {
+          WorldGenSettingsExport<JsonElement> worldgensettingsexport = WorldGenSettingsExport.func_240896_a_(JsonOps.INSTANCE, p_238192_3_);
+@@ -1652,10 +_,10 @@
+          });
+          DimensionGeneratorSettings dimensiongeneratorsettings = dataresult.resultOrPartial(Util.func_240982_a_("Error reading worldgen settings after loading data packs: ", field_147123_G::error)).orElse(p_238192_4_);
+          return new ServerWorldInfo(p_238192_2_, dimensiongeneratorsettings, dataresult.lifecycle());
+-      }, false, Minecraft.WorldSelectionType.CREATE);
++      }, false, Minecraft.WorldSelectionType.CREATE, true);
+    }
+ 
+-   private void func_238195_a_(String p_238195_1_, DynamicRegistries.Impl p_238195_2_, Function<SaveFormat.LevelSave, DatapackCodec> p_238195_3_, Function4<SaveFormat.LevelSave, DynamicRegistries.Impl, IResourceManager, DatapackCodec, IServerConfiguration> p_238195_4_, boolean p_238195_5_, Minecraft.WorldSelectionType p_238195_6_) {
++   private void loadWorld(String p_238195_1_, DynamicRegistries.Impl p_238195_2_, Function<SaveFormat.LevelSave, DatapackCodec> p_238195_3_, Function4<SaveFormat.LevelSave, DynamicRegistries.Impl, IResourceManager, DatapackCodec, IServerConfiguration> p_238195_4_, boolean p_238195_5_, Minecraft.WorldSelectionType p_238195_6_, boolean creating) {
+       SaveFormat.LevelSave saveformat$levelsave;
+       try {
+          saveformat$levelsave = this.field_71469_aa.func_237274_c_(p_238195_1_);
+@@ -1667,12 +_,16 @@
+       }
+ 
+       Minecraft.PackManager minecraft$packmanager;
++      final DynamicRegistries.Impl dyn_f;
+       try {
+-         minecraft$packmanager = this.func_238189_a_(p_238195_2_, p_238195_3_, p_238195_4_, p_238195_5_, saveformat$levelsave);
++         Minecraft.PackManager mgr = this.func_238189_a_(p_238195_2_, p_238195_3_, p_238195_4_, p_238195_5_, saveformat$levelsave);
++         // We need to rebuild this if we're loading world, so that it gets all the information from AFTER we inject our mappings from the save.
++         dyn_f = creating ? p_238195_2_ : DynamicRegistries.func_239770_b_();
++         minecraft$packmanager = creating ? mgr : this.func_238189_a_(dyn_f, p_238195_3_, p_238195_4_, p_238195_5_, saveformat$levelsave); //Note this runs the injection again... which isn't good.. but hey.. we need a better spot to hook in.
+       } catch (Exception exception) {
+          field_147123_G.warn("Failed to load datapacks, can't proceed with server load", (Throwable)exception);
+          this.func_147108_a(new DatapackFailureScreen(() -> {
+-            this.func_238195_a_(p_238195_1_, p_238195_2_, p_238195_3_, p_238195_4_, true, p_238195_6_);
++            this.loadWorld(p_238195_1_, p_238195_2_, p_238195_3_, p_238195_4_, true, p_238195_6_, creating);
+          }));
+ 
+          try {
+@@ -1692,7 +_,7 @@
+          this.field_213277_ad.set((TrackingChunkStatusListener)null);
+ 
+          try {
+-            saveformat$levelsave.func_237287_a_(p_238195_2_, iserverconfiguration);
++            saveformat$levelsave.func_237287_a_(dyn_f, iserverconfiguration);
+             minecraft$packmanager.func_238225_b_().func_240971_i_();
+             YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(this.field_110453_aa);
+             MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
+@@ -1702,7 +_,7 @@
+             SkullTileEntity.func_184294_a(minecraftsessionservice);
+             PlayerProfileCache.func_187320_a(false);
+             this.field_71437_Z = MinecraftServer.func_240784_a_((p_238188_8_) -> {
+-               return new IntegratedServer(p_238188_8_, this, p_238195_2_, saveformat$levelsave, minecraft$packmanager.func_238224_a_(), minecraft$packmanager.func_238225_b_(), iserverconfiguration, minecraftsessionservice, gameprofilerepository, playerprofilecache, (p_238211_1_) -> {
++               return new IntegratedServer(p_238188_8_, this, dyn_f, saveformat$levelsave, minecraft$packmanager.func_238224_a_(), minecraft$packmanager.func_238225_b_(), iserverconfiguration, minecraftsessionservice, gameprofilerepository, playerprofilecache, (p_238211_1_) -> {
+                   TrackingChunkStatusListener trackingchunkstatuslistener = new TrackingChunkStatusListener(p_238211_1_ + 0);
+                   trackingchunkstatuslistener.func_219521_a();
+                   this.field_213277_ad.set(trackingchunkstatuslistener);
+@@ -1747,11 +_,16 @@
+          networkmanager.func_150719_a(new ClientLoginNetHandler(networkmanager, this, (Screen)null, (p_229998_0_) -> {
+          }));
+          networkmanager.func_179290_a(new CHandshakePacket(socketaddress.toString(), 0, ProtocolType.LOGIN));
+-         networkmanager.func_179290_a(new CLoginStartPacket(this.func_110432_I().func_148256_e()));
++         com.mojang.authlib.GameProfile gameProfile = this.func_110432_I().func_148256_e();
++         if (!this.func_110432_I().hasCachedProperties()) {
++            gameProfile = field_152355_az.fillProfileProperties(gameProfile, true); //Forge: Fill profile properties upon game load. Fixes MC-52974.
++            this.func_110432_I().setProperties(gameProfile.getProperties());
++         }
++         networkmanager.func_179290_a(new CLoginStartPacket(gameProfile));
+          this.field_71453_ak = networkmanager;
+       } else {
+          this.func_241559_a_(p_238195_6_, p_238195_1_, flag, () -> {
+-            this.func_238195_a_(p_238195_1_, p_238195_2_, p_238195_3_, p_238195_4_, p_238195_5_, Minecraft.WorldSelectionType.NONE);
++            this.loadWorld(p_238195_1_, p_238195_2_, p_238195_3_, p_238195_4_, p_238195_5_, Minecraft.WorldSelectionType.NONE, creating);
+          });
+          minecraft$packmanager.close();
+ 
+@@ -1821,6 +_,7 @@
+    }
+ 
+    public void func_71403_a(ClientWorld p_71403_1_) {
++      if (field_71441_e != null) net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Unload(field_71441_e));
+       WorkingScreen workingscreen = new WorkingScreen();
+       workingscreen.func_200210_a(new TranslationTextComponent("connect.joining"));
+       this.func_213241_c(workingscreen);
+@@ -1852,10 +_,12 @@
+       IntegratedServer integratedserver = this.field_71437_Z;
+       this.field_71437_Z = null;
+       this.field_71460_t.func_190564_k();
++      net.minecraftforge.fml.client.ClientHooks.firePlayerLogout(this.field_71442_b, this.field_71439_g);
+       this.field_71442_b = null;
+       NarratorChatListener.field_193643_a.func_193642_b();
+       this.func_213241_c(p_213231_1_);
+       if (this.field_71441_e != null) {
++         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Unload(field_71441_e));
+          if (integratedserver != null) {
+             this.field_71424_I.func_76320_a("waitForServer");
+ 
+@@ -1870,6 +_,7 @@
+          this.field_71456_v.func_181029_i();
+          this.field_71422_O = null;
+          this.field_71455_al = false;
++         net.minecraftforge.fml.client.ClientHooks.handleClientWorldClosing(field_71441_e);
+          this.field_213274_aO.func_216815_b();
+       }
+ 
+@@ -1900,6 +_,7 @@
+       this.field_71452_i.func_78870_a(p_213257_1_);
+       TileEntityRendererDispatcher.field_147556_a.func_147543_a(p_213257_1_);
+       this.func_230150_b_();
++      net.minecraftforge.client.MinecraftForgeClient.clearRenderCache();
+    }
+ 
+    public boolean func_238216_r_() {
+@@ -1945,112 +_,9 @@
+ 
+    private void func_147112_ai() {
+       if (this.field_71476_x != null && this.field_71476_x.func_216346_c() != RayTraceResult.Type.MISS) {
+-         boolean flag = this.field_71439_g.field_71075_bZ.field_75098_d;
+-         TileEntity tileentity = null;
+-         RayTraceResult.Type raytraceresult$type = this.field_71476_x.func_216346_c();
+-         ItemStack itemstack;
+-         if (raytraceresult$type == RayTraceResult.Type.BLOCK) {
+-            BlockPos blockpos = ((BlockRayTraceResult)this.field_71476_x).func_216350_a();
+-            BlockState blockstate = this.field_71441_e.func_180495_p(blockpos);
+-            Block block = blockstate.func_177230_c();
+-            if (blockstate.func_196958_f()) {
+-               return;
+-            }
+-
+-            itemstack = block.func_185473_a(this.field_71441_e, blockpos, blockstate);
+-            if (itemstack.func_190926_b()) {
+-               return;
+-            }
+-
+-            if (flag && Screen.func_231172_r_() && block.func_235695_q_()) {
+-               tileentity = this.field_71441_e.func_175625_s(blockpos);
+-            }
+-         } else {
+-            if (raytraceresult$type != RayTraceResult.Type.ENTITY || !flag) {
+-               return;
+-            }
+-
+-            Entity entity = ((EntityRayTraceResult)this.field_71476_x).func_216348_a();
+-            if (entity instanceof PaintingEntity) {
+-               itemstack = new ItemStack(Items.field_151159_an);
+-            } else if (entity instanceof LeashKnotEntity) {
+-               itemstack = new ItemStack(Items.field_151058_ca);
+-            } else if (entity instanceof ItemFrameEntity) {
+-               ItemFrameEntity itemframeentity = (ItemFrameEntity)entity;
+-               ItemStack itemstack1 = itemframeentity.func_82335_i();
+-               if (itemstack1.func_190926_b()) {
+-                  itemstack = new ItemStack(Items.field_151160_bD);
+-               } else {
+-                  itemstack = itemstack1.func_77946_l();
+-               }
+-            } else if (entity instanceof AbstractMinecartEntity) {
+-               AbstractMinecartEntity abstractminecartentity = (AbstractMinecartEntity)entity;
+-               Item item;
+-               switch(abstractminecartentity.func_184264_v()) {
+-               case FURNACE:
+-                  item = Items.field_151109_aJ;
+-                  break;
+-               case CHEST:
+-                  item = Items.field_151108_aI;
+-                  break;
+-               case TNT:
+-                  item = Items.field_151142_bV;
+-                  break;
+-               case HOPPER:
+-                  item = Items.field_151140_bW;
+-                  break;
+-               case COMMAND_BLOCK:
+-                  item = Items.field_151095_cc;
+-                  break;
+-               default:
+-                  item = Items.field_151143_au;
+-               }
+-
+-               itemstack = new ItemStack(item);
+-            } else if (entity instanceof BoatEntity) {
+-               itemstack = new ItemStack(((BoatEntity)entity).func_184455_j());
+-            } else if (entity instanceof ArmorStandEntity) {
+-               itemstack = new ItemStack(Items.field_179565_cj);
+-            } else if (entity instanceof EnderCrystalEntity) {
+-               itemstack = new ItemStack(Items.field_185158_cP);
+-            } else {
+-               SpawnEggItem spawneggitem = SpawnEggItem.func_200889_b(entity.func_200600_R());
+-               if (spawneggitem == null) {
+-                  return;
+-               }
+-
+-               itemstack = new ItemStack(spawneggitem);
+-            }
+-         }
+-
+-         if (itemstack.func_190926_b()) {
+-            String s = "";
+-            if (raytraceresult$type == RayTraceResult.Type.BLOCK) {
+-               s = Registry.field_212618_g.func_177774_c(this.field_71441_e.func_180495_p(((BlockRayTraceResult)this.field_71476_x).func_216350_a()).func_177230_c()).toString();
+-            } else if (raytraceresult$type == RayTraceResult.Type.ENTITY) {
+-               s = Registry.field_212629_r.func_177774_c(((EntityRayTraceResult)this.field_71476_x).func_216348_a().func_200600_R()).toString();
+-            }
+-
+-            field_147123_G.warn("Picking on: [{}] {} gave null item", raytraceresult$type, s);
+-         } else {
+-            PlayerInventory playerinventory = this.field_71439_g.field_71071_by;
+-            if (tileentity != null) {
+-               this.func_184119_a(itemstack, tileentity);
+-            }
+-
+-            int i = playerinventory.func_184429_b(itemstack);
+-            if (flag) {
+-               playerinventory.func_184434_a(itemstack);
+-               this.field_71442_b.func_78761_a(this.field_71439_g.func_184586_b(Hand.MAIN_HAND), 36 + playerinventory.field_70461_c);
+-            } else if (i != -1) {
+-               if (PlayerInventory.func_184435_e(i)) {
+-                  playerinventory.field_70461_c = i;
+-               } else {
+-                  this.field_71442_b.func_187100_a(i);
+-               }
+-            }
+-
+-         }
++         if (!net.minecraftforge.client.ForgeHooksClient.onClickInput(2, this.field_71474_y.field_74322_I, Hand.MAIN_HAND).isCanceled())
++         net.minecraftforge.common.ForgeHooks.onPickBlock(this.field_71476_x, this.field_71439_g, this.field_71441_e);
++         // We delete this code wholly instead of commenting it out, to make sure we detect changes in it between MC versions
+       }
+    }
+ 
+@@ -2140,6 +_,7 @@
+       return field_71432_P;
+    }
+ 
++   @Deprecated // Forge: Use selective scheduleResourceRefresh method in FMLClientHandler
+    public CompletableFuture<Void> func_213245_w() {
+       return this.func_213169_a(this::func_213237_g).thenCompose((p_229993_0_) -> {
+          return p_229993_0_;
+@@ -2451,7 +_,7 @@
+          supplier = func_228022_c_(supplier);
+       }
+ 
+-      return new ResourcePackInfo(p_228011_0_, p_228011_1_, supplier, p_228011_3_, p_228011_4_, p_228011_5_, p_228011_6_);
++      return new ResourcePackInfo(p_228011_0_, p_228011_1_, supplier, p_228011_3_, p_228011_4_, p_228011_5_, p_228011_6_, p_228011_3_.isHidden());
+    }
+ 
+    private static Supplier<IResourcePack> func_228021_b_(Supplier<IResourcePack> p_228021_0_) {
+@@ -2468,6 +_,14 @@
+ 
+    public void func_228020_b_(int p_228020_1_) {
+       this.field_175617_aL.func_229355_a_(p_228020_1_);
++   }
++
++   public ItemColors getItemColors() {
++      return this.field_184128_aI;
++   }
++
++   public SearchTreeManager getSearchTreeManager() {
++      return this.field_193995_ae;
+    }
+ 
+    @OnlyIn(Dist.CLIENT)

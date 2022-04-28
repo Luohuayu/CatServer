@@ -1,0 +1,135 @@
+--- a/net/minecraft/network/status/ServerStatusNetHandler.java
++++ b/net/minecraft/network/status/ServerStatusNetHandler.java
+@@ -1,13 +_,27 @@
+ package net.minecraft.network.status;
+ 
++import com.mojang.authlib.GameProfile;
++import java.net.InetSocketAddress;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.NoSuchElementException;
++import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.network.NetworkManager;
++import net.minecraft.network.ServerStatusResponse;
+ import net.minecraft.network.status.client.CPingPacket;
+ import net.minecraft.network.status.client.CServerQueryPacket;
+ import net.minecraft.network.status.server.SPongPacket;
+ import net.minecraft.network.status.server.SServerInfoPacket;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.util.SharedConstants;
+ import net.minecraft.util.text.ITextComponent;
++import net.minecraft.util.text.StringTextComponent;
+ import net.minecraft.util.text.TranslationTextComponent;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
++import org.bukkit.craftbukkit.v1_16_R3.util.CraftIconCache;
++import org.bukkit.entity.Player;
+ 
+ public class ServerStatusNetHandler implements IServerStatusNetHandler {
+    private static final ITextComponent field_183007_a = new TranslationTextComponent("multiplayer.status.request_handled");
+@@ -32,8 +_,103 @@
+          this.field_147313_b.func_150718_a(field_183007_a);
+       } else {
+          this.field_183008_d = true;
+-         this.field_147313_b.func_179290_a(new SServerInfoPacket(this.field_147314_a.func_147134_at()));
++         // CraftBukkit start
++         //this.networkManager.sendPacket(new SServerInfoPacket(this.server.getServerStatusResponse()));
++         Object[] players = field_147314_a.func_184103_al().field_72404_b.toArray();
++         class ServerListPingEvent extends org.bukkit.event.server.ServerListPingEvent {
++
++            public CraftIconCache icon;
++            private final Object[] players;
++
++            public ServerListPingEvent(NetworkManager networkManager, MinecraftServer server) {
++               super(((InetSocketAddress) networkManager.func_74430_c()).getAddress(), server.func_71273_Y(), server.func_184103_al().func_72352_l());
++               this.icon = ((CraftServer) Bukkit.getServer()).getServerIcon();
++               this.players = server.func_184103_al().field_72404_b.toArray();
++            }
++
++            @Override
++            public void setServerIcon(org.bukkit.util.CachedServerIcon icon) {
++               if (!(icon instanceof CraftIconCache)) {
++                  throw new IllegalArgumentException(icon + " was not created by " + CraftServer.class);
++               }
++               this.icon = (CraftIconCache) icon;
++            }
++
++            @Override
++            public Iterator<Player> iterator() throws UnsupportedOperationException {
++               return new Iterator<Player>() {
++                  int i;
++                  int ret = Integer.MIN_VALUE;
++                  ServerPlayerEntity player;
++
++                  @Override
++                  public boolean hasNext() {
++                     if (this.player != null) {
++                        return true;
++                     }
++                     final Object[] currentPlayers = players;
++                     for (int length = currentPlayers.length, i = this.i; i < length; ++i) {
++                        final ServerPlayerEntity player = (ServerPlayerEntity) currentPlayers[i];
++                        if (player != null) {
++                           this.i = i + 1;
++                           this.player = player;
++                           return true;
++                        }
++                     }
++                     return false;
++                  }
++
++                  @Override
++                  public Player next() {
++                     if (!this.hasNext()) {
++                        throw new NoSuchElementException();
++                     }
++                     final ServerPlayerEntity player = this.player;
++                     this.player = null;
++                     this.ret = this.i - 1;
++                     return player.getBukkitEntity();
++                  }
++
++                  @Override
++                  public void remove() {
++                     final Object[] currentPlayers = players;
++                     final int i = this.ret;
++                     if (i < 0 || currentPlayers[i] == null) {
++                        throw new IllegalStateException();
++                     }
++                     currentPlayers[i] = null;
++                  }
++               };
++            }
++         }
++         ServerListPingEvent event = new ServerListPingEvent(field_147313_b, field_147314_a);
++         this.field_147314_a.server.getPluginManager().callEvent(event);
++         List<GameProfile> profiles = new ArrayList<GameProfile>(players.length);
++         for (Object player : players) {
++            if (player != null) {
++               profiles.add(((ServerPlayerEntity) player).func_146103_bH());
++            }
++         }
++         ServerStatusResponse.Players playerSample = new ServerStatusResponse.Players(event.getMaxPlayers(), profiles.size());
++         // Spigot Start
++         if ( !profiles.isEmpty() )
++         {
++            java.util.Collections.shuffle( profiles ); // This sucks, its inefficient but we have no simple way of doing it differently
++            profiles = profiles.subList( 0, Math.min( profiles.size(), org.spigotmc.SpigotConfig.playerSample ) ); // Cap the sample to n (or less) displayed players, ie: Vanilla behaviour
++         }
++         // Spigot End
++         playerSample.func_151330_a(profiles.toArray(new GameProfile[profiles.size()]));
++
++         ServerStatusResponse ping = new ServerStatusResponse();
++         ping.func_151320_a(event.icon.value);
++         ping.func_151315_a(org.bukkit.craftbukkit.v1_16_R3.util.CraftChatMessage.fromString(event.getMotd(), true)[0]);
++         ping.func_151319_a(playerSample);
++         int version = SharedConstants.func_215069_a().getProtocolVersion();
++         ping.func_151321_a(new ServerStatusResponse.Version(field_147314_a.getServerModName() + " " + field_147314_a.func_71249_w(), version));
++         ping.setForgeData(this.field_147314_a.func_147134_at().getForgeData());
++         this.field_147313_b.func_179290_a(new SServerInfoPacket(ping));
+       }
++      // CraftBukkit end
+    }
+ 
+    public void func_147311_a(CPingPacket p_147311_1_) {

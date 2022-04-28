@@ -1,0 +1,109 @@
+--- a/net/minecraft/network/handshake/ServerHandshakeNetHandler.java
++++ b/net/minecraft/network/handshake/ServerHandshakeNetHandler.java
+@@ -1,5 +_,11 @@
+ package net.minecraft.network.handshake;
+ 
++import java.net.InetAddress;
++import java.net.InetSocketAddress;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++
+ import net.minecraft.network.NetworkManager;
+ import net.minecraft.network.ProtocolType;
+ import net.minecraft.network.handshake.client.CHandshakePacket;
+@@ -13,6 +_,17 @@
+ import net.minecraft.util.text.TranslationTextComponent;
+ 
+ public class ServerHandshakeNetHandler implements IHandshakeNetHandler {
++
++   // Spigot start
++   private static final com.google.gson.Gson gson = new com.google.gson.Gson();
++   public static final java.util.regex.Pattern HOST_PATTERN = java.util.regex.Pattern.compile("[0-9a-f\\.:]{0,45}");
++   public static final java.util.regex.Pattern PROP_PATTERN = java.util.regex.Pattern.compile("\\w{0,16}");
++   // Spigot end
++
++   // CraftBukkit start - add fields
++   private static final HashMap<InetAddress, Long> throttleTracker = new HashMap<InetAddress, Long>();
++   private static int throttleCounter = 0;
++   // CraftBukkit end
+    private static final ITextComponent field_241169_a_ = new StringTextComponent("Ignoring status request");
+    private final MinecraftServer field_147387_a;
+    private final NetworkManager field_147386_b;
+@@ -23,21 +_,73 @@
+    }
+ 
+    public void func_147383_a(CHandshakePacket p_147383_1_) {
++      if (!net.minecraftforge.fml.server.ServerLifecycleHooks.handleServerLogin(p_147383_1_, this.field_147386_b)) return;
+       switch(p_147383_1_.func_149594_c()) {
+       case LOGIN:
+          this.field_147386_b.func_150723_a(ProtocolType.LOGIN);
++         // CraftBukkit start - Connection throttle
++         try {
++            long currentTime = System.currentTimeMillis();
++            long connectionThrottle = MinecraftServer.getServer().server.getConnectionThrottle();
++            InetAddress address = ((InetSocketAddress)this.field_147386_b.func_74430_c()).getAddress();
++            synchronized (ServerHandshakeNetHandler.throttleTracker) {
++               if (ServerHandshakeNetHandler.throttleTracker.containsKey(address) && !"127.0.0.1".equals(address.getHostAddress()) && currentTime - ServerHandshakeNetHandler.throttleTracker.get(address) < connectionThrottle) {
++                  ServerHandshakeNetHandler.throttleTracker.put(address, currentTime);
++                  TranslationTextComponent chatmessage = new TranslationTextComponent("Connection throttled! Please wait before reconnecting.", new Object[0]);
++                  this.field_147386_b.func_179290_a(new SDisconnectLoginPacket(chatmessage));
++                  this.field_147386_b.func_150718_a(chatmessage);
++                  return;
++               }
++               ServerHandshakeNetHandler.throttleTracker.put(address, currentTime);
++               ++ServerHandshakeNetHandler.throttleCounter;
++               if (ServerHandshakeNetHandler.throttleCounter > 200) {
++                  ServerHandshakeNetHandler.throttleCounter = 0;
++                  Iterator iter = ServerHandshakeNetHandler.throttleTracker.entrySet().iterator();
++                  while (iter.hasNext()) {
++                     Map.Entry<InetAddress, Long> entry = (java.util.Map.Entry) iter.next();
++                     if (entry.getValue() > connectionThrottle) {
++                        iter.remove();
++                     }
++                  }
++               }
++            }
++         }
++         catch (Throwable t) {
++            org.apache.logging.log4j.LogManager.getLogger().debug("Failed to check connection throttle", t);
++         }
++         // CraftBukkit
+          if (p_147383_1_.func_149595_d() != SharedConstants.func_215069_a().getProtocolVersion()) {
+             ITextComponent itextcomponent;
+             if (p_147383_1_.func_149595_d() < 754) {
+-               itextcomponent = new TranslationTextComponent("multiplayer.disconnect.outdated_client", SharedConstants.func_215069_a().getName());
++               itextcomponent = new TranslationTextComponent(java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.func_215069_a().getName() ) ); // Spigot
+             } else {
+-               itextcomponent = new TranslationTextComponent("multiplayer.disconnect.incompatible", SharedConstants.func_215069_a().getName());
++               itextcomponent = new TranslationTextComponent(java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.func_215069_a().getName() ) ); // Spigot
+             }
+-
+             this.field_147386_b.func_179290_a(new SDisconnectLoginPacket(itextcomponent));
+             this.field_147386_b.func_150718_a(itextcomponent);
+          } else {
+             this.field_147386_b.func_150719_a(new ServerLoginNetHandler(this.field_147387_a, this.field_147386_b));
++            // Spigot Start
++            if (org.spigotmc.SpigotConfig.bungee) {
++               String[] split = p_147383_1_.original_ip.split("\00");
++               if ( (split.length == 3 || split.length == 4) && (HOST_PATTERN.matcher(split[1]).matches()) ) {
++                  field_147386_b.field_150743_l = new java.net.InetSocketAddress(split[1], ((java.net.InetSocketAddress) field_147386_b.func_74430_c()).getPort());
++                  field_147386_b.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString( split[2] );
++               } else
++               {
++                  ITextComponent chatmessage = new StringTextComponent("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
++                  this.field_147386_b.func_179290_a(new SDisconnectLoginPacket(chatmessage));
++                  this.field_147386_b.func_150718_a(chatmessage);
++                  return;
++               }
++               if ( split.length == 4 )
++               {
++                  field_147386_b.spoofedProfile = gson.fromJson(split[3], com.mojang.authlib.properties.Property[].class);
++               }
++            }
++            // Spigot End
++            ((ServerLoginNetHandler) this.field_147386_b.func_150729_e()).hostname = p_147383_1_.field_149598_b + ":" + p_147383_1_.field_149599_c; // CraftBukkit - set hostname
++
+          }
+          break;
+       case STATUS:

@@ -1,0 +1,100 @@
+--- a/net/minecraft/dispenser/DefaultDispenseItemBehavior.java
++++ b/net/minecraft/dispenser/DefaultDispenseItemBehavior.java
+@@ -4,7 +_,13 @@
+ import net.minecraft.entity.item.ItemEntity;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.util.Direction;
++import net.minecraft.util.math.BlockPos;
+ import net.minecraft.world.World;
++import net.minecraft.world.server.ServerWorld;
++
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.v1_16_R3.util.CraftVector;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public class DefaultDispenseItemBehavior implements IDispenseItemBehavior {
+    public final ItemStack dispense(IBlockSource p_dispense_1_, ItemStack p_dispense_2_) {
+@@ -16,26 +_,73 @@
+ 
+    protected ItemStack func_82487_b(IBlockSource p_82487_1_, ItemStack p_82487_2_) {
+       Direction direction = p_82487_1_.func_189992_e().func_177229_b(DispenserBlock.field_176441_a);
+-      IPosition iposition = DispenserBlock.func_149939_a(p_82487_1_);
+       ItemStack itemstack = p_82487_2_.func_77979_a(1);
+-      func_82486_a(p_82487_1_.func_197524_h(), itemstack, 6, direction, iposition);
++      // CraftBukkit start
++      if (!doDispense(p_82487_1_.func_197524_h(), itemstack, 6, direction, p_82487_1_)) {
++         itemstack.func_190917_f(1);
++      }
++      // CraftBukkit end
+       return p_82487_2_;
+    }
+ 
++   // This one is called by Refined Storage (and possibly other mods)
+    public static void func_82486_a(World p_82486_0_, ItemStack p_82486_1_, int p_82486_2_, Direction p_82486_3_, IPosition p_82486_4_) {
+-      double d0 = p_82486_4_.func_82615_a();
+-      double d1 = p_82486_4_.func_82617_b();
+-      double d2 = p_82486_4_.func_82616_c();
+-      if (p_82486_3_.func_176740_k() == Direction.Axis.Y) {
++       doDispenseInternal(p_82486_0_, p_82486_1_, p_82486_2_, p_82486_3_, new ProxyBlockSource((ServerWorld) p_82486_0_, new BlockPos(p_82486_4_.func_82615_a(), p_82486_4_.func_82617_b(), p_82486_4_.func_82616_c())), p_82486_4_);
++   }
++
++   // This one is called by CraftBukkit
++   public static boolean doDispense(World worldIn, ItemStack stack, int speed, Direction facing, IBlockSource source) {
++       return doDispenseInternal(worldIn, stack, speed, facing, source, DispenserBlock.func_149939_a(source));
++   }
++
++   private static boolean doDispenseInternal(World worldIn, ItemStack stack, int speed, Direction facing, IBlockSource source, IPosition position) {
++      if (stack.func_190926_b()) {
++         return true;
++      }
++      double d0 = position.func_82615_a();
++      double d1 = position.func_82617_b();
++      double d2 = position.func_82616_c();
++      if (facing.func_176740_k() == Direction.Axis.Y) {
+          d1 = d1 - 0.125D;
+       } else {
+          d1 = d1 - 0.15625D;
+       }
+ 
+-      ItemEntity itementity = new ItemEntity(p_82486_0_, d0, d1, d2, p_82486_1_);
+-      double d3 = p_82486_0_.field_73012_v.nextDouble() * 0.1D + 0.2D;
+-      itementity.func_213293_j(p_82486_0_.field_73012_v.nextGaussian() * (double)0.0075F * (double)p_82486_2_ + (double)p_82486_3_.func_82601_c() * d3, p_82486_0_.field_73012_v.nextGaussian() * (double)0.0075F * (double)p_82486_2_ + (double)0.2F, p_82486_0_.field_73012_v.nextGaussian() * (double)0.0075F * (double)p_82486_2_ + (double)p_82486_3_.func_82599_e() * d3);
+-      p_82486_0_.func_217376_c(itementity);
++      ItemEntity itementity = new ItemEntity(worldIn, d0, d1, d2, stack);
++      double d3 = worldIn.field_73012_v.nextDouble() * 0.1D + 0.2D;
++      itementity.func_213293_j(worldIn.field_73012_v.nextGaussian() * (double) 0.0075F * (double) speed + (double) facing.func_82601_c() * d3, worldIn.field_73012_v.nextGaussian() * (double) 0.0075F * (double) speed + (double) 0.2F, worldIn.field_73012_v.nextGaussian() * (double) 0.0075F * (double) speed + (double) facing.func_82599_e() * d3);
++
++      // CraftBukkit start
++      org.bukkit.block.Block block = worldIn.getWorld().getBlockAt(source.func_180699_d().func_177958_n(), source.func_180699_d().func_177956_o(), source.func_180699_d().func_177952_p());
++      CraftItemStack craftItem = CraftItemStack.asCraftMirror(stack);
++
++      BlockDispenseEvent event = new BlockDispenseEvent(block, craftItem.clone(), CraftVector.toBukkit(itementity.func_213322_ci()));
++      if (!DispenserBlock.eventFired) {
++         worldIn.getCBServer().getPluginManager().callEvent(event);
++      }
++
++      if (event.isCancelled()) {
++         return false;
++      }
++
++      itementity.func_92058_a(CraftItemStack.asNMSCopy(event.getItem()));
++      itementity.func_213317_d(CraftVector.toNMS(event.getVelocity()));
++
++      if (!event.getItem().getType().equals(craftItem.getType())) {
++         // Chain to handler for new item
++         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++         IDispenseItemBehavior idispensebehavior = (IDispenseItemBehavior) DispenserBlock.field_149943_a.get(eventStack.func_77973_b());
++         if (idispensebehavior != IDispenseItemBehavior.field_223216_a_ && idispensebehavior.getClass() != DefaultDispenseItemBehavior.class) {
++            idispensebehavior.dispense(source, eventStack);
++         } else {
++            worldIn.func_217376_c(itementity);
++         }
++         return false;
++      }
++      worldIn.func_217376_c(itementity);
++
++      return true;
++      // CraftBukkit end
+    }
+ 
+    protected void func_82485_a(IBlockSource p_82485_1_) {

@@ -1,0 +1,215 @@
+--- a/net/minecraft/entity/item/HangingEntity.java
++++ b/net/minecraft/entity/item/HangingEntity.java
+@@ -4,6 +_,7 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.block.BlockState;
+ import net.minecraft.block.RedstoneDiodeBlock;
++import net.minecraft.block.material.Material;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityType;
+ import net.minecraft.entity.MoverType;
+@@ -13,6 +_,7 @@
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.Direction;
++import net.minecraft.util.IndirectEntityDamageSource;
+ import net.minecraft.util.Mirror;
+ import net.minecraft.util.Rotation;
+ import net.minecraft.util.math.AxisAlignedBB;
+@@ -22,13 +_,16 @@
+ import net.minecraft.world.World;
+ import net.minecraft.world.server.ServerWorld;
+ import org.apache.commons.lang3.Validate;
++import org.bukkit.entity.Hanging;
++import org.bukkit.event.hanging.HangingBreakByEntityEvent;
++import org.bukkit.event.hanging.HangingBreakEvent;
+ 
+ public abstract class HangingEntity extends Entity {
+    protected static final Predicate<Entity> field_184524_c = (p_210144_0_) -> {
+       return p_210144_0_ instanceof HangingEntity;
+    };
+    private int field_70520_f;
+-   protected BlockPos field_174861_a;
++   public BlockPos field_174861_a; // protected->public CraftBukkit
+    protected Direction field_174860_b = Direction.SOUTH;
+ 
+    protected HangingEntity(EntityType<? extends HangingEntity> p_i48561_1_, World p_i48561_2_) {
+@@ -43,7 +_,7 @@
+    protected void func_70088_a() {
+    }
+ 
+-   protected void func_174859_a(Direction p_174859_1_) {
++   public void func_174859_a(Direction p_174859_1_) { // protected->public CraftBukkit
+       Validate.notNull(p_174859_1_);
+       Validate.isTrue(p_174859_1_.func_176740_k().func_176722_c());
+       this.field_174860_b = p_174859_1_;
+@@ -54,23 +_,34 @@
+ 
+    protected void func_174856_o() {
+       if (this.field_174860_b != null) {
+-         double d0 = (double)this.field_174861_a.func_177958_n() + 0.5D;
+-         double d1 = (double)this.field_174861_a.func_177956_o() + 0.5D;
+-         double d2 = (double)this.field_174861_a.func_177952_p() + 0.5D;
++         // CraftBukkit start code moved in to calculateBoundingBox
++         this.func_174826_a(calculateBoundingBox(this, this.field_174861_a, this.field_174860_b, this.func_82329_d(), this.func_82330_g()));
++         // CraftBukkit ebd
++      }
++   }
++
++   public static AxisAlignedBB calculateBoundingBox(@Nullable Entity entity, BlockPos blockPosition, Direction direction, int width, int height) {
++      double d0 = (double) blockPosition.func_177958_n() + 0.5D;
++      double d1 = (double) blockPosition.func_177956_o() + 0.5D;
++      double d2 = (double) blockPosition.func_177952_p() + 0.5D;
+          double d3 = 0.46875D;
+-         double d4 = this.func_190202_a(this.func_82329_d());
+-         double d5 = this.func_190202_a(this.func_82330_g());
+-         d0 = d0 - (double)this.field_174860_b.func_82601_c() * 0.46875D;
+-         d2 = d2 - (double)this.field_174860_b.func_82599_e() * 0.46875D;
++      double d4 = func_190202_a(width);
++      double d5 = func_190202_a(height);
++      d0 = d0 - (double) direction.func_82601_c() * 0.46875D;
++      d2 = d2 - (double) direction.func_82599_e() * 0.46875D;
+          d1 = d1 + d5;
+-         Direction direction = this.field_174860_b.func_176735_f();
+-         d0 = d0 + d4 * (double)direction.func_82601_c();
+-         d2 = d2 + d4 * (double)direction.func_82599_e();
+-         this.func_226288_n_(d0, d1, d2);
+-         double d6 = (double)this.func_82329_d();
+-         double d7 = (double)this.func_82330_g();
+-         double d8 = (double)this.func_82329_d();
+-         if (this.field_174860_b.func_176740_k() == Direction.Axis.Z) {
++      Direction direction1 = direction.func_176735_f();
++      d0 = d0 + d4 * (double) direction1.func_82601_c();
++      d2 = d2 + d4 * (double) direction1.func_82599_e();
++
++      if (entity != null) {
++         entity.func_226288_n_(d0, d1, d2);
++      }
++      double d6 = (double) width;
++      double d7 = (double) height;
++      double d8 = (double) width;
++
++      if (direction.func_176740_k() == Direction.Axis.Z) {
+             d8 = 1.0D;
+          } else {
+             d6 = 1.0D;
+@@ -79,11 +_,11 @@
+          d6 = d6 / 32.0D;
+          d7 = d7 / 32.0D;
+          d8 = d8 / 32.0D;
+-         this.func_174826_a(new AxisAlignedBB(d0 - d6, d1 - d7, d2 - d8, d0 + d6, d1 + d7, d2 + d8));
++         return new AxisAlignedBB(d0 - d6, d1 - d7, d2 - d8, d0 + d6, d1 + d7, d2 + d8);
+       }
+-   }
++   // CraftBukkit end
+ 
+-   private double func_190202_a(int p_190202_1_) {
++   private static double func_190202_a(int p_190202_1_) { // CraftBukkit - static
+       return p_190202_1_ % 32 == 0 ? 0.5D : 0.0D;
+    }
+ 
+@@ -93,15 +_,29 @@
+             this.func_70076_C();
+          }
+ 
+-         if (this.field_70520_f++ == 100) {
++         if (this.field_70520_f++ == this.field_70170_p.spigotConfig.hangingTickFrequency) { // Spigot
+             this.field_70520_f = 0;
+             if (!this.field_70128_L && !this.func_70518_d()) {
++               // CraftBukkit start - fire break events
++               Material material = this.field_70170_p.func_180495_p(new BlockPos(this)).func_185904_a();
++               HangingBreakEvent.RemoveCause cause;
++               if (!material.equals(Material.field_151579_a)) {
++                  // TODO: This feels insufficient to catch 100% of suffocation cases
++                  cause = HangingBreakEvent.RemoveCause.OBSTRUCTION;
++               } else {
++                  cause = HangingBreakEvent.RemoveCause.PHYSICS;
++               }
++               HangingBreakEvent event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), cause);
++               this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++               if (field_70128_L || event.isCancelled()) {
++                  return;
++               }
++               // CraftBukkit end
+                this.func_70106_y();
+-               this.func_110128_b((Entity)null);
++               this.func_110128_b((Entity) null);
+             }
+          }
+       }
+-
+    }
+ 
+    public boolean func_70518_d() {
+@@ -120,6 +_,8 @@
+                int j1 = (j - 1) / -2;
+                blockpos$mutable.func_189533_g(blockpos).func_189534_c(direction, k + i1).func_189534_c(Direction.UP, l + j1);
+                BlockState blockstate = this.field_70170_p.func_180495_p(blockpos$mutable);
++               if (net.minecraft.block.Block.func_220055_a(this.field_70170_p, blockpos$mutable, this.field_174860_b))
++                  continue;
+                if (!blockstate.func_185904_a().func_76220_a() && !RedstoneDiodeBlock.func_185546_B(blockstate)) {
+                   return false;
+                }
+@@ -152,6 +_,19 @@
+          return false;
+       } else {
+          if (!this.field_70128_L && !this.field_70170_p.field_72995_K) {
++            // CraftBukkit start - fire break events
++            Entity damager = (p_70097_1_ instanceof IndirectEntityDamageSource) ? ((IndirectEntityDamageSource) p_70097_1_).getProximateDamageSource() : p_70097_1_.func_76346_g();
++            HangingBreakEvent event;
++            if (damager != null) {
++               event = new HangingBreakByEntityEvent((Hanging) this.getBukkitEntity(), damager.getBukkitEntity(), p_70097_1_.func_94541_c() ? HangingBreakEvent.RemoveCause.EXPLOSION : HangingBreakEvent.RemoveCause.ENTITY);
++            } else {
++               event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), p_70097_1_.func_94541_c() ? HangingBreakEvent.RemoveCause.EXPLOSION : HangingBreakEvent.RemoveCause.DEFAULT);
++            }
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++            if (this.field_70128_L || event.isCancelled()) {
++               return true;
++            }
++            // CraftBukkit end
+             this.func_70106_y();
+             this.func_70018_K();
+             this.func_110128_b(p_70097_1_.func_76346_g());
+@@ -163,6 +_,17 @@
+ 
+    public void func_213315_a(MoverType p_213315_1_, Vector3d p_213315_2_) {
+       if (!this.field_70170_p.field_72995_K && !this.field_70128_L && p_213315_2_.func_189985_c() > 0.0D) {
++         if (this.field_70128_L) return; // CraftBukkit
++
++         // CraftBukkit start - fire break events
++         // TODO - Does this need its own cause? Seems to only be triggered by pistons
++         HangingBreakEvent event = new HangingBreakEvent((Hanging) this.getBukkitEntity(), HangingBreakEvent.RemoveCause.PHYSICS);
++         this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++         if (this.field_70128_L || event.isCancelled()) {
++            return;
++         }
++         // CraftBukkit end
++
+          this.func_70106_y();
+          this.func_110128_b((Entity)null);
+       }
+@@ -170,7 +_,7 @@
+    }
+ 
+    public void func_70024_g(double p_70024_1_, double p_70024_3_, double p_70024_5_) {
+-      if (!this.field_70170_p.field_72995_K && !this.field_70128_L && p_70024_1_ * p_70024_1_ + p_70024_3_ * p_70024_3_ + p_70024_5_ * p_70024_5_ > 0.0D) {
++      if (false && !this.field_70170_p.field_72995_K && !this.field_70128_L && p_70024_1_ * p_70024_1_ + p_70024_3_ * p_70024_3_ + p_70024_5_ * p_70024_5_ > 0.0D) { // Craftbukkit - not needed
+          this.func_70106_y();
+          this.func_110128_b((Entity)null);
+       }
+@@ -178,6 +_,7 @@
+    }
+ 
+    public void func_213281_b(CompoundNBT p_213281_1_) {
++      p_213281_1_.func_74774_a("Facing", (byte)this.field_174860_b.func_176736_b());
+       BlockPos blockpos = this.func_174857_n();
+       p_213281_1_.func_74768_a("TileX", blockpos.func_177958_n());
+       p_213281_1_.func_74768_a("TileY", blockpos.func_177956_o());
+@@ -186,6 +_,7 @@
+ 
+    public void func_70037_a(CompoundNBT p_70037_1_) {
+       this.field_174861_a = new BlockPos(p_70037_1_.func_74762_e("TileX"), p_70037_1_.func_74762_e("TileY"), p_70037_1_.func_74762_e("TileZ"));
++      this.field_174860_b = Direction.func_176731_b(p_70037_1_.func_74771_c("Facing"));
+    }
+ 
+    public abstract int func_82329_d();

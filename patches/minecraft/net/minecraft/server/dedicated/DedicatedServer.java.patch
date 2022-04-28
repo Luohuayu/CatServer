@@ -1,0 +1,277 @@
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -2,10 +_,12 @@
+ 
+ import com.google.common.base.Strings;
+ import com.google.common.collect.Lists;
++import moe.loliserver.Metrics;
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.datafixers.DataFixer;
++
+ import java.io.BufferedReader;
+ import java.io.IOException;
+ import java.io.InputStreamReader;
+@@ -35,14 +_,16 @@
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.ServerPropertiesProvider;
+ import net.minecraft.server.gui.MinecraftServerGui;
++import net.minecraft.server.management.PlayerList;
+ import net.minecraft.server.management.PlayerProfileCache;
+ import net.minecraft.server.management.PreYggdrasilConverter;
+ import net.minecraft.tileentity.SkullTileEntity;
++import net.minecraft.util.CryptManager;
+ import net.minecraft.util.DefaultUncaughtExceptionHandler;
+-import net.minecraft.util.DefaultWithNameUncaughtExceptionHandler;
+ import net.minecraft.util.NonNullList;
+ import net.minecraft.util.SharedConstants;
+ import net.minecraft.util.Util;
++import net.minecraft.util.datafix.codec.DatapackCodec;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.registry.DynamicRegistries;
+@@ -55,17 +_,24 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraft.world.storage.IServerConfiguration;
+ import net.minecraft.world.storage.SaveFormat;
++import org.apache.logging.log4j.Level;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.apache.logging.log4j.io.IoBuilder;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.v1_16_R3.SpigotTimings;
++import org.bukkit.event.server.RemoteServerCommandEvent;
++import org.bukkit.event.server.ServerCommandEvent;
++import org.bukkit.plugin.Plugin;
+ 
+ public class DedicatedServer extends MinecraftServer implements IServer {
+    private static final Logger field_155771_h = LogManager.getLogger();
+    private static final Pattern field_189647_l = Pattern.compile("^[a-fA-F0-9]{40}$");
+    public final List<PendingCommand> field_71341_l = Collections.synchronizedList(Lists.newArrayList());
+    private QueryThread field_71342_m;
+-   private final RConConsoleSource field_184115_n;
++   public final RConConsoleSource field_184115_n;
+    private MainThread field_71339_n;
+-   private final ServerPropertiesProvider field_71340_o;
++   public ServerPropertiesProvider field_71340_o;
+    @Nullable
+    private MinecraftServerGui field_213225_q;
+    @Nullable
+@@ -81,12 +_,35 @@
+    public boolean func_71197_b() throws IOException {
+       Thread thread = new Thread("Server console handler") {
+          public void run() {
++            // CraftBukkit start
++            if (net.minecraftforge.server.console.TerminalHandler.handleCommands(DedicatedServer.this)) return;
+             BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
++            // MC-33041, SPIGOT-5538: if System.in is not valid due to javaw, then return
++            try {
++               System.in.available();
++            } catch (IOException ex) {
++               return;
++            }
++            // CraftBukkit end
++            String s3;
++            try {
++               // CraftBukkit start - JLine disabling compatibility
++               while (!DedicatedServer.this.func_71241_aa() && DedicatedServer.this.func_71278_l()) {
++                  s3 = bufferedreader.readLine();
+ 
+-            String s1;
+-            try {
+-               while(!DedicatedServer.this.func_71241_aa() && DedicatedServer.this.func_71278_l() && (s1 = bufferedreader.readLine()) != null) {
+-                  DedicatedServer.this.func_195581_a(s1, DedicatedServer.this.func_195573_aM());
++                  // SPIGOT-5220: Throttle if EOF (ctrl^d) or stdin is /dev/null
++                  if (s3 == null) {
++                     try {
++                        Thread.sleep(50L);
++                     } catch (InterruptedException ex) {
++                        Thread.currentThread().interrupt();
++                     }
++                     continue;
++                  }
++                  if (s3.trim().length() > 0) { // Trim to filter lines which are just spaces
++                     DedicatedServer.this.func_195581_a(s3, DedicatedServer.this.func_195573_aM());
++                  }
++                  // CraftBukkit end
+                }
+             } catch (IOException ioexception1) {
+                DedicatedServer.field_155771_h.error("Exception handling console input", (Throwable)ioexception1);
+@@ -94,6 +_,20 @@
+ 
+          }
+       };
++
++      // CraftBukkit start - TODO: handle command-line logging arguments
++      java.util.logging.Logger global = java.util.logging.Logger.getLogger("");
++      global.setUseParentHandlers(false);
++      for (java.util.logging.Handler handler : global.getHandlers()) {
++         global.removeHandler(handler);
++      }
++      global.addHandler(new org.bukkit.craftbukkit.v1_16_R3.util.ForwardLogHandler());
++
++      final org.apache.logging.log4j.Logger logger = LogManager.getRootLogger();
++
++      System.setOut(IoBuilder.forLogger(logger).setLevel(Level.INFO).buildPrintStream());
++      System.setErr(IoBuilder.forLogger(logger).setLevel(Level.WARN).buildPrintStream());
++      // CraftBukkit end
+       thread.setDaemon(true);
+       thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(field_155771_h));
+       thread.start();
+@@ -157,16 +_,22 @@
+          return false;
+       } else {
+          this.func_184105_a(new DedicatedPlayerList(this, this.field_240767_f_, this.field_240766_e_));
++         server.loadPlugins();
++         server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
+          long i = Util.func_211178_c();
+          this.func_71191_d(serverproperties.field_219026_t);
+          SkullTileEntity.func_184293_a(this.func_152358_ax());
+          SkullTileEntity.func_184294_a(this.func_147130_as());
+          PlayerProfileCache.func_187320_a(this.func_71266_T());
++         if (!net.minecraftforge.fml.server.ServerLifecycleHooks.handleServerAboutToStart(this)) return false;
+          field_155771_h.info("Preparing level \"{}\"", (Object)this.func_230542_k__());
+          this.func_240800_l__();
+          long j = Util.func_211178_c() - i;
+          String s = String.format(Locale.ROOT, "%.3fs", (double)j / 1.0E9D);
+          field_155771_h.info("Done ({})! For help, type \"help\"", (Object)s);
++         Metrics.LoliServerMetrics.startMetrics();
++         new catserver.server.utils.VersionCheck();
++         this.field_211151_aa = Util.func_211177_b(); //Forge: Update server time to prevent watchdog/spaming during long load.
+          if (serverproperties.field_219027_u != null) {
+             this.func_200252_aR().func_223585_a(GameRules.field_223620_w).func_223570_a(serverproperties.field_219027_u, this);
+          }
+@@ -179,23 +_,17 @@
+          if (serverproperties.field_219030_x) {
+             field_155771_h.info("Starting remote control listener");
+             this.field_71339_n = MainThread.func_242130_a(this);
+-         }
+-
+-         if (this.func_175593_aQ() > 0L) {
+-            Thread thread1 = new Thread(new ServerHangWatchdog(this));
+-            thread1.setUncaughtExceptionHandler(new DefaultWithNameUncaughtExceptionHandler(field_155771_h));
+-            thread1.setName("Server Watchdog");
+-            thread1.setDaemon(true);
+-            thread1.start();
++            this.remoteConsole = new org.bukkit.craftbukkit.v1_16_R3.command.CraftRemoteConsoleCommandSender(this.field_184115_n); // CraftBukkit
+          }
+ 
+          Items.field_190931_a.func_150895_a(ItemGroup.field_78027_g, NonNullList.func_191196_a());
++         // <3 you Grum for this, saves us ~30 patch files! --^
+          if (serverproperties.field_241079_P_) {
+             ServerInfoMBean.func_233490_a_(this);
+          }
+-
+-         return true;
++         return net.minecraftforge.fml.server.ServerLifecycleHooks.handleServerStarting(this);
+       }
++
+    }
+ 
+    public boolean func_230537_U_() {
+@@ -280,7 +_,6 @@
+       if (this.field_71342_m != null) {
+          this.field_71342_m.func_219591_b();
+       }
+-
+    }
+ 
+    public void func_71190_q(BooleanSupplier p_71190_1_) {
+@@ -303,11 +_,21 @@
+    }
+ 
+    public void func_71333_ah() {
++      SpigotTimings.serverCommandTimer.startTiming(); // Spigot
+       while(!this.field_71341_l.isEmpty()) {
+          PendingCommand pendingcommand = this.field_71341_l.remove(0);
+-         this.func_195571_aL().func_197059_a(pendingcommand.field_73701_b, pendingcommand.field_73702_a);
++         // CraftBukkit start - ServerCommand for preprocessing
++         ServerCommandEvent event = new ServerCommandEvent(this.console, pendingcommand.field_73702_a);
++         this.server.getPluginManager().callEvent(event);
++         if (event.isCancelled()) {
++            continue;
++         }
++         pendingcommand = new PendingCommand(event.getCommand(), pendingcommand.field_73701_b);
++         this.server.dispatchServerCommand(this.console, pendingcommand);
++         // CraftBukkit end
+       }
+ 
++      SpigotTimings.serverCommandTimer.stopTiming(); // Spigot
+    }
+ 
+    public boolean func_71262_S() {
+@@ -410,7 +_,7 @@
+       return this.func_213221_d_().field_219003_P;
+    }
+ 
+-   public int func_175580_aG() {
++    public int func_175580_aG() {
+       return this.func_213221_d_().field_219004_Q;
+    }
+ 
+@@ -489,13 +_,39 @@
+    }
+ 
+    public String func_71258_A() {
+-      return "";
++      // CraftBukkit start - Whole method
++      StringBuilder result = new StringBuilder();
++      Plugin[] plugins = this.server.getPluginManager().getPlugins();
++      result.append(this.server.getName());
++      result.append(" on Bukkit ");
++      result.append(this.server.getBukkitVersion());
++      if (plugins.length > 0 && this.server.getQueryPlugins()) {
++         result.append(": ");
++         for (int i = 0; i < plugins.length; ++i) {
++            if (i > 0) {
++               result.append("; ");
++            }
++            result.append(plugins[i].getDescription().getName());
++            result.append(" ");
++            result.append(plugins[i].getDescription().getVersion().replaceAll(";", ","));
++         }
++      }
++      return result.toString();
++      // CraftBukkit end
+    }
+ 
+    public String func_71252_i(String p_71252_1_) {
+       this.field_184115_n.func_70007_b();
+       this.func_213167_f(() -> {
+-         this.func_195571_aL().func_197059_a(this.field_184115_n.func_195540_f(), p_71252_1_);
++         // CraftBukkit start - fire RemoteServerCommandEvent
++         RemoteServerCommandEvent event = new RemoteServerCommandEvent(this.remoteConsole, p_71252_1_);
++         this.server.getPluginManager().callEvent(event);
++         if (event.isCancelled()) {
++            return;
++         }
++         PendingCommand serverCommand = new PendingCommand(event.getCommand(), this.field_184115_n.func_195540_f());
++         this.server.dispatchServerCommand(this.remoteConsole, serverCommand);
++         // CraftBukkit end
+       });
+       return this.field_184115_n.func_70008_c();
+    }
+@@ -515,6 +_,11 @@
+       return false;
+    }
+ 
++   @Override //Forge: Enable formated text for colors in console.
++   public void func_145747_a(net.minecraft.util.text.ITextComponent message, java.util.UUID p_145747_2_) {
++      field_155771_h.info(message.getString());
++   }
++
+    public int func_230512_b_(int p_230512_1_) {
+       return this.func_213221_d_().field_241081_R_ * p_230512_1_ / 100;
+    }
+@@ -531,4 +_,10 @@
+    public IChatFilter func_244435_a(ServerPlayerEntity p_244435_1_) {
+       return this.field_244714_r != null ? this.field_244714_r.func_244566_a(p_244435_1_.func_146103_bH()) : null;
+    }
++
++   @Override
++   public CommandSender getBukkitSender(CommandSource wrapper) {
++      return console;
++   }
++   // CraftBukkit end
+ }

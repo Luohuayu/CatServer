@@ -1,0 +1,116 @@
+--- a/net/minecraft/entity/merchant/villager/AbstractVillagerEntity.java
++++ b/net/minecraft/entity/merchant/villager/AbstractVillagerEntity.java
+@@ -3,6 +_,8 @@
+ import com.google.common.collect.Sets;
+ import java.util.Set;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.event.player.PlayerTradeEvent;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.entity.AgeableEntity;
+ import net.minecraft.entity.Entity;
+@@ -36,14 +_,29 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftAbstractVillager;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftMerchant;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftMerchantRecipe;
++import org.bukkit.entity.AbstractVillager;
++import org.bukkit.event.entity.VillagerAcquireTradeEvent;
+ 
+ public abstract class AbstractVillagerEntity extends AgeableEntity implements INPC, IMerchant {
++
++   // CraftBukkit start
++   private CraftMerchant craftMerchant;
++   @Override
++   public CraftMerchant getCraftMerchant() {
++      return (craftMerchant == null) ? craftMerchant = new CraftMerchant(this) : craftMerchant;
++   }
++   // CraftBukkit end
++
+    private static final DataParameter<Integer> field_222820_bA = EntityDataManager.func_187226_a(AbstractVillagerEntity.class, DataSerializers.field_187192_b);
+    @Nullable
+    private PlayerEntity field_213725_bA;
+    @Nullable
+    protected MerchantOffers field_213724_bz;
+-   private final Inventory field_213722_bB = new Inventory(8);
++   private final Inventory field_213722_bB = new Inventory(8, (CraftAbstractVillager) this.getBukkitEntity()); // CraftBukkit add argument
+ 
+    public AbstractVillagerEntity(EntityType<? extends AbstractVillagerEntity> p_i50185_1_, World p_i50185_2_) {
+       super(p_i50185_1_, p_i50185_2_);
+@@ -110,11 +_,35 @@
+    }
+ 
+    public void func_213704_a(MerchantOffer p_213704_1_) {
+-      p_213704_1_.func_222219_j();
+-      this.field_70757_a = -this.func_70627_aG();
+-      this.func_213713_b(p_213704_1_);
++      //p_213704_1_.increaseUses();
++      //this.ambientSoundTime = -this.getAmbientSoundInterval();
++      //this.rewardTradeXp(p_213704_1_);
++      // Paper start
+       if (this.field_213725_bA instanceof ServerPlayerEntity) {
+-         CriteriaTriggers.field_192138_r.func_215114_a((ServerPlayerEntity)this.field_213725_bA, this, p_213704_1_.func_222200_d());
++         //CriteriaTriggers.TRADE.trigger((ServerPlayerEntity)this.tradingPlayer, this, p_213704_1_.getResult());
++         PlayerTradeEvent event = new PlayerTradeEvent(
++                 ((ServerPlayerEntity) this.field_213725_bA).getBukkitEntity(),
++                 (AbstractVillager) this.getBukkitEntity(),
++                 p_213704_1_.asBukkit(),
++                 true,
++                 true
++         );
++         Bukkit.getServer().getPluginManager().callEvent(event);
++         if (!event.isCancelled()) {
++            MerchantOffer offer = CraftMerchantRecipe.fromBukkit(event.getTrade()).toMinecraft();
++            if (event.willIncreaseTradeUses()) {
++               offer.func_222219_j();
++            }
++            this.field_70757_a = -this.func_70627_aG();
++            if (event.isRewardingExp()) {
++               this.func_213713_b(offer);
++            }
++            CriteriaTriggers.field_192138_r.func_215114_a((ServerPlayerEntity)this.field_213725_bA, this, offer.func_222200_d());
++         }
++      } else {
++         p_213704_1_.func_222219_j();
++         this.field_70757_a = -this.func_70627_aG();
++         this.func_213713_b(p_213704_1_);
+       }
+ 
+    }
+@@ -165,9 +_,9 @@
+    }
+ 
+    @Nullable
+-   public Entity func_241206_a_(ServerWorld p_241206_1_) {
++   public Entity changeDimension(ServerWorld p_241206_1_, net.minecraftforge.common.util.ITeleporter teleporter) {
+       this.func_213750_eg();
+-      return super.func_241206_a_(p_241206_1_);
++      return super.changeDimension(p_241206_1_, teleporter);
+    }
+ 
+    protected void func_213750_eg() {
+@@ -234,10 +_,19 @@
+          VillagerTrades.ITrade villagertrades$itrade = p_213717_2_[integer];
+          MerchantOffer merchantoffer = villagertrades$itrade.func_221182_a(this, this.field_70146_Z);
+          if (merchantoffer != null) {
+-            p_213717_1_.add(merchantoffer);
++            // CraftBukkit start
++            VillagerAcquireTradeEvent event = new VillagerAcquireTradeEvent((AbstractVillager) getBukkitEntity(), merchantoffer.asBukkit());
++            // Suppress during worldgen
++            if (this.valid) {
++               Bukkit.getPluginManager().callEvent(event);
++            }
++            if (!event.isCancelled()) {
++               p_213717_1_.add(CraftMerchantRecipe.fromBukkit(event.getRecipe()).toMinecraft());
++            }
++            // CraftBukkit end
+          }
+-      }
+ 
++      }
+    }
+ 
+    @OnlyIn(Dist.CLIENT)

@@ -1,0 +1,239 @@
+--- a/net/minecraft/world/server/ChunkManager.java
++++ b/net/minecraft/world/server/ChunkManager.java
+@@ -12,6 +_,7 @@
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
+ import it.unimi.dsi.fastutil.longs.LongIterator;
+ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
+@@ -55,6 +_,7 @@
+ import net.minecraft.network.play.server.SUpdateChunkPositionPacket;
+ import net.minecraft.network.play.server.SUpdateLightPacket;
+ import net.minecraft.profiler.IProfiler;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.CSVWriter;
+ import net.minecraft.util.ClassInheritanceMultiMap;
+ import net.minecraft.util.Util;
+@@ -91,12 +_,14 @@
+ import org.apache.commons.lang3.mutable.MutableBoolean;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.entity.NPC;
++import org.bukkit.entity.Player;
+ 
+ public class ChunkManager extends ChunkLoader implements ChunkHolder.IPlayerProvider {
+    private static final Logger field_219250_d = LogManager.getLogger();
+    public static final int field_219249_a = 33 + ChunkStatus.func_222600_b();
+    private final Long2ObjectLinkedOpenHashMap<ChunkHolder> field_219251_e = new Long2ObjectLinkedOpenHashMap<>();
+-   private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> field_219252_f = this.field_219251_e.clone();
++   public volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> field_219252_f = this.field_219251_e.clone();
+    private final Long2ObjectLinkedOpenHashMap<ChunkHolder> field_219253_g = new Long2ObjectLinkedOpenHashMap<>();
+    private final LongSet field_219254_h = new LongOpenHashSet();
+    private final ServerWorld field_219255_i;
+@@ -110,13 +_,13 @@
+    private final ChunkTaskPriorityQueueSorter field_219263_q;
+    private final ITaskExecutor<ChunkTaskPriorityQueueSorter.FunctionEntry<Runnable>> field_219264_r;
+    private final ITaskExecutor<ChunkTaskPriorityQueueSorter.FunctionEntry<Runnable>> field_219265_s;
+-   private final IChunkStatusListener field_219266_t;
+-   private final ChunkManager.ProxyTicketManager field_219267_u;
++   public final IChunkStatusListener field_219266_t;
++   public final ChunkManager.ProxyTicketManager field_219267_u;
+    private final AtomicInteger field_219268_v = new AtomicInteger();
+    private final TemplateManager field_219269_w;
+    private final File field_219270_x;
+    private final PlayerGenerationTracker field_219271_y = new PlayerGenerationTracker();
+-   private final Int2ObjectMap<ChunkManager.EntityTracker> field_219272_z = new Int2ObjectOpenHashMap<>();
++   public final Int2ObjectMap<ChunkManager.EntityTracker> field_219272_z = new Int2ObjectOpenHashMap<>();
+    private final Long2ByteMap field_241087_z_ = new Long2ByteOpenHashMap();
+    private final Queue<Runnable> field_223181_A = Queues.newConcurrentLinkedQueue();
+    private int field_219247_A;
+@@ -176,12 +_,12 @@
+    }
+ 
+    @Nullable
+-   protected ChunkHolder func_219220_a(long p_219220_1_) {
++   public ChunkHolder func_219220_a(long p_219220_1_) {
+       return this.field_219251_e.get(p_219220_1_);
+    }
+ 
+    @Nullable
+-   protected ChunkHolder func_219219_b(long p_219219_1_) {
++   public ChunkHolder func_219219_b(long p_219219_1_) {
+       return this.field_219252_f.get(p_219219_1_);
+    }
+ 
+@@ -357,6 +_,8 @@
+ 
+    }
+ 
++   private static final double UNLOAD_QUEUE_RESIZE_FACTOR = 0.96; // Spigot
++
+    protected void func_219204_a(BooleanSupplier p_219204_1_) {
+       IProfiler iprofiler = this.field_219255_i.func_217381_Z();
+       iprofiler.func_76320_a("poi");
+@@ -400,6 +_,7 @@
+             if (this.field_219253_g.remove(p_219212_1_, p_219212_3_) && p_219185_5_ != null) {
+                if (p_219185_5_ instanceof Chunk) {
+                   ((Chunk)p_219185_5_).func_177417_c(false);
++                  net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkEvent.Unload((Chunk)p_219185_5_));
+                }
+ 
+                this.func_219229_a(p_219185_5_);
+@@ -581,25 +_,31 @@
+             chunk.func_217318_w();
+             if (this.field_219254_h.add(chunkpos.func_201841_a())) {
+                chunk.func_177417_c(true);
+-               this.field_219255_i.func_147448_a(chunk.func_177434_r().values());
+-               List<Entity> list = null;
+-               ClassInheritanceMultiMap<Entity>[] aclassinheritancemultimap = chunk.func_177429_s();
+-               int i = aclassinheritancemultimap.length;
++               try{
++                  p_219200_1_.currentlyLoading = chunk; //Forge - bypass the future chain when getChunk is called, this prevents deadlocks.
++                  this.field_219255_i.func_147448_a(chunk.func_177434_r().values());
++                  List<Entity> list = null;
++                  ClassInheritanceMultiMap<Entity>[] aclassinheritancemultimap = chunk.func_177429_s();
++                  int i = aclassinheritancemultimap.length;
+ 
+-               for(int j = 0; j < i; ++j) {
+-                  for(Entity entity : aclassinheritancemultimap[j]) {
+-                     if (!(entity instanceof PlayerEntity) && !this.field_219255_i.func_217440_f(entity)) {
+-                        if (list == null) {
+-                           list = Lists.newArrayList(entity);
+-                        } else {
+-                           list.add(entity);
++                  for(int j = 0; j < i; ++j) {
++                     for(Entity entity : aclassinheritancemultimap[j]) {
++                        if (!(entity instanceof PlayerEntity) && !this.field_219255_i.func_217440_f(entity)) {
++                           if (list == null) {
++                              list = Lists.newArrayList(entity);
++                           } else {
++                              list.add(entity);
++                           }
+                         }
+                      }
+                   }
+-               }
+ 
+-               if (list != null) {
+-                  list.forEach(chunk::func_76622_b);
++                  if (list != null) {
++                     list.forEach(chunk::func_76622_b);
++                  }
++                  net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkEvent.Load(chunk));
++            } finally {
++                  p_219200_1_.currentlyLoading = null;//Forge - Stop bypassing the future chain.
+                }
+             }
+ 
+@@ -678,6 +_,7 @@
+ 
+             this.field_219255_i.func_217381_Z().func_230035_c_("chunkSave");
+             CompoundNBT compoundnbt = ChunkSerializer.func_222645_a(this.field_219255_i, p_219229_1_);
++            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Save(p_219229_1_, p_219229_1_.getWorldForge() != null ? p_219229_1_.getWorldForge() : this.field_219255_i, compoundnbt));
+             this.func_219100_a(chunkpos, compoundnbt);
+             this.func_241088_a_(chunkpos, chunkstatus.func_202129_d());
+             return true;
+@@ -734,6 +_,7 @@
+ 
+    protected void func_219199_a(ServerPlayerEntity p_219199_1_, ChunkPos p_219199_2_, IPacket<?>[] p_219199_3_, boolean p_219199_4_, boolean p_219199_5_) {
+       if (p_219199_1_.field_70170_p == this.field_219255_i) {
++         net.minecraftforge.event.ForgeEventFactory.fireChunkWatch(p_219199_4_, p_219199_5_, p_219199_1_, p_219199_2_, this.field_219255_i);
+          if (p_219199_5_ && !p_219199_4_) {
+             ChunkHolder chunkholder = this.func_219219_b(p_219199_2_.func_201841_a());
+             if (chunkholder != null) {
+@@ -806,9 +_,20 @@
+    }
+ 
+    boolean func_219243_d(ChunkPos p_219243_1_) {
+-      long i = p_219243_1_.func_201841_a();
++      // Spigot start
++      return isOutsideOfRange(p_219243_1_, false);
++   }
++
++   boolean isOutsideOfRange(ChunkPos chunkPosIn, boolean reducedRange) {
++      int chunkRange = field_219255_i.spigotConfig.mobSpawnRange;
++      chunkRange = (chunkRange > field_219255_i.spigotConfig.viewDistance) ? (byte) field_219255_i.spigotConfig.viewDistance : chunkRange;
++      chunkRange = (chunkRange > 8) ? 8 : chunkRange;
++      double blockRange = (reducedRange) ? Math.pow(chunkRange << 4, 2) : 16384.0D;
++      // Spigot end
++
++      long i = chunkPosIn.func_201841_a();
+       return !this.field_219267_u.func_223494_d(i) ? true : this.field_219271_y.func_219444_a(i).noneMatch((p_219201_1_) -> {
+-         return !p_219201_1_.func_175149_v() && func_219217_a(p_219243_1_, p_219201_1_) < 16384.0D;
++         return !p_219201_1_.func_175149_v() && func_219217_a(chunkPosIn, p_219201_1_) < blockRange; // Spigot
+       });
+    }
+ 
+@@ -942,9 +_,10 @@
+    }
+ 
+    protected void func_219210_a(Entity p_219210_1_) {
+-      if (!(p_219210_1_ instanceof EnderDragonPartEntity)) {
++      if (!(p_219210_1_ instanceof net.minecraftforge.entity.PartEntity)) {
+          EntityType<?> entitytype = p_219210_1_.func_200600_R();
+          int i = entitytype.func_233602_m_() * 16;
++         i = org.spigotmc.TrackingRange.getEntityTrackingRange(p_219210_1_, i); // Spigot
+          int j = entitytype.func_220332_l();
+          if (this.field_219272_z.containsKey(p_219210_1_.func_145782_y())) {
+             throw (IllegalStateException)Util.func_229757_c_(new IllegalStateException("Entity is already tracked!"));
+@@ -1077,15 +_,30 @@
+       });
+    }
+ 
+-   class EntityTracker {
++   public void removeTracker(ChunkManager tracker, ServerPlayerEntity playerEntity, int entityId) {
++      ChunkManager.EntityTracker entry = tracker.field_219272_z.get(entityId);
++      if (entry != null) {
++         entry.func_219399_a(playerEntity);
++      }
++   }
++
++   public void updateTrackingState(ChunkManager tracker, ServerPlayerEntity playerEntity, int entityId) {
++      ChunkManager.EntityTracker entry = tracker.field_219272_z.get(entityId);
++      if (entry != null && !entry.field_219406_f.contains(playerEntity)) {
++         entry.func_219400_b(playerEntity);
++      }
++   }
++
++   public class EntityTracker {
+       private final TrackedEntity field_219402_b;
+       private final Entity field_219403_c;
+       private final int field_219404_d;
+       private SectionPos field_219405_e;
+-      private final Set<ServerPlayerEntity> field_219406_f = Sets.newHashSet();
++      public final Set<ServerPlayerEntity> field_219406_f = Sets.newHashSet();
+ 
+       public EntityTracker(Entity p_i50468_2_, int p_i50468_3_, int p_i50468_4_, boolean p_i50468_5_) {
+          this.field_219402_b = new TrackedEntity(ChunkManager.this.field_219255_i, p_i50468_2_, p_i50468_4_, p_i50468_5_, this::func_219391_a);
++         this.field_219402_b.setTrackedPlayers(field_219406_f);
+          this.field_219403_c = p_i50468_2_;
+          this.field_219404_d = p_i50468_3_;
+          this.field_219405_e = SectionPos.func_218157_a(p_i50468_2_);
+@@ -1134,7 +_,7 @@
+ 
+       public void func_219400_b(ServerPlayerEntity p_219400_1_) {
+          if (p_219400_1_ != this.field_219403_c) {
+-            Vector3d vector3d = p_219400_1_.func_213303_ch().func_178788_d(this.field_219402_b.func_219456_b());
++            Vector3d vector3d = p_219400_1_.func_213303_ch().func_178788_d(this.field_219403_c.func_213303_ch());  // MC-155077, SPIGOT-5113
+             int i = Math.min(this.func_229843_b_(), (ChunkManager.this.field_219247_A - 1) * 16);
+             boolean flag = vector3d.field_72450_a >= (double)(-i) && vector3d.field_72450_a <= (double)i && vector3d.field_72449_c >= (double)(-i) && vector3d.field_72449_c <= (double)i && this.field_219403_c.func_174827_a(p_219400_1_);
+             if (flag) {
+@@ -1146,6 +_,16 @@
+                      flag1 = ChunkManager.func_219215_b(chunkpos, p_219400_1_, false) <= ChunkManager.this.field_219247_A;
+                   }
+                }
++
++               // CraftBukkit start - respect vanish API
++               if (this.field_219403_c instanceof ServerPlayerEntity) {
++                  Player craftPlayer = ((ServerPlayerEntity) this.field_219403_c).getBukkitEntity();
++                  if (!p_219400_1_.getBukkitEntity().canSee(craftPlayer)) {
++                     flag1 = false;
++                  }
++               }
++               p_219400_1_.field_71130_g.remove(Integer.valueOf(this.field_219403_c.func_145782_y()));
++               // CraftBukkit end
+ 
+                if (flag1 && this.field_219406_f.add(p_219400_1_)) {
+                   this.field_219402_b.func_219455_b(p_219400_1_);

@@ -1,0 +1,54 @@
+--- a/net/minecraft/dispenser/ProjectileDispenseBehavior.java
++++ b/net/minecraft/dispenser/ProjectileDispenseBehavior.java
+@@ -1,20 +_,47 @@
+ package net.minecraft.dispenser;
+ 
+ import net.minecraft.block.DispenserBlock;
++import net.minecraft.entity.Entity;
+ import net.minecraft.entity.projectile.ProjectileEntity;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.util.Direction;
+ import net.minecraft.world.World;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
+ 
+ public abstract class ProjectileDispenseBehavior extends DefaultDispenseItemBehavior {
+    public ItemStack func_82487_b(IBlockSource p_82487_1_, ItemStack p_82487_2_) {
+       World world = p_82487_1_.func_197524_h();
+       IPosition iposition = DispenserBlock.func_149939_a(p_82487_1_);
+       Direction direction = p_82487_1_.func_189992_e().func_177229_b(DispenserBlock.field_176441_a);
+-      ProjectileEntity projectileentity = this.func_82499_a(world, iposition, p_82487_2_);
+-      projectileentity.func_70186_c((double)direction.func_82601_c(), (double)((float)direction.func_96559_d() + 0.1F), (double)direction.func_82599_e(), this.func_82500_b(), this.func_82498_a());
+-      world.func_217376_c(projectileentity);
+-      p_82487_2_.func_190918_g(1);
++      ProjectileEntity iprojectile = this.func_82499_a(world, iposition, p_82487_2_);
++      // CraftBukkit start
++      ItemStack itemstack2 = p_82487_2_.func_77979_a(1);
++      org.bukkit.block.Block block = world.getWorld().getBlockAt(p_82487_1_.func_180699_d().func_177958_n(), p_82487_1_.func_180699_d().func_177956_o(), p_82487_1_.func_180699_d().func_177952_p());
++      CraftItemStack craftItem = CraftItemStack.asCraftMirror(itemstack2);
++      BlockDispenseEvent event = new BlockDispenseEvent(block, craftItem.clone(), new org.bukkit.util.Vector(direction.func_82601_c(), direction.func_96559_d() + 0.1f, (double) direction.func_82599_e()));
++      if (!DispenserBlock.eventFired) {
++         world.getCBServer().getPluginManager().callEvent(event);
++      }
++      if (event.isCancelled()) {
++         p_82487_2_.func_190917_f(1);
++         return p_82487_2_;
++      }
++      if (!event.getItem().equals(craftItem)) {
++         p_82487_2_.func_190917_f(1);
++         // Chain to handler for new item
++         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
++         IDispenseItemBehavior idispensebehavior = DispenserBlock.field_149943_a.get(eventStack.func_77973_b());
++         if (idispensebehavior != IDispenseItemBehavior.field_223216_a_ && idispensebehavior != this) {
++            idispensebehavior.dispense(p_82487_1_, eventStack);
++            return p_82487_2_;
++         }
++      }
++      iprojectile.func_70186_c(event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), this.func_82500_b(), this.func_82498_a());
++      ((Entity) iprojectile).projectileSource = new org.bukkit.craftbukkit.v1_16_R3.projectiles.CraftBlockProjectileSource(p_82487_1_.func_150835_j());
++      // CraftBukkit end
++      world.func_217376_c((Entity) iprojectile);
++      // stack.shrink(1); // CraftBukkit - Handled during event processing
+       return p_82487_2_;
+    }
+ 

@@ -1,0 +1,153 @@
+--- a/net/minecraft/entity/player/PlayerInventory.java
++++ b/net/minecraft/entity/player/PlayerInventory.java
+@@ -1,6 +_,7 @@
+ package net.minecraft.entity.player;
+ 
+ import com.google.common.collect.ImmutableList;
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.function.Predicate;
+ import net.minecraft.block.BlockState;
+@@ -26,6 +_,10 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.inventory.InventoryHolder;
+ 
+ public class PlayerInventory implements IInventory, INameable {
+    public final NonNullList<ItemStack> field_70462_a = NonNullList.func_191197_a(36, ItemStack.field_190927_a);
+@@ -37,6 +_,57 @@
+    private ItemStack field_70457_g = ItemStack.field_190927_a;
+    private int field_194017_h;
+ 
++   // CraftBukkit start - add fields and methods
++   private int maxStack = MAX_STACK;
++   public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++
++   @Override
++   public int func_70297_j_() {
++      return this.maxStack;
++   }
++
++   public List<ItemStack> getArmorContents() {
++      return this.field_70460_b;
++   }
++
++   @Override
++   public List<ItemStack> getContents() {
++      final List<ItemStack> combined = new ArrayList<>(this.field_70462_a.size() + this.field_70460_b.size() + this.field_184439_c.size());
++      this.field_184440_g.forEach(combined::addAll);
++      return combined;
++   }
++
++   @Override
++   public void onOpen(CraftHumanEntity who) {
++      this.transaction.add(who);
++   }
++
++   @Override
++   public void onClose(CraftHumanEntity who) {
++      this.transaction.remove(who);
++   }
++
++   @Override
++   public List<HumanEntity> getViewers() {
++      return this.transaction;
++   }
++
++   @Override
++   public InventoryHolder getOwner() {
++      return this.field_70458_d.getBukkitEntity();
++   }
++
++   @Override
++   public void setMaxStackSize(int size) {
++      this.maxStack = size;
++   }
++
++   @Override
++   public Location getLocation() {
++      return this.field_70458_d.getBukkitEntity().getLocation();
++   }
++   // CraftBukkit end
++
+    public PlayerInventory(PlayerEntity p_i1750_1_) {
+       this.field_70458_d = p_i1750_1_;
+    }
+@@ -57,6 +_,33 @@
+       return p_184431_1_.func_77973_b() == p_184431_2_.func_77973_b() && ItemStack.func_77970_a(p_184431_1_, p_184431_2_);
+    }
+ 
++
++   // CraftBukkit start - Watch method above! :D
++   public int canHold(final ItemStack itemstack) {
++      int remains = itemstack.func_190916_E();
++      for (int i = 0; i < this.field_70462_a.size(); ++i) {
++         ItemStack itemstack2 = this.func_70301_a(i);
++         if (itemstack2.func_190926_b()) {
++            return itemstack.func_190916_E();
++         }
++         if (this.func_184436_a(itemstack2, itemstack)) {
++            remains -= ((itemstack2.func_77976_d() < this.func_70297_j_()) ? itemstack2.func_77976_d() : this.func_70297_j_()) - itemstack2.func_190916_E();
++         }
++         if (remains <= 0) {
++            return itemstack.func_190916_E();
++         }
++      }
++      ItemStack offhandItemStack = this.func_70301_a(this.field_70462_a.size() + this.field_70460_b.size());
++      if (this.func_184436_a(offhandItemStack, itemstack)) {
++         remains -= ((offhandItemStack.func_77976_d() < this.func_70297_j_()) ? offhandItemStack.func_77976_d() : this.func_70297_j_()) - offhandItemStack.func_190916_E();
++      }
++      if (remains <= 0) {
++         return itemstack.func_190916_E();
++      }
++      return itemstack.func_190916_E() - remains;
++   }
++   // CraftBukkit end
++
+    public int func_70447_i() {
+       for(int i = 0; i < this.field_70462_a.size(); ++i) {
+          if (this.field_70462_a.get(i).func_190926_b()) {
+@@ -187,7 +_,8 @@
+       int i = p_191973_2_.func_190916_E();
+       ItemStack itemstack = this.func_70301_a(p_191973_1_);
+       if (itemstack.func_190926_b()) {
+-         itemstack = new ItemStack(item, 0);
++         itemstack = p_191973_2_.func_77946_l(); // Forge: Replace Item clone above to preserve item capabilities when picking the item up.
++         itemstack.func_190920_e(0);
+          if (p_191973_2_.func_77942_o()) {
+             itemstack.func_77982_d(p_191973_2_.func_77978_p().func_74737_b());
+          }
+@@ -238,7 +_,7 @@
+             }
+          }
+       }
+-
++      field_70460_b.forEach(e -> e.onArmorTick(field_70458_d.field_70170_p, field_70458_d));
+    }
+ 
+    public boolean func_70441_a(ItemStack p_70441_1_) {
+@@ -287,6 +_,8 @@
+          } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.func_85055_a(throwable, "Adding item to inventory");
+             CrashReportCategory crashreportcategory = crashreport.func_85058_a("Item being added");
++            crashreportcategory.func_189529_a("Registry Name", () -> String.valueOf(p_191971_2_.func_77973_b().getRegistryName()));
++            crashreportcategory.func_189529_a("Item Class", () -> p_191971_2_.func_77973_b().getClass().getName());
+             crashreportcategory.func_71507_a("Item ID", Item.func_150891_b(p_191971_2_.func_77973_b()));
+             crashreportcategory.func_71507_a("Item data", p_191971_2_.func_77952_i());
+             crashreportcategory.func_189529_a("Item name", () -> {
+@@ -539,6 +_,11 @@
+    }
+ 
+    public ItemStack func_70445_o() {
++      // CraftBukkit start
++      if (this.field_70457_g.func_190926_b()) {
++         this.func_70437_b(ItemStack.field_190927_a);
++      }
++      // CraftBukkit end
+       return this.field_70457_g;
+    }
+ 

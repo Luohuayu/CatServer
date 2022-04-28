@@ -1,0 +1,209 @@
+--- a/net/minecraft/tileentity/BrewingStandTileEntity.java
++++ b/net/minecraft/tileentity/BrewingStandTileEntity.java
+@@ -1,6 +_,8 @@
+ package net.minecraft.tileentity;
+ 
++import java.util.ArrayList;
+ import java.util.Arrays;
++import java.util.List;
+ import javax.annotation.Nullable;
+ import net.minecraft.block.BlockState;
+ import net.minecraft.block.BrewingStandBlock;
+@@ -16,22 +_,67 @@
+ import net.minecraft.item.Items;
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.potion.PotionBrewing;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.Direction;
+ import net.minecraft.util.IIntArray;
+ import net.minecraft.util.NonNullList;
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.TranslationTextComponent;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.inventory.BrewEvent;
++import org.bukkit.event.inventory.BrewingStandFuelEvent;
++import org.bukkit.inventory.InventoryHolder;
+ 
+ public class BrewingStandTileEntity extends LockableTileEntity implements ISidedInventory, ITickableTileEntity {
+    private static final int[] field_145941_a = new int[]{3};
+    private static final int[] field_184277_f = new int[]{0, 1, 2, 3};
+    private static final int[] field_145947_i = new int[]{0, 1, 2, 4};
+    private NonNullList<ItemStack> field_145945_j = NonNullList.func_191197_a(5, ItemStack.field_190927_a);
+-   private int field_145946_k;
++   public int field_145946_k;
+    private boolean[] field_145943_l;
+    private Item field_145944_m;
+-   private int field_184278_m;
++   public int field_184278_m; // private->public CraftBukkit
++
++   // CraftBukkit start - add fields and methods
++   private int lastTick = MinecraftServer.currentTick;
++   private List<HumanEntity> transaction = new ArrayList<>();
++   private int maxStack = MAX_STACK;
++
++   @Override
++   public List<ItemStack> getContents() {
++      return this.field_145945_j;
++   }
++
++   @Override
++   public void onOpen(CraftHumanEntity who) {
++      this.transaction.add(who);
++   }
++
++   @Override
++   public void onClose(CraftHumanEntity who) {
++      this.transaction.remove(who);
++   }
++
++   @Override
++   public List<HumanEntity> getViewers() {
++      return this.transaction;
++   }
++
++   @Override
++   public void setMaxStackSize(int size) {
++      this.maxStack = size;
++   }
++
++   @Override
++   public int func_70297_j_() {
++      return maxStack;
++   }
++
++   // CraftBukkit end
++
+    protected final IIntArray field_213954_a = new IIntArray() {
+       public int func_221476_a(int p_221476_1_) {
+          switch(p_221476_1_) {
+@@ -85,17 +_,32 @@
+    public void func_73660_a() {
+       ItemStack itemstack = this.field_145945_j.get(4);
+       if (this.field_184278_m <= 0 && itemstack.func_77973_b() == Items.field_151065_br) {
+-         this.field_184278_m = 20;
++         // CraftBukkit start
++         BrewingStandFuelEvent event = new BrewingStandFuelEvent(field_145850_b.getWorld().getBlockAt(this.field_174879_c.func_177958_n(), this.field_174879_c.func_177956_o(), this.field_174879_c.func_177952_p()), CraftItemStack.asCraftMirror(itemstack), 20);
++         this.field_145850_b.getCBServer().getPluginManager().callEvent(event);
++         if (event.isCancelled()) {
++            return;
++         }
++         this.field_184278_m = event.getFuelPower();
++         if (this.field_184278_m > 0 && event.isConsuming()) {
+          itemstack.func_190918_g(1);
++         }
++         // CraftBukkit end
+          this.func_70296_d();
+       }
+ 
+       boolean flag = this.func_145934_k();
+       boolean flag1 = this.field_145946_k > 0;
+       ItemStack itemstack1 = this.field_145945_j.get(3);
++
++      // CraftBukkit start - Use wall time instead of ticks for brewing
++      int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++      this.lastTick = MinecraftServer.currentTick;
++
+       if (flag1) {
+-         --this.field_145946_k;
+-         boolean flag2 = this.field_145946_k == 0;
++         this.field_145946_k -= elapsedTicks;
++         boolean flag2 = this.field_145946_k <= 0; // == -> <=
++         // CraftBukkit end
+          if (flag2 && flag) {
+             this.func_145940_l();
+             this.func_70296_d();
+@@ -146,6 +_,7 @@
+ 
+    private boolean func_145934_k() {
+       ItemStack itemstack = this.field_145945_j.get(3);
++      if (!itemstack.func_190926_b()) return net.minecraftforge.common.brewing.BrewingRecipeRegistry.canBrew(field_145945_j, itemstack, field_145947_i); // divert to VanillaBrewingRegistry
+       if (itemstack.func_190926_b()) {
+          return false;
+       } else if (!PotionBrewing.func_185205_a(itemstack)) {
+@@ -163,22 +_,33 @@
+    }
+ 
+    private void func_145940_l() {
++      if (net.minecraftforge.event.ForgeEventFactory.onPotionAttemptBrew(field_145945_j)) return;
+       ItemStack itemstack = this.field_145945_j.get(3);
+ 
+-      for(int i = 0; i < 3; ++i) {
+-         this.field_145945_j.set(i, PotionBrewing.func_185212_d(itemstack, this.field_145945_j.get(i)));
++      // CraftBukkit start
++      InventoryHolder owner = this.getOwner();
++      if (owner != null) {
++         BrewEvent event = new BrewEvent(field_145850_b.getWorld().getBlockAt(this.field_174879_c.func_177958_n(), this.field_174879_c.func_177956_o(), this.field_174879_c.func_177952_p()), (org.bukkit.inventory.BrewerInventory) owner.getInventory(), this.field_184278_m);
++         org.bukkit.Bukkit.getPluginManager().callEvent(event);
++         if (event.isCancelled()) {
++            return;
++         }
+       }
++      // CraftBukkit end
+ 
+-      itemstack.func_190918_g(1);
++      net.minecraftforge.common.brewing.BrewingRecipeRegistry.brewPotions(field_145945_j, itemstack, field_145947_i);
++      net.minecraftforge.event.ForgeEventFactory.onPotionBrewed(field_145945_j);
+       BlockPos blockpos = this.func_174877_v();
+-      if (itemstack.func_77973_b().func_77634_r()) {
+-         ItemStack itemstack1 = new ItemStack(itemstack.func_77973_b().func_77668_q());
++      if (itemstack.hasContainerItem()) {
++         ItemStack itemstack1 = itemstack.getContainerItem();
++         itemstack.func_190918_g(1);
+          if (itemstack.func_190926_b()) {
+             itemstack = itemstack1;
+          } else if (!this.field_145850_b.field_72995_K) {
+             InventoryHelper.func_180173_a(this.field_145850_b, (double)blockpos.func_177958_n(), (double)blockpos.func_177956_o(), (double)blockpos.func_177952_p(), itemstack1);
+          }
+       }
++      else itemstack.func_190918_g(1);
+ 
+       this.field_145945_j.set(3, itemstack);
+       this.field_145850_b.func_217379_c(1035, blockpos, 0);
+@@ -229,13 +_,13 @@
+ 
+    public boolean func_94041_b(int p_94041_1_, ItemStack p_94041_2_) {
+       if (p_94041_1_ == 3) {
+-         return PotionBrewing.func_185205_a(p_94041_2_);
++         return net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidIngredient(p_94041_2_);
+       } else {
+          Item item = p_94041_2_.func_77973_b();
+          if (p_94041_1_ == 4) {
+             return item == Items.field_151065_br;
+          } else {
+-            return (item == Items.field_151068_bn || item == Items.field_185155_bH || item == Items.field_185156_bI || item == Items.field_151069_bo) && this.func_70301_a(p_94041_1_).func_190926_b();
++            return net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidInput(p_94041_2_) && this.func_70301_a(p_94041_1_).func_190926_b();
+          }
+       }
+    }
+@@ -266,5 +_,28 @@
+ 
+    protected Container func_213906_a(int p_213906_1_, PlayerInventory p_213906_2_) {
+       return new BrewingStandContainer(p_213906_1_, p_213906_2_, this, this.field_213954_a);
++   }
++
++   net.minecraftforge.common.util.LazyOptional<? extends net.minecraftforge.items.IItemHandler>[] handlers =
++           net.minecraftforge.items.wrapper.SidedInvWrapper.create(this, Direction.UP, Direction.DOWN, Direction.NORTH);
++
++   @Override
++   public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable Direction facing) {
++      if (!this.field_145846_f && facing != null && capability == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
++         if (facing == Direction.UP)
++            return handlers[0].cast();
++         else if (facing == Direction.DOWN)
++            return handlers[1].cast();
++         else
++            return handlers[2].cast();
++      }
++      return super.getCapability(capability, facing);
++   }
++
++   @Override
++   protected void invalidateCaps() {
++      super.invalidateCaps();
++      for (int x = 0; x < handlers.length; x++)
++        handlers[x].invalidate();
+    }
+ }

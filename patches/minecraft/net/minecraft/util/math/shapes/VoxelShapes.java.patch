@@ -1,0 +1,65 @@
+--- a/net/minecraft/util/math/shapes/VoxelShapes.java
++++ b/net/minecraft/util/math/shapes/VoxelShapes.java
+@@ -332,31 +_,48 @@
+       }
+    }
+ 
++   // Paper start - Optimize Voxel Shape Merging
+    @VisibleForTesting
+-   protected static IDoubleListMerger func_199410_a(int p_199410_0_, DoubleList p_199410_1_, DoubleList p_199410_2_, boolean p_199410_3_, boolean p_199410_4_) {
+-      int i = p_199410_1_.size() - 1;
+-      int j = p_199410_2_.size() - 1;
+-      if (p_199410_1_ instanceof DoubleRangeList && p_199410_2_ instanceof DoubleRangeList) {
++   private static IDoubleListMerger func_199410_a(int p_199410_0_, DoubleList p_199410_1_, DoubleList p_199410_2_, boolean p_199410_3_, boolean p_199410_4_) {
++       // fast track the most common scenario
++       // doublelist is usually a DoubleArrayList with Infinite head/tails that falls to the final else clause
++       // This is actually the most common path, so jump to it straight away
++       if (p_199410_1_.getDouble(0) == Double.NEGATIVE_INFINITY && p_199410_1_.getDouble(p_199410_1_.size() - 1) == Double.POSITIVE_INFINITY) {
++           return new IndirectMerger(p_199410_1_, p_199410_2_, p_199410_3_, p_199410_4_);
++       }
++       // Split out rest to hopefully inline the above
++       return lessCommonMerge(p_199410_0_, p_199410_1_, p_199410_2_, p_199410_3_, p_199410_4_);
++   }
++
++   private static IDoubleListMerger lessCommonMerge(int p_199410_0_, DoubleList list1, DoubleList list2, boolean p_199410_3_, boolean p_199410_4_) {
++      int i = list1.size() - 1;
++      int j = list2.size() - 1;
++      if (list1 instanceof DoubleRangeList && list2 instanceof DoubleRangeList) {
+          long k = func_197877_a(i, j);
+          if ((long)p_199410_0_ * k <= 256L) {
+             return new DoubleCubeMergingList(i, j);
+          }
+       }
+ 
+-      if (p_199410_1_.getDouble(i) < p_199410_2_.getDouble(0) - 1.0E-7D) {
+-         return new NonOverlappingMerger(p_199410_1_, p_199410_2_, false);
+-      } else if (p_199410_2_.getDouble(j) < p_199410_1_.getDouble(0) - 1.0E-7D) {
+-         return new NonOverlappingMerger(p_199410_2_, p_199410_1_, true);
+-      } else if (i == j && Objects.equals(p_199410_1_, p_199410_2_)) {
+-         if (p_199410_1_ instanceof SimpleDoubleMerger) {
+-            return (IDoubleListMerger)p_199410_1_;
+-         } else {
+-            return (IDoubleListMerger)(p_199410_2_ instanceof SimpleDoubleMerger ? (IDoubleListMerger)p_199410_2_ : new SimpleDoubleMerger(p_199410_1_));
++      // Rewrite below as optimized order if instead of nasty ternary
++      // Identical happens more often than Disjoint
++      if (i == j && Objects.equals(list1, list2)) {
++         if (list1 instanceof SimpleDoubleMerger) {
++            return (IDoubleListMerger)list1;
++         } else if (list2 instanceof SimpleDoubleMerger) {
++            return (IDoubleListMerger)list2;
+          }
++         return new SimpleDoubleMerger(list1);
++      }
++      else if (list1.getDouble(i) < list2.getDouble(0) - 1.0E-7D) {
++         return new NonOverlappingMerger(list1, list2, false);
++      } else if (list2.getDouble(j) < list1.getDouble(0) - 1.0E-7D) {
++         return new NonOverlappingMerger(list2, list1, true);
+       } else {
+-         return new IndirectMerger(p_199410_1_, p_199410_2_, p_199410_3_, p_199410_4_);
++         return new IndirectMerger(list1, list2, p_199410_3_, p_199410_4_);
+       }
+    }
++   // Paper end
+ 
+    public interface ILineConsumer {
+       void consume(double p_consume_1_, double p_consume_3_, double p_consume_5_, double p_consume_7_, double p_consume_9_, double p_consume_11_);

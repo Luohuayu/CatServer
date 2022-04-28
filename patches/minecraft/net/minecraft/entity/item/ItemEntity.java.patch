@@ -1,0 +1,333 @@
+--- a/net/minecraft/entity/item/ItemEntity.java
++++ b/net/minecraft/entity/item/ItemEntity.java
+@@ -16,6 +_,7 @@
+ import net.minecraft.network.datasync.DataSerializers;
+ import net.minecraft.network.datasync.EntityDataManager;
+ import net.minecraft.network.play.server.SSpawnObjectPacket;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.tags.FluidTags;
+ import net.minecraft.util.DamageSource;
+@@ -29,15 +_,23 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityPickupItemEvent;
++import org.bukkit.event.player.PlayerPickupItemEvent;
+ 
+ public class ItemEntity extends Entity {
+    private static final DataParameter<ItemStack> field_184533_c = EntityDataManager.func_187226_a(ItemEntity.class, DataSerializers.field_187196_f);
+-   private int field_70292_b;
+-   private int field_145804_b;
++   public int field_70292_b;
++   public int field_145804_b;
+    private int field_70291_e = 5;
+    private UUID field_145801_f;
+    private UUID field_145802_g;
+    public final float field_70290_d;
++   /**
++    * The maximum age of this EntityItem.  The item is expired once this is reached.
++    */
++   public int lifespan = 6000;
++   private int lastTick = MinecraftServer.currentTick - 1; // CraftBukkit
+ 
+    public ItemEntity(EntityType<? extends ItemEntity> p_i50217_1_, World p_i50217_2_) {
+       super(p_i50217_1_, p_i50217_2_);
+@@ -54,6 +_,7 @@
+    public ItemEntity(World p_i1710_1_, double p_i1710_2_, double p_i1710_4_, double p_i1710_6_, ItemStack p_i1710_8_) {
+       this(p_i1710_1_, p_i1710_2_, p_i1710_4_, p_i1710_6_);
+       this.func_92058_a(p_i1710_8_);
++      this.lifespan = (p_i1710_8_.func_77973_b() == null ? 6000 : p_i1710_8_.getEntityLifespan(p_i1710_1_));
+    }
+ 
+    @OnlyIn(Dist.CLIENT)
+@@ -74,13 +_,17 @@
+    }
+ 
+    public void func_70071_h_() {
++      if (func_92059_d().onEntityItemUpdate(this)) return;
+       if (this.func_92059_d().func_190926_b()) {
+          this.func_70106_y();
+       } else {
+          super.func_70071_h_();
+-         if (this.field_145804_b > 0 && this.field_145804_b != 32767) {
+-            --this.field_145804_b;
+-         }
++         // CraftBukkit start - Use wall time for pickup and despawn timers
++         int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++         if (this.field_145804_b != 32767) this.field_145804_b -= elapsedTicks;
++         if (this.field_70292_b != -32768) this.field_70292_b += elapsedTicks;
++         this.lastTick = MinecraftServer.currentTick;
++         // CraftBukkit end
+ 
+          this.field_70169_q = this.func_226277_ct_();
+          this.field_70167_r = this.func_226278_cu_();
+@@ -104,11 +_,11 @@
+             }
+          }
+ 
+-         if (!this.field_70122_E || func_213296_b(this.func_213322_ci()) > (double)1.0E-5F || (this.field_70173_aa + this.func_145782_y()) % 4 == 0) {
++         if (!this.field_70122_E || func_213296_b(this.func_213322_ci()) > (double)1.0E-5F || this.field_70173_aa % 4 == 0) { // Paper - Ensure checking item movement is always offset from Spigot's entity activation range check
+             this.func_213315_a(MoverType.SELF, this.func_213322_ci());
+             float f1 = 0.98F;
+             if (this.field_70122_E) {
+-               f1 = this.field_70170_p.func_180495_p(new BlockPos(this.func_226277_ct_(), this.func_226278_cu_() - 1.0D, this.func_226281_cx_())).func_177230_c().func_208618_m() * 0.98F;
++               f1 = this.field_70170_p.func_180495_p(new BlockPos(this.func_226277_ct_(), this.func_226278_cu_() - 1.0D, this.func_226281_cx_())).getSlipperiness(field_70170_p, new BlockPos(this.func_226277_ct_(), func_226278_cu_() - 1.0D, func_226281_cx_()), this) * 0.98F;
+             }
+ 
+             this.func_213317_d(this.func_213322_ci().func_216372_d((double)f1, 0.98D, (double)f1));
+@@ -132,9 +_,11 @@
+             }
+          }
+ 
+-         if (this.field_70292_b != -32768) {
+-            ++this.field_70292_b;
++         /* CraftBukkit start - moved up
++         if (this.age != -32768) {
++            ++this.age;
+          }
++         // CraftBukkit end */
+ 
+          this.field_70160_al |= this.func_233566_aG_();
+          if (!this.field_70170_p.field_72995_K) {
+@@ -144,12 +_,46 @@
+             }
+          }
+ 
+-         if (!this.field_70170_p.field_72995_K && this.field_70292_b >= 6000) {
++         ItemStack item = this.func_92059_d();
++         if (!this.field_70170_p.field_72995_K && this.field_70292_b >= field_70170_p.spigotConfig.itemDespawnRate) { // Spigot
++            // CraftBukkit start - fire ItemDespawnEvent
++            if (CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
++               this.field_70292_b = 0;
++               return;
++            }
++            // CraftBukkit end
++             int hook = net.minecraftforge.event.ForgeEventFactory.onItemExpire(this, item);
++             if (hook < 0) this.func_70106_y();
++             else          this.lifespan += hook;
++         }
++
++         if (item.func_190926_b()) {
+             this.func_70106_y();
+          }
+ 
+       }
+    }
++
++   // Spigot start - copied from above
++   @Override
++   public void inactiveTick() {
++      // CraftBukkit start - Use wall time for pickup and despawn timers
++      int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
++      if (this.field_145804_b != 32767) this.field_145804_b -= elapsedTicks;
++      if (this.field_70292_b != -32768) this.field_70292_b += elapsedTicks;
++      this.lastTick = MinecraftServer.currentTick;
++      // CraftBukkit end
++      if (!this.field_70170_p.field_72995_K && this.field_70292_b >= field_70170_p.spigotConfig.itemDespawnRate) { // Spigot
++         // CraftBukkit start - fire ItemDespawnEvent
++         if (org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
++            this.field_70292_b = 0;
++            return;
++         }
++         // CraftBukkit end
++         this.func_70106_y();
++      }
++   }
++   // Spigot end
+ 
+    private void func_203043_v() {
+       Vector3d vector3d = this.func_213322_ci();
+@@ -161,21 +_,45 @@
+       this.func_213293_j(vector3d.field_72450_a * (double)0.95F, vector3d.field_72448_b + (double)(vector3d.field_72448_b < (double)0.06F ? 5.0E-4F : 0.0F), vector3d.field_72449_c * (double)0.95F);
+    }
+ 
+-   private void func_85054_d() {
+-      if (this.func_213857_z()) {
+-         for(ItemEntity itementity : this.field_70170_p.func_175647_a(ItemEntity.class, this.func_174813_aQ().func_72314_b(0.5D, 0.0D, 0.5D), (p_213859_1_) -> {
++   private static final double[] vanillaMergeRadius = new double[]{ 0.5D };
++   private void func_85054_d(){
++      if (this.func_213857_z()){
++         double pehkuiRadius = 0.5D;
++         // Spigot start
++         double radius = pehkuiRadius == vanillaMergeRadius[0] ? field_70170_p.spigotConfig.itemMerge : pehkuiRadius;
++         for(ItemEntity itementity : this.field_70170_p.func_175647_a(ItemEntity.class, this.func_174813_aQ().func_72314_b(radius, radius, radius), (p_213859_1_) -> {
+             return p_213859_1_ != this && p_213859_1_.func_213857_z();
+-         })) {
+-            if (itementity.func_213857_z()) {
++         })){
++            if (itementity.func_213857_z()){
+                this.func_226530_a_(itementity);
+-               if (this.field_70128_L) {
+-                  break;
+-               }
+-            }
+-         }
+-
+-      }
+-   }
++               if (this.field_70128_L){
++                  break;
++               }
++            }
++         }
++      }
++   }
++
++   /*
++   private void mergeWithNeighbours() {
++      if (this.isMergable()) {
++         // Spigot start
++         double radius = level.spigotConfig.itemMerge;
++         for(ItemEntity itementity : this.level.getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(radius, radius, radius), (p_213859_1_) -> {
++            // Spigot end
++            return p_213859_1_ != this && p_213859_1_.isMergable();
++         })) {
++            if (itementity.isMergable()) {
++               this.tryToMerge(itementity);
++               if (this.removed) {
++                  break;
++               }
++            }
++         }
++
++      }
++   }
++    -- LoliServer # Backup mergeWithNeighbours() */
+ 
+    private boolean func_213857_z() {
+       ItemStack itemstack = this.func_92059_d();
+@@ -202,6 +_,8 @@
+          return false;
+       } else if (p_226532_1_.func_77942_o() ^ p_226532_0_.func_77942_o()) {
+          return false;
++      } else if (!p_226532_0_.areCapsCompatible(p_226532_1_)) {
++         return false;
+       } else {
+          return !p_226532_1_.func_77942_o() || p_226532_1_.func_77978_p().equals(p_226532_0_.func_77978_p());
+       }
+@@ -217,10 +_,11 @@
+ 
+    private static void func_226531_a_(ItemEntity p_226531_0_, ItemStack p_226531_1_, ItemStack p_226531_2_) {
+       ItemStack itemstack = func_226533_a_(p_226531_1_, p_226531_2_, 64);
+-      p_226531_0_.func_92058_a(itemstack);
++      if (!itemstack.func_190926_b()) p_226531_0_.func_92058_a(itemstack); // CraftBukkit - don't set empty stacks
+    }
+ 
+    private static void func_213858_a(ItemEntity p_213858_0_, ItemStack p_213858_1_, ItemEntity p_213858_2_, ItemStack p_213858_3_) {
++      if (CraftEventFactory.callItemMergeEvent(p_213858_2_, p_213858_0_).isCancelled()) return; // CraftBukkit
+       func_226531_a_(p_213858_0_, p_213858_1_, p_213858_3_);
+       p_213858_0_.field_145804_b = Math.max(p_213858_0_.field_145804_b, p_213858_2_.field_145804_b);
+       p_213858_0_.field_70292_b = Math.min(p_213858_0_.field_70292_b, p_213858_2_.field_70292_b);
+@@ -235,6 +_,7 @@
+    }
+ 
+    public boolean func_70097_a(DamageSource p_70097_1_, float p_70097_2_) {
++      if (this.field_70170_p.field_72995_K || this.field_70128_L) return false; //Forge: Fixes MC-53850
+       if (this.func_180431_b(p_70097_1_)) {
+          return false;
+       } else if (!this.func_92059_d().func_190926_b() && this.func_92059_d().func_77973_b() == Items.field_151156_bN && p_70097_1_.func_94541_c()) {
+@@ -242,6 +_,11 @@
+       } else if (!this.func_92059_d().func_77973_b().func_234685_a_(p_70097_1_)) {
+          return false;
+       } else {
++         // CraftBukkit start
++         if (CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_70097_1_, p_70097_2_)) {
++            return false;
++         }
++         // CraftBukkit end
+          this.func_70018_K();
+          this.field_70291_e = (int)((float)this.field_70291_e - p_70097_2_);
+          if (this.field_70291_e <= 0) {
+@@ -256,6 +_,7 @@
+       p_213281_1_.func_74777_a("Health", (short)this.field_70291_e);
+       p_213281_1_.func_74777_a("Age", (short)this.field_70292_b);
+       p_213281_1_.func_74777_a("PickupDelay", (short)this.field_145804_b);
++      p_213281_1_.func_74768_a("Lifespan", lifespan);
+       if (this.func_200214_m() != null) {
+          p_213281_1_.func_186854_a("Thrower", this.func_200214_m());
+       }
+@@ -276,6 +_,7 @@
+       if (p_70037_1_.func_74764_b("PickupDelay")) {
+          this.field_145804_b = p_70037_1_.func_74765_d("PickupDelay");
+       }
++      if (p_70037_1_.func_74764_b("Lifespan")) lifespan = p_70037_1_.func_74762_e("Lifespan");
+ 
+       if (p_70037_1_.func_186855_b("Owner")) {
+          this.field_145802_g = p_70037_1_.func_186857_a("Owner");
+@@ -295,10 +_,53 @@
+ 
+    public void func_70100_b_(PlayerEntity p_70100_1_) {
+       if (!this.field_70170_p.field_72995_K) {
++         if (this.field_145804_b > 0) return;
+          ItemStack itemstack = this.func_92059_d();
+          Item item = itemstack.func_77973_b();
+          int i = itemstack.func_190916_E();
+-         if (this.field_145804_b == 0 && (this.field_145802_g == null || this.field_145802_g.equals(p_70100_1_.func_110124_au())) && p_70100_1_.field_71071_by.func_70441_a(itemstack)) {
++
++         // CraftBukkit start - fire PlayerPickupItemEvent
++         int canHold = p_70100_1_.field_71071_by.canHold(itemstack);
++         int remaining = i - canHold;
++         if (this.field_145804_b <= 0 && canHold > 0) {
++            itemstack.func_190920_e(canHold);
++            PlayerPickupItemEvent playerEvent = new PlayerPickupItemEvent((org.bukkit.entity.Player)p_70100_1_.getBukkitEntity(), (org.bukkit.entity.Item)this.getBukkitEntity(), remaining);
++            playerEvent.setCancelled(!p_70100_1_.canPickUpLoot);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(playerEvent);
++            if (playerEvent.isCancelled()) {
++               itemstack.func_190920_e(i);
++               return;
++            }
++            EntityPickupItemEvent entityEvent = new EntityPickupItemEvent(p_70100_1_.getBukkitEntity(), (org.bukkit.entity.Item)this.getBukkitEntity(), remaining);
++            entityEvent.setCancelled(!p_70100_1_.canPickUpLoot);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(entityEvent);
++            if (entityEvent.isCancelled()) {
++               itemstack.func_190920_e(i);
++               return;
++            }
++
++            // Update the ItemStack if it was changed in the event
++            ItemStack current = this.func_92059_d();
++            if (!itemstack.equals(current)) {
++               itemstack = current;
++            } else {
++               itemstack.func_190920_e(canHold + remaining); // = i
++            }
++
++            this.field_145804_b = 0;
++         }
++         else if (this.field_145804_b == 0) {
++            this.field_145804_b = -1;
++         }
++         // CraftBukkit end
++
++         int hook = net.minecraftforge.event.ForgeEventFactory.onItemPickup(this, p_70100_1_);
++         if (hook < 0) return;
++
++         ItemStack copy = itemstack.func_77946_l();
++         if (this.field_145804_b == 0 && (this.field_145802_g == null || lifespan - this.field_70292_b <= 200 || this.field_145802_g.equals(p_70100_1_.func_110124_au())) && (hook == 1 || i <= 0 || p_70100_1_.field_71071_by.func_70441_a(itemstack))) {
++            copy.func_190920_e(copy.func_190916_E() - func_92059_d().func_190916_E());
++            net.minecraftforge.fml.hooks.BasicEventHooks.firePlayerItemPickupEvent(p_70100_1_, this, copy);
+             p_70100_1_.func_71001_a(this, i);
+             if (itemstack.func_190926_b()) {
+                this.func_70106_y();
+@@ -322,8 +_,8 @@
+    }
+ 
+    @Nullable
+-   public Entity func_241206_a_(ServerWorld p_241206_1_) {
+-      Entity entity = super.func_241206_a_(p_241206_1_);
++   public Entity changeDimension(ServerWorld p_241206_1_, net.minecraftforge.common.util.ITeleporter teleporter) {
++      Entity entity = super.changeDimension(p_241206_1_, teleporter);
+       if (!this.field_70170_p.field_72995_K && entity instanceof ItemEntity) {
+          ((ItemEntity)entity).func_85054_d();
+       }
+@@ -396,7 +_,7 @@
+ 
+    public void func_174870_v() {
+       this.func_174871_r();
+-      this.field_70292_b = 5999;
++      this.field_70292_b = func_92059_d().getEntityLifespan(field_70170_p) - 1;
+    }
+ 
+    @OnlyIn(Dist.CLIENT)

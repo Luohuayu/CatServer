@@ -1,0 +1,117 @@
+--- a/net/minecraft/entity/effect/LightningBoltEntity.java
++++ b/net/minecraft/entity/effect/LightningBoltEntity.java
+@@ -11,6 +_,7 @@
+ import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.network.IPacket;
++import net.minecraft.network.play.server.SPlaySoundEffectPacket;
+ import net.minecraft.network.play.server.SSpawnObjectPacket;
+ import net.minecraft.util.SoundCategory;
+ import net.minecraft.util.SoundEvents;
+@@ -22,14 +_,18 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
+ 
+ public class LightningBoltEntity extends Entity {
+    private int field_70262_b;
+    public long field_70264_a;
+    private int field_70263_c;
+-   private boolean field_184529_d;
++   public boolean isEffect; // CraftBukkit
++   public boolean field_184529_d; // CraftBukkit private->public
+    @Nullable
+    private ServerPlayerEntity field_204810_e;
++   private float damage = 5.0F;
++   public boolean isSilent = false; // Spigot
+ 
+    public LightningBoltEntity(EntityType<? extends LightningBoltEntity> p_i231491_1_, World p_i231491_2_) {
+       super(p_i231491_1_, p_i231491_2_);
+@@ -51,15 +_,40 @@
+       this.field_204810_e = p_204809_1_;
+    }
+ 
++   public void setDamage(float damage){
++      this.damage = damage;
++   }
++
++   public float getDamage(){
++      return this.damage;
++   }
++
+    public void func_70071_h_() {
+       super.func_70071_h_();
+-      if (this.field_70262_b == 2) {
++      if (!isSilent && this.field_70262_b == 2) {  // Spigot
+          Difficulty difficulty = this.field_70170_p.func_175659_aa();
+          if (difficulty == Difficulty.NORMAL || difficulty == Difficulty.HARD) {
+             this.func_195053_a(4);
+          }
+ 
+-         this.field_70170_p.func_184148_a((PlayerEntity)null, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), SoundEvents.field_187754_de, SoundCategory.WEATHER, 10000.0F, 0.8F + this.field_70146_Z.nextFloat() * 0.2F);
++         // CraftBukkit start - Use relative location for far away sounds
++         float pitch = 0.8F + this.field_70146_Z.nextFloat() * 0.2F;
++         int viewDistance = this.field_70170_p.getCBServer().getViewDistance() * 16;
++         for (ServerPlayerEntity player : (List<ServerPlayerEntity>) this.field_70170_p.func_217369_A()) {
++            final double deltaX = this.func_226277_ct_() - player.func_226277_ct_();
++            final double deltaZ = this.func_226281_cx_() - player.func_226281_cx_();
++            final double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++            if (distanceSquared > viewDistance * viewDistance) {
++               final double deltaLength = Math.sqrt(distanceSquared);
++               final double relativeX = player.func_226277_ct_() + deltaX / deltaLength * viewDistance;
++               final double relativeZ = player.func_226281_cx_() + deltaZ / deltaLength * viewDistance;
++               player.field_71135_a.func_147359_a(new SPlaySoundEffectPacket(SoundEvents.field_187754_de, SoundCategory.WEATHER, relativeX, this.func_226278_cu_(), relativeZ, 10000.0f, pitch));
++            }
++            else {
++               player.field_71135_a.func_147359_a(new SPlaySoundEffectPacket(SoundEvents.field_187754_de, SoundCategory.WEATHER, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), 10000.0f, pitch));
++            }
++         }
++         // CraftBukkit end
+          this.field_70170_p.func_184148_a((PlayerEntity)null, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), SoundEvents.field_187752_dd, SoundCategory.WEATHER, 2.0F, 0.5F + this.field_70146_Z.nextFloat() * 0.2F);
+       }
+ 
+@@ -75,14 +_,15 @@
+          }
+       }
+ 
+-      if (this.field_70262_b >= 0) {
+-         if (!(this.field_70170_p instanceof ServerWorld)) {
++      if (this.field_70262_b >= 0 && !this.isEffect) { // CraftBukkit - add !this.isEffect
++         if (this.field_70170_p.field_72995_K) {
+             this.field_70170_p.func_225605_c_(2);
+          } else if (!this.field_184529_d) {
+             double d0 = 3.0D;
+             List<Entity> list = this.field_70170_p.func_175674_a(this, new AxisAlignedBB(this.func_226277_ct_() - 3.0D, this.func_226278_cu_() - 3.0D, this.func_226281_cx_() - 3.0D, this.func_226277_ct_() + 3.0D, this.func_226278_cu_() + 6.0D + 3.0D, this.func_226281_cx_() + 3.0D), Entity::func_70089_S);
+ 
+             for(Entity entity : list) {
++               if (!net.minecraftforge.event.ForgeEventFactory.onEntityStruckByLightning(entity, this))
+                entity.func_241841_a((ServerWorld)this.field_70170_p, this);
+             }
+ 
+@@ -99,14 +_,22 @@
+          BlockPos blockpos = this.func_233580_cy_();
+          BlockState blockstate = AbstractFireBlock.func_235326_a_(this.field_70170_p, blockpos);
+          if (this.field_70170_p.func_180495_p(blockpos).func_196958_f() && blockstate.func_196955_c(this.field_70170_p, blockpos)) {
+-            this.field_70170_p.func_175656_a(blockpos, blockstate);
++            // CraftBukkit start - add "!isEffect"
++            if (!isEffect && !CraftEventFactory.callBlockIgniteEvent(field_70170_p, blockpos, this).isCancelled()) {
++               this.field_70170_p.func_175656_a(blockpos, blockstate);
++            }
++            // CraftBukkit end
+          }
+ 
+-         for(int i = 0; i < p_195053_1_; ++i) {
++         for (int i = 0; i < p_195053_1_; ++i) {
+             BlockPos blockpos1 = blockpos.func_177982_a(this.field_70146_Z.nextInt(3) - 1, this.field_70146_Z.nextInt(3) - 1, this.field_70146_Z.nextInt(3) - 1);
+             blockstate = AbstractFireBlock.func_235326_a_(this.field_70170_p, blockpos1);
+             if (this.field_70170_p.func_180495_p(blockpos1).func_196958_f() && blockstate.func_196955_c(this.field_70170_p, blockpos1)) {
+-               this.field_70170_p.func_175656_a(blockpos1, blockstate);
++               // CraftBukkit start - add "!isEffect"
++               if (!isEffect && !CraftEventFactory.callBlockIgniteEvent(field_70170_p, blockpos1, this).isCancelled()) {
++                  this.field_70170_p.func_175656_a(blockpos1, blockstate);
++               }
++               // CraftBukkit end
+             }
+          }
+ 

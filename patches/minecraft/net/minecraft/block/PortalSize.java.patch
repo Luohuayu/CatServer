@@ -1,0 +1,123 @@
+--- a/net/minecraft/block/PortalSize.java
++++ b/net/minecraft/block/PortalSize.java
+@@ -13,10 +_,14 @@
+ import net.minecraft.util.math.vector.Vector3d;
+ import net.minecraft.world.IWorld;
+ import net.minecraft.world.server.ServerWorld;
++import org.bukkit.craftbukkit.v1_16_R3.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_16_R3.block.CraftBlockState;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftPortalEvent;
++import org.bukkit.event.world.PortalCreateEvent;
+ 
+ public class PortalSize {
+    private static final AbstractBlock.IPositionPredicate field_242962_a = (p_242966_0_, p_242966_1_, p_242966_2_) -> {
+-      return p_242966_0_.func_203425_a(Blocks.field_150343_Z);
++      return p_242966_0_.isPortalFrame(p_242966_1_, p_242966_2_);
+    };
+    private final IWorld field_150867_a;
+    private final Direction.Axis field_150865_b;
+@@ -26,6 +_,7 @@
+    private BlockPos field_150861_f;
+    private int field_150862_g;
+    private int field_150868_h;
++   org.bukkit.craftbukkit.v1_16_R3.util.BlockStateListPopulator blocks; // CraftBukkit - add field
+ 
+    public static Optional<PortalSize> func_242964_a(IWorld p_242964_0_, BlockPos p_242964_1_, Direction.Axis p_242964_2_) {
+       return func_242965_a(p_242964_0_, p_242964_1_, (p_242968_0_) -> {
+@@ -44,6 +_,7 @@
+    }
+ 
+    public PortalSize(IWorld p_i48740_1_, BlockPos p_i48740_2_, Direction.Axis p_i48740_3_) {
++      blocks = new org.bukkit.craftbukkit.v1_16_R3.util.BlockStateListPopulator(p_i48740_1_.getMinecraftWorld()); // CraftBukkit
+       this.field_150867_a = p_i48740_1_;
+       this.field_150865_b = p_i48740_3_;
+       this.field_150866_c = p_i48740_3_ == Direction.Axis.X ? Direction.WEST : Direction.SOUTH;
+@@ -84,6 +_,7 @@
+          BlockState blockstate = this.field_150867_a.func_180495_p(blockpos$mutable);
+          if (!func_196900_a(blockstate)) {
+             if (field_242962_a.test(blockstate, this.field_150867_a, blockpos$mutable)) {
++               blocks.func_180501_a(blockpos$mutable, blockstate, 18); // CraftBukkit - lower left / right
+                return i;
+             }
+             break;
+@@ -93,6 +_,7 @@
+          if (!field_242962_a.test(blockstate1, this.field_150867_a, blockpos$mutable)) {
+             break;
+          }
++         blocks.func_180501_a(blockpos$mutable, blockstate1, 18); // CraftBukkit - bottom row
+       }
+ 
+       return 0;
+@@ -138,6 +_,10 @@
+                ++this.field_150864_e;
+             }
+          }
++         // CraftBukkit start - left and right
++         blocks.func_180501_a(p_242969_1_.func_189533_g(this.field_150861_f).func_189534_c(Direction.UP, i).func_189534_c(this.field_150866_c, -1), this.field_150867_a.func_180495_p(p_242969_1_), 18);
++         blocks.func_180501_a(p_242969_1_.func_189533_g(this.field_150861_f).func_189534_c(Direction.UP, i).func_189534_c(this.field_150866_c, this.field_150868_h), this.field_150867_a.func_180495_p(p_242969_1_), 18);
++         // CraftBukkit end
+       }
+ 
+       return 21;
+@@ -151,11 +_,27 @@
+       return this.field_150861_f != null && this.field_150868_h >= 2 && this.field_150868_h <= 21 && this.field_150862_g >= 3 && this.field_150862_g <= 21;
+    }
+ 
+-   public void func_150859_c() {
++   // CraftBukkit start - return boolean
++   public boolean placePortalBlocks() {
++      org.bukkit.World bworld = this.field_150867_a.getMinecraftWorld().getWorld();
++
++      // Copy below for loop
+       BlockState blockstate = Blocks.field_150427_aO.func_176223_P().func_206870_a(NetherPortalBlock.field_176550_a, this.field_150865_b);
+       BlockPos.func_218278_a(this.field_150861_f, this.field_150861_f.func_177967_a(Direction.UP, this.field_150862_g - 1).func_177967_a(this.field_150866_c, this.field_150868_h - 1)).forEach((p_242967_2_) -> {
++         blocks.func_180501_a(p_242967_2_, blockstate, 18);
++      });
++
++      PortalCreateEvent event = new PortalCreateEvent((java.util.List<org.bukkit.block.BlockState>) (java.util.List) blocks.getList(), bworld, null, PortalCreateEvent.CreateReason.FIRE);
++      this.field_150867_a.getMinecraftWorld().func_73046_m().server.getPluginManager().callEvent(event);
++
++      if (event.isCancelled()) {
++         return false;
++      }
++      // CraftBukkit end
++      BlockPos.func_218278_a(this.field_150861_f, this.field_150861_f.func_177967_a(Direction.UP, this.field_150862_g - 1).func_177967_a(this.field_150866_c, this.field_150868_h - 1)).forEach((p_242967_2_) -> {
+          this.field_150867_a.func_180501_a(p_242967_2_, blockstate, 18);
+       });
++      return true; // CraftBukkit
+    }
+ 
+    public boolean func_208508_f() {
+@@ -188,18 +_,22 @@
+    }
+ 
+    public static PortalInfo func_242963_a(ServerWorld p_242963_0_, TeleportationRepositioner.Result p_242963_1_, Direction.Axis p_242963_2_, Vector3d p_242963_3_, EntitySize p_242963_4_, Vector3d p_242963_5_, float p_242963_6_, float p_242963_7_) {
+-      BlockPos blockpos = p_242963_1_.field_243679_a;
+-      BlockState blockstate = p_242963_0_.func_180495_p(blockpos);
++       return createPortalInfo(p_242963_0_, p_242963_1_, p_242963_2_, p_242963_3_, p_242963_4_, p_242963_5_, p_242963_6_, p_242963_7_, null);
++   }
++
++   public static PortalInfo createPortalInfo(ServerWorld world, TeleportationRepositioner.Result result, Direction.Axis axis, Vector3d offsetVector, EntitySize size, Vector3d motion, float rotationYaw, float rotationPitch, CraftPortalEvent portalEventInfo) {
++      BlockPos blockpos = result.field_243679_a;
++      BlockState blockstate = world.func_180495_p(blockpos);
+       Direction.Axis direction$axis = blockstate.func_177229_b(BlockStateProperties.field_208199_z);
+-      double d0 = (double)p_242963_1_.field_243680_b;
+-      double d1 = (double)p_242963_1_.field_243681_c;
+-      int i = p_242963_2_ == direction$axis ? 0 : 90;
+-      Vector3d vector3d = p_242963_2_ == direction$axis ? p_242963_5_ : new Vector3d(p_242963_5_.field_72449_c, p_242963_5_.field_72448_b, -p_242963_5_.field_72450_a);
+-      double d2 = (double)p_242963_4_.field_220315_a / 2.0D + (d0 - (double)p_242963_4_.field_220315_a) * p_242963_3_.func_82615_a();
+-      double d3 = (d1 - (double)p_242963_4_.field_220316_b) * p_242963_3_.func_82617_b();
+-      double d4 = 0.5D + p_242963_3_.func_82616_c();
++      double d0 = (double)result.field_243680_b;
++      double d1 = (double)result.field_243681_c;
++      int i = axis == direction$axis ? 0 : 90;
++      Vector3d vector3d = axis == direction$axis ? motion : new Vector3d(motion.field_72449_c, motion.field_72448_b, -motion.field_72450_a);
++      double d2 = (double)size.field_220315_a / 2.0D + (d0 - (double)size.field_220315_a) * offsetVector.func_82615_a();
++      double d3 = (d1 - (double)size.field_220316_b) * offsetVector.func_82617_b();
++      double d4 = 0.5D + offsetVector.func_82616_c();
+       boolean flag = direction$axis == Direction.Axis.X;
+       Vector3d vector3d1 = new Vector3d((double)blockpos.func_177958_n() + (flag ? d2 : d4), (double)blockpos.func_177956_o() + d3, (double)blockpos.func_177952_p() + (flag ? d4 : d2));
+-      return new PortalInfo(vector3d1, vector3d, p_242963_6_ + (float)i, p_242963_7_);
++      return new PortalInfo(vector3d1, vector3d, rotationYaw + (float)i, rotationPitch).putCB(world, portalEventInfo); // CatServer
+    }
+ }

@@ -1,0 +1,131 @@
+--- a/net/minecraft/entity/passive/BeeEntity.java
++++ b/net/minecraft/entity/passive/BeeEntity.java
+@@ -66,7 +_,6 @@
+ import net.minecraft.tags.ItemTags;
+ import net.minecraft.tileentity.BeehiveTileEntity;
+ import net.minecraft.tileentity.TileEntity;
+-import net.minecraft.tileentity.TileEntityType;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.RangedInteger;
+ import net.minecraft.util.SoundEvent;
+@@ -84,6 +_,9 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityPotionEffectEvent.Cause;
++import org.bukkit.event.entity.EntityTargetEvent.TargetReason;
+ 
+ public class BeeEntity extends AnimalEntity implements IAngerable, IFlyingAnimal {
+    private static final DataParameter<Byte> field_226374_bw_ = EntityDataManager.func_187226_a(BeeEntity.class, DataSerializers.field_187191_a);
+@@ -94,14 +_,14 @@
+    private float field_226361_bA_;
+    private int field_226362_bB_;
+    private int field_226363_bC_;
+-   private int field_226364_bD_;
++   public int field_226364_bD_;
+    private int field_226365_bE_;
+    private int field_226366_bF_ = 0;
+    private int field_226367_bG_ = 0;
+    @Nullable
+    private BlockPos field_226368_bH_ = null;
+    @Nullable
+-   private BlockPos field_226369_bI_ = null;
++   public BlockPos field_226369_bI_ = null;
+    private BeeEntity.PollinateGoal field_226370_bJ_;
+    private BeeEntity.FindBeehiveGoal field_226371_bK_;
+    private BeeEntity.FindFlowerGoal field_226372_bL_;
+@@ -184,7 +_,8 @@
+       this.field_226363_bC_ = p_70037_1_.func_74762_e("TicksSincePollination");
+       this.field_226364_bD_ = p_70037_1_.func_74762_e("CannotEnterHiveTicks");
+       this.field_226365_bE_ = p_70037_1_.func_74762_e("CropsGrownSincePollination");
+-      this.func_241358_a_((ServerWorld)this.field_70170_p, p_70037_1_);
++      if(!field_70170_p.field_72995_K) //FORGE: allow this entity to be read from nbt on client. (Fixes MC-189565)
++         this.func_241358_a_((ServerWorld)this.field_70170_p, p_70037_1_);
+    }
+ 
+    public boolean func_70652_k(Entity p_70652_1_) {
+@@ -201,7 +_,7 @@
+             }
+ 
+             if (i > 0) {
+-               ((LivingEntity)p_70652_1_).func_195064_c(new EffectInstance(Effects.field_76436_u, i * 20, 0));
++               ((LivingEntity)p_70652_1_).addEffect(new EffectInstance(Effects.field_76436_u, i * 20, 0), Cause.ATTACK); // CraftBukkit
+             }
+          }
+ 
+@@ -425,7 +_,7 @@
+          return false;
+       } else {
+          TileEntity tileentity = this.field_70170_p.func_175625_s(this.field_226369_bI_);
+-         return tileentity != null && tileentity.func_200662_C() == TileEntityType.field_226985_G_;
++         return tileentity instanceof BeehiveTileEntity;
+       }
+    }
+ 
+@@ -433,7 +_,7 @@
+       return this.func_226456_v_(8);
+    }
+ 
+-   private void func_226447_r_(boolean p_226447_1_) {
++   public void func_226447_r_(boolean p_226447_1_) {
+       if (p_226447_1_) {
+          this.func_226426_eu_();
+       }
+@@ -445,7 +_,7 @@
+       return this.func_226456_v_(4);
+    }
+ 
+-   private void func_226449_s_(boolean p_226449_1_) {
++   public void func_226449_s_(boolean p_226449_1_) {
+       this.func_226404_d_(4, p_226449_1_);
+    }
+ 
+@@ -588,7 +_,7 @@
+ 
+       protected void func_220793_a(MobEntity p_220793_1_, LivingEntity p_220793_2_) {
+          if (p_220793_1_ instanceof BeeEntity && this.field_75299_d.func_70685_l(p_220793_2_)) {
+-            p_220793_1_.func_70624_b(p_220793_2_);
++            p_220793_1_.setGoalTarget(p_220793_2_, TargetReason.TARGET_ATTACKED_ENTITY, true); // CraftBukkit - reason
+          }
+ 
+       }
+@@ -636,6 +_,9 @@
+    }
+ 
+    class EnterBeehiveGoal extends BeeEntity.PassiveGoal {
++
++      private BeeEntity beeEntity = BeeEntity.this;
++
+       private EnterBeehiveGoal() {
+       }
+ 
+@@ -670,6 +_,9 @@
+    }
+ 
+    public class FindBeehiveGoal extends BeeEntity.PassiveGoal {
++
++      private BeeEntity beeEntity = BeeEntity.this;
++
+       private int field_226468_c_ = BeeEntity.this.field_70170_p.field_73012_v.nextInt(10);
+       private List<BlockPos> field_226469_d_ = Lists.newArrayList();
+       @Nullable
+@@ -871,7 +_,7 @@
+                      }
+                   }
+ 
+-                  if (flag) {
++                  if (flag && !CraftEventFactory.callEntityChangeBlockEvent(BeeEntity.this, blockpos, blockstate.func_206870_a(integerproperty, (Integer) blockstate.func_177229_b(integerproperty) + 1)).isCancelled()) { // Spigot
+                      BeeEntity.this.field_70170_p.func_217379_c(2005, blockpos, 0);
+                      BeeEntity.this.field_70170_p.func_175656_a(blockpos, blockstate.func_206870_a(integerproperty, Integer.valueOf(blockstate.func_177229_b(integerproperty) + 1)));
+                      BeeEntity.this.func_226421_eO_();
+@@ -1084,6 +_,9 @@
+    }
+ 
+    class UpdateBeehiveGoal extends BeeEntity.PassiveGoal {
++
++      private BeeEntity beeEntity = BeeEntity.this;
++
+       private UpdateBeehiveGoal() {
+       }
+ 

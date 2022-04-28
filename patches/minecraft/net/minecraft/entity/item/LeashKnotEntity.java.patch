@@ -1,0 +1,76 @@
+--- a/net/minecraft/entity/item/LeashKnotEntity.java
++++ b/net/minecraft/entity/item/LeashKnotEntity.java
+@@ -8,8 +_,10 @@
+ import net.minecraft.entity.MobEntity;
+ import net.minecraft.entity.Pose;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.network.IPacket;
++import net.minecraft.network.play.server.SMountEntityPacket;
+ import net.minecraft.network.play.server.SSpawnObjectPacket;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.util.ActionResultType;
+@@ -21,8 +_,10 @@
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.math.vector.Vector3d;
+ import net.minecraft.world.World;
++import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
+ 
+ public class LeashKnotEntity extends HangingEntity {
+    public LeashKnotEntity(EntityType<? extends LeashKnotEntity> p_i50223_1_, World p_i50223_2_) {
+@@ -45,6 +_,8 @@
+ 
+    protected void func_174856_o() {
+       this.func_226288_n_((double)this.field_174861_a.func_177958_n() + 0.5D, (double)this.field_174861_a.func_177956_o() + 0.5D, (double)this.field_174861_a.func_177952_p() + 0.5D);
++      if (this.isAddedToWorld() && this.field_70170_p instanceof net.minecraft.world.server.ServerWorld) ((net.minecraft.world.server.ServerWorld)this.field_70170_p).func_217464_b(this); // Forge - Process chunk registration after moving.
++      if(valid) ((ServerWorld) field_70170_p).func_217464_b(this); // CraftBukkit
+    }
+ 
+    public void func_174859_a(Direction p_174859_1_) {
+@@ -87,19 +_,39 @@
+ 
+          for(MobEntity mobentity : list) {
+             if (mobentity.func_110166_bE() == p_184230_1_) {
++               // CraftBukkit start
++               if (CraftEventFactory.callPlayerLeashEntityEvent(mobentity, this, p_184230_1_).isCancelled()) {
++                  ((ServerPlayerEntity) p_184230_1_).field_71135_a.func_147359_a(new SMountEntityPacket(mobentity, mobentity.func_110166_bE()));
++                  continue;
++               }
++               // CraftBukkit end
+                mobentity.func_110162_b(this, true);
+                flag = true;
+             }
+          }
+ 
+          if (!flag) {
+-            this.func_70106_y();
+-            if (p_184230_1_.field_71075_bZ.field_75098_d) {
++            // CraftBukkit start - Move below
++            //this.remove();
++            boolean die = true;
++            // CraftBukkit end
++            if (true || p_184230_1_.field_71075_bZ.field_75098_d) { // CraftBukkit - Process for non-creative as well
+                for(MobEntity mobentity1 : list) {
+                   if (mobentity1.func_110167_bD() && mobentity1.func_110166_bE() == this) {
+-                     mobentity1.func_110160_i(true, false);
++                     // CraftBukkit start
++                     if (CraftEventFactory.callPlayerUnleashEntityEvent(mobentity1, p_184230_1_).isCancelled()) {
++                        die = false;
++                        continue;
++                     }
++                     mobentity1.func_110160_i(true,!p_184230_1_.field_71075_bZ.field_75098_d); // flase -> survival mode boolean
++                     // CraftBukkit end
+                   }
+                }
++               // CraftBukkit start
++               if(die){
++                  this.func_70106_y();
++               }
++               // CraftBukkit end
+             }
+          }
+ 

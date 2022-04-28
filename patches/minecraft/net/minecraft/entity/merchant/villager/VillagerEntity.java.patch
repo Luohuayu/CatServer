@@ -1,0 +1,142 @@
+--- a/net/minecraft/entity/merchant/villager/VillagerEntity.java
++++ b/net/minecraft/entity/merchant/villager/VillagerEntity.java
+@@ -72,7 +_,6 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.GlobalPos;
+ import net.minecraft.util.math.MathHelper;
+-import net.minecraft.util.registry.Registry;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.TranslationTextComponent;
+ import net.minecraft.village.GossipManager;
+@@ -87,6 +_,13 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.entity.Villager;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityPotionEffectEvent;
++import org.bukkit.event.entity.EntityTransformEvent;
++import org.bukkit.event.entity.VillagerReplenishTradeEvent;
+ 
+ public class VillagerEntity extends AbstractVillagerEntity implements IReputationTracking, IVillagerDataHolder {
+    private static final DataParameter<VillagerData> field_213775_bC = EntityDataManager.func_187226_a(VillagerEntity.class, DataSerializers.field_218813_q);
+@@ -190,6 +_,17 @@
+       return this.field_234542_bL_;
+    }
+ 
++   // Spigot Start
++   @Override
++   public void inactiveTick() {
++      // SPIGOT-3874, SPIGOT-3894, SPIGOT-3846, SPIGOT-5286 :(
++      if (field_70170_p.spigotConfig.tickInactiveVillagers && this.func_70613_aW()) {
++         this.func_70619_bc();
++      }
++      super.inactiveTick();
++   }
++   // Spigot End
++
+    protected void func_70619_bc() {
+       this.field_70170_p.func_217381_Z().func_76320_a("villagerBrain");
+       this.func_213375_cj().func_218210_a((ServerWorld)this.field_70170_p, this);
+@@ -206,7 +_,7 @@
+                this.field_213777_bF = false;
+             }
+ 
+-            this.func_195064_c(new EffectInstance(Effects.field_76428_l, 200, 0));
++            this.addEffect(new EffectInstance(Effects.field_76428_l, 200, 0), EntityPotionEffectEvent.Cause.VILLAGER_TRADE); // CraftBukkit
+          }
+       }
+ 
+@@ -241,7 +_,7 @@
+ 
+    public ActionResultType func_230254_b_(PlayerEntity p_230254_1_, Hand p_230254_2_) {
+       ItemStack itemstack = p_230254_1_.func_184586_b(p_230254_2_);
+-      if (itemstack.func_77973_b() != Items.field_196172_da && this.func_70089_S() && !this.func_213716_dX() && !this.func_70608_bn()) {
++      if (itemstack.func_77973_b() != Items.field_196172_da && this.func_70089_S() && !this.func_213716_dX() && !this.func_70608_bn() && !p_230254_1_.func_226563_dT_()) {
+          if (this.func_70631_g_()) {
+             this.func_213756_es();
+             return ActionResultType.func_233537_a_(this.field_70170_p.field_72995_K);
+@@ -379,7 +_,14 @@
+       int i = this.func_223107_f(p_213762_1_);
+       if (i != 0) {
+          for(MerchantOffer merchantoffer : this.func_213706_dY()) {
+-            merchantoffer.func_222207_a(-MathHelper.func_76141_d((float)i * merchantoffer.func_222211_m()));
++            // CraftBukkit start
++            int bonus = -MathHelper.func_76141_d((float)i * merchantoffer.func_222211_m());
++            VillagerReplenishTradeEvent event = new VillagerReplenishTradeEvent((Villager) this.getBukkitEntity(), merchantoffer.asBukkit(), bonus);
++            Bukkit.getPluginManager().callEvent(event);
++            if (!event.isCancelled()) {
++               merchantoffer.func_222207_a(event.getBonus());
++            }
++            // CraftBukkit end
+          }
+       }
+ 
+@@ -523,7 +_,7 @@
+    }
+ 
+    public void func_70645_a(DamageSource p_70645_1_) {
+-      field_184243_a.info("Villager {} died, message: '{}'", this, p_70645_1_.func_151519_b(this).getString());
++      if (org.spigotmc.SpigotConfig.logVillagerDeaths) field_184243_a.info("Villager {} died, message: '{}'", this, p_70645_1_.func_151519_b(this).getString()); // Spigot
+       Entity entity = p_70645_1_.func_76346_g();
+       if (entity != null) {
+          this.func_223361_a(entity);
+@@ -634,7 +_,8 @@
+    }
+ 
+    protected ITextComponent func_225513_by_() {
+-      return new TranslationTextComponent(this.func_200600_R().func_210760_d() + '.' + Registry.field_218370_L.func_177774_c(this.func_213700_eh().func_221130_b()).func_110623_a());
++      net.minecraft.util.ResourceLocation profName = this.func_213700_eh().func_221130_b().getRegistryName();
++      return new TranslationTextComponent(this.func_200600_R().func_210760_d() + '.' + (!"minecraft".equals(profName.func_110624_b()) ? profName.func_110624_b() + '.' : "") + profName.func_110623_a());
+    }
+ 
+    @OnlyIn(Dist.CLIENT)
+@@ -687,7 +_,7 @@
+    }
+ 
+    public void func_241841_a(ServerWorld p_241841_1_, LightningBoltEntity p_241841_2_) {
+-      if (p_241841_1_.func_175659_aa() != Difficulty.PEACEFUL) {
++      if (p_241841_1_.func_175659_aa() != Difficulty.PEACEFUL && net.minecraftforge.event.ForgeEventFactory.canLivingConvert(this, EntityType.field_200759_ay, (timer) -> {})) {
+          field_184243_a.info("Villager {} was struck by lightning {}.", this, p_241841_2_);
+          WitchEntity witchentity = EntityType.field_200759_ay.func_200721_a(p_241841_1_);
+          witchentity.func_70012_b(this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), this.field_70177_z, this.field_70125_A);
+@@ -699,7 +_,13 @@
+          }
+ 
+          witchentity.func_110163_bv();
+-         p_241841_1_.func_242417_l(witchentity);
++         net.minecraftforge.event.ForgeEventFactory.onLivingConvert(this, witchentity);
++         // CraftBukkit start
++         if (CraftEventFactory.callEntityTransformEvent(this, witchentity, EntityTransformEvent.TransformReason.LIGHTNING).isCancelled()) {
++            return;
++         }
++         this.field_70170_p.addEntity(witchentity, CreatureSpawnEvent.SpawnReason.LIGHTNING);
++         // CraftBukkit end
+          this.func_242369_fq();
+          this.func_70106_y();
+       } else {
+@@ -717,6 +_,13 @@
+             return;
+          }
+ 
++         // CraftBukkit start
++         ItemStack remaining = new Inventory(inventory).func_174894_a(itemstack);
++         if (CraftEventFactory.callEntityPickupItemEvent(this, p_175445_1_, remaining.func_190916_E(), false).isCancelled()) {
++            return;
++         }
++         // CraftBukkit end
++
+          this.func_233630_a_(p_175445_1_);
+          this.func_71001_a(p_175445_1_, itemstack.func_190916_E());
+          ItemStack itemstack1 = inventory.func_174894_a(itemstack);
+@@ -820,7 +_,7 @@
+             IronGolemEntity irongolementity = EntityType.field_200757_aw.func_220349_b(p_213759_1_, (CompoundNBT)null, (ITextComponent)null, (PlayerEntity)null, blockpos1, SpawnReason.MOB_SUMMONED, false, false);
+             if (irongolementity != null) {
+                if (irongolementity.func_213380_a(p_213759_1_, SpawnReason.MOB_SUMMONED) && irongolementity.func_205019_a(p_213759_1_)) {
+-                  p_213759_1_.func_242417_l(irongolementity);
++                  this.field_70170_p.addEntity(irongolementity, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.VILLAGE_DEFENSE); // CraftBukkit
+                   return irongolementity;
+                }
+ 

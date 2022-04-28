@@ -1,0 +1,116 @@
+--- a/net/minecraft/entity/monster/SlimeEntity.java
++++ b/net/minecraft/entity/monster/SlimeEntity.java
+@@ -44,6 +_,11 @@
+ import net.minecraft.world.IWorld;
+ import net.minecraft.world.World;
+ import net.minecraft.world.biome.Biomes;
++import net.minecraft.world.server.ServerWorld;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.event.entity.EntityTransformEvent;
++import org.bukkit.event.entity.SlimeSplitEvent;
+ 
+ public class SlimeEntity extends MobEntity implements IMob {
+    private static final DataParameter<Integer> field_184711_bt = EntityDataManager.func_187226_a(SlimeEntity.class, DataSerializers.field_187192_b);
+@@ -73,7 +_,7 @@
+       this.field_70180_af.func_187214_a(field_184711_bt, 1);
+    }
+ 
+-   protected void func_70799_a(int p_70799_1_, boolean p_70799_2_) {
++   public void func_70799_a(int p_70799_1_, boolean p_70799_2_) {
+       this.field_70180_af.func_187227_b(field_184711_bt, p_70799_1_);
+       this.func_226264_Z_();
+       this.func_213323_x_();
+@@ -127,6 +_,7 @@
+       if (this.field_70122_E && !this.field_175452_bi) {
+          int i = this.func_70809_q();
+ 
++         if (spawnCustomParticles()) i = 0; // don't spawn particles if it's handled by the implementation itself
+          for(int j = 0; j < i * 8; ++j) {
+             float f = this.field_70146_Z.nextFloat() * ((float)Math.PI * 2F);
+             float f1 = this.field_70146_Z.nextFloat() * 0.5F + 0.5F;
+@@ -178,15 +_,28 @@
+       return (EntityType<? extends SlimeEntity>)super.func_200600_R();
+    }
+ 
+-   public void func_70106_y() {
++   @Override
++   public void remove(boolean keepData) {
+       int i = this.func_70809_q();
+-      if (!this.field_70170_p.field_72995_K && i > 1 && this.func_233643_dh_()) {
++      if (!this.field_70170_p.field_72995_K && i > 1 && this.func_233643_dh_() && !field_70128_L) {
+          ITextComponent itextcomponent = this.func_200201_e();
+          boolean flag = this.func_175446_cd();
+          float f = (float)i / 4.0F;
+          int j = i / 2;
+          int k = 2 + this.field_70146_Z.nextInt(3);
+ 
++         // CraftBukkit start
++         SlimeSplitEvent event = new SlimeSplitEvent((org.bukkit.entity.Slime) this.getBukkitEntity(), k);
++         this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++
++         if (!event.isCancelled() && event.getCount() > 0) {
++            k = event.getCount();
++         } else {
++            super.remove(keepData);
++            return;
++         }
++         // CraftBukkit end
++
+          for(int l = 0; l < k; ++l) {
+             float f1 = ((float)(l % 2) - 0.5F) * f;
+             float f2 = ((float)(l / 2) - 0.5F) * f;
+@@ -200,11 +_,20 @@
+             slimeentity.func_184224_h(this.func_190530_aW());
+             slimeentity.func_70799_a(j, true);
+             slimeentity.func_70012_b(this.func_226277_ct_() + (double)f1, this.func_226278_cu_() + 0.5D, this.func_226281_cx_() + (double)f2, this.field_70146_Z.nextFloat() * 360.0F, 0.0F);
+-            this.field_70170_p.func_217376_c(slimeentity);
++            // CraftBukkit start
++            if (CraftEventFactory.callEntityTransformEvent(this, slimeentity, EntityTransformEvent.TransformReason.SPLIT).isCancelled()) {
++               return;
++            }
++            // Fixed Pehkui Startup
++            if (field_70170_p instanceof ServerWorld) {
++               ((ServerWorld) this.field_70170_p).pehkuiSpawnReason = CreatureSpawnEvent.SpawnReason.SLIME_SPLIT;
++               this.field_70170_p.func_217376_c(slimeentity);
++               ((ServerWorld) this.field_70170_p).pehkuiSpawnReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
++            }
+          }
+       }
+ 
+-      super.func_70106_y();
++      super.remove(keepData);
+    }
+ 
+    public void func_70108_f(Entity p_70108_1_) {
+@@ -257,7 +_,7 @@
+       return this.func_189101_db() ? SoundEvents.field_187900_fz : SoundEvents.field_187886_fs;
+    }
+ 
+-   protected ResourceLocation func_184647_J() {
++   public ResourceLocation func_184647_J() {
+       return this.func_70809_q() == 1 ? this.func_200600_R().func_220348_g() : LootTables.field_186419_a;
+    }
+ 
+@@ -272,7 +_,7 @@
+          }
+ 
+          ChunkPos chunkpos = new ChunkPos(p_223366_3_);
+-         boolean flag = SharedSeedRandom.func_205190_a(chunkpos.field_77276_a, chunkpos.field_77275_b, ((ISeedReader)p_223366_1_).func_72905_C(), 987234911L).nextInt(10) == 0;
++         boolean flag = SharedSeedRandom.func_205190_a(chunkpos.field_77276_a, chunkpos.field_77275_b, ((ISeedReader)p_223366_1_).func_72905_C(), p_223366_1_.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot
+          if (p_223366_4_.nextInt(10) == 0 && flag && p_223366_3_.func_177956_o() < 40) {
+             return func_223315_a(p_223366_0_, p_223366_1_, p_223366_2_, p_223366_3_, p_223366_4_);
+          }
+@@ -323,6 +_,12 @@
+    public EntitySize func_213305_a(Pose p_213305_1_) {
+       return super.func_213305_a(p_213305_1_).func_220313_a(0.255F * (float)this.func_70809_q());
+    }
++
++   /**
++    * Called when the slime spawns particles on landing, see onUpdate.
++    * Return true to prevent the spawning of the default particles.
++    */
++   protected boolean spawnCustomParticles() { return false; }
+ 
+    static class AttackGoal extends Goal {
+       private final SlimeEntity field_179466_a;

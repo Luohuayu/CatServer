@@ -1,0 +1,127 @@
+--- a/net/minecraft/inventory/container/Container.java
++++ b/net/minecraft/inventory/container/Container.java
+@@ -21,13 +_,18 @@
+ import net.minecraft.util.NonNullList;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.registry.Registry;
++import net.minecraft.util.text.ITextComponent;
++import net.minecraft.util.text.StringTextComponent;
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventory;
++import org.bukkit.inventory.InventoryView;
+ 
+ public abstract class Container {
+-   private final NonNullList<ItemStack> field_75153_a = NonNullList.func_191196_a();
+-   public final List<Slot> field_75151_b = Lists.newArrayList();
++   public NonNullList<ItemStack> field_75153_a = NonNullList.func_191196_a(); // private->public CraftBukkit
++   public List<Slot> field_75151_b = Lists.newArrayList();
+    private final List<IntReferenceHolder> field_216964_d = Lists.newArrayList();
+    @Nullable
+    private final ContainerType<?> field_216965_e;
+@@ -40,6 +_,62 @@
+    private final List<IContainerListener> field_75149_d = Lists.newArrayList();
+    private final Set<PlayerEntity> field_75148_f = Sets.newHashSet();
+ 
++   // CraftBukkit start
++   public boolean checkReachable = true;
++   private ITextComponent title;
++
++   public InventoryView bukkitView = null;
++   public InventoryView getBukkitView(){
++      return bukkitView;
++   }
++
++   public void setBukkitView(InventoryView iv) {
++      bukkitView = iv;
++   }
++
++   public void transferTo(Container other, CraftHumanEntity player) {
++      InventoryView source = this.getBukkitView();
++      InventoryView destination = other.getBukkitView();
++      if (source != null) {
++         try {
++            ((CraftInventory) source.getTopInventory()).getInventory().onClose(player);
++         } catch (AbstractMethodError ex) {
++            // modded
++         }
++
++         try {
++            ((CraftInventory) source.getBottomInventory()).getInventory().onClose(player);
++         } catch (AbstractMethodError ex) {
++            // modded
++         }
++      }
++      if (destination != null) {
++         try {
++            ((CraftInventory) destination.getTopInventory()).getInventory().onOpen(player);
++         } catch (AbstractMethodError ex) {
++            // modded
++         }
++
++         try {
++            ((CraftInventory) destination.getBottomInventory()).getInventory().onOpen(player);
++         } catch (AbstractMethodError ex) {
++            // modded
++         }
++      }
++   }
++
++   public ITextComponent getTitle() {
++      if (this.title == null) {
++         this.title = new StringTextComponent("");
++      }
++      return this.title;
++   }
++
++   public final void setTitle(final ITextComponent title) {
++      this.title = title;
++   }
++   // CraftBukkit end
++
+    protected Container(@Nullable ContainerType<?> p_i50105_1_, int p_i50105_2_) {
+       this.field_216965_e = p_i50105_1_;
+       this.field_75152_c = p_i50105_2_;
+@@ -120,9 +_,11 @@
+          ItemStack itemstack = this.field_75151_b.get(i).func_75211_c();
+          ItemStack itemstack1 = this.field_75153_a.get(i);
+          if (!ItemStack.func_77989_b(itemstack1, itemstack)) {
++            boolean clientStackChanged = !itemstack1.equals(itemstack, true);
+             ItemStack itemstack2 = itemstack.func_77946_l();
+             this.field_75153_a.set(i, itemstack2);
+ 
++            if (clientStackChanged)
+             for(IContainerListener icontainerlistener : this.field_75149_d) {
+                icontainerlistener.func_71111_a(this, i, itemstack2);
+             }
+@@ -500,14 +_,15 @@
+             ItemStack itemstack = slot.func_75211_c();
+             if (!itemstack.func_190926_b() && func_195929_a(p_75135_1_, itemstack)) {
+                int j = itemstack.func_190916_E() + p_75135_1_.func_190916_E();
+-               if (j <= p_75135_1_.func_77976_d()) {
++               int maxSize = Math.min(slot.func_75219_a(), p_75135_1_.func_77976_d());
++               if (j <= maxSize) {
+                   p_75135_1_.func_190920_e(0);
+                   itemstack.func_190920_e(j);
+                   slot.func_75218_e();
+                   flag = true;
+-               } else if (itemstack.func_190916_E() < p_75135_1_.func_77976_d()) {
+-                  p_75135_1_.func_190918_g(p_75135_1_.func_77976_d() - itemstack.func_190916_E());
+-                  itemstack.func_190920_e(p_75135_1_.func_77976_d());
++               } else if (itemstack.func_190916_E() < maxSize) {
++                  p_75135_1_.func_190918_g(maxSize - itemstack.func_190916_E());
++                  itemstack.func_190920_e(maxSize);
+                   slot.func_75218_e();
+                   flag = true;
+                }
+@@ -608,7 +_,7 @@
+          p_94525_2_.func_190920_e(1);
+          break;
+       case 2:
+-         p_94525_2_.func_190920_e(p_94525_2_.func_77973_b().func_77639_j());
++         p_94525_2_.func_190920_e(p_94525_2_.func_77976_d());
+       }
+ 
+       p_94525_2_.func_190917_f(p_94525_3_);

@@ -1,0 +1,167 @@
+--- a/net/minecraft/entity/monster/piglin/PiglinTasks.java
++++ b/net/minecraft/entity/monster/piglin/PiglinTasks.java
+@@ -8,6 +_,8 @@
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.Set;
++import java.util.stream.Collectors;
++
+ import net.minecraft.entity.Entity;
+ import net.minecraft.entity.EntityType;
+ import net.minecraft.entity.LivingEntity;
+@@ -47,8 +_,7 @@
+ import net.minecraft.entity.item.ItemEntity;
+ import net.minecraft.entity.monster.HoglinEntity;
+ import net.minecraft.entity.player.PlayerEntity;
+-import net.minecraft.item.ArmorItem;
+-import net.minecraft.item.ArmorMaterial;
++import net.minecraft.item.CrossbowItem;
+ import net.minecraft.item.Item;
+ import net.minecraft.item.ItemStack;
+ import net.minecraft.item.Items;
+@@ -69,6 +_,9 @@
+ import net.minecraft.util.math.vector.Vector3d;
+ import net.minecraft.world.GameRules;
+ import net.minecraft.world.server.ServerWorld;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.event.entity.PiglinBarterEvent;
+ 
+ public class PiglinTasks {
+    public static final Item field_234444_a_ = Items.field_151043_k;
+@@ -184,24 +_,28 @@
+    protected static void func_234470_a_(PiglinEntity p_234470_0_, ItemEntity p_234470_1_) {
+       func_234531_r_(p_234470_0_);
+       ItemStack itemstack;
+-      if (p_234470_1_.func_92059_d().func_77973_b() == Items.field_151074_bl) {
++      // CraftBukkit start
++      if (p_234470_1_.func_92059_d().func_77973_b() == Items.field_151074_bl && !org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityPickupItemEvent(p_234470_0_, p_234470_1_, 0, false).isCancelled()) {
+          p_234470_0_.func_71001_a(p_234470_1_, p_234470_1_.func_92059_d().func_190916_E());
+          itemstack = p_234470_1_.func_92059_d();
+          p_234470_1_.func_70106_y();
+-      } else {
++      } else if (!org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityPickupItemEvent(p_234470_0_, p_234470_1_, p_234470_1_.func_92059_d().func_190916_E() - 1, false).isCancelled()) {
+          p_234470_0_.func_71001_a(p_234470_1_, 1);
+          itemstack = func_234465_a_(p_234470_1_);
++      } else {
++         return;
+       }
++      // CraftBukkit end
+ 
+       Item item = itemstack.func_77973_b();
+-      if (func_234480_a_(item)) {
++      if (isLovedByPiglin(item, p_234470_0_)) {
+          p_234470_0_.func_213375_cj().func_218189_b(MemoryModuleType.field_242310_O);
+          func_241427_c_(p_234470_0_, itemstack);
+          func_234501_d_(p_234470_0_);
+       } else if (func_234499_c_(item) && !func_234538_z_(p_234470_0_)) {
+          func_234536_x_(p_234470_0_);
+       } else {
+-         boolean flag = p_234470_0_.func_233665_g_(itemstack);
++         boolean flag = p_234470_0_.equipItemIfPossible(itemstack, p_234470_1_); // CraftBukkit
+          if (!flag) {
+             func_234498_c_(p_234470_0_, itemstack);
+          }
+@@ -232,9 +_,15 @@
+       ItemStack itemstack = p_234477_0_.func_184586_b(Hand.OFF_HAND);
+       p_234477_0_.func_184611_a(Hand.OFF_HAND, ItemStack.field_190927_a);
+       if (p_234477_0_.func_242337_eM()) {
+-         boolean flag = func_234492_b_(itemstack.func_77973_b());
++         boolean flag = isBarterItem(itemstack.func_77973_b(), p_234477_0_); // CraftBukkit - Changes to allow custom payment for bartering
+          if (p_234477_1_ && flag) {
+-            func_234475_a_(p_234477_0_, func_234524_k_(p_234477_0_));
++            // throwItems(p_234477_0_, getBarterResponseItems(p_234477_0_));
++            // CraftBukkit start
++            PiglinBarterEvent event = CraftEventFactory.callPiglinBarterEvent(p_234477_0_, func_234524_k_(p_234477_0_), itemstack);
++            if (!event.isCancelled()) {
++               func_234475_a_(p_234477_0_, event.getOutcome().stream().map(CraftItemStack::asNMSCopy).collect(Collectors.toList()));
++            }
++            // CraftBukkit end
+          } else if (!flag) {
+             boolean flag1 = p_234477_0_.func_233665_g_(itemstack);
+             if (!flag1) {
+@@ -245,7 +_,7 @@
+          boolean flag2 = p_234477_0_.func_233665_g_(itemstack);
+          if (!flag2) {
+             ItemStack itemstack1 = p_234477_0_.func_184614_ca();
+-            if (func_234480_a_(itemstack1.func_77973_b())) {
++            if (isLovedByPiglin(itemstack1.func_77973_b(), p_234477_0_)) { // CraftBukkit - Changes to allow for custom payment in bartering
+                func_234498_c_(p_234477_0_, itemstack1);
+             } else {
+                func_234475_a_(p_234477_0_, Collections.singletonList(itemstack1));
+@@ -318,7 +_,7 @@
+          return false;
+       } else if (func_234453_C_(p_234474_0_) && p_234474_0_.func_213375_cj().func_218191_a(MemoryModuleType.field_234103_o_)) {
+          return false;
+-      } else if (func_234492_b_(item)) {
++      } else if (p_234474_1_.isPiglinCurrency()) {
+          return func_234455_E_(p_234474_0_);
+       } else {
+          boolean flag = p_234474_0_.func_234437_l_(p_234474_1_);
+@@ -326,7 +_,7 @@
+             return flag;
+          } else if (func_234499_c_(item)) {
+             return !func_234538_z_(p_234474_0_) && flag;
+-         } else if (!func_234480_a_(item)) {
++         } else if (!isLovedByPiglin(item, p_234474_0_)) {
+             return p_234474_0_.func_234440_o_(p_234474_1_);
+          } else {
+             return func_234455_E_(p_234474_0_) && flag;
+@@ -334,6 +_,12 @@
+       }
+    }
+ 
++   // CraftBukkit start - Added method to allow checking for custom payment items
++   protected static boolean isLovedByPiglin(Item item, PiglinEntity piglin) {
++      return func_234480_a_(item) || (piglin.interestItems.contains(item) || piglin.allowedBarterItems.contains(item));
++   }
++   // CraftBukkit end
++
+    protected static boolean func_234480_a_(Item p_234480_0_) {
+       return p_234480_0_.func_206844_a(ItemTags.field_232903_N_);
+    }
+@@ -418,7 +_,7 @@
+    }
+ 
+    protected static boolean func_234489_b_(PiglinEntity p_234489_0_, ItemStack p_234489_1_) {
+-      return !func_234453_C_(p_234489_0_) && !func_234451_A_(p_234489_0_) && p_234489_0_.func_242337_eM() && func_234492_b_(p_234489_1_.func_77973_b());
++      return !func_234453_C_(p_234489_0_) && !func_234451_A_(p_234489_0_) && p_234489_0_.func_242337_eM() && p_234489_1_.isPiglinCurrency();
+    }
+ 
+    protected static void func_234468_a_(PiglinEntity p_234468_0_, LivingEntity p_234468_1_) {
+@@ -519,7 +_,7 @@
+    public static boolean func_234460_a_(LivingEntity p_234460_0_) {
+       for(ItemStack itemstack : p_234460_0_.func_184193_aE()) {
+          Item item = itemstack.func_77973_b();
+-         if (item instanceof ArmorItem && ((ArmorItem)item).func_200880_d() == ArmorMaterial.GOLD) {
++         if (itemstack.makesPiglinsNeutral(p_234460_0_)) {
+             return true;
+          }
+       }
+@@ -673,7 +_,7 @@
+    }
+ 
+    private static boolean func_234494_c_(LivingEntity p_234494_0_) {
+-      return p_234494_0_.func_233631_a_(Items.field_222114_py);
++      return p_234494_0_.func_233634_a_(item -> item instanceof CrossbowItem);
+    }
+ 
+    private static void func_234501_d_(LivingEntity p_234501_0_) {
+@@ -725,10 +_,16 @@
+    }
+ 
+    private static boolean func_234455_E_(PiglinEntity p_234455_0_) {
+-      return p_234455_0_.func_184592_cb().func_190926_b() || !func_234480_a_(p_234455_0_.func_184592_cb().func_77973_b());
++      return p_234455_0_.func_184592_cb().func_190926_b() || !isLovedByPiglin(p_234455_0_.func_184592_cb().func_77973_b(), p_234455_0_); // CraftBukkit - Changes to allow custom payment for bartering
+    }
+ 
+    public static boolean func_234459_a_(EntityType p_234459_0_) {
+       return p_234459_0_ == EntityType.field_233592_ba_ || p_234459_0_ == EntityType.field_233590_aW_;
+    }
++
++   // CraftBukkit start - Changes to allow custom payment for bartering
++   private static boolean isBarterItem(Item item, PiglinEntity piglin) {
++      return func_234492_b_(item) || piglin.allowedBarterItems.contains(item);
++   }
++   // CraftBukkit end
+ }

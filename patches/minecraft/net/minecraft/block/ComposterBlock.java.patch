@@ -1,0 +1,181 @@
+--- a/net/minecraft/block/ComposterBlock.java
++++ b/net/minecraft/block/ComposterBlock.java
+@@ -4,6 +_,7 @@
+ import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
+ import java.util.Random;
+ import javax.annotation.Nullable;
++import net.minecraft.entity.Entity;
+ import net.minecraft.entity.item.ItemEntity;
+ import net.minecraft.entity.player.PlayerEntity;
+ import net.minecraft.inventory.ISidedInventory;
+@@ -35,6 +_,8 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftBlockInventoryHolder;
++import org.bukkit.craftbukkit.v1_16_R3.util.DummyGeneratorAccess;
+ 
+ public class ComposterBlock extends Block implements ISidedInventoryProvider {
+    public static final IntegerProperty field_220298_a = BlockStateProperties.field_222509_am;
+@@ -196,7 +_,7 @@
+ 
+          return ActionResultType.func_233537_a_(p_225533_2_.field_72995_K);
+       } else if (i == 8) {
+-         func_235489_d_(p_225533_1_, p_225533_2_, p_225533_3_);
++         empty(p_225533_1_, p_225533_2_, p_225533_3_, (Entity) null); // CraftBukkit - no event for players
+          return ActionResultType.func_233537_a_(p_225533_2_.field_72995_K);
+       } else {
+          return ActionResultType.PASS;
+@@ -204,29 +_,53 @@
+    }
+ 
+    public static BlockState func_235486_a_(BlockState p_235486_0_, ServerWorld p_235486_1_, ItemStack p_235486_2_, BlockPos p_235486_3_) {
+-      int i = p_235486_0_.func_177229_b(field_220298_a);
+-      if (i < 7 && field_220299_b.containsKey(p_235486_2_.func_77973_b())) {
+-         BlockState blockstate = func_235487_b_(p_235486_0_, p_235486_1_, p_235486_3_, p_235486_2_);
+-         p_235486_2_.func_190918_g(1);
++      return attemptFill(p_235486_0_, p_235486_1_, p_235486_2_, p_235486_3_, null);
++   }
++
++   public static BlockState attemptFill(BlockState state, ServerWorld world, ItemStack stack, BlockPos pos, Entity entity) { // CraftBukkit
++      int i = state.func_177229_b(field_220298_a);
++      if (i < 7 && field_220299_b.containsKey(stack.func_77973_b())) {
++         // CraftBukkit start
++         double rand = world.func_201674_k().nextDouble();
++         BlockState blockstate = attemptCompost(state, DummyGeneratorAccess.INSTANCE, pos, stack, rand);
++         if (state == blockstate || (entity == null || org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityChangeBlockEvent(entity, pos, blockstate).isCancelled())) {
++            return state;
++         }
++         blockstate = attemptCompost(state, (IWorld) world, pos, stack, rand);
++         // CraftBukkit end
++
++         stack.func_190918_g(1);
+          return blockstate;
+       } else {
+-         return p_235486_0_;
++         return state;
+       }
+    }
+ 
+    public static BlockState func_235489_d_(BlockState p_235489_0_, World p_235489_1_, BlockPos p_235489_2_) {
+-      if (!p_235489_1_.field_72995_K) {
++      return empty(p_235489_0_, p_235489_1_, p_235489_2_, null);
++   }
++
++   // CraftBukkit start
++   public static BlockState empty(BlockState state, World world, BlockPos pos, Entity entity) {
++      if (entity != null) {
++         BlockState iblockdata1 = func_235490_d_(state, DummyGeneratorAccess.INSTANCE, pos);
++         if (org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityChangeBlockEvent(entity, pos, iblockdata1).isCancelled()) {
++            return state;
++         }
++      }
++      // CraftBukkit end
++      if (!world.field_72995_K) {
+          float f = 0.7F;
+-         double d0 = (double)(p_235489_1_.field_73012_v.nextFloat() * 0.7F) + (double)0.15F;
+-         double d1 = (double)(p_235489_1_.field_73012_v.nextFloat() * 0.7F) + (double)0.060000002F + 0.6D;
+-         double d2 = (double)(p_235489_1_.field_73012_v.nextFloat() * 0.7F) + (double)0.15F;
+-         ItemEntity itementity = new ItemEntity(p_235489_1_, (double)p_235489_2_.func_177958_n() + d0, (double)p_235489_2_.func_177956_o() + d1, (double)p_235489_2_.func_177952_p() + d2, new ItemStack(Items.field_196106_bc));
++         double d0 = (double)(world.field_73012_v.nextFloat() * 0.7F) + (double)0.15F;
++         double d1 = (double)(world.field_73012_v.nextFloat() * 0.7F) + (double)0.060000002F + 0.6D;
++         double d2 = (double)(world.field_73012_v.nextFloat() * 0.7F) + (double)0.15F;
++         ItemEntity itementity = new ItemEntity(world, (double)pos.func_177958_n() + d0, (double)pos.func_177956_o() + d1, (double)pos.func_177952_p() + d2, new ItemStack(Items.field_196106_bc));
+          itementity.func_174869_p();
+-         p_235489_1_.func_217376_c(itementity);
++         world.func_217376_c(itementity);
+       }
+ 
+-      BlockState blockstate = func_235490_d_(p_235489_0_, p_235489_1_, p_235489_2_);
+-      p_235489_1_.func_184133_a((PlayerEntity)null, p_235489_2_, SoundEvents.field_219620_bh, SoundCategory.BLOCKS, 1.0F, 1.0F);
++      BlockState blockstate = func_235490_d_(state, world, pos);
++      world.func_184133_a((PlayerEntity)null, pos, SoundEvents.field_219620_bh, SoundCategory.BLOCKS, 1.0F, 1.0F);
+       return blockstate;
+    }
+ 
+@@ -237,16 +_,22 @@
+    }
+ 
+    private static BlockState func_235487_b_(BlockState p_235487_0_, IWorld p_235487_1_, BlockPos p_235487_2_, ItemStack p_235487_3_) {
+-      int i = p_235487_0_.func_177229_b(field_220298_a);
+-      float f = field_220299_b.getFloat(p_235487_3_.func_77973_b());
+-      if ((i != 0 || !(f > 0.0F)) && !(p_235487_1_.func_201674_k().nextDouble() < (double)f)) {
+-         return p_235487_0_;
++      // CraftBukkit start
++      return attemptCompost(p_235487_0_, p_235487_1_, p_235487_2_, p_235487_3_, p_235487_1_.func_201674_k().nextDouble());
++   }
++
++   private static BlockState attemptCompost(BlockState state, IWorld world, BlockPos pos, ItemStack stack, double rand) {
++      // CraftBukkit end
++      int i = state.func_177229_b(field_220298_a);
++      float f = field_220299_b.getFloat(stack.func_77973_b());
++      if ((i != 0 || !(f > 0.0F)) && !(rand < (double)f)) {
++         return state;
+       } else {
+          int j = i + 1;
+-         BlockState blockstate = p_235487_0_.func_206870_a(field_220298_a, Integer.valueOf(j));
+-         p_235487_1_.func_180501_a(p_235487_2_, blockstate, 3);
++         BlockState blockstate = state.func_206870_a(field_220298_a, Integer.valueOf(j));
++         world.func_180501_a(pos, blockstate, 3);
+          if (j == 7) {
+-            p_235487_1_.func_205220_G_().func_205360_a(p_235487_2_, p_235487_0_.func_177230_c(), 20);
++            world.func_205220_G_().func_205360_a(pos, state.func_177230_c(), 20);
+          }
+ 
+          return blockstate;
+@@ -282,7 +_,8 @@
+       if (i == 8) {
+          return new ComposterBlock.FullInventory(p_219966_1_, p_219966_2_, p_219966_3_, new ItemStack(Items.field_196106_bc));
+       } else {
+-         return (ISidedInventory)(i < 7 ? new ComposterBlock.PartialInventory(p_219966_1_, p_219966_2_, p_219966_3_) : new ComposterBlock.EmptyInventory());
++         // CraftBukkit - empty iworld, blockposition
++         return (ISidedInventory)(i < 7 ? new ComposterBlock.PartialInventory(p_219966_1_, p_219966_2_, p_219966_3_) : new ComposterBlock.EmptyInventory(p_219966_2_, p_219966_3_));
+       }
+    }
+ 
+@@ -291,6 +_,11 @@
+          super(0);
+       }
+ 
++      public EmptyInventory(IWorld world, BlockPos blockPos) { // CraftBukkit
++         super(0);
++         this.bukkitOwner = new CraftBlockInventoryHolder(world, blockPos, this); // CraftBukkit
++      }
++
+       public int[] func_180463_a(Direction p_180463_1_) {
+          return new int[0];
+       }
+@@ -315,6 +_,7 @@
+          this.field_213920_a = p_i50463_1_;
+          this.field_213921_b = p_i50463_2_;
+          this.field_213922_c = p_i50463_3_;
++         this.bukkitOwner = new CraftBlockInventoryHolder(p_i50463_2_, p_i50463_3_, this); // CraftBukkit
+       }
+ 
+       public int func_70297_j_() {
+@@ -334,8 +_,15 @@
+       }
+ 
+       public void func_70296_d() {
+-         ComposterBlock.func_235490_d_(this.field_213920_a, this.field_213921_b, this.field_213922_c);
+-         this.field_213923_d = true;
++         // CraftBukkit start - allow putting items back (eg cancelled InventoryMoveItemEvent)
++         if (this.func_191420_l()) {
++            ComposterBlock.func_235490_d_(this.field_213920_a, this.field_213921_b, this.field_213922_c);
++            this.field_213923_d = true;
++         } else {
++            this.field_213921_b.func_180501_a(this.field_213922_c, this.field_213920_a, 3);
++            this.field_213923_d = false;
++         }
++         // CraftBukkit end
+       }
+    }
+ 
+@@ -347,6 +_,7 @@
+ 
+       public PartialInventory(BlockState p_i50464_1_, IWorld p_i50464_2_, BlockPos p_i50464_3_) {
+          super(1);
++         this.bukkitOwner = new CraftBlockInventoryHolder(p_i50464_2_, p_i50464_3_, this); // CraftBukkit
+          this.field_213916_a = p_i50464_1_;
+          this.field_213917_b = p_i50464_2_;
+          this.field_213918_c = p_i50464_3_;

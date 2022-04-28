@@ -1,0 +1,219 @@
+--- a/net/minecraft/entity/boss/dragon/EnderDragonEntity.java
++++ b/net/minecraft/entity/boss/dragon/EnderDragonEntity.java
+@@ -21,16 +_,23 @@
+ import net.minecraft.entity.item.ExperienceOrbEntity;
+ import net.minecraft.entity.monster.IMob;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.ServerPlayerEntity;
++import net.minecraft.item.ItemStack;
++import net.minecraft.loot.LootContext;
++import net.minecraft.loot.LootParameters;
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.network.datasync.DataParameter;
+ import net.minecraft.network.datasync.DataSerializers;
+ import net.minecraft.network.datasync.EntityDataManager;
++import net.minecraft.network.play.server.SPlaySoundEventPacket;
+ import net.minecraft.particles.ParticleTypes;
+ import net.minecraft.pathfinding.Path;
+ import net.minecraft.pathfinding.PathHeap;
+ import net.minecraft.pathfinding.PathPoint;
+ import net.minecraft.potion.EffectInstance;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.tags.BlockTags;
++import net.minecraft.tileentity.TileEntity;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.EntityDamageSource;
+ import net.minecraft.util.EntityPredicates;
+@@ -41,6 +_,8 @@
+ import net.minecraft.util.math.BlockPos;
+ import net.minecraft.util.math.MathHelper;
+ import net.minecraft.util.math.vector.Vector3d;
++import net.minecraft.world.Explosion;
++import net.minecraft.world.Explosion.Mode;
+ import net.minecraft.world.GameRules;
+ import net.minecraft.world.World;
+ import net.minecraft.world.end.DragonFightManager;
+@@ -51,6 +_,10 @@
+ import net.minecraftforge.api.distmarker.OnlyIn;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.v1_16_R3.block.CraftBlock;
++import org.bukkit.event.entity.EntityExplodeEvent;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
++import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
+ 
+ public class EnderDragonEntity extends MobEntity implements IMob {
+    private static final Logger field_184675_bH = LogManager.getLogger();
+@@ -58,7 +_,7 @@
+    private static final EntityPredicate field_213405_bO = (new EntityPredicate()).func_221013_a(64.0D);
+    public final double[][] field_70979_e = new double[64][3];
+    public int field_70976_f = -1;
+-   private final EnderDragonPartEntity[] field_70977_g;
++   public final EnderDragonPartEntity[] field_70977_g; // private->public CraftBukkit
+    public final EnderDragonPartEntity field_70986_h;
+    private final EnderDragonPartEntity field_184673_bv;
+    private final EnderDragonPartEntity field_70987_i;
+@@ -83,6 +_,8 @@
+    private final int[] field_184681_bN = new int[24];
+    private final PathHeap field_184682_bO = new PathHeap();
+ 
++   private Explosion explosionSource = new Explosion(null, this, null, null, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, Mode.DESTROY); // CraftBukkit - reusable source for CraftTNTPrimed.getSource()
++
+    public EnderDragonEntity(EntityType<? extends EnderDragonEntity> p_i50230_1_, World p_i50230_2_) {
+       super(EntityType.field_200802_p, p_i50230_2_);
+       this.field_70986_h = new EnderDragonPartEntity(this, "head", 1.0F, 1.0F);
+@@ -210,7 +_,7 @@
+                }
+ 
+                Vector3d vector3d = iphase.func_188650_g();
+-               if (vector3d != null) {
++               if (vector3d != null && iphase.func_188652_i() != PhaseType.field_188751_k) { // CraftBukkit - Don't move when hovering
+                   double d8 = vector3d.field_72450_a - this.func_226277_ct_();
+                   double d9 = vector3d.field_72448_b - this.func_226278_cu_();
+                   double d10 = vector3d.field_72449_c - this.func_226281_cx_();
+@@ -337,7 +_,14 @@
+          if (this.field_70992_bH.field_70128_L) {
+             this.field_70992_bH = null;
+          } else if (this.field_70173_aa % 10 == 0 && this.func_110143_aJ() < this.func_110138_aP()) {
+-            this.func_70606_j(this.func_110143_aJ() + 1.0F);
++            // CraftBukkit start
++            EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), 1.0f, RegainReason.ENDER_CRYSTAL);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++
++            if(!event.isCancelled()){
++               this.func_70606_j((float) (this.func_110143_aJ() + event.getAmount()));
++            }
++            // CraftBukkit event
+          }
+       }
+ 
+@@ -402,15 +_,22 @@
+       boolean flag = false;
+       boolean flag1 = false;
+ 
++      // CraftBukkit start - Create a list to hold all the destroyed blocks
++      List<org.bukkit.block.Block> destroyedBlocks = new java.util.ArrayList<>();
++      // CraftBukkit end
++
+       for(int k1 = i; k1 <= l; ++k1) {
+          for(int l1 = j; l1 <= i1; ++l1) {
+             for(int i2 = k; i2 <= j1; ++i2) {
+                BlockPos blockpos = new BlockPos(k1, l1, i2);
+                BlockState blockstate = this.field_70170_p.func_180495_p(blockpos);
+                Block block = blockstate.func_177230_c();
+-               if (!blockstate.func_196958_f() && blockstate.func_185904_a() != Material.field_151581_o) {
+-                  if (this.field_70170_p.func_82736_K().func_223586_b(GameRules.field_223599_b) && !BlockTags.field_219754_W.func_230235_a_(block)) {
+-                     flag1 = this.field_70170_p.func_217377_a(blockpos, false) || flag1;
++               if (!blockstate.isAir(this.field_70170_p, blockpos) && blockstate.func_185904_a() != Material.field_151581_o) {
++                  if (net.minecraftforge.common.ForgeHooks.canEntityDestroy(this.field_70170_p, blockpos, this) && !BlockTags.field_219754_W.func_230235_a_(block)) {
++                     // CraftBukkit start - Add blocks to list rather than destroying them
++                     flag1 = true;
++                     destroyedBlocks.add(CraftBlock.at(field_70170_p, blockpos));
++                     // CraftBukkit end
+                   } else {
+                      flag = true;
+                   }
+@@ -419,6 +_,44 @@
+          }
+       }
+ 
++      // CraftBukkit start - Set off an EntityExplodeEvent for the dragon exploding all these blocks
++      // SPIGOT-4882: don't fire event if nothing hit
++      if (!flag1) {
++         return flag;
++      }
++      org.bukkit.entity.Entity bukkitEntity = this.getBukkitEntity();
++      EntityExplodeEvent event = new EntityExplodeEvent(bukkitEntity, bukkitEntity.getLocation(), destroyedBlocks, 0F);
++      bukkitEntity.getServer().getPluginManager().callEvent(event);
++      if(event.isCancelled()){
++         // This flag literally means 'Dragon hit something hard' (Obsidian, White Stone or Bedrock) and will cause the dragon to slow down.
++         // We should consider adding an event extension for it, or perhaps returning true if the event is cancelled.
++         return flag;
++      }else if(event.getYield() == 0F){
++         // Yield zero ==> no drops
++         event.blockList().forEach(block -> this.field_70170_p.func_217377_a(new BlockPos(block.getX(), block.getY(), block.getZ()), false));
++      } else {
++         for(org.bukkit.block.Block block : event.blockList()){
++            org.bukkit.Material blockId = block.getType();
++            if(blockId.isAir()){
++               continue;
++            }
++
++            CraftBlock craftBlock = ((CraftBlock) block);
++            BlockPos blockPos = craftBlock.getPosition();
++
++            Block nmsBlock = craftBlock.getNMS().func_177230_c();
++            if(nmsBlock.func_149659_a(explosionSource)){
++               TileEntity tileEntity = nmsBlock.func_235695_q_() ? this.field_70170_p.func_175625_s(blockPos) : null;
++               LootContext.Builder builder = new LootContext.Builder((ServerWorld) field_70170_p).func_216023_a(field_70170_p.field_73012_v).func_216015_a(LootParameters.POSITION, blockPos).func_216015_a(LootParameters.field_216289_i, ItemStack.field_190927_a).func_216015_a(LootParameters.field_216290_j, 1.0F /event.getYield()).func_216021_b(LootParameters.field_216288_h, tileEntity);
++               craftBlock.getNMS().func_215693_a(builder).forEach(itemStack -> Block.func_180635_a(field_70170_p, blockPos, itemStack));
++               craftBlock.getNMS().func_215706_a((ServerWorld) field_70170_p, blockPos, ItemStack.field_190927_a);
++            }
++
++            this.field_70170_p.func_217377_a(blockPos, false);
++         }
++      }
++      // CraftBukkit end
++
+       if (flag1) {
+          BlockPos blockpos1 = new BlockPos(i + this.field_70146_Z.nextInt(l - i + 1), j + this.field_70146_Z.nextInt(i1 - j + 1), k + this.field_70146_Z.nextInt(j1 - k + 1));
+          this.field_70170_p.func_217379_c(2008, blockpos1, 0);
+@@ -507,7 +_,24 @@
+          }
+ 
+          if (this.field_70995_bG == 1 && !this.func_174814_R()) {
+-            this.field_70170_p.func_175669_a(1028, this.func_233580_cy_(), 0);
++            // CraftBukkit start - Use relative location for far away sounds
++            // this.world.playBroadcastSound(1028, this.getPosition(), 0);
++            int viewDistance = ((ServerWorld) this.field_70170_p).getCBServer().getViewDistance() * 16;
++            for (ServerPlayerEntity player : (List<ServerPlayerEntity>) MinecraftServer.getServer().func_184103_al().field_72404_b) {
++               double deltaX = this.func_226277_ct_() - player.func_226277_ct_();
++               double deltaZ = this.func_226281_cx_() - player.func_226281_cx_();
++               double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
++               if ( field_70170_p.spigotConfig.dragonDeathSoundRadius > 0 && distanceSquared > field_70170_p.spigotConfig.dragonDeathSoundRadius * field_70170_p.spigotConfig.dragonDeathSoundRadius ) continue; // Spigot
++               if (distanceSquared > viewDistance * viewDistance) {
++                  double deltaLength = Math.sqrt(distanceSquared);
++                  double relativeX = player.func_226277_ct_() + (deltaX / deltaLength) * viewDistance;
++                  double relativeZ = player.func_226281_cx_() + (deltaZ / deltaLength) * viewDistance;
++                  player.field_71135_a.func_147359_a(new SPlaySoundEventPacket(1028, new BlockPos((int) relativeX, (int) this.func_226278_cu_(), (int) relativeZ), 0, true));
++               } else {
++                  player.field_71135_a.func_147359_a(new SPlaySoundEventPacket(1028, new BlockPos((int) this.func_226277_ct_(), (int) this.func_226278_cu_(), (int) this.func_226281_cx_()), 0, true));
++               }
++            }
++            // CraftBukkit end
+          }
+       }
+ 
+@@ -712,6 +_,7 @@
+    public void func_213281_b(CompoundNBT p_213281_1_) {
+       super.func_213281_b(p_213281_1_);
+       p_213281_1_.func_74768_a("DragonPhase", this.field_184677_bJ.func_188756_a().func_188652_i().func_188740_b());
++      p_213281_1_.func_74768_a("Paper.DeathTick", this.field_70995_bG); // Paper
+    }
+ 
+    public void func_70037_a(CompoundNBT p_70037_1_) {
+@@ -719,7 +_,7 @@
+       if (p_70037_1_.func_74764_b("DragonPhase")) {
+          this.field_184677_bJ.func_188758_a(PhaseType.func_188738_a(p_70037_1_.func_74762_e("DragonPhase")));
+       }
+-
++      this.field_70995_bG = p_70037_1_.func_74762_e("Paper.DeathTick"); // Paper
+    }
+ 
+    public void func_70623_bb() {
+@@ -841,5 +_,15 @@
+ 
+    public boolean func_184222_aU() {
+       return false;
++   }
++
++   @Override
++   public boolean isMultipartEntity() {
++      return true;
++   }
++
++   @Override
++   public net.minecraftforge.entity.PartEntity<?>[] getParts() {
++      return this.field_70977_g;
+    }
+ }

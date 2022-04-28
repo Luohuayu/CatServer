@@ -1,0 +1,72 @@
+--- a/net/minecraft/potion/Effect.java
++++ b/net/minecraft/potion/Effect.java
+@@ -12,13 +_,18 @@
+ import net.minecraft.entity.ai.attributes.AttributeModifierManager;
+ import net.minecraft.entity.ai.attributes.ModifiableAttributeInstance;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.ServerPlayerEntity;
++import net.minecraft.network.play.server.SUpdateHealthPacket;
+ import net.minecraft.util.DamageSource;
+ import net.minecraft.util.Util;
+ import net.minecraft.util.registry.Registry;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.TranslationTextComponent;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityRegainHealthEvent;
++import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
+ 
+-public class Effect {
++public class Effect extends net.minecraftforge.registries.ForgeRegistryEntry<Effect> implements net.minecraftforge.common.extensions.IForgeEffect {
+    private final Map<Attribute, AttributeModifier> field_111188_I = Maps.newHashMap();
+    private final EffectType field_220305_b;
+    private final int field_76414_N;
+@@ -42,26 +_,36 @@
+    public void func_76394_a(LivingEntity p_76394_1_, int p_76394_2_) {
+       if (this == Effects.field_76428_l) {
+          if (p_76394_1_.func_110143_aJ() < p_76394_1_.func_110138_aP()) {
+-            p_76394_1_.func_70691_i(1.0F);
++            p_76394_1_.heal(1.0F, EntityRegainHealthEvent.RegainReason.MAGIC_REGEN); // CraftBukkit
+          }
+       } else if (this == Effects.field_76436_u) {
+          if (p_76394_1_.func_110143_aJ() > 1.0F) {
+-            p_76394_1_.func_70097_a(DamageSource.field_76376_m, 1.0F);
++            p_76394_1_.func_70097_a(CraftEventFactory.POISON, 1.0F); // CraftBukkit - DamageSource.MAGIC -> CraftEventFactory.POISON
+          }
+       } else if (this == Effects.field_82731_v) {
+          p_76394_1_.func_70097_a(DamageSource.field_82727_n, 1.0F);
+       } else if (this == Effects.field_76438_s && p_76394_1_ instanceof PlayerEntity) {
++         ((PlayerEntity)p_76394_1_).withExhaustionReason(org.bukkit.event.entity.EntityExhaustionEvent.ExhaustionReason.HUNGER_EFFECT);
+          ((PlayerEntity)p_76394_1_).func_71020_j(0.005F * (float)(p_76394_2_ + 1));
++         ((PlayerEntity)p_76394_1_).setDefaultExhaustionReason();
+       } else if (this == Effects.field_76443_y && p_76394_1_ instanceof PlayerEntity) {
+          if (!p_76394_1_.field_70170_p.field_72995_K) {
+-            ((PlayerEntity)p_76394_1_).func_71024_bL().func_75122_a(p_76394_2_ + 1, 1.0F);
++            // CraftBukkit start
++            PlayerEntity entityhuman = (PlayerEntity) p_76394_1_;
++            int oldFoodLevel = entityhuman.func_71024_bL().field_75127_a;
++            org.bukkit.event.entity.FoodLevelChangeEvent event = CraftEventFactory.callFoodLevelChangeEvent(entityhuman, p_76394_2_ + 1 + oldFoodLevel);
++            if (!event.isCancelled()) {
++               entityhuman.func_71024_bL().func_75122_a(event.getFoodLevel() - oldFoodLevel, 1.0F);
++            }
++            ((ServerPlayerEntity) entityhuman).field_71135_a.func_147359_a(new SUpdateHealthPacket(((ServerPlayerEntity)entityhuman).getBukkitEntity().getScaledHealth(), entityhuman.func_71024_bL().field_75127_a, entityhuman.func_71024_bL().field_75125_b));
++            // CraftBukkit end
+          }
+       } else if ((this != Effects.field_76432_h || p_76394_1_.func_70662_br()) && (this != Effects.field_76433_i || !p_76394_1_.func_70662_br())) {
+          if (this == Effects.field_76433_i && !p_76394_1_.func_70662_br() || this == Effects.field_76432_h && p_76394_1_.func_70662_br()) {
+             p_76394_1_.func_70097_a(DamageSource.field_76376_m, (float)(6 << p_76394_2_));
+          }
+       } else {
+-         p_76394_1_.func_70691_i((float)Math.max(4 << p_76394_2_, 0));
++         p_76394_1_.heal((float)Math.max(4 << p_76394_2_, 0), EntityRegainHealthEvent.RegainReason.MAGIC); // CraftBukkit
+       }
+ 
+    }
+@@ -80,7 +_,7 @@
+          }
+       } else {
+          int i = (int)(p_180793_5_ * (double)(4 << p_180793_4_) + 0.5D);
+-         p_180793_3_.func_70691_i((float)i);
++         p_180793_3_.heal((float)i, RegainReason.MAGIC); // CraftBukkit
+       }
+ 
+    }

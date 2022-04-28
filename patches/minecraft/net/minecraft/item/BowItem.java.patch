@@ -1,0 +1,92 @@
+--- a/net/minecraft/item/BowItem.java
++++ b/net/minecraft/item/BowItem.java
+@@ -6,6 +_,7 @@
+ import net.minecraft.enchantment.IVanishable;
+ import net.minecraft.entity.LivingEntity;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.entity.projectile.AbstractArrowEntity;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.util.ActionResult;
+@@ -24,18 +_,23 @@
+          PlayerEntity playerentity = (PlayerEntity)p_77615_3_;
+          boolean flag = playerentity.field_71075_bZ.field_75098_d || EnchantmentHelper.func_77506_a(Enchantments.field_185312_x, p_77615_1_) > 0;
+          ItemStack itemstack = playerentity.func_213356_f(p_77615_1_);
++
++         int i = this.func_77626_a(p_77615_1_) - p_77615_4_;
++         i = net.minecraftforge.event.ForgeEventFactory.onArrowLoose(p_77615_1_, p_77615_2_, playerentity, i, !itemstack.func_190926_b() || flag);
++         if (i < 0) return;
++
+          if (!itemstack.func_190926_b() || flag) {
+             if (itemstack.func_190926_b()) {
+                itemstack = new ItemStack(Items.field_151032_g);
+             }
+ 
+-            int i = this.func_77626_a(p_77615_1_) - p_77615_4_;
+             float f = func_185059_b(i);
+             if (!((double)f < 0.1D)) {
+-               boolean flag1 = flag && itemstack.func_77973_b() == Items.field_151032_g;
++               boolean flag1 = playerentity.field_71075_bZ.field_75098_d || (itemstack.func_77973_b() instanceof ArrowItem && ((ArrowItem)itemstack.func_77973_b()).isInfinite(itemstack, p_77615_1_, playerentity));
+                if (!p_77615_2_.field_72995_K) {
+                   ArrowItem arrowitem = (ArrowItem)(itemstack.func_77973_b() instanceof ArrowItem ? itemstack.func_77973_b() : Items.field_151032_g);
+                   AbstractArrowEntity abstractarrowentity = arrowitem.func_200887_a(p_77615_2_, itemstack, playerentity);
++                  abstractarrowentity = customArrow(abstractarrowentity);
+                   abstractarrowentity.func_234612_a_(playerentity, playerentity.field_70125_A, playerentity.field_70177_z, 0.0F, f * 3.0F, 1.0F);
+                   if (f == 1.0F) {
+                      abstractarrowentity.func_70243_d(true);
+@@ -55,6 +_,15 @@
+                      abstractarrowentity.func_70015_d(100);
+                   }
+ 
++                  // CraftBukkit start
++                  org.bukkit.event.entity.EntityShootBowEvent event = org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityShootBowEvent(playerentity, p_77615_1_, itemstack, abstractarrowentity, p_77615_3_.func_184600_cs(), f, !flag1);
++                  if (event.isCancelled()) {
++                     event.getProjectile().remove();
++                     return;
++                  }
++                  flag1 = !event.shouldConsumeItem();
++                  // CraftBukkit end
++
+                   p_77615_1_.func_222118_a(1, playerentity, (p_220009_1_) -> {
+                      p_220009_1_.func_213334_d(playerentity.func_184600_cs());
+                   });
+@@ -62,7 +_,16 @@
+                      abstractarrowentity.field_70251_a = AbstractArrowEntity.PickupStatus.CREATIVE_ONLY;
+                   }
+ 
+-                  p_77615_2_.func_217376_c(abstractarrowentity);
++                  // CraftBukkit start
++                  if (event.getProjectile() == abstractarrowentity.getBukkitEntity()) {
++                     if (!p_77615_2_.func_217376_c(abstractarrowentity)) {
++                        if (playerentity instanceof ServerPlayerEntity) {
++                           ((ServerPlayerEntity) playerentity).getBukkitEntity().updateInventory();
++                        }
++                        return;
++                     }
++                  }
++                  // CraftBukkit end
+                }
+ 
+                p_77615_2_.func_184148_a((PlayerEntity)null, playerentity.func_226277_ct_(), playerentity.func_226278_cu_(), playerentity.func_226281_cx_(), SoundEvents.field_187737_v, SoundCategory.PLAYERS, 1.0F, 1.0F / (field_77697_d.nextFloat() * 0.4F + 1.2F) + f * 0.5F);
+@@ -100,6 +_,10 @@
+    public ActionResult<ItemStack> func_77659_a(World p_77659_1_, PlayerEntity p_77659_2_, Hand p_77659_3_) {
+       ItemStack itemstack = p_77659_2_.func_184586_b(p_77659_3_);
+       boolean flag = !p_77659_2_.func_213356_f(itemstack).func_190926_b();
++
++      ActionResult<ItemStack> ret = net.minecraftforge.event.ForgeEventFactory.onArrowNock(itemstack, p_77659_1_, p_77659_2_, p_77659_3_, flag);
++      if (ret != null) return ret;
++
+       if (!p_77659_2_.field_71075_bZ.field_75098_d && !flag) {
+          return ActionResult.func_226251_d_(itemstack);
+       } else {
+@@ -110,6 +_,10 @@
+ 
+    public Predicate<ItemStack> func_220004_b() {
+       return field_220007_a;
++   }
++
++   public AbstractArrowEntity customArrow(AbstractArrowEntity arrow) {
++      return arrow;
+    }
+ 
+    public int func_230305_d_() {

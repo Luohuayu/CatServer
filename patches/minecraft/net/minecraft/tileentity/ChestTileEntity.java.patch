@@ -1,0 +1,195 @@
+--- a/net/minecraft/tileentity/ChestTileEntity.java
++++ b/net/minecraft/tileentity/ChestTileEntity.java
+@@ -1,7 +_,9 @@
+ package net.minecraft.tileentity;
+ 
++import java.util.List;
+ import net.minecraft.block.Block;
+ import net.minecraft.block.BlockState;
++import net.minecraft.block.Blocks;
+ import net.minecraft.block.ChestBlock;
+ import net.minecraft.entity.player.PlayerEntity;
+ import net.minecraft.entity.player.PlayerInventory;
+@@ -27,6 +_,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
+ 
+ @OnlyIn(
+    value = Dist.CLIENT,
+@@ -36,8 +_,9 @@
+    private NonNullList<ItemStack> field_145985_p = NonNullList.func_191197_a(27, ItemStack.field_190927_a);
+    protected float field_145989_m;
+    protected float field_145986_n;
+-   protected int field_145987_o;
++   public int field_145987_o;
+    private int field_145983_q;
++   private net.minecraftforge.common.util.LazyOptional<net.minecraftforge.items.IItemHandlerModifiable> chestHandler;
+ 
+    protected ChestTileEntity(TileEntityType<?> p_i48287_1_) {
+       super(p_i48287_1_);
+@@ -51,6 +_,42 @@
+       return 27;
+    }
+ 
++   // CraftBukkit start - add fields and methods
++   public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++   private int maxStack = MAX_STACK;
++   public boolean opened;
++
++   @Override
++   public List<ItemStack> getContents() {
++      return this.field_145985_p;
++   }
++
++   @Override
++   public void onOpen(CraftHumanEntity who) {
++      this.transaction.add(who);
++   }
++
++   @Override
++   public void onClose(CraftHumanEntity who) {
++      this.transaction.remove(who);
++   }
++
++   @Override
++   public List<HumanEntity> getViewers() {
++      return transaction;
++   }
++
++   @Override
++   public void setMaxStackSize(int size) {
++      this.maxStack = size;
++   }
++
++   @Override
++   public int func_70297_j_() {
++      return maxStack;
++   }
++   // CraftBukkit end
++
+    protected ITextComponent func_213907_g() {
+       return new TranslationTextComponent("container.chest");
+    }
+@@ -81,6 +_,12 @@
+       this.field_145987_o = func_213977_a(this.field_145850_b, this, this.field_145983_q, i, j, k, this.field_145987_o);
+       this.field_145986_n = this.field_145989_m;
+       float f = 0.1F;
++      // CraftBukkit start - If chest is forced open by API, remove a viewer due to playBlockAction() call and don't tick to prevent sound effects.
++      if (opened) {
++         this.field_145987_o--;
++         return;
++      }
++      // CraftBukkit end
+       if (this.field_145987_o > 0 && this.field_145989_m == 0.0F) {
+          this.func_195483_a(SoundEvents.field_187657_V);
+       }
+@@ -133,7 +_,7 @@
+       return i;
+    }
+ 
+-   private void func_195483_a(SoundEvent p_195483_1_) {
++   public void func_195483_a(SoundEvent p_195483_1_) {
+       ChestType chesttype = this.func_195044_w().func_177229_b(ChestBlock.field_196314_b);
+       if (chesttype != ChestType.LEFT) {
+          double d0 = (double)this.field_174879_c.func_177958_n() + 0.5D;
+@@ -163,8 +_,20 @@
+          if (this.field_145987_o < 0) {
+             this.field_145987_o = 0;
+          }
++         int oldPower = Math.max(0, Math.min(15, this.field_145987_o)); // CraftBukkit - Get power before new viewer is added
+ 
+          ++this.field_145987_o;
++
++         if (this.field_145850_b == null) return; // CraftBukkit
++         // CraftBukkit start - Call redstone event
++         if (this.func_195044_w().func_177230_c() == Blocks.field_150447_bR) {
++            int newPower = Math.max(0, Math.min(15, this.field_145987_o));
++            if (oldPower != newPower) {
++               org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callRedstoneChange(field_145850_b, field_174879_c, oldPower, newPower);
++            }
++         }
++         // CraftBukkit end
++
+          this.func_195482_p();
+       }
+ 
+@@ -172,7 +_,18 @@
+ 
+    public void func_174886_c(PlayerEntity p_174886_1_) {
+       if (!p_174886_1_.func_175149_v()) {
++         int oldPower = Math.max(0, Math.min(15, this.field_145987_o)); // CraftBukkit - Get power before new viewer is added
+          --this.field_145987_o;
++
++         // CraftBukkit start - Call redstone event
++         if (this.func_195044_w().func_177230_c() == Blocks.field_150447_bR) {
++            int newPower = Math.max(0, Math.min(15, this.field_145987_o));
++            if (oldPower != newPower) {
++               org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callRedstoneChange(field_145850_b, field_174879_c, oldPower, newPower);
++            }
++         }
++         // CraftBukkit end
++
+          this.func_195482_p();
+       }
+ 
+@@ -202,7 +_,7 @@
+ 
+    public static int func_195481_a(IBlockReader p_195481_0_, BlockPos p_195481_1_) {
+       BlockState blockstate = p_195481_0_.func_180495_p(p_195481_1_);
+-      if (blockstate.func_177230_c().func_235695_q_()) {
++      if (blockstate.hasTileEntity()) {
+          TileEntity tileentity = p_195481_0_.func_175625_s(p_195481_1_);
+          if (tileentity instanceof ChestTileEntity) {
+             return ((ChestTileEntity)tileentity).field_145987_o;
+@@ -221,4 +_,48 @@
+    protected Container func_213906_a(int p_213906_1_, PlayerInventory p_213906_2_) {
+       return ChestContainer.func_216992_a(p_213906_1_, p_213906_2_, this);
+    }
++
++   @Override
++   public void func_145836_u() {
++      super.func_145836_u();
++      if (this.chestHandler != null) {
++         net.minecraftforge.common.util.LazyOptional<?> oldHandler = this.chestHandler;
++         this.chestHandler = null;
++         oldHandler.invalidate();
++      }
++   }
++
++   @Override
++   public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> cap, Direction side) {
++       if (!this.field_145846_f && cap == net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
++          if (this.chestHandler == null)
++             this.chestHandler = net.minecraftforge.common.util.LazyOptional.of(this::createHandler);
++          return this.chestHandler.cast();
++       }
++       return super.getCapability(cap, side);
++   }
++
++   private net.minecraftforge.items.IItemHandlerModifiable createHandler() {
++      BlockState state = this.func_195044_w();
++      if (!(state.func_177230_c() instanceof ChestBlock)) {
++         return new net.minecraftforge.items.wrapper.InvWrapper(this);
++      }
++      IInventory inv = ChestBlock.func_226916_a_((ChestBlock) state.func_177230_c(), state, func_145831_w(), func_174877_v(), true);
++      return new net.minecraftforge.items.wrapper.InvWrapper(inv == null ? this : inv);
++   }
++
++   @Override
++   protected void invalidateCaps() {
++      super.invalidateCaps();
++      if (chestHandler != null)
++        chestHandler.invalidate();
++   }
++
++   // LoliServer - don't set chest onlyOpCanSetNbt because some mod need this.
++   // CraftBukkit start
++//   @Override
++//   public boolean onlyOpCanSetNbt() {
++//      return true;
++//   }
++   // CraftBukkit end
+ }

@@ -1,0 +1,108 @@
+--- a/net/minecraft/item/CrossbowItem.java
++++ b/net/minecraft/item/CrossbowItem.java
+@@ -5,6 +_,8 @@
+ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.event.entity.EntityLoadCrossbowEvent;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.client.util.ITooltipFlag;
+ import net.minecraft.enchantment.EnchantmentHelper;
+@@ -35,6 +_,8 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
++import org.bukkit.inventory.EquipmentSlot;
+ 
+ public class CrossbowItem extends ShootableItem implements IVanishable {
+    private boolean field_220034_c = false;
+@@ -74,7 +_,20 @@
+    public void func_77615_a(ItemStack p_77615_1_, World p_77615_2_, LivingEntity p_77615_3_, int p_77615_4_) {
+       int i = this.func_77626_a(p_77615_1_) - p_77615_4_;
+       float f = func_220031_a(i, p_77615_1_);
+-      if (f >= 1.0F && !func_220012_d(p_77615_1_) && func_220021_a(p_77615_3_, p_77615_1_)) {
++      // Paper start
++      if (f >= 1.0F && !func_220012_d(p_77615_1_) /*&& tryLoadProjectiles(p_77615_3_, p_77615_1_)*/) {
++         final EntityLoadCrossbowEvent event =
++                 new EntityLoadCrossbowEvent(
++                         (org.bukkit.entity.LivingEntity) p_77615_3_.getBukkitEntity(),
++                         org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.asCraftMirror(p_77615_1_),
++                         p_77615_3_.func_184600_cs() == Hand.MAIN_HAND ? EquipmentSlot.HAND : EquipmentSlot.OFF_HAND
++                 );
++         Bukkit.getServer().getPluginManager().callEvent(event);
++         shouldConsume = event.shouldConsumeItem();
++         if (event.isCancelled() || !func_220021_a(p_77615_3_, p_77615_1_)) {
++            return;
++         }
++         // Paper end
+          func_220011_a(p_77615_1_, true);
+          SoundCategory soundcategory = p_77615_3_ instanceof PlayerEntity ? SoundCategory.PLAYERS : SoundCategory.HOSTILE;
+          p_77615_2_.func_184148_a((PlayerEntity)null, p_77615_3_.func_226277_ct_(), p_77615_3_.func_226278_cu_(), p_77615_3_.func_226281_cx_(), SoundEvents.field_219610_bB, soundcategory, 1.0F, 1.0F / (field_77697_d.nextFloat() * 0.5F + 1.0F) + 0.2F);
+@@ -82,10 +_,18 @@
+ 
+    }
+ 
++   // For compatibility
++   /*private static boolean tryLoadProjectiles(LivingEntity p_220021_0_, ItemStack p_220021_1_) {
++      return tryLoadProjectiles(p_220021_0_, p_220021_1_, true);
++   }*/
++
++
++   private static boolean shouldConsume = true;
++
+    private static boolean func_220021_a(LivingEntity p_220021_0_, ItemStack p_220021_1_) {
+       int i = EnchantmentHelper.func_77506_a(Enchantments.field_222192_G, p_220021_1_);
+       int j = i == 0 ? 1 : 3;
+-      boolean flag = p_220021_0_ instanceof PlayerEntity && ((PlayerEntity)p_220021_0_).field_71075_bZ.field_75098_d;
++      boolean flag = !shouldConsume || p_220021_0_ instanceof PlayerEntity && ((PlayerEntity)p_220021_0_).field_71075_bZ.field_75098_d; // Paper
+       ItemStack itemstack = p_220021_0_.func_213356_f(p_220021_1_);
+       ItemStack itemstack1 = itemstack.func_77946_l();
+ 
+@@ -99,11 +_,17 @@
+             itemstack1 = itemstack.func_77946_l();
+          }
+ 
++         // CraftBukkit start - SPIGOT-4870, MC-150847
++         else if (itemstack1.func_190926_b()) {
++            return false;
++         }
++         // CraftBukkit end
++
+          if (!func_220023_a(p_220021_0_, p_220021_1_, itemstack, k > 0, flag)) {
+             return false;
+          }
+       }
+-
++      shouldConsume = true;
+       return true;
+    }
+ 
+@@ -209,10 +_,25 @@
+             projectileentity.func_70186_c((double)vector3f.func_195899_a(), (double)vector3f.func_195900_b(), (double)vector3f.func_195902_c(), p_220016_7_, p_220016_8_);
+          }
+ 
++         // CraftBukkit start
++         org.bukkit.event.entity.EntityShootBowEvent event = org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityShootBowEvent(p_220016_1_, p_220016_3_, p_220016_4_, projectileentity, p_220016_1_.func_184600_cs(), p_220016_5_, true);
++         if (event.isCancelled()) {
++            event.getProjectile().remove();
++            return;
++         }
++         // CraftBukkit end
++
+          p_220016_3_.func_222118_a(flag ? 3 : 1, p_220016_1_, (p_220017_1_) -> {
+             p_220017_1_.func_213334_d(p_220016_2_);
+          });
+-         p_220016_0_.func_217376_c(projectileentity);
++         // CraftBukkit start
++         if (event.getProjectile() == projectileentity.getBukkitEntity() && !p_220016_0_.func_217376_c((net.minecraft.entity.Entity) projectileentity)) {
++            if (p_220016_1_ instanceof ServerPlayerEntity) {
++               ((ServerPlayerEntity) p_220016_1_).getBukkitEntity().updateInventory();
++            }
++            return;
++         }
++         // CraftBukkit end
+          p_220016_0_.func_184148_a((PlayerEntity)null, p_220016_1_.func_226277_ct_(), p_220016_1_.func_226278_cu_(), p_220016_1_.func_226281_cx_(), SoundEvents.field_219616_bH, SoundCategory.PLAYERS, 1.0F, p_220016_5_);
+       }
+    }

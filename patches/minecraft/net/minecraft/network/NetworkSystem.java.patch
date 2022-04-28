@@ -1,0 +1,83 @@
+--- a/net/minecraft/network/NetworkSystem.java
++++ b/net/minecraft/network/NetworkSystem.java
+@@ -41,11 +_,12 @@
+ 
+ public class NetworkSystem {
+    private static final Logger field_151275_b = LogManager.getLogger();
++   private static final int READ_TIMEOUT = Integer.parseInt(System.getProperty("forge.readTimeout", "30"));
+    public static final LazyValue<NioEventLoopGroup> field_151276_c = new LazyValue<>(() -> {
+-      return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).build());
++      return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).setThreadFactory(net.minecraftforge.fml.common.thread.SidedThreadGroups.SERVER).build());
+    });
+    public static final LazyValue<EpollEventLoopGroup> field_181141_b = new LazyValue<>(() -> {
+-      return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).build());
++      return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).setThreadFactory(net.minecraftforge.fml.common.thread.SidedThreadGroups.SERVER).build());
+    });
+    private final MinecraftServer field_151273_d;
+    public volatile boolean field_151277_a;
+@@ -58,6 +_,7 @@
+    }
+ 
+    public void func_151265_a(@Nullable InetAddress p_151265_1_, int p_151265_2_) throws IOException {
++      if (p_151265_1_ instanceof java.net.Inet6Address) System.setProperty("java.net.preferIPv4Stack", "false");
+       synchronized(this.field_151274_e) {
+          Class<? extends ServerSocketChannel> oclass;
+          LazyValue<? extends EventLoopGroup> lazyvalue;
+@@ -78,14 +_,14 @@
+                } catch (ChannelException channelexception) {
+                }
+ 
+-               p_initChannel_1_.pipeline().addLast("timeout", new ReadTimeoutHandler(30)).addLast("legacy_query", new LegacyPingHandler(NetworkSystem.this)).addLast("splitter", new NettyVarint21FrameDecoder()).addLast("decoder", new NettyPacketDecoder(PacketDirection.SERVERBOUND)).addLast("prepender", new NettyVarint21FrameEncoder()).addLast("encoder", new NettyPacketEncoder(PacketDirection.CLIENTBOUND));
++               p_initChannel_1_.pipeline().addLast("timeout", new ReadTimeoutHandler(READ_TIMEOUT)).addLast("legacy_query", new LegacyPingHandler(NetworkSystem.this)).addLast("splitter", new NettyVarint21FrameDecoder()).addLast("decoder", new NettyPacketDecoder(PacketDirection.SERVERBOUND)).addLast("prepender", new NettyVarint21FrameEncoder()).addLast("encoder", new NettyPacketEncoder(PacketDirection.CLIENTBOUND));
+                int i = NetworkSystem.this.field_151273_d.func_241871_k();
+                NetworkManager networkmanager = (NetworkManager)(i > 0 ? new RateLimitedNetworkManager(i) : new NetworkManager(PacketDirection.SERVERBOUND));
+                NetworkSystem.this.field_151272_f.add(networkmanager);
+                p_initChannel_1_.pipeline().addLast("packet_handler", networkmanager);
+                networkmanager.func_150719_a(new ServerHandshakeNetHandler(NetworkSystem.this.field_151273_d, networkmanager));
+             }
+-         }).group(lazyvalue.func_179281_c()).localAddress(p_151265_1_, p_151265_2_).bind().syncUninterruptibly());
++         }).group(lazyvalue.func_179281_c()).localAddress(p_151265_1_, p_151265_2_).option(ChannelOption.AUTO_READ, false).bind().syncUninterruptibly()); // CraftBukkit
+       }
+    }
+ 
+@@ -122,6 +_,13 @@
+ 
+    public void func_151269_c() {
+       synchronized(this.field_151272_f) {
++         // Spigot Start
++         // This prevents players from 'gaming' the server, and strategically relogging to increase their position in the tick order
++         if ( org.spigotmc.SpigotConfig.playerShuffle > 0 && MinecraftServer.currentTick % org.spigotmc.SpigotConfig.playerShuffle == 0 )
++         {
++            Collections.shuffle( this.field_151272_f );
++         }
++         // Spigot End
+          Iterator<NetworkManager> iterator = this.field_151272_f.iterator();
+ 
+          while(iterator.hasNext()) {
+@@ -143,6 +_,10 @@
+                      networkmanager.func_150721_g();
+                   }
+                } else {
++                  // Spigot Start
++                  // Fix a race condition where a NetworkManager could be unregistered just before connection.
++                  if (networkmanager.preparing) continue;
++                  // Spigot End
+                   iterator.remove();
+                   networkmanager.func_179293_l();
+                }
+@@ -155,4 +_,15 @@
+    public MinecraftServer func_151267_d() {
+       return this.field_151273_d;
+    }
++
++   // CraftBukkit start
++   public void acceptConnections() {
++      synchronized (this.field_151274_e) {
++         for (final ChannelFuture future : this.field_151274_e) {
++            future.channel().config().setAutoRead(true);
++         }
++      }
++   }
++   // CraftBukkit end
++
+ }

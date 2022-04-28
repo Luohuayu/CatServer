@@ -1,0 +1,211 @@
+--- a/net/minecraft/world/TrackedEntity.java
++++ b/net/minecraft/world/TrackedEntity.java
+@@ -4,6 +_,7 @@
+ import com.mojang.datafixers.util.Pair;
+ import java.util.Collection;
+ import java.util.Collections;
++import java.util.HashSet;
+ import java.util.List;
+ import java.util.Set;
+ import java.util.function.Consumer;
+@@ -37,6 +_,9 @@
+ import net.minecraft.world.storage.MapData;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.Bukkit;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerVelocityEvent;
+ 
+ public class TrackedEntity {
+    private static final Logger field_219459_a = LogManager.getLogger();
+@@ -58,7 +_,15 @@
+    private boolean field_219475_q;
+    private boolean field_219476_r;
+ 
++   // CraftBukkit Start
++   private Set<ServerPlayerEntity> tackedPlayers;
++
++   public void setTrackedPlayers(Set<ServerPlayerEntity> trackedPlayers) {
++      this.tackedPlayers = trackedPlayers;
++   }
++
+    public TrackedEntity(ServerWorld p_i50704_1_, Entity p_i50704_2_, int p_i50704_3_, boolean p_i50704_4_, Consumer<IPacket<?>> p_i50704_5_) {
++      tackedPlayers = new HashSet<>();
+       this.field_219460_b = p_i50704_1_;
+       this.field_219464_f = p_i50704_5_;
+       this.field_219461_c = p_i50704_2_;
+@@ -75,24 +_,25 @@
+       List<Entity> list = this.field_219461_c.func_184188_bt();
+       if (!list.equals(this.field_219474_p)) {
+          this.field_219474_p = list;
+-         this.field_219464_f.accept(new SSetPassengersPacket(this.field_219461_c));
++         this.func_219451_a(new SSetPassengersPacket(this.field_219461_c)); // CraftBukkit
+       }
+ 
+-      if (this.field_219461_c instanceof ItemFrameEntity && this.field_219472_n % 10 == 0) {
++      // PAIL : rename
++      if (this.field_219461_c instanceof ItemFrameEntity /*&& this.updateCounter % 10 == 0*/) { // CraftBukkit - Moved below, should always enter this block
+          ItemFrameEntity itemframeentity = (ItemFrameEntity)this.field_219461_c;
+          ItemStack itemstack = itemframeentity.func_82335_i();
+-         if (itemstack.func_77973_b() instanceof FilledMapItem) {
++         if (this.field_219472_n % 10 == 0 && itemstack.func_77973_b() instanceof FilledMapItem) { // CraftBukkit - Moved this.tickCounter % 10 logic here so item frames do not enter the other blocks
+             MapData mapdata = FilledMapItem.func_195950_a(itemstack, this.field_219460_b);
+-
+-            for(ServerPlayerEntity serverplayerentity : this.field_219460_b.func_217369_A()) {
+-               mapdata.func_76191_a(serverplayerentity, itemstack);
+-               IPacket<?> ipacket = ((FilledMapItem)itemstack.func_77973_b()).func_150911_c(itemstack, this.field_219460_b, serverplayerentity);
+-               if (ipacket != null) {
+-                  serverplayerentity.field_71135_a.func_147359_a(ipacket);
++            if (mapdata != null) {
++               for(ServerPlayerEntity serverplayerentity : this.tackedPlayers) {  // CraftBukkit
++                  mapdata.func_76191_a(serverplayerentity, itemstack);
++                  IPacket<?> ipacket = ((FilledMapItem) itemstack.func_77973_b()).func_150911_c(itemstack, this.field_219460_b, serverplayerentity);
++                  if (ipacket != null) {
++                     serverplayerentity.field_71135_a.func_147359_a(ipacket);
++                  }
+                }
+             }
+          }
+-
+          this.func_219457_c();
+       }
+ 
+@@ -119,6 +_,18 @@
+             IPacket<?> ipacket1 = null;
+             boolean flag4 = flag3 || this.field_219472_n % 60 == 0;
+             boolean flag = Math.abs(l - this.field_219468_j) >= 1 || Math.abs(k1 - this.field_219469_k) >= 1;
++
++            // CraftBukkit start - Code moved from below
++            if (flag4) {
++               this.func_219458_d();
++            }
++
++            if (flag) {
++               this.field_219468_j = l;
++               this.field_219469_k = k1;
++            }
++            // CraftBukkit end
++
+             if (this.field_219472_n > 0 || this.field_219461_c instanceof AbstractArrowEntity) {
+                long i = SEntityPacket.func_218743_a(vector3d.field_72450_a);
+                long j = SEntityPacket.func_218743_a(vector3d.field_72448_b);
+@@ -155,14 +_,16 @@
+             }
+ 
+             this.func_219457_c();
++             /* CraftBukkit start - Code moved up
+             if (flag4) {
+-               this.func_219458_d();
++               this.updateEncodedPosition();
+             }
+ 
+             if (flag) {
+-               this.field_219468_j = l;
+-               this.field_219469_k = k1;
++               this.encodedRotationYaw = l;
++               this.encodedRotationPitch = k1;
+             }
++            // CraftBukkit end */
+ 
+             this.field_219475_q = false;
+          }
+@@ -178,7 +_,23 @@
+ 
+       ++this.field_219472_n;
+       if (this.field_219461_c.field_70133_I) {
+-         this.func_219451_a(new SEntityVelocityPacket(this.field_219461_c));
++         // CraftBukkit start - Create PlayerVelocity event
++         boolean cancelled = false;
++         if (this.field_219461_c instanceof ServerPlayerEntity) {
++            Player player = (Player) this.field_219461_c.getBukkitEntity();
++            org.bukkit.util.Vector velocity = player.getVelocity();
++            PlayerVelocityEvent event = new PlayerVelocityEvent(player, velocity.clone());
++            this.field_219461_c.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++               cancelled = true;
++            } else if (!velocity.equals(event.getVelocity())) {
++               player.setVelocity(event.getVelocity());
++            }
++         }
++         if (!cancelled) {
++            this.func_219451_a(new SEntityVelocityPacket(this.field_219461_c));
++         }
++         // CraftBukkit end
+          this.field_219461_c.field_70133_I = false;
+       }
+ 
+@@ -187,17 +_,31 @@
+    public void func_219454_a(ServerPlayerEntity p_219454_1_) {
+       this.field_219461_c.func_184203_c(p_219454_1_);
+       p_219454_1_.func_152339_d(this.field_219461_c);
++      net.minecraftforge.event.ForgeEventFactory.onStopEntityTracking(this.field_219461_c, p_219454_1_);
+    }
+ 
+    public void func_219455_b(ServerPlayerEntity p_219455_1_) {
++      sendSpawnPacketsPlayer = p_219455_1_;
+       this.func_219452_a(p_219455_1_.field_71135_a::func_147359_a);
+       this.field_219461_c.func_184178_b(p_219455_1_);
+       p_219455_1_.func_184848_d(this.field_219461_c);
+-   }
+-
++      net.minecraftforge.event.ForgeEventFactory.onStartEntityTracking(this.field_219461_c, p_219455_1_);
++   }
++
++   public void a(Consumer<IPacket<?>> packetConsumer, ServerPlayerEntity player) {
++      sendSpawnPacketsPlayer = player;
++      func_219452_a(packetConsumer);
++   }
++
++   ServerPlayerEntity sendSpawnPacketsPlayer;
+    public void func_219452_a(Consumer<IPacket<?>> p_219452_1_) {
++      ServerPlayerEntity serverPlayerEntity = sendSpawnPacketsPlayer;
++      sendSpawnPacketsPlayer = null;
+       if (this.field_219461_c.field_70128_L) {
+-         field_219459_a.warn("Fetching packet for removed entity " + this.field_219461_c);
++         // CraftBukkit start - Remove useless error spam, just return
++         //LOGGER.warn("Fetching packet for removed entity " + this.trackedEntity);
++         return;
++         // CraftBukkit end
+       }
+ 
+       IPacket<?> ipacket = this.field_219461_c.func_213297_N();
+@@ -210,6 +_,13 @@
+       boolean flag = this.field_219463_e;
+       if (this.field_219461_c instanceof LivingEntity) {
+          Collection<ModifiableAttributeInstance> collection = ((LivingEntity)this.field_219461_c).func_233645_dx_().func_233789_b_();
++
++         // CraftBukkit start - If sending own attributes send scaled health instead of current maximum health
++         if (this.field_219461_c.func_145782_y() == serverPlayerEntity.func_145782_y()) {
++            ((ServerPlayerEntity) this.field_219461_c).getBukkitEntity().injectScaledMaxHealth(collection, false);
++         }
++         // CraftBukkit end
++
+          if (!collection.isEmpty()) {
+             p_219452_1_.accept(new SEntityPropertiesPacket(this.field_219461_c.func_145782_y(), collection));
+          }
+@@ -237,7 +_,13 @@
+          if (!list.isEmpty()) {
+             p_219452_1_.accept(new SEntityEquipmentPacket(this.field_219461_c.func_145782_y(), list));
+          }
++         ((LivingEntity) this.field_219461_c).func_241353_q_(); // CraftBukkit - SPIGOT-3789: sync again immediately after sending
+       }
++
++      // CraftBukkit start - Fix for nonsensical head yaw
++      this.field_219470_l = MathHelper.func_76141_d(this.field_219461_c.func_70079_am() * 256.0F / 360.0F);
++      p_219452_1_.accept(new SEntityHeadLookPacket(this.field_219461_c, (byte) field_219470_l));
++      // CraftBukkit end
+ 
+       if (this.field_219461_c instanceof LivingEntity) {
+          LivingEntity livingentity = (LivingEntity)this.field_219461_c;
+@@ -273,6 +_,11 @@
+       if (this.field_219461_c instanceof LivingEntity) {
+          Set<ModifiableAttributeInstance> set = ((LivingEntity)this.field_219461_c).func_233645_dx_().func_233778_a_();
+          if (!set.isEmpty()) {
++            // CraftBukkit start - Send scaled max health
++            if (this.field_219461_c instanceof ServerPlayerEntity) {
++               ((ServerPlayerEntity) this.field_219461_c).getBukkitEntity().injectScaledMaxHealth(set, false);
++            }
++            // CraftBukkit end
+             this.func_219451_a(new SEntityPropertiesPacket(this.field_219461_c.func_145782_y(), set));
+          }
+ 

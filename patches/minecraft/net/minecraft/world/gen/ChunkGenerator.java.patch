@@ -1,0 +1,171 @@
+--- a/net/minecraft/world/gen/ChunkGenerator.java
++++ b/net/minecraft/world/gen/ChunkGenerator.java
+@@ -9,6 +_,8 @@
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.event.world.StructureLocateEvent;
+ import net.minecraft.crash.CrashReport;
+ import net.minecraft.crash.CrashReportCategory;
+ import net.minecraft.crash.ReportedException;
+@@ -23,6 +_,7 @@
+ import net.minecraft.world.IBlockReader;
+ import net.minecraft.world.ISeedReader;
+ import net.minecraft.world.IWorld;
++import net.minecraft.world.World;
+ import net.minecraft.world.biome.Biome;
+ import net.minecraft.world.biome.BiomeContainer;
+ import net.minecraft.world.biome.BiomeGenerationSettings;
+@@ -44,6 +_,8 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
+ 
+ public abstract class ChunkGenerator {
+    public static final Codec<ChunkGenerator> field_235948_a_ = Registry.field_239690_aB_.dispatchStable(ChunkGenerator::func_230347_a_, Function.identity());
+@@ -151,6 +_,28 @@
+ 
+    @Nullable
+    public BlockPos func_235956_a_(ServerWorld p_235956_1_, Structure<?> p_235956_2_, BlockPos p_235956_3_, int p_235956_4_, boolean p_235956_5_) {
++      // Paper start
++      org.bukkit.World bukkitWorld = p_235956_1_.getWorld();
++      org.bukkit.Location bukkitOrigin = new org.bukkit.Location(bukkitWorld, p_235956_3_.func_177958_n(), p_235956_3_.func_177956_o(), p_235956_3_.func_177952_p());
++      StructureLocateEvent event = new StructureLocateEvent(bukkitWorld, bukkitOrigin, org.bukkit.StructureType.getStructureTypes().get(p_235956_2_.func_143025_a()), p_235956_4_, p_235956_5_);
++      if (!event.callEvent()) {
++         return null;
++      }
++      // If event call set a final location, skip structure finding and just return set result.
++      if (event.getResult() != null) {
++         return new BlockPos(event.getResult().getBlockX(), event.getResult().getBlockY(), event.getResult().getBlockZ());
++      }
++      // Get origin location (re)defined by event call.
++      p_235956_3_ = new BlockPos(event.getOrigin().getBlockX(), event.getOrigin().getBlockY(), event.getOrigin().getBlockZ());
++      // Get world (re)defined by event call.
++      p_235956_1_ = ((CraftWorld) event.getOrigin().getWorld()).getHandle();
++      // Get radius and whether to find unexplored structures (re)defined by event call.
++      p_235956_4_ = event.getRadius();
++      p_235956_5_ = event.shouldFindUnexplored();
++      //p_235956_2_ = Structure.STRUCTURES_REGISTRY.get(event.getType().getName());
++      // TODO： Add Structure to StructureType(Bukkit)
++      if(event.getType() != null) p_235956_2_ = Structure.field_236365_a_.get(event.getType().getName());
++      // Paper end
+       if (!this.field_222542_c.func_205004_a(p_235956_2_)) {
+          return null;
+       } else if (p_235956_2_ == Structure.field_236375_k_) {
+@@ -173,6 +_,7 @@
+ 
+          return blockpos;
+       } else {
++         updateStructureSettings(p_235956_1_, field_222543_d); // Spigot
+          StructureSeparationSettings structureseparationsettings = this.field_222543_d.func_236197_a_(p_235956_2_);
+          return structureseparationsettings == null ? null : p_235956_2_.func_236388_a_(p_235956_1_, p_235956_1_.func_241112_a_(), p_235956_3_, p_235956_4_, p_235956_5_, p_235956_1_.func_72905_C(), structureseparationsettings);
+       }
+@@ -228,7 +_,16 @@
+       this.func_242705_a(StructureFeatures.field_244145_k, p_242707_1_, p_242707_2_, p_242707_3_, p_242707_4_, p_242707_5_, chunkpos, biome);
+ 
+       for(Supplier<StructureFeature<?, ?>> supplier : biome.func_242440_e().func_242487_a()) {
+-         this.func_242705_a(supplier.get(), p_242707_1_, p_242707_2_, p_242707_3_, p_242707_4_, p_242707_5_, chunkpos, biome);
++         // CraftBukkit start
++         StructureFeature<?, ?> structurefeature = (StructureFeature) supplier.get();
++         if (structurefeature.field_236269_c_ == Structure.field_236375_k_) {
++            synchronized (structurefeature) {
++               this.func_242705_a(structurefeature, p_242707_1_, p_242707_2_, p_242707_3_, p_242707_4_, p_242707_5_, chunkpos, biome);
++            }
++         } else {
++            this.func_242705_a(structurefeature, p_242707_1_, p_242707_2_, p_242707_3_, p_242707_4_, p_242707_5_, chunkpos, biome);
++         }
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -236,6 +_,7 @@
+    private void func_242705_a(StructureFeature<?, ?> p_242705_1_, DynamicRegistries p_242705_2_, StructureManager p_242705_3_, IChunk p_242705_4_, TemplateManager p_242705_5_, long p_242705_6_, ChunkPos p_242705_8_, Biome p_242705_9_) {
+       StructureStart<?> structurestart = p_242705_3_.func_235013_a_(SectionPos.func_218156_a(p_242705_4_.func_76632_l(), 0), p_242705_1_.field_236268_b_, p_242705_4_);
+       int i = structurestart != null ? structurestart.func_227457_j_() : 0;
++      updateStructureSettings(p_242705_3_.getWorld(), field_222543_d); // Spigot
+       StructureSeparationSettings structureseparationsettings = this.field_222543_d.func_236197_a_(p_242705_1_.field_236268_b_);
+       if (structureseparationsettings != null) {
+          StructureStart<?> structurestart1 = p_242705_1_.func_242771_a(p_242705_2_, this, this.field_222542_c, p_242705_5_, p_242705_6_, p_242705_8_, p_242705_9_, i, structureseparationsettings);
+@@ -281,6 +_,79 @@
+       }
+ 
+    }
++
++   // Spigot start
++   private volatile boolean injected;
++   private void updateStructureSettings(World world, DimensionStructuresSettings settings) {
++      if (injected) {
++         return;
++      }
++      synchronized (settings) {
++         if (injected) {
++            return;
++         }
++         java.util.Map<Structure<?>, StructureSeparationSettings> original = settings.func_236195_a_();
++         java.util.Map<Structure<?>, StructureSeparationSettings> updated = new java.util.HashMap<>();
++         org.spigotmc.SpigotWorldConfig conf = world.spigotConfig;
++         for (java.util.Map.Entry<Structure<?>, StructureSeparationSettings> entry : original.entrySet()) {
++            String name = Registry.field_218361_B.func_177774_c(entry.getKey()).func_110623_a();
++            StructureSeparationSettings feature = entry.getValue();
++            int seed = feature.func_236673_c_();
++            switch (name) {
++               case "bastion_remnant":
++                  seed = conf.bastionSeed;
++                  break;
++               case "desert_pyramid":
++                  seed = conf.desertSeed;
++                  break;
++               case "endcity":
++                  seed = conf.endCitySeed;
++                  break;
++               case "fortress":
++                  seed = conf.fortressSeed;
++                  break;
++               case "igloo":
++                  seed = conf.iglooSeed;
++                  break;
++               case "jungle_pyramid":
++                  seed = conf.jungleSeed;
++                  break;
++               case "mansion":
++                  seed = conf.mansionSeed;
++                  break;
++               case "monument":
++                  seed = conf.monumentSeed;
++                  break;
++               case "nether_fossil":
++                  seed = conf.fossilSeed;
++                  break;
++               case "ocean_ruin":
++                  seed = conf.oceanSeed;
++                  break;
++               case "pillager_outpost":
++                  seed = conf.outpostSeed;
++                  break;
++               case "ruined_portal":
++                  seed = conf.portalSeed;
++                  break;
++               case "shipwreck":
++                  seed = conf.shipwreckSeed;
++                  break;
++               case "swamp_hut":
++                  seed = conf.swampSeed;
++                  break;
++               case "village":
++                  seed = conf.villageSeed;
++                  break;
++            }
++            updated.put(entry.getKey(), new StructureSeparationSettings(feature.func_236668_a_(), feature.func_236671_b_(), seed));
++         }
++         original.clear();
++         original.putAll(updated);
++         injected = true;
++      }
++   }
++   // Spigot end
+ 
+    public abstract void func_230352_b_(IWorld p_230352_1_, StructureManager p_230352_2_, IChunk p_230352_3_);
+ 

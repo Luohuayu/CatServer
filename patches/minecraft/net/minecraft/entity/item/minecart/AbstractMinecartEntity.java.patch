@@ -1,0 +1,426 @@
+--- a/net/minecraft/entity/item/minecart/AbstractMinecartEntity.java
++++ b/net/minecraft/entity/item/minecart/AbstractMinecartEntity.java
+@@ -47,8 +_,15 @@
+ import net.minecraft.world.World;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import net.minecraftforge.common.IMinecartCollisionHandler;
++import org.bukkit.Location;
++import org.bukkit.entity.Vehicle;
++import org.bukkit.event.vehicle.VehicleDamageEvent;
++import org.bukkit.event.vehicle.VehicleDestroyEvent;
++import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
++import org.bukkit.util.Vector;
+ 
+-public abstract class AbstractMinecartEntity extends Entity {
++public abstract class AbstractMinecartEntity extends Entity implements net.minecraftforge.common.extensions.IForgeEntityMinecart {
+    private static final DataParameter<Integer> field_184265_a = EntityDataManager.func_187226_a(AbstractMinecartEntity.class, DataSerializers.field_187192_b);
+    private static final DataParameter<Integer> field_184266_b = EntityDataManager.func_187226_a(AbstractMinecartEntity.class, DataSerializers.field_187192_b);
+    private static final DataParameter<Float> field_184267_c = EntityDataManager.func_187226_a(AbstractMinecartEntity.class, DataSerializers.field_187193_c);
+@@ -77,6 +_,7 @@
+       p_226574_0_.put(RailShape.NORTH_WEST, Pair.of(vector3i2, vector3i));
+       p_226574_0_.put(RailShape.NORTH_EAST, Pair.of(vector3i2, vector3i1));
+    });
++   private static IMinecartCollisionHandler COLLISIONS = null;
+    private int field_70510_h;
+    private double field_70511_i;
+    private double field_70509_j;
+@@ -89,6 +_,18 @@
+    private double field_70507_ar;
+    @OnlyIn(Dist.CLIENT)
+    private double field_70506_as;
++   private boolean canBePushed = true;
++
++   // CraftBukkit start
++   public boolean slowWhenEmpty = true;
++   private double derailedX = 0.5;
++   private double derailedY = 0.5;
++   private double derailedZ = 0.5;
++   private double flyingX = 0.95;
++   private double flyingY = 0.95;
++   private double flyingZ = 0.95;
++   public double maxSpeed = 0.4D;
++   // CraftBukkit end
+ 
+    protected AbstractMinecartEntity(EntityType<?> p_i48538_1_, World p_i48538_2_) {
+       super(p_i48538_1_, p_i48538_2_);
+@@ -104,6 +_,15 @@
+       this.field_70166_s = p_i48539_7_;
+    }
+ 
++   public IMinecartCollisionHandler getCollisionHandler(){
++      return COLLISIONS;
++   }
++
++   public static void registerCollisionHandler(@Nullable IMinecartCollisionHandler handler)
++   {
++      COLLISIONS = handler;
++   }
++
+    public static AbstractMinecartEntity func_184263_a(World p_184263_0_, double p_184263_1_, double p_184263_3_, double p_184263_5_, AbstractMinecartEntity.Type p_184263_7_) {
+       if (p_184263_7_ == AbstractMinecartEntity.Type.CHEST) {
+          return new ChestMinecartEntity(p_184263_0_, p_184263_1_, p_184263_3_, p_184263_5_);
+@@ -138,7 +_,7 @@
+    }
+ 
+    public boolean func_70104_M() {
+-      return true;
++      return canBePushed;
+    }
+ 
+    protected Vector3d func_241839_a(Direction.Axis p_241839_1_, TeleportationRepositioner.Result p_241839_2_) {
+@@ -205,12 +_,30 @@
+          if (this.func_180431_b(p_70097_1_)) {
+             return false;
+          } else {
++            // CraftBukkit start - fire VehicleDamageEvent
++            Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++            org.bukkit.entity.Entity passenger = (p_70097_1_.func_76346_g() == null) ? null : p_70097_1_.func_76346_g().getBukkitEntity();
++            VehicleDamageEvent event = new VehicleDamageEvent(vehicle, passenger, p_70097_2_);
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++               return false;
++            }
++            p_70097_2_ = (float) event.getDamage();
++            // CraftBukkit end
+             this.func_70494_i(-this.func_70493_k());
+             this.func_70497_h(10);
+             this.func_70018_K();
+             this.func_70492_c(this.func_70491_i() + p_70097_2_ * 10.0F);
+             boolean flag = p_70097_1_.func_76346_g() instanceof PlayerEntity && ((PlayerEntity)p_70097_1_.func_76346_g()).field_71075_bZ.field_75098_d;
+             if (flag || this.func_70491_i() > 40.0F) {
++               // CraftBukkit start
++               VehicleDestroyEvent destroyEvent = new VehicleDestroyEvent(vehicle, passenger);
++               this.field_70170_p.getCBServer().getPluginManager().callEvent(destroyEvent);
++               if (destroyEvent.isCancelled()) {
++                  this.func_70492_c(40); // Maximize damage so this doesn't get triggered again right away
++                  return true;
++               }
++               // CraftBukkit end
+                this.func_184226_ay();
+                if (flag && !this.func_145818_k_()) {
+                   this.func_70106_y();
+@@ -264,6 +_,14 @@
+    }
+ 
+    public void func_70071_h_() {
++      // CraftBukkit start
++      double prevX = this.func_226277_ct_();
++      double prevY = this.func_226278_cu_();
++      double prevZ = this.func_226281_cx_();
++      float prevYaw = this.field_70177_z;
++      float prevPitch = this.field_70125_A;
++      // CraftBukkit end
++
+       if (this.func_70496_j() > 0) {
+          this.func_70497_h(this.func_70496_j() - 1);
+       }
+@@ -307,9 +_,9 @@
+ 
+          BlockPos blockpos = new BlockPos(i, j, k);
+          BlockState blockstate = this.field_70170_p.func_180495_p(blockpos);
+-         if (AbstractRailBlock.func_208487_j(blockstate)) {
++         if (canUseRail() && AbstractRailBlock.func_208487_j(blockstate)) {
+             this.func_180460_a(blockpos, blockstate);
+-            if (blockstate.func_203425_a(Blocks.field_150408_cc)) {
++            if (blockstate.func_177230_c() instanceof PoweredRailBlock && ((PoweredRailBlock) blockstate.func_177230_c()).isActivatorRail()) {
+                this.func_96095_a(i, j, k, blockstate.func_177229_b(PoweredRailBlock.field_176569_M));
+             }
+          } else {
+@@ -334,21 +_,59 @@
+          }
+ 
+          this.func_70101_b(this.field_70177_z, this.field_70125_A);
+-         if (this.func_184264_v() == AbstractMinecartEntity.Type.RIDEABLE && func_213296_b(this.func_213322_ci()) > 0.01D) {
+-            List<Entity> list = this.field_70170_p.func_175674_a(this, this.func_174813_aQ().func_72314_b((double)0.2F, 0.0D, (double)0.2F), EntityPredicates.func_200823_a(this));
++         AxisAlignedBB box;
++         if (getCollisionHandler() != null) box = getCollisionHandler().getMinecartCollisionBox(this);
++         else                               box = this.func_174813_aQ().func_72314_b(0.2F, 0.0D, 0.2F);
++
++         // CraftBukkit start
++         org.bukkit.World bworld = this.field_70170_p.getWorld();
++         Location from = new Location(bworld, prevX, prevY, prevZ, prevYaw, prevPitch);
++         Location to = new Location(bworld, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), this.field_70177_z, this.field_70125_A);
++         Vehicle vehicle = (Vehicle) this.getBukkitEntity();
++         this.field_70170_p.getCBServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleUpdateEvent(vehicle));
++         if (!from.equals(to)) {
++            this.field_70170_p.getCBServer().getPluginManager().callEvent(new org.bukkit.event.vehicle.VehicleMoveEvent(vehicle, from, to));
++         }
++         // CraftBukkit end
++
++         if (canBeRidden() && func_213296_b(this.func_213322_ci()) > 0.01D) {
++            List<Entity> list = this.field_70170_p.func_175674_a(this, box, EntityPredicates.func_200823_a(this));
+             if (!list.isEmpty()) {
+                for(int l = 0; l < list.size(); ++l) {
+                   Entity entity1 = list.get(l);
+                   if (!(entity1 instanceof PlayerEntity) && !(entity1 instanceof IronGolemEntity) && !(entity1 instanceof AbstractMinecartEntity) && !this.func_184207_aI() && !entity1.func_184218_aH()) {
++                     // CraftBukkit start
++                     VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity1.getBukkitEntity());
++                     this.field_70170_p.getCBServer().getPluginManager().callEvent(collisionEvent);
++                     if (collisionEvent.isCancelled()) {
++                        continue;
++                     }
++                     // CraftBukkit end
+                      entity1.func_184220_m(this);
+                   } else {
++                     // CraftBukkit start
++                     if (!this.func_184223_x(entity1)) {
++                        VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity1.getBukkitEntity());
++                        this.field_70170_p.getCBServer().getPluginManager().callEvent(collisionEvent);
++                        if (collisionEvent.isCancelled()) {
++                           continue;
++                        }
++                     }
++                     // CraftBukkit end
+                      entity1.func_70108_f(this);
+                   }
+                }
+             }
+          } else {
+-            for(Entity entity : this.field_70170_p.func_72839_b(this, this.func_174813_aQ().func_72314_b((double)0.2F, 0.0D, (double)0.2F))) {
++            for(Entity entity : this.field_70170_p.func_72839_b(this, box)) {
+                if (!this.func_184196_w(entity) && entity.func_70104_M() && entity instanceof AbstractMinecartEntity) {
++                  // CraftBukkit start
++                  VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent(vehicle, entity.getBukkitEntity());
++                  this.field_70170_p.getCBServer().getPluginManager().callEvent(collisionEvent);
++                  if (collisionEvent.isCancelled()) {
++                     continue;
++                  }
++                  // CraftBukkit end
+                   entity.func_70108_f(this);
+                }
+             }
+@@ -365,23 +_,34 @@
+    }
+ 
+    protected double func_174898_m() {
+-      return 0.4D;
++      return this.maxSpeed; // CraftBukkit
+    }
+ 
+    public void func_96095_a(int p_96095_1_, int p_96095_2_, int p_96095_3_, boolean p_96095_4_) {
+    }
+ 
+    protected void func_180459_n() {
+-      double d0 = this.func_174898_m();
++      double d0 = field_70122_E ? this.func_174898_m() : getMaxSpeedAirLateral();
+       Vector3d vector3d = this.func_213322_ci();
+       this.func_213293_j(MathHelper.func_151237_a(vector3d.field_72450_a, -d0, d0), vector3d.field_72448_b, MathHelper.func_151237_a(vector3d.field_72449_c, -d0, d0));
+       if (this.field_70122_E) {
+-         this.func_213317_d(this.func_213322_ci().func_186678_a(0.5D));
++         // CraftBukkit start - replace magic numbers with our variables
++         this.func_213317_d(new Vector3d(this.func_213322_ci().field_72450_a * this.derailedX, this.func_213322_ci().field_72448_b * this.derailedY, this.func_213322_ci().field_72449_c * this.derailedZ));
++         // CraftBukkit end
++      }
++
++      if (getMaxSpeedAirVertical() > 0 && func_213322_ci().field_72448_b > getMaxSpeedAirVertical()) {
++          if(Math.abs(func_213322_ci().field_72450_a) < 0.3f && Math.abs(func_213322_ci().field_72449_c) < 0.3f)
++              func_213317_d(new Vector3d(func_213322_ci().field_72450_a, 0.15f, func_213322_ci().field_72449_c));
++          else
++              func_213317_d(new Vector3d(func_213322_ci().field_72450_a, getMaxSpeedAirVertical(), func_213322_ci().field_72449_c));
+       }
+ 
+       this.func_213315_a(MoverType.SELF, this.func_213322_ci());
+       if (!this.field_70122_E) {
+-         this.func_213317_d(this.func_213322_ci().func_186678_a(0.95D));
++         // CraftBukkit start - replace magic numbers with our variables
++         this.func_213317_d(new Vector3d(this.func_213322_ci().field_72450_a * this.flyingX, this.func_213322_ci().field_72448_b * this.flyingY, this.func_213322_ci().field_72449_c * this.flyingZ));
++         // CraftBukkit end
+       }
+ 
+    }
+@@ -396,29 +_,29 @@
+       boolean flag = false;
+       boolean flag1 = false;
+       AbstractRailBlock abstractrailblock = (AbstractRailBlock)p_180460_2_.func_177230_c();
+-      if (abstractrailblock == Blocks.field_196552_aC) {
++      if (abstractrailblock instanceof PoweredRailBlock && !((PoweredRailBlock) abstractrailblock).isActivatorRail()) {
+          flag = p_180460_2_.func_177229_b(PoweredRailBlock.field_176569_M);
+          flag1 = !flag;
+       }
+ 
+       double d3 = 0.0078125D;
+       Vector3d vector3d1 = this.func_213322_ci();
+-      RailShape railshape = p_180460_2_.func_177229_b(abstractrailblock.func_176560_l());
++      RailShape railshape = ((AbstractRailBlock)p_180460_2_.func_177230_c()).getRailDirection(p_180460_2_, this.field_70170_p, p_180460_1_, this);
+       switch(railshape) {
+       case ASCENDING_EAST:
+-         this.func_213317_d(vector3d1.func_72441_c(-0.0078125D, 0.0D, 0.0D));
++         this.func_213317_d(vector3d1.func_72441_c(-1 * getSlopeAdjustment(), 0.0D, 0.0D));
+          ++d1;
+          break;
+       case ASCENDING_WEST:
+-         this.func_213317_d(vector3d1.func_72441_c(0.0078125D, 0.0D, 0.0D));
++         this.func_213317_d(vector3d1.func_72441_c(getSlopeAdjustment(), 0.0D, 0.0D));
+          ++d1;
+          break;
+       case ASCENDING_NORTH:
+-         this.func_213317_d(vector3d1.func_72441_c(0.0D, 0.0D, 0.0078125D));
++         this.func_213317_d(vector3d1.func_72441_c(0.0D, 0.0D, getSlopeAdjustment()));
+          ++d1;
+          break;
+       case ASCENDING_SOUTH:
+-         this.func_213317_d(vector3d1.func_72441_c(0.0D, 0.0D, -0.0078125D));
++         this.func_213317_d(vector3d1.func_72441_c(0.0D, 0.0D, -1 * getSlopeAdjustment()));
+          ++d1;
+       }
+ 
+@@ -449,7 +_,7 @@
+          }
+       }
+ 
+-      if (flag1) {
++      if (flag1 && shouldDoRailFunctions()) {
+          double d22 = Math.sqrt(func_213296_b(this.func_213322_ci()));
+          if (d22 < 0.03D) {
+             this.func_213317_d(Vector3d.field_186680_a);
+@@ -478,10 +_,7 @@
+       d0 = d23 + d4 * d14;
+       d2 = d10 + d5 * d14;
+       this.func_70107_b(d0, d1, d2);
+-      double d24 = this.func_184207_aI() ? 0.75D : 1.0D;
+-      double d25 = this.func_174898_m();
+-      vector3d1 = this.func_213322_ci();
+-      this.func_213315_a(MoverType.SELF, new Vector3d(MathHelper.func_151237_a(d24 * vector3d1.field_72450_a, -d25, d25), 0.0D, MathHelper.func_151237_a(d24 * vector3d1.field_72449_c, -d25, d25)));
++      this.moveMinecartOnRail(p_180460_1_);
+       if (vector3i.func_177956_o() != 0 && MathHelper.func_76128_c(this.func_226277_ct_()) - p_180460_1_.func_177958_n() == vector3i.func_177958_n() && MathHelper.func_76128_c(this.func_226281_cx_()) - p_180460_1_.func_177952_p() == vector3i.func_177952_p()) {
+          this.func_70107_b(this.func_226277_ct_(), this.func_226278_cu_() + (double)vector3i.func_177956_o(), this.func_226281_cx_());
+       } else if (vector3i1.func_177956_o() != 0 && MathHelper.func_76128_c(this.func_226277_ct_()) - p_180460_1_.func_177958_n() == vector3i1.func_177958_n() && MathHelper.func_76128_c(this.func_226281_cx_()) - p_180460_1_.func_177952_p() == vector3i1.func_177952_p()) {
+@@ -509,7 +_,10 @@
+          this.func_213293_j(d26 * (double)(j - p_180460_1_.func_177958_n()), vector3d5.field_72448_b, d26 * (double)(i - p_180460_1_.func_177952_p()));
+       }
+ 
+-      if (flag) {
++      if (shouldDoRailFunctions())
++          ((AbstractRailBlock)p_180460_2_.func_177230_c()).onMinecartPass(p_180460_2_, field_70170_p, p_180460_1_, this);
++
++      if (flag && shouldDoRailFunctions()) {
+          Vector3d vector3d6 = this.func_213322_ci();
+          double d27 = Math.sqrt(func_213296_b(vector3d6));
+          if (d27 > 0.01D) {
+@@ -548,7 +_,7 @@
+    }
+ 
+    protected void func_94101_h() {
+-      double d0 = this.func_184207_aI() ? 0.997D : 0.96D;
++      double d0 = this.func_184207_aI() || !this.slowWhenEmpty ? 0.997D : 0.96D; // CraftBukkit - add !this.slowWhenEmpty
+       this.func_213317_d(this.func_213322_ci().func_216372_d(d0, 0.0D, d0));
+    }
+ 
+@@ -564,7 +_,7 @@
+ 
+       BlockState blockstate = this.field_70170_p.func_180495_p(new BlockPos(i, j, k));
+       if (AbstractRailBlock.func_208487_j(blockstate)) {
+-         RailShape railshape = blockstate.func_177229_b(((AbstractRailBlock)blockstate.func_177230_c()).func_176560_l());
++         RailShape railshape = ((AbstractRailBlock)blockstate.func_177230_c()).getRailDirection(blockstate, this.field_70170_p, new BlockPos(i, j, k), this);
+          p_70495_3_ = (double)j;
+          if (railshape.func_208092_c()) {
+             p_70495_3_ = (double)(j + 1);
+@@ -603,7 +_,7 @@
+ 
+       BlockState blockstate = this.field_70170_p.func_180495_p(new BlockPos(i, j, k));
+       if (AbstractRailBlock.func_208487_j(blockstate)) {
+-         RailShape railshape = blockstate.func_177229_b(((AbstractRailBlock)blockstate.func_177230_c()).func_176560_l());
++         RailShape railshape = ((AbstractRailBlock)blockstate.func_177230_c()).getRailDirection(blockstate, this.field_70170_p, new BlockPos(i, j, k), this);
+          Pair<Vector3i, Vector3i> pair = func_226573_a_(railshape);
+          Vector3i vector3i = pair.getFirst();
+          Vector3i vector3i1 = pair.getSecond();
+@@ -666,9 +_,21 @@
+    }
+ 
+    public void func_70108_f(Entity p_70108_1_) {
++      //net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.minecart.MinecartCollisionEvent(this, entityIn));
++      if (getCollisionHandler() != null) {
++         getCollisionHandler().onEntityCollision(this, p_70108_1_);
++         return;
++      }
+       if (!this.field_70170_p.field_72995_K) {
+          if (!p_70108_1_.field_70145_X && !this.field_70145_X) {
+             if (!this.func_184196_w(p_70108_1_)) {
++               // CraftBukkit start
++               VehicleEntityCollisionEvent collisionEvent = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), p_70108_1_.getBukkitEntity());
++               this.field_70170_p.getCBServer().getPluginManager().callEvent(collisionEvent);
++               if (collisionEvent.isCancelled()) {
++                  return;
++               }
++               // CraftBukkit end
+                double d0 = p_70108_1_.func_226277_ct_() - this.func_226277_ct_();
+                double d1 = p_70108_1_.func_226281_cx_() - this.func_226281_cx_();
+                double d2 = d0 * d0 + d1 * d1;
+@@ -701,11 +_,11 @@
+ 
+                      Vector3d vector3d2 = this.func_213322_ci();
+                      Vector3d vector3d3 = p_70108_1_.func_213322_ci();
+-                     if (((AbstractMinecartEntity)p_70108_1_).func_184264_v() == AbstractMinecartEntity.Type.FURNACE && this.func_184264_v() != AbstractMinecartEntity.Type.FURNACE) {
++                     if (((AbstractMinecartEntity)p_70108_1_).isPoweredCart() && !this.isPoweredCart()) {
+                         this.func_213317_d(vector3d2.func_216372_d(0.2D, 1.0D, 0.2D));
+                         this.func_70024_g(vector3d3.field_72450_a - d0, 0.0D, vector3d3.field_72449_c - d1);
+                         p_70108_1_.func_213317_d(vector3d3.func_216372_d(0.95D, 1.0D, 0.95D));
+-                     } else if (((AbstractMinecartEntity)p_70108_1_).func_184264_v() != AbstractMinecartEntity.Type.FURNACE && this.func_184264_v() == AbstractMinecartEntity.Type.FURNACE) {
++                     } else if (!((AbstractMinecartEntity)p_70108_1_).isPoweredCart() && this.isPoweredCart()) {
+                         p_70108_1_.func_213317_d(vector3d3.func_216372_d(0.2D, 1.0D, 0.2D));
+                         p_70108_1_.func_70024_g(vector3d2.field_72450_a + d0, 0.0D, vector3d2.field_72449_c + d1);
+                         this.func_213317_d(vector3d2.func_216372_d(0.95D, 1.0D, 0.95D));
+@@ -810,6 +_,62 @@
+    public IPacket<?> func_213297_N() {
+       return new SSpawnObjectPacket(this);
+    }
++
++   private boolean canUseRail = true;
++   @Override public boolean canUseRail() { return canUseRail; }
++   @Override public void setCanUseRail(boolean value) { this.canUseRail = value; }
++   private float currentSpeedCapOnRail = getMaxCartSpeedOnRail();
++   @Override public float getCurrentCartSpeedCapOnRail() { return currentSpeedCapOnRail; }
++   @Override public void setCurrentCartSpeedCapOnRail(float value) { currentSpeedCapOnRail = Math.min(value, getMaxCartSpeedOnRail()); }
++   private float maxSpeedAirLateral = DEFAULT_MAX_SPEED_AIR_LATERAL;
++   @Override public float getMaxSpeedAirLateral() { return maxSpeedAirLateral; }
++   @Override public void setMaxSpeedAirLateral(float value) { maxSpeedAirLateral = value; }
++   private float maxSpeedAirVertical = DEFAULT_MAX_SPEED_AIR_VERTICAL;
++   @Override public float getMaxSpeedAirVertical() { return maxSpeedAirVertical; }
++   @Override public void setMaxSpeedAirVertical(float value) { maxSpeedAirVertical = value; }
++   private double dragAir = DEFAULT_AIR_DRAG;
++   @Override public double getDragAir() { return dragAir; }
++   @Override public void setDragAir(double value) { dragAir = value; }
++   @Override
++   public double getMaxSpeedWithRail() { //Non-default because getMaximumSpeed is protected
++      if (!canUseRail()) return func_174898_m();
++      BlockPos pos = this.getCurrentRailPosition();
++      BlockState state = getMinecart().field_70170_p.func_180495_p(pos);
++      if (!state.func_235714_a_(BlockTags.field_203437_y)) return func_174898_m();
++
++      float railMaxSpeed = ((AbstractRailBlock)state.func_177230_c()).getRailMaxSpeed(state, getMinecart().field_70170_p, pos, getMinecart());
++      return Math.min(railMaxSpeed, getCurrentCartSpeedCapOnRail());
++   }
++   @Override
++   public void moveMinecartOnRail(BlockPos pos) { //Non-default because getMaximumSpeed is protected
++      AbstractMinecartEntity mc = getMinecart();
++      double d24 = mc.func_184207_aI() ? 0.75D : 1.0D;
++      double d25 = mc.getMaxSpeedWithRail();
++      Vector3d vec3d1 = mc.func_213322_ci();
++      mc.func_213315_a(MoverType.SELF, new Vector3d(MathHelper.func_151237_a(d24 * vec3d1.field_72450_a, -d25, d25), 0.0D, MathHelper.func_151237_a(d24 * vec3d1.field_72449_c, -d25, d25)));
++   }
++
++   // CraftBukkit start
++   public Vector getFlyingVelocityMod() {
++      return new Vector(this.flyingX, this.flyingY, this.flyingZ);
++   }
++
++   public void setFlyingVelocityMod(final Vector flying) {
++      this.flyingX = flying.getX();
++      this.flyingY = flying.getY();
++      this.flyingZ = flying.getZ();
++   }
++
++   public Vector getDerailedVelocityMod() {
++      return new Vector(this.derailedX, this.derailedY, this.derailedZ);
++   }
++
++   public void setDerailedVelocityMod(final Vector derailed) {
++      this.derailedX = derailed.getX();
++      this.derailedY = derailed.getY();
++      this.derailedZ = derailed.getZ();
++   }
++   // CraftBukkit stop
+ 
+    public static enum Type {
+       RIDEABLE,

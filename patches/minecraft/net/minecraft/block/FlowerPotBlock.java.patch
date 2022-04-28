@@ -1,0 +1,135 @@
+--- a/net/minecraft/block/FlowerPotBlock.java
++++ b/net/minecraft/block/FlowerPotBlock.java
+@@ -1,8 +_,14 @@
+ package net.minecraft.block;
+ 
+ import com.google.common.collect.Maps;
++
++import java.util.Collections;
+ import java.util.Map;
++
++import io.papermc.paper.event.player.PlayerFlowerPotManipulateEvent;
++import net.minecraft.client.entity.player.AbstractClientPlayerEntity;
+ import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.item.BlockItem;
+ import net.minecraft.item.Item;
+ import net.minecraft.item.ItemStack;
+@@ -18,16 +_,41 @@
+ import net.minecraft.world.IBlockReader;
+ import net.minecraft.world.IWorld;
+ import net.minecraft.world.World;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
+ 
+ public class FlowerPotBlock extends Block {
+    private static final Map<Block, Block> field_196451_b = Maps.newHashMap();
+    protected static final VoxelShape field_196450_a = Block.func_208617_a(5.0D, 0.0D, 5.0D, 11.0D, 6.0D, 11.0D);
+    private final Block field_196452_c;
+ 
++   @Deprecated // Mods should use the constructor below
+    public FlowerPotBlock(Block p_i48395_1_, AbstractBlock.Properties p_i48395_2_) {
+-      super(p_i48395_2_);
+-      this.field_196452_c = p_i48395_1_;
+-      field_196451_b.put(p_i48395_1_, this);
++       this(Blocks.field_150457_bL == null ? null : () -> (FlowerPotBlock) Blocks.field_150457_bL.delegate.get(), () -> p_i48395_1_.delegate.get(), p_i48395_2_);
++       if (Blocks.field_150457_bL != null) {
++           ((FlowerPotBlock)Blocks.field_150457_bL).addPlant(p_i48395_1_.getRegistryName(), () -> this);
++       }
++   }
++
++   /**
++    * For mod use, eliminates the need to extend this class, and prevents modded
++    * flower pots from altering vanilla behavior.
++    *
++    * @param emptyPot    The empty pot for this pot, or null for self.
++    * @param p_i48395_1_ The flower block.
++    * @param properties
++    */
++   public FlowerPotBlock(@javax.annotation.Nullable java.util.function.Supplier<FlowerPotBlock> emptyPot, java.util.function.Supplier<? extends Block> p_i48395_1_, AbstractBlock.Properties properties) {
++      super(properties);
++      this.field_196452_c = null; // Unused, redirected by coremod
++      this.flowerDelegate = p_i48395_1_;
++      if (emptyPot == null) {
++         this.fullPots = Maps.newHashMap();
++         this.emptyPot = null;
++      } else {
++         this.fullPots = java.util.Collections.emptyMap();
++         this.emptyPot = emptyPot;
++      }
+    }
+ 
+    public VoxelShape func_220053_a(BlockState p_220053_1_, IBlockReader p_220053_2_, BlockPos p_220053_3_, ISelectionContext p_220053_4_) {
+@@ -41,10 +_,29 @@
+    public ActionResultType func_225533_a_(BlockState p_225533_1_, World p_225533_2_, BlockPos p_225533_3_, PlayerEntity p_225533_4_, Hand p_225533_5_, BlockRayTraceResult p_225533_6_) {
+       ItemStack itemstack = p_225533_4_.func_184586_b(p_225533_5_);
+       Item item = itemstack.func_77973_b();
+-      Block block = item instanceof BlockItem ? field_196451_b.getOrDefault(((BlockItem)item).func_179223_d(), Blocks.field_150350_a) : Blocks.field_150350_a;
++      Block block = item instanceof BlockItem ? getEmptyPot().fullPots.getOrDefault(((BlockItem)item).func_179223_d().getRegistryName(), Blocks.field_150350_a.delegate).get() : Blocks.field_150350_a;
+       boolean flag = block == Blocks.field_150350_a;
+       boolean flag1 = this.field_196452_c == Blocks.field_150350_a;
+       if (flag != flag1) {
++         // Paper start
++         org.bukkit.entity.Player bukkitPlayer = (org.bukkit.entity.Player) p_225533_4_.getBukkitEntity();
++         org.bukkit.block.Block bukkitBlock = org.bukkit.craftbukkit.v1_16_R3.block.CraftBlock.at(p_225533_2_, p_225533_3_);
++         org.bukkit.inventory.ItemStack bukkitStack = org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.asBukkitCopy(itemstack);
++         org.bukkit.Material bukkitMat = org.bukkit.craftbukkit.v1_16_R3.util.CraftMagicNumbers.getMaterial(field_196452_c);
++         org.bukkit.inventory.ItemStack bukkitStack1 = new org.bukkit.inventory.ItemStack(bukkitMat, 1);
++         org.bukkit.inventory.ItemStack whichitem = flag1 ? bukkitStack : bukkitStack1;
++
++         PlayerFlowerPotManipulateEvent event = new PlayerFlowerPotManipulateEvent(bukkitPlayer, bukkitBlock, whichitem, flag1);
++         Bukkit.getServer().getPluginManager().callEvent(event);
++
++         if (event.isCancelled()) {
++            bukkitPlayer.sendBlockChange(bukkitBlock.getLocation(), bukkitBlock.getBlockData());
++            bukkitPlayer.updateInventory();
++
++            return ActionResultType.PASS;
++         }
++         // Paper end
++
+          if (flag1) {
+             p_225533_2_.func_180501_a(p_225533_3_, block.func_176223_P(), 3);
+             p_225533_4_.func_195066_a(Stats.field_188088_V);
+@@ -59,7 +_,7 @@
+                p_225533_4_.func_71019_a(itemstack1, false);
+             }
+ 
+-            p_225533_2_.func_180501_a(p_225533_3_, Blocks.field_150457_bL.func_176223_P(), 3);
++            p_225533_2_.func_180501_a(p_225533_3_, getEmptyPot().func_176223_P(), 3);
+          }
+ 
+          return ActionResultType.func_233537_a_(p_225533_2_.field_72995_K);
+@@ -77,10 +_,31 @@
+    }
+ 
+    public Block func_220276_d() {
+-      return this.field_196452_c;
++      return flowerDelegate.get();
+    }
+ 
+    public boolean func_196266_a(BlockState p_196266_1_, IBlockReader p_196266_2_, BlockPos p_196266_3_, PathType p_196266_4_) {
+       return false;
+    }
++
++   //Forge Start
++   private final Map<net.minecraft.util.ResourceLocation, java.util.function.Supplier<? extends Block>> fullPots;
++   private final java.util.function.Supplier<FlowerPotBlock> emptyPot;
++   private final java.util.function.Supplier<? extends Block> flowerDelegate;
++
++   public FlowerPotBlock getEmptyPot() {
++       return emptyPot == null ? this : emptyPot.get();
++   }
++
++   public void addPlant(net.minecraft.util.ResourceLocation flower, java.util.function.Supplier<? extends Block> fullPot) {
++       if (getEmptyPot() != this) {
++           throw new IllegalArgumentException("Cannot add plant to non-empty pot: " + this);
++       }
++       fullPots.put(flower, fullPot);
++   }
++
++   public Map<net.minecraft.util.ResourceLocation, java.util.function.Supplier<? extends Block>> getFullPotsView() {
++      return java.util.Collections.unmodifiableMap(fullPots);
++   }
++   //Forge End
+ }

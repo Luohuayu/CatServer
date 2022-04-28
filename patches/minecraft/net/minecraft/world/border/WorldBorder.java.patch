@@ -1,0 +1,165 @@
+--- a/net/minecraft/world/border/WorldBorder.java
++++ b/net/minecraft/world/border/WorldBorder.java
+@@ -3,6 +_,10 @@
+ import com.google.common.collect.Lists;
+ import com.mojang.serialization.DynamicLike;
+ import java.util.List;
++
++import io.papermc.paper.event.world.border.WorldBorderBoundsChangeEvent;
++import io.papermc.paper.event.world.border.WorldBorderBoundsChangeFinishEvent;
++import io.papermc.paper.event.world.border.WorldBorderCenterChangeEvent;
+ import net.minecraft.entity.Entity;
+ import net.minecraft.nbt.CompoundNBT;
+ import net.minecraft.util.Util;
+@@ -13,8 +_,10 @@
+ import net.minecraft.util.math.shapes.IBooleanFunction;
+ import net.minecraft.util.math.shapes.VoxelShape;
+ import net.minecraft.util.math.shapes.VoxelShapes;
++import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.Bukkit;
+ 
+ public class WorldBorder {
+    private final List<IBorderListener> field_177758_a = Lists.newArrayList();
+@@ -27,6 +_,7 @@
+    private int field_177762_h = 29999984;
+    private WorldBorder.IBorderInfo field_212674_i = new WorldBorder.StationaryBorderInfo(6.0E7D);
+    public static final WorldBorder.Serializer field_235925_b_ = new WorldBorder.Serializer(0.0D, 0.0D, 0.2D, 5.0D, 5, 15, 6.0E7D, 0L, 0.0D);
++   public ServerWorld world; // CraftBukkit
+ 
+    public boolean func_177746_a(BlockPos p_177746_1_) {
+       return (double)(p_177746_1_.func_177958_n() + 1) > this.func_177726_b() && (double)p_177746_1_.func_177958_n() < this.func_177728_d() && (double)(p_177746_1_.func_177952_p() + 1) > this.func_177736_c() && (double)p_177746_1_.func_177952_p() < this.func_177733_e();
+@@ -88,12 +_,31 @@
+    }
+ 
+    public void func_177739_c(double p_177739_1_, double p_177739_3_) {
+-      this.field_177756_b = p_177739_1_;
+-      this.field_177757_c = p_177739_3_;
++      // Paper start
++      WorldBorderCenterChangeEvent event = new WorldBorderCenterChangeEvent(
++              world.getWorld(),
++              world.getWorld().getWorldBorder(),
++              new org.bukkit.Location(world.getWorld(),
++                      this.func_230316_a_(),
++                      0,
++                      this.func_230317_b_()),
++              new org.bukkit.Location(world.getWorld(),
++                      p_177739_1_,
++                      0,
++                      p_177739_3_)
++      );
++      Bukkit.getServer().getPluginManager().callEvent(event);
++      if (event.isCancelled()) {
++         return;
++      }
++      this.field_177756_b = event.getNewCenter().getX();
++      this.field_177757_c = event.getNewCenter().getZ();
++      // Paper end
+       this.field_212674_i.func_212653_k();
+ 
+       for(IBorderListener iborderlistener : this.func_177735_k()) {
+-         iborderlistener.func_177693_a(this, p_177739_1_, p_177739_3_);
++         //iborderlistener.onBorderCenterSet(this, p_177739_1_, p_177739_3_);
++         iborderlistener.func_177693_a(this, event.getNewCenter().getX(), event.getNewCenter().getZ()); // Paper
+       }
+ 
+    }
+@@ -111,19 +_,59 @@
+    }
+ 
+    public void func_177750_a(double p_177750_1_) {
+-      this.field_212674_i = new WorldBorder.StationaryBorderInfo(p_177750_1_);
++      // Paper start
++      WorldBorderBoundsChangeEvent event = new WorldBorderBoundsChangeEvent(
++              world.getWorld(),
++              world.getWorld().getWorldBorder(),
++              WorldBorderBoundsChangeEvent.Type.INSTANT_MOVE,
++              func_177741_h(),
++              p_177750_1_,
++              0
++      );
++      Bukkit.getServer().getPluginManager().callEvent(event);
++      if (event.isCancelled()) {
++         return;
++      }
++      if (event.getType() == WorldBorderBoundsChangeEvent.Type.STARTED_MOVE && event.getDuration() > 0) { // If changed to a timed transition
++         func_177738_a(event.getOldSize(), event.getNewSize(), event.getDuration());
++         return;
++      }
++      this.field_212674_i = new WorldBorder.StationaryBorderInfo(event.getNewSize());
++      // Paper end
+ 
+       for(IBorderListener iborderlistener : this.func_177735_k()) {
+-         iborderlistener.func_177694_a(this, p_177750_1_);
++         //iborderlistener.onBorderSizeSet(this, p_177750_1_);
++         iborderlistener.func_177694_a(this, event.getNewSize()); // Paper
+       }
+ 
+    }
+ 
+    public void func_177738_a(double p_177738_1_, double p_177738_3_, long p_177738_5_) {
+-      this.field_212674_i = (WorldBorder.IBorderInfo)(p_177738_1_ == p_177738_3_ ? new WorldBorder.StationaryBorderInfo(p_177738_3_) : new WorldBorder.MovingBorderInfo(p_177738_1_, p_177738_3_, p_177738_5_));
++      // Paper start
++      WorldBorderBoundsChangeEvent.Type type;
++      if (p_177738_1_ == p_177738_3_) {
++         type = WorldBorderBoundsChangeEvent.Type.INSTANT_MOVE;
++      } else {
++         type = WorldBorderBoundsChangeEvent.Type.STARTED_MOVE;
++      }
++      WorldBorderBoundsChangeEvent event = new WorldBorderBoundsChangeEvent(
++              world.getWorld(),
++              world.getWorld().getWorldBorder(),
++              type,
++              p_177738_1_,
++              p_177738_3_,
++              p_177738_5_
++      );
++      Bukkit.getServer().getPluginManager().callEvent(event);
++      if (event.isCancelled()) {
++         return;
++      }
++      this.field_212674_i = (WorldBorder.IBorderInfo)(p_177738_1_ == event.getNewSize() ? new WorldBorder.StationaryBorderInfo(event.getNewSize()) : new WorldBorder.MovingBorderInfo(p_177738_1_, event.getNewSize(), event.getDuration()));
++      // Paper end
+ 
+       for(IBorderListener iborderlistener : this.func_177735_k()) {
+-         iborderlistener.func_177692_a(this, p_177738_1_, p_177738_3_, p_177738_5_);
++         //iborderlistener.onBorderSizeLerping(this, p_177738_1_, p_177738_3_, p_177738_5_);
++         iborderlistener.func_177692_a(this, p_177738_1_, event.getNewSize(), event.getDuration()); // Paper
+       }
+ 
+    }
+@@ -133,9 +_,14 @@
+    }
+ 
+    public void func_177737_a(IBorderListener p_177737_1_) {
++      if (this.field_177758_a.contains(p_177737_1_)) return; // CraftBukkit
+       this.field_177758_a.add(p_177737_1_);
+    }
+ 
++   public void removeListener(IBorderListener listener) {
++      this.field_177758_a.remove(listener);
++   }
++
+    public void func_177725_a(int p_177725_1_) {
+       this.field_177762_h = p_177725_1_;
+       this.field_212674_i.func_212652_j();
+@@ -315,6 +_,18 @@
+       }
+ 
+       public WorldBorder.IBorderInfo func_212651_l() {
++         // Paper start
++         if (this.func_212657_g() <= 0L) {
++            WorldBorderBoundsChangeFinishEvent event = new WorldBorderBoundsChangeFinishEvent(
++                    world.getWorld(),
++                    world.getWorld().getWorldBorder(),
++                    this.field_212663_e,
++                    this.field_212662_d,
++                    this.field_212664_f
++            );
++            Bukkit.getServer().getPluginManager().callEvent(event);
++         }
++         // Paper end
+          return (WorldBorder.IBorderInfo)(this.func_212657_g() <= 0L ? WorldBorder.this.new StationaryBorderInfo(this.field_212661_c) : this);
+       }
+ 

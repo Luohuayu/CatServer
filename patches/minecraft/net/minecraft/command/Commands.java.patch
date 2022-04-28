@@ -1,0 +1,173 @@
+--- a/net/minecraft/command/Commands.java
++++ b/net/minecraft/command/Commands.java
+@@ -1,5 +_,6 @@
+ package net.minecraft.command;
+ 
++import com.google.common.base.Joiner;
+ import com.google.common.collect.Maps;
+ import com.mojang.brigadier.CommandDispatcher;
+ import com.mojang.brigadier.ParseResults;
+@@ -11,6 +_,8 @@
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import com.mojang.brigadier.tree.CommandNode;
+ import com.mojang.brigadier.tree.RootCommandNode;
++import java.util.Collection;
++import java.util.LinkedHashSet;
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.function.Predicate;
+@@ -102,12 +_,16 @@
+ import net.minecraft.util.text.event.HoverEvent;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.Bukkit;
++import org.bukkit.event.player.PlayerCommandSendEvent;
++import org.bukkit.event.server.ServerCommandEvent;
+ 
+ public class Commands {
+    private static final Logger field_197061_a = LogManager.getLogger();
+    private final CommandDispatcher<CommandSource> field_197062_b = new CommandDispatcher<>();
+ 
+    public Commands(Commands.EnvironmentType p_i232148_1_) {
++      this(); // CraftBukkit
+       AdvancementCommand.func_198199_a(this.field_197062_b);
+       AttributeCommand.func_241003_a_(this.field_197062_b);
+       ExecuteCommand.func_198378_a(this.field_197062_b);
+@@ -186,16 +_,59 @@
+       if (p_i232148_1_.field_237219_d_) {
+          PublishCommand.func_198581_a(this.field_197062_b);
+       }
++      net.minecraftforge.event.ForgeEventFactory.onCommandRegister(this.field_197062_b, p_i232148_1_);
+ 
+       this.field_197062_b.findAmbiguities((p_201302_1_, p_201302_2_, p_201302_3_, p_201302_4_) -> {
+-         field_197061_a.warn("Ambiguity between arguments {} and {} with inputs: {}", this.field_197062_b.getPath(p_201302_2_), this.field_197062_b.getPath(p_201302_3_), p_201302_4_);
++         //LOGGER.warn("Ambiguity between arguments {} and {} with inputs: {}", this.dispatcher.getPath(p_201302_2_), this.dispatcher.getPath(p_201302_3_), p_201302_4_); // CraftBukkit
+       });
++   }
++
++   // CraftBukkit start
++   public Commands() {
+       this.field_197062_b.setConsumer((p_197058_0_, p_197058_1_, p_197058_2_) -> {
+          p_197058_0_.getSource().func_197038_a(p_197058_0_, p_197058_1_, p_197058_2_);
+       });
+    }
+ 
++   public int dispatchServerCommand(CommandSource sender, String command) {
++      Joiner joiner = Joiner.on(" ");
++      if (command.startsWith("/")) {
++         command = command.substring(1);
++      }
++      ServerCommandEvent event = new ServerCommandEvent(sender.getBukkitSender(), command);
++      org.bukkit.Bukkit.getPluginManager().callEvent(event);
++      if (event.isCancelled()) {
++         return 0;
++      }
++      command = event.getCommand();
++      String[] args = command.split(" ");
++      String cmd = args[0];
++      if (cmd.startsWith("minecraft:")) cmd = cmd.substring("minecraft:".length());
++      if (cmd.startsWith("bukkit:")) cmd = cmd.substring("bukkit:".length());
++      // Block disallowed commands
++      if (cmd.equalsIgnoreCase("stop") || cmd.equalsIgnoreCase("kick") || cmd.equalsIgnoreCase("op")
++          || cmd.equalsIgnoreCase("deop") || cmd.equalsIgnoreCase("ban") || cmd.equalsIgnoreCase("ban-ip")
++          || cmd.equalsIgnoreCase("pardon") || cmd.equalsIgnoreCase("pardon-ip") || cmd.equalsIgnoreCase("reload")) {
++         return 0;
++      }
++      // Handle vanilla commands;
++      if (sender.func_197023_e().getCBServer().getCommandBlockOverride(args[0])) {
++         args[0] = "minecraft:" + args[0];
++      }
++      return this.func_197059_a(sender, joiner.join(args));
++   }
++
++   public String labell;
+    public int func_197059_a(CommandSource p_197059_1_, String p_197059_2_) {
++      if (labell == null) labell = p_197059_2_;
++      // CraftBukkit end
++      ServerCommandEvent bukevent = new ServerCommandEvent(p_197059_1_.getBukkitSender(), p_197059_2_);
++      Bukkit.getPluginManager().callEvent(bukevent);
++      if (bukevent.isCancelled()) return 0;
++      final String label;
++      if (p_197059_2_.equals(labell)) label = bukevent.getCommand();
++      else label = labell;
++      p_197059_2_ = bukevent.getCommand();
+       StringReader stringreader = new StringReader(p_197059_2_);
+       if (stringreader.canRead() && stringreader.peek() == '/') {
+          stringreader.skip();
+@@ -205,7 +_,15 @@
+ 
+       try {
+          try {
+-            return this.field_197062_b.execute(stringreader, p_197059_1_);
++            ParseResults<CommandSource> parse = this.field_197062_b.parse(stringreader, p_197059_1_);
++            net.minecraftforge.event.CommandEvent event = new net.minecraftforge.event.CommandEvent(parse);
++            if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) {
++               if (event.getException() != null) {
++                  com.google.common.base.Throwables.throwIfUnchecked(event.getException());
++               }
++               return 1;
++            }
++            return this.field_197062_b.execute(event.getParseResults());
+          } catch (CommandException commandexception) {
+             p_197059_1_.func_197021_a(commandexception.func_197003_a());
+             return 0;
+@@ -214,7 +_,7 @@
+             if (commandsyntaxexception.getInput() != null && commandsyntaxexception.getCursor() >= 0) {
+                int j = Math.min(commandsyntaxexception.getInput().length(), commandsyntaxexception.getCursor());
+                IFormattableTextComponent iformattabletextcomponent1 = (new StringTextComponent("")).func_240699_a_(TextFormatting.GRAY).func_240700_a_((p_211705_1_) -> {
+-                  return p_211705_1_.func_240715_a_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, p_197059_2_));
++                  return p_211705_1_.func_240715_a_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, label));
+                });
+                if (j > 10) {
+                   iformattabletextcomponent1.func_240702_b_("...");
+@@ -254,19 +_,49 @@
+          return 0;
+       } finally {
+          p_197059_1_.func_197028_i().func_213185_aS().func_76319_b();
++         labell = null;
+       }
++   }
++
++   public int handleCommand(CommandSource source, String command, String l) {
++      labell = l;
++      return func_197059_a(source, command);
+    }
+ 
+    public void func_197051_a(ServerPlayerEntity p_197051_1_) {
+-      Map<CommandNode<CommandSource>, CommandNode<ISuggestionProvider>> map = Maps.newHashMap();
++      if ( org.spigotmc.SpigotConfig.tabComplete < 0 ) return; // Spigot
++      // CraftBukkit start
++      // Register Vanilla commands into builtRoot as before
++      Map<CommandNode<CommandSource>, CommandNode<ISuggestionProvider>> map = Maps.newIdentityHashMap(); // Use identity to prevent aliasing issues
++      RootCommandNode vanillaRoot = new RootCommandNode();
++      RootCommandNode<CommandSource> vanilla = p_197051_1_.field_71133_b.vanillaCommandDispatcher.func_197054_a().getRoot();
++      map.put(vanilla, vanillaRoot);
++      this.func_197052_a(vanilla, vanillaRoot, p_197051_1_.func_195051_bN(), (Map) map);
++      // Now build the global commands in a second pass
+       RootCommandNode<ISuggestionProvider> rootcommandnode = new RootCommandNode<>();
+       map.put(this.field_197062_b.getRoot(), rootcommandnode);
+       this.func_197052_a(this.field_197062_b.getRoot(), rootcommandnode, p_197051_1_.func_195051_bN(), map);
++
++      Collection<String> bukkit = new LinkedHashSet<>();
++      for (CommandNode node : rootcommandnode.getChildren()) {
++         bukkit.add(node.getName());
++      }
++      PlayerCommandSendEvent event = new PlayerCommandSendEvent(p_197051_1_.getBukkitEntity(), new LinkedHashSet<>(bukkit));
++      event.getPlayer().getServer().getPluginManager().callEvent(event);
++      // Remove labels that were removed during the event
++      for (String orig : bukkit) {
++         if (!event.getCommands().contains(orig)) {
++            try { CommandNode.class.getMethod("removeCommand", String.class).invoke(rootcommandnode, orig); } catch (Exception e) { throw new RuntimeException("The exception shouldn't happen!", e); } // Fix compile error
++         }
++      }
++      // CraftBukkit end
++
+       p_197051_1_.field_71135_a.func_147359_a(new SCommandListPacket(rootcommandnode));
+    }
+ 
+    private void func_197052_a(CommandNode<CommandSource> p_197052_1_, CommandNode<ISuggestionProvider> p_197052_2_, CommandSource p_197052_3_, Map<CommandNode<CommandSource>, CommandNode<ISuggestionProvider>> p_197052_4_) {
+       for(CommandNode<CommandSource> commandnode : p_197052_1_.getChildren()) {
++         if ( !org.spigotmc.SpigotConfig.sendNamespaced && commandnode.getName().contains( ":" ) ) continue; // Spigot
+          if (commandnode.canUse(p_197052_3_)) {
+             ArgumentBuilder<ISuggestionProvider, ?> argumentbuilder = (ArgumentBuilder) commandnode.createBuilder();
+             argumentbuilder.requires((p_197060_0_) -> {

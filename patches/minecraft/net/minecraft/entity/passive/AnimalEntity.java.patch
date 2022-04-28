@@ -1,0 +1,100 @@
+--- a/net/minecraft/entity/passive/AnimalEntity.java
++++ b/net/minecraft/entity/passive/AnimalEntity.java
+@@ -28,10 +_,13 @@
+ import net.minecraft.world.server.ServerWorld;
+ import net.minecraftforge.api.distmarker.Dist;
+ import net.minecraftforge.api.distmarker.OnlyIn;
++import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityEnterLoveModeEvent;
+ 
+ public abstract class AnimalEntity extends AgeableEntity {
+-   private int field_70881_d;
+-   private UUID field_146084_br;
++   public int field_70881_d; // private->public CraftBukkit
++   public UUID field_146084_br; // private->public CraftBukkit
++   public ItemStack breedItem; // CraftBukkit - Add breedItem variable
+ 
+    protected AnimalEntity(EntityType<? extends AnimalEntity> p_i48568_1_, World p_i48568_2_) {
+       super(p_i48568_1_, p_i48568_2_);
+@@ -153,9 +_,17 @@
+    }
+ 
+    public void func_146082_f(@Nullable PlayerEntity p_146082_1_) {
+-      this.field_70881_d = 600;
++      // CraftBukkit start
++      EntityEnterLoveModeEvent entityEnterLoveModeEvent = CraftEventFactory.callEntityEnterLoveModeEvent(p_146082_1_, this, 600);
++      if (entityEnterLoveModeEvent.isCancelled()) {
++         return;
++      }
++      this.field_70881_d = entityEnterLoveModeEvent.getTicksInLove();
++      // CraftBukkit end
++
+       if (p_146082_1_ != null) {
+          this.field_146084_br = p_146082_1_.func_110124_au();
++         this.breedItem = p_146082_1_.field_71071_by.func_70448_g(); // CraftBukkit
+       }
+ 
+       this.field_70170_p.func_72960_a(this, (byte)18);
+@@ -199,12 +_,39 @@
+ 
+    public void func_234177_a_(ServerWorld p_234177_1_, AnimalEntity p_234177_2_) {
+       AgeableEntity ageableentity = this.func_241840_a(p_234177_1_, p_234177_2_);
++      final net.minecraftforge.event.entity.living.BabyEntitySpawnEvent event = new net.minecraftforge.event.entity.living.BabyEntitySpawnEvent(this, p_234177_2_, ageableentity);
++      final boolean cancelled = net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
++      ageableentity = event.getChild();
++      if (cancelled) {
++         //Reset the "inLove" state for the animals
++         this.func_70873_a(6000);
++         p_234177_2_.func_70873_a(6000);
++         this.func_70875_t();
++         p_234177_2_.func_70875_t();
++         return;
++      }
+       if (ageableentity != null) {
++         // CraftBukkit start - set persistence for tame animals
++         if (ageableentity instanceof TameableEntity && ((TameableEntity) ageableentity).func_70909_n()) {
++            ageableentity.field_82179_bU = true;
++         }
++         // CraftBukkit end
+          ServerPlayerEntity serverplayerentity = this.func_191993_do();
+          if (serverplayerentity == null && p_234177_2_.func_191993_do() != null) {
+             serverplayerentity = p_234177_2_.func_191993_do();
+          }
+ 
++         // CraftBukkit start - call EntityBreedEvent
++         ageableentity.func_82227_f(true);
++         ageableentity.func_70012_b(this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), 0.0F, 0.0F);
++         int experience = this.func_70681_au().nextInt(7) + 1;
++         org.bukkit.event.entity.EntityBreedEvent entityBreedEvent = org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory.callEntityBreedEvent(ageableentity, this, p_234177_2_, serverplayerentity, this.breedItem, experience);
++         if (entityBreedEvent.isCancelled()) {
++            return;
++         }
++         experience = entityBreedEvent.getExperience();
++         // CraftBukkit end
++
+          if (serverplayerentity != null) {
+             serverplayerentity.func_195066_a(Stats.field_151186_x);
+             CriteriaTriggers.field_192134_n.func_192168_a(serverplayerentity, this, p_234177_2_, ageableentity);
+@@ -214,12 +_,19 @@
+          p_234177_2_.func_70873_a(6000);
+          this.func_70875_t();
+          p_234177_2_.func_70875_t();
+-         ageableentity.func_82227_f(true);
+-         ageableentity.func_70012_b(this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), 0.0F, 0.0F);
++         // Fix Pehkui Startup
++         p_234177_1_.dummyFreshEntitySpawn = true;
+          p_234177_1_.func_242417_l(ageableentity);
++         p_234177_1_.dummyFreshEntitySpawn = false;
++         // CraftBukkit - added SpawnReason
++         p_234177_1_.addEntity(ageableentity, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING);
+          p_234177_1_.func_72960_a(this, (byte)18);
+          if (p_234177_1_.func_82736_K().func_223586_b(GameRules.field_223602_e)) {
+-            p_234177_1_.func_217376_c(new ExperienceOrbEntity(p_234177_1_, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), this.func_70681_au().nextInt(7) + 1));
++            // CraftBukkit start - use event experience
++            if (experience > 0) {
++               p_234177_1_.func_217376_c(new ExperienceOrbEntity(p_234177_1_, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), experience));
++            }
++            // CraftBukkit end
+          }
+ 
+       }
