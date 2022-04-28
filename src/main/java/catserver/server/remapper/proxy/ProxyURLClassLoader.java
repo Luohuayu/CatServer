@@ -1,7 +1,7 @@
 package catserver.server.remapper.proxy;
 
 import catserver.server.remapper.ClassInheritanceProvider;
-import catserver.server.remapper.LoliServerRemapper;
+import catserver.server.remapper.CatServerRemapper;
 import catserver.server.remapper.MappingLoader;
 import catserver.server.remapper.ReflectionTransformer;
 import catserver.server.remapper.RemapRules;
@@ -27,7 +27,7 @@ import java.util.jar.Manifest;
 public class ProxyURLClassLoader extends URLClassLoader
 {
     private JarMapping jarMapping;
-    private LoliServerRemapper remapper;
+    private CatServerRemapper remapper;
     private final Map<String, Class<?>> classes = new HashMap<>();
     private TransformingClassLoader launchClassLoader;
 
@@ -40,7 +40,7 @@ public class ProxyURLClassLoader extends URLClassLoader
         provider.add(new ClassInheritanceProvider());
         provider.add(new ClassLoaderProvider(this));
         this.jarMapping.setFallbackInheritanceProvider(provider);
-        this.remapper = new LoliServerRemapper(this.jarMapping);
+        this.remapper = new CatServerRemapper(this.jarMapping);
     }
 
     public ProxyURLClassLoader(final URL[] urls, final ClassLoader parent) {

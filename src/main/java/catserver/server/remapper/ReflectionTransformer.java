@@ -23,7 +23,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
 public class ReflectionTransformer {
 
     public static JarMapping jarMapping;
-    public static LoliServerRemapper remapper;
+    public static CatServerRemapper remapper;
 
     public static final HashMap<String, String> classReverseMapping = Maps.newHashMap();
     public static final Multimap<String, String> methodReverseMapping = ArrayListMultimap.create();
@@ -35,7 +35,7 @@ public class ReflectionTransformer {
         JointProvider provider = new JointProvider();
         provider.add(new ClassInheritanceProvider());
         jarMapping.setFallbackInheritanceProvider(provider);
-        remapper = new LoliServerRemapper(jarMapping);
+        remapper = new CatServerRemapper(jarMapping);
 
         jarMapping.classes.forEach((k, v) -> classReverseMapping.put(v, k));
         jarMapping.methods.forEach((k, v) -> methodReverseMapping.put(v, k));

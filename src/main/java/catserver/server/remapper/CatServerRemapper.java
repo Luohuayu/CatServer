@@ -3,8 +3,8 @@ package catserver.server.remapper;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
 
-public class LoliServerRemapper extends JarRemapper {
-    public LoliServerRemapper(JarMapping jarMapping) {
+public class CatServerRemapper extends JarRemapper {
+    public CatServerRemapper(JarMapping jarMapping) {
         super(jarMapping);
     }
 

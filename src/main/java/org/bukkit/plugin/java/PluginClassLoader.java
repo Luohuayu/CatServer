@@ -3,7 +3,7 @@ package org.bukkit.plugin.java;
 import catserver.server.patcher.IPatcher;
 import catserver.server.patcher.PatcherManager;
 import catserver.server.remapper.ClassInheritanceProvider;
-import catserver.server.remapper.LoliServerRemapper;
+import catserver.server.remapper.CatServerRemapper;
 import catserver.server.remapper.MappingLoader;
 import catserver.server.remapper.ReflectionTransformer;
 import catserver.server.remapper.RemapRules;
@@ -55,7 +55,7 @@ public final class PluginClassLoader extends URLClassLoader {
     private final Set<String> seenIllegalAccess = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private TransformingClassLoader launchClassLoader;
-    private LoliServerRemapper remapper;
+    private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
     private IPatcher patcher;
@@ -82,7 +82,7 @@ public final class PluginClassLoader extends URLClassLoader {
         provider.add(new ClassInheritanceProvider());
         provider.add(new ClassLoaderProvider(this));
         this.jarMapping.setFallbackInheritanceProvider(provider);
-        this.remapper = new LoliServerRemapper(jarMapping);
+        this.remapper = new CatServerRemapper(jarMapping);
 
         this.patcher = PatcherManager.getPluginPatcher(description.getName());
 
