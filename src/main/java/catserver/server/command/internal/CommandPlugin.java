@@ -1,6 +1,7 @@
 package catserver.server.command.internal;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,9 @@ import com.google.common.collect.Lists;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class CommandPlugin extends Command {
+
+    private final List<String> params = Arrays.asList("load", "unload", "reload");
+
     public CommandPlugin(String name) {
         super(name);
         this.description = "Load or unload plugin";

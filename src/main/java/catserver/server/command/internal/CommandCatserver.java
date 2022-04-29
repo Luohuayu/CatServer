@@ -8,12 +8,33 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class CommandCatserver extends Command {
+
+    private final List<String> params = Arrays.asList("worlds", "reload", "reloadall");
+
     public CommandCatserver(String name) {
         super(name);
         this.description = "CatServer related commands";
         this.usageMessage = "/catserver worlds|reload|reloadall";
         setPermission("catserver.command.catserver");
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        List<String> list = new ArrayList<>();
+        if (args.length == 1 && (sender.isOp() || testPermission(sender))) {
+            for (String param : params) {
+                if (param.toLowerCase().startsWith(args[0].toLowerCase())) {
+                    list.add(param);
+                }
+            }
+        }
+
+        return list;
     }
 
     @Override
