@@ -59,8 +59,8 @@ public class CommandNodeTransformer implements ITransformer<ClassNode> {
             removeCommandMethod.instructions.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE, "java/util/Map", "remove", "(Ljava/lang/Object;)Ljava/lang/Object;", true));
             removeCommandMethod.instructions.add(new InsnNode(Opcodes.POP));
         }
-        removeCommandMethod.maxStack = removeCommandMethod.maxLocals = 2;
         removeCommandMethod.instructions.add(new InsnNode(Opcodes.RETURN));
+        removeCommandMethod.maxStack = removeCommandMethod.maxLocals = 2;
         input.methods.add(removeCommandMethod);
 
         return input;
