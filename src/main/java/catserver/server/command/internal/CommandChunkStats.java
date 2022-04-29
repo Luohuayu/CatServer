@@ -14,18 +14,35 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 public class CommandChunkStats extends Command {
     private static Map<Chunk, Long> chunks = new HashMap<>();
     private static boolean enable = false;
     private static long lastNanoTime = 0;
     private static int totalTick = 0;
+    private final List<String> params = Arrays.asList("start", "stop");
 
     public CommandChunkStats(String name) {
         super(name);
         this.description = "Chunk Stats Command";
         this.usageMessage = "/chunkstats start/stop";
         setPermission("catserver.command.chunkstats");
+    }
+
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        List<String> list = new ArrayList<>();
+        if (args.length == 1 && (sender.isOp() || testPermission(sender))) {
+            for (String param : params) {
+                if (param.toLowerCase().startsWith(args[0].toLowerCase())) {
+                    list.add(param);
+                }
+            }
+        }
+
+        return list;
     }
 
     @Override
