@@ -1,5 +1,6 @@
 package catserver.server.command.internal;
 
+import com.google.common.collect.Lists;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 public class CommandChunkStats extends Command {
     private static Map<Chunk, Long> chunks = new HashMap<>();
@@ -97,6 +99,24 @@ public class CommandChunkStats extends Command {
 
         sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
         return false;
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        List<String> params = Lists.newArrayList(Arrays.asList("start", "stop"));
+
+        List<String> tabs = Lists.newArrayList();
+
+        if (args.length == 1) {
+            String arg = args[0].toLowerCase();
+            for (String s : params) {
+                if (s.toLowerCase().startsWith(arg)) {
+                    tabs.add(s);
+                }
+            }
+        }
+
+        return tabs;
     }
 
     public static void onServerTick() {
