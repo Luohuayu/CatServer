@@ -1,12 +1,16 @@
 package catserver.server.command.internal;
 
 import catserver.server.CatServer;
+import com.google.common.collect.Lists;
 import net.minecraft.world.World;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class CommandCatserver extends Command {
     public CommandCatserver(String name) {
@@ -48,6 +52,24 @@ public class CommandCatserver extends Command {
         }
 
         return true;
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        List<String> params = Lists.newArrayList(Arrays.asList("worlds", "reload", "reloadall"));
+
+        List<String> tabs = Lists.newArrayList();
+
+        if (args.length == 1) {
+            String arg = args[0].toLowerCase();
+            for (String s : params) {
+                if (s.toLowerCase().startsWith(arg)) {
+                    tabs.add(s);
+                }
+            }
+        }
+
+        return tabs;
     }
 
     private static String formatStringLength(String str, int size) {

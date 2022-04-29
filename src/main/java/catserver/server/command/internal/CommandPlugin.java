@@ -1,6 +1,7 @@
 package catserver.server.command.internal;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,14 +58,25 @@ public class CommandPlugin extends Command {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        List<String> params = Lists.newArrayList(Arrays.asList("load", "unload", "reload"));
         List<String> tabs = Lists.newArrayList();
-        if (args.length > 1) {
-            String action = args[0].toLowerCase();
-            if (action.equals("unload")) {
-                for (Plugin plugin : Bukkit.getServer().getPluginManager().getPlugins()) {
-                    tabs.add(plugin.getName());
+        String arg = args[0].toLowerCase();
+
+        if (args.length == 1) {
+            for (String s : params) {
+                if (s.toLowerCase().startsWith(arg)) {
+                    tabs.add(s);
                 }
-            } else if (action.equals("load")) {
+            }
+        }
+        if (args.length > 1) {
+            if (arg.equals("unload") || arg.equals("reload")) { // Merge
+                tabs.clear(); // Empty before each addition
+                for (Plugin plugin : Bukkit.getServer().getPluginManager().getPlugins()) {
+                    tabs.add(plugin.getDescription().getName()); // Use getDescription().getName()
+                }
+            } else if (arg.equals("load")) {
+                tabs.clear(); // Empty before each addition
                 for (File file : new File("plugins").listFiles()) {
                     if (file.isFile() && file.getName().toLowerCase().endsWith(".jar"))
                         tabs.add(file.getName().substring(0, file.getName().length() - 4));
@@ -155,7 +167,7 @@ public class CommandPlugin extends Command {
                 }
             }
 
-            File pluginFile = ObfuscationReflectionHelper.getPrivateValue(JavaPlugin.class, (JavaPlugin)plugin, "file");
+            File pluginFile = ObfuscationReflectionHelper.getPrivateValue(JavaPlugin.class, (JavaPlugin) plugin, "file");
 
             try {
                 plugin = manager.loadPlugin(pluginFile);
