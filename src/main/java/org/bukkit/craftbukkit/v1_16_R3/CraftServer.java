@@ -967,10 +967,15 @@ public final class CraftServer implements Server {
 
         RegistryKey<net.minecraft.world.World> worldKey = RegistryKey.create(Registry.DIMENSION_REGISTRY, new ResourceLocation(name.toLowerCase(java.util.Locale.ENGLISH)));
 
-        ServerWorld internal = new ServerWorld(console, console.executor, worldSession, worlddata, worldKey, dimensionmanager, getServer().progressListenerFactory.create(11),
-                chunkgenerator, worlddata.worldGenSettings().isDebug(), j, creator.environment() == Environment.NORMAL ? list : ImmutableList.of(), true).
-                setBukkitWorldInfo(generator, creator.environment()) // CatServer
-                ;
+        ServerWorld internal;
+        try {
+            catserver.server.utils.BukkitWorldSetter.get().setWorld(generator, creator.environment());
+            internal = new ServerWorld(console, console.executor, worldSession, worlddata, worldKey, dimensionmanager, getServer().progressListenerFactory.create(11),
+                    chunkgenerator, worlddata.worldGenSettings().isDebug(), j, creator.environment() == Environment.NORMAL ? list : ImmutableList.of(), true);
+        } finally {
+            catserver.server.utils.BukkitWorldSetter.get().reset();
+        }
+
         if (!(worlds.containsKey(name.toLowerCase(java.util.Locale.ENGLISH)))) {
             return null;
         }
