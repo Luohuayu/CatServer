@@ -32,7 +32,7 @@ public class DataManager {
             foxLaunchData.mkdirs();
         }
 
-        try (JarFile serverJar = new JarFile(System.getProperty("java.class.path"))) {
+        try (JarFile serverJar = new JarFile(Utils.findServerJar())) {
             String classPath = Objects.requireNonNull(serverJar.getManifest().getMainAttributes().getValue(Attributes.Name.CLASS_PATH), "Missing MANIFEST.MF?");
             String[] libraries = classPath.split(" ");
             for (String library : libraries) {

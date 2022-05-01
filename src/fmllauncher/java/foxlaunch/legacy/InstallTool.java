@@ -89,7 +89,7 @@ public class InstallTool {
         File installHASH = new File("foxlaunch-data/install.dat");
         File installLog = new File("foxlaunch-data/install.log");
 
-        File serverJar = new File(System.getProperty("java.class.path"));
+        File serverJar = Utils.findServerJar();
         File serverLZMA = new File("foxlaunch-data/server.lzma");
 
         File mcpZip = new File(String.format("libraries/de/oceanlabs/mcp/mcp_config/%s-%s/mcp_config-%s-%s.zip", minecraftVersion, mcpVersion, minecraftVersion, mcpVersion));
