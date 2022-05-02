@@ -43,4 +43,9 @@ public class CraftFakePlayer extends CraftPlayer {
         }
         return super.hasPermission(perm);
     }
+
+    @Override
+    public boolean isOnline() {
+        return true;
+    }
 }
