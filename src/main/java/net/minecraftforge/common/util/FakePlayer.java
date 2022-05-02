@@ -81,6 +81,7 @@ public class FakePlayer extends ServerPlayerEntity
         @Override public void tick() { }
         @Override public void resetPosition() { }
         @Override public void disconnect(ITextComponent message) { }
+        @Override public void disconnect(String message) { } // CatServer - Override CraftBukkit method
         @Override public void handlePlayerInput(CInputPacket packet) { }
         @Override public void handleMoveVehicle(CMoveVehiclePacket packet) { }
         @Override public void handleAcceptTeleportPacket(CConfirmTeleportPacket packet) { }
