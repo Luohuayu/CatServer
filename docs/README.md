@@ -30,10 +30,11 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 ### 使用方法
 1. 下载或自行构建最新服务端
 2. 创建启动脚本并运行 (示例启动参数: java -jar CatServer-1.16.5-xxxxxxx-server.jar)
-3. 首次启动请耐心等待库文件下载完成<br>
+3. 首次启动请耐心等待库文件下载完成
+
+##### 推荐使用Java8运行, 虽然支持Java9-17及更高版本但MOD和插件可能存在兼容性问题
 
 ### 构建方法
-#### 克隆
 - 1.克隆1.16.5分支: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
 - 2.切换目录: `cd CatServer`
 - 3.配置项目: `gradlew setup`

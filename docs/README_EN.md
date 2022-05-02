@@ -28,10 +28,11 @@ Provide API to allow plugins to interact with mods easily<br>
 ### Installation
 1. Download or build the latest server
 2. Create startup script and run (Sample script: java -Xmx2G -jar CatServer-1.16.5-xxxxxxx-server.jar)
-3. Wait for the libraries file download complete on the first startup<br>
+3. Wait for the libraries file download complete on the first startup
+
+##### Recommended to run on Java8, although Java9-17 and later versions are supported, there may be compatibility issues with mods and plugins
 
 ### Building
-#### Clone
 - 1.Clone 1.16.5 branch: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
 - 2.Change directory: `cd CatServer`
 - 3.Setup project: `gradlew setup`
