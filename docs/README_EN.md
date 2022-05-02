@@ -30,7 +30,9 @@ Provide API to allow plugins to interact with mods easily<br>
 ### Installation
 1. Download or build the latest server
 2. Create startup script and run (Sample script: java -Xmx2G -jar CatServer-xxxxxxx-universal.jar)
-3. Wait for the libraries file download complete on the first startup<br>
+3. Wait for the libraries file download complete on the first startup
+
+##### Recommended to run on Java8, although Java9-17 and later versions are supported, there may be compatibility issues with mods and plugins
 
 ### Building
 - 1.Setup project: `gradlew setup`

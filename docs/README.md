@@ -32,7 +32,9 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 ### 使用方法
 1. 下载或自行构建最新服务端
 2. 创建启动脚本并运行 (示例启动参数: java -Xmx2G -jar CatServer-xxxxxxx-universal.jar)
-3. 首次启动请耐心等待库文件下载完成<br>
+3. 首次启动请耐心等待库文件下载完成
+
+##### 推荐使用Java8运行, 虽然支持Java9-17及更高版本但MOD和插件可能存在兼容性问题
 
 ### 构建方法
 - 1.配置项目: `gradlew setup`<br>
