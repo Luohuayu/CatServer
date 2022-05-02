@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_16_R3.entity;
 
+import catserver.server.PlayerDataFixer;
 import catserver.server.entity.CraftCustomChestHorse;
 import catserver.server.entity.CraftCustomEntity;
 import catserver.server.entity.CraftCustomProjectile;
@@ -415,6 +416,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
 
     @Override
     public Vector getVelocity() {
+        PlayerDataFixer.checkVector(entity); // CatServer - fix invalid vector
         return CraftVector.toBukkit(entity.getDeltaMovement());
     }
 

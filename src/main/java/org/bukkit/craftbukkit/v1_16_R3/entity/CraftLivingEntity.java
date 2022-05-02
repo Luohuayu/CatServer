@@ -113,6 +113,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
 
     @Override
     public void setHealth(double health) {
+        if (!Double.isFinite(health)) { new IllegalArgumentException("A plugin is trying to set invalid health(" + health + ")").printStackTrace(); return; } // CatServer;
         health = (float) health;
         if ((health < 0) || (health > getMaxHealth())) {
             throw new IllegalArgumentException("Health must be between 0 and " + getMaxHealth() + "(" + health + ")");
