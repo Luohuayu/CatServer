@@ -209,6 +209,23 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
 
     @Override
     protected Codec<? extends net.minecraft.world.gen.ChunkGenerator> codec() {
+        // CatServer start
+        if (getClass() == CustomChunkGenerator.class) {
+            try {
+                java.lang.reflect.Method method;
+                try {
+                    method = net.minecraft.world.gen.ChunkGenerator.class.getDeclaredMethod("func_230347_a_");
+                } catch (NoSuchMethodException e) {
+                    method = net.minecraft.world.gen.ChunkGenerator.class.getDeclaredMethod("codec");
+                }
+
+                method.setAccessible(true);
+                return (Codec<? extends net.minecraft.world.gen.ChunkGenerator>) method.invoke(delegate);
+            } catch (Exception e) {
+                throw new RuntimeException(e.getCause());
+            }
+        } else
+        // CatServer end
         throw new UnsupportedOperationException("Cannot serialize CustomChunkGenerator");
     }
 
