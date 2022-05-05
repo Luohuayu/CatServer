@@ -280,22 +280,7 @@ public class CraftBlock implements Block {
 
     public BlockState getState() {
         Material material = getType();
-        // CatServer start - handle if null
-        if (material == null) {
-            TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
-            if (tileEntity != null) {
-                // block with IInventory
-                if (tileEntity instanceof IInventory) {
-                    return new CraftCustomContainer(this);
-                }
-                // block with unhandled TileEntity:
-                return new CraftBlockEntityState<>(this, tileEntity.getClass());
-            } else {
-                // Block without TileEntity:
-                return new CraftBlockState(this);
-            }
-        }
-        // CatServer end
+        if (material == null) material = Material.AIR; // CatServer - Goto default
         switch (material) {
         case SIGN:
         case SIGN_POST:
@@ -357,6 +342,7 @@ public class CraftBlock implements Block {
         case BLACK_SHULKER_BOX:
             return new CraftShulkerBox(this);
         case ENCHANTMENT_TABLE:
+            if (CraftCustomContainer.QuarkMatrixEnchantingTable.isEnable() && CraftCustomContainer.QuarkMatrixEnchantingTable.isTileMatrixEnchanterBase(chunk.getCraftWorld().getTileEntityAt(x, y, z))) return new CraftCustomContainer.QuarkMatrixEnchantingTable(this); // CatServer - Fix Quark replace vanilla te cause ClassCastException
             return new CraftEnchantingTable(this);
         case ENDER_CHEST:
             return new CraftEnderChest(this);
@@ -369,18 +355,24 @@ public class CraftBlock implements Block {
         case BED_BLOCK:
             return new CraftBed(this);
         default:
+            // CatServer start
             TileEntity tileEntity = chunk.getCraftWorld().getTileEntityAt(x, y, z);
             if (tileEntity != null) {
-                // block with IInventory
-                if (tileEntity instanceof IInventory) {
-                    return new CraftCustomContainer(this);
+                // Block with TileMatrixEnchanterBase
+                if (CraftCustomContainer.QuarkMatrixEnchantingTable.isEnable() && CraftCustomContainer.QuarkMatrixEnchantingTable.isTileMatrixEnchanterBase(tileEntity)) {
+                    return new CraftCustomContainer.QuarkMatrixEnchantingTable(this);
                 }
-                // block with unhandled TileEntity:
+                // Block with IInventory
+                if (tileEntity instanceof IInventory) {
+                    return new CraftCustomContainer(this, (IInventory) tileEntity);
+                }
+                // Block with unhandled TileEntity:
                 return new CraftBlockEntityState<>(this, tileEntity.getClass());
             } else {
                 // Block without TileEntity:
                 return new CraftBlockState(this);
             }
+            // CatServer end
         }
     }
 
