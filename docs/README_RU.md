@@ -8,17 +8,15 @@
 Теперь он будет по-прежнему поддерживаться как ответвление LoliServer, обеспечивая лучшую оптимизацию и совместимость.
 Вы можете скачать последнюю версию с Jenkins
 
-Все версии CatServer:
-
-
-All versions of CatServer:
-|    Version    |    Status     |
+Все доступные версии CatServer:
+|    Версия    |    Статус     |
 | ------------- | ------------- |
 | [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Активная разработка      |
 | [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  Долгосрочная поддержка         |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  Долгосрочная поддержка/Стабильная версия  |
 
-QQ Группа: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Телеграм: [@CatServer](https://t.me/CatServer) | Дискорд канал: [点击加入](https://discord.gg/wvBJN4d)
+QQ Группа: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Телеграм: [@CatServer](https://t.me/CatServer) | Дискорд канал: [Нажмите, чтобы присоединиться
+](https://discord.gg/wvBJN4d)
 
 ### Функции
 Используйте оптимизацию самозаписи и некоторую оптимизацию бумаги, чтобы значительно повысить производительность.
@@ -35,8 +33,8 @@ jar CatServer-1.16.5-xxxxxxx-server.jar)`
 Дождитесь завершения загрузки файла библиотек при первом запуске.
 Рекомендуется запускать на Java8 или 11, хотя поддерживаются Java12-17 и более поздние версии, могут быть проблемы совместимости с модами и плагинами.
 
-Строительство
-1.Ветка Clone 1.16.5: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
+### Сборка
+1. Ветка Clone 1.16.5: `git clone -b 1.16.5 https://github.com/Luohuayu/CatServer.git`
 2. Изменить каталог: `cd CatServer`
 3. Проект установки: установка градиента
 4. Создайте патч (если вы изменяете код Minecraft): `gradlew genPatches`
