@@ -1,6 +1,7 @@
 package catserver.server;
 
 import catserver.server.launch.Java11Support;
+import catserver.server.launch.Java14Support;
 import catserver.server.launch.LibrariesManager;
 import catserver.server.utils.LanguageUtils;
 
@@ -23,6 +24,7 @@ public class CatServerLaunch {
                 System.out.println(LanguageUtils.I18nToString("launch.java11_compatibility"));
                 Thread.sleep(5000);
                 Java11Support.setup();
+                Java14Support.setup();
             } catch (Exception e) {
                 e.printStackTrace();
                 System.exit(1);
