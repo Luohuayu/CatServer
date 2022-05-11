@@ -3,7 +3,10 @@
 ![](https://img.shields.io/badge/Forge-36.2.33-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.16.5-brightgreen.svg?colorB=469C00)
 
-# CatServer — высокопроизводительный сервер для модов и плагинов на базе Forge+Bukkit+Spigot.
+<b>The translation is not necessarily correct, it is recommended to view the English version.</b>
+<b>Перевод может содержать ошибки и другие неточности для большей ясности смотрите Английскую версию.</b>
+
+### CatServer — высокопроизводительный сервер для модов и плагинов на базе Forge+Bukkit+Spigot.
 Ранняя версия 1.16.5 была разработана совместно с командой проекта LoliServer. В настоящее время поддерживает обширное количество модов и плагинов для стабильной работы
 Теперь он будет по-прежнему поддерживаться как ответвление LoliServer, обеспечивая лучшую оптимизацию и совместимость.
 Вы можете скачать последнюю версию с Jenkins
