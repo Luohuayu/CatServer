@@ -30,6 +30,7 @@ public class CatServerConfig {
     public boolean fixLessCrystalRespawnDragon = false;
     public boolean preventPistonPushRail = false;
     public boolean preventPistonPushSlimeBlock = false;
+    public boolean limitFastClickGUI = false;
 
     public boolean enableDynmapCompatible = true;
     public boolean enableCoreProtectModBlockCompatible = true;
@@ -74,6 +75,7 @@ public class CatServerConfig {
         fixLessCrystalRespawnDragon = getOrWriteBooleanConfig("vanilla.fixLessCrystalRespawnDragon", fixLessCrystalRespawnDragon);
         preventPistonPushRail = getOrWriteBooleanConfig("vanilla.preventPistonPushRail", preventPistonPushRail);
         preventPistonPushSlimeBlock = getOrWriteBooleanConfig("vanilla.preventPistonPushSlimeBlock", preventPistonPushRail);
+        limitFastClickGUI = getOrWriteBooleanConfig("vanilla.limitFastClickGUI", limitFastClickGUI);
         // plugin
         enableDynmapCompatible = getOrWriteBooleanConfig("plugin.patcher.enableDynmapCompatible", enableDynmapCompatible);
         enableCoreProtectModBlockCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCoreProtectModBlockCompatible", enableCoreProtectModBlockCompatible);
