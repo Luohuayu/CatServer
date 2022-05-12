@@ -11,7 +11,7 @@ import java.util.ListIterator;
 public class MythicMobsPatcher implements IPatcher {
     @Override
     public byte[] transform(String className, byte[] basicClass) {
-        if (className.equals("io.lumine.xikage.mythicmobs.volatilecode.v1_16_R3.VolatileWorldHandler_v1_16_R3")) {
+        if (className.equals("io.lumine.xikage.mythicmobs.volatilecode.v1_16_R3.VolatileWorldHandler_v1_16_R3") || className.equals("io.lumine.mythic.core.volatilecode.v1_16_R3.VolatileWorldHandler_v1_16_R3")) {
             return patchVolatileWorldHandler_v1_16_R3(basicClass);
         }
         return basicClass;
