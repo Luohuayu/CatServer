@@ -170,7 +170,7 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
         CapabilityAnimation.register();
         CapabilityEnergy.register();
 
-        VersionChecker.startVersionCheck();
+        // VersionChecker.startVersionCheck(); // CatServer - Disable Forge version check
 
         registerArgumentTypes();
         VanillaPacketSplitter.register();
