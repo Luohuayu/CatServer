@@ -65,6 +65,7 @@ import net.minecraft.world.spawner.*;
 import net.minecraft.world.storage.*;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.Validate;
 import org.bukkit.*;
 import org.bukkit.World;
@@ -921,9 +922,21 @@ public final class CraftServer implements Server {
                 throw new IllegalArgumentException("Illegal dimension");
         }
 
-        SaveFormat.LevelSave worldSession;
+        SaveFormat.LevelSave worldSession = console.storageSource;
         try {
             worldSession = SaveFormat.createDefault(getWorldContainer().toPath()).cBCreateAccess(name, actualDimension);
+            // CatServer start - Fix import
+            for (String s : new String[]{ "region", "data", "entities", "poi" }) {
+                File saveDir = new File(worldSession.getWorldDir().toFile(), "dimensions/minecraft/" + name + "/" + s);
+                if (!saveDir.exists()) {
+                    File importDir = new File(worldSession.levelPath.toFile(), s);
+                    if (importDir.exists()) {
+                        logger.info(String.format("[Import Fixer] Moving %s to %s", importDir.getAbsolutePath(), saveDir.getAbsolutePath()));
+                        FileUtils.moveDirectory(importDir, saveDir);
+                    }
+                }
+            }
+            // CatServer end
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
