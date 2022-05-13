@@ -912,12 +912,14 @@ public final class CraftServer implements Server {
             case NORMAL:
                 actualDimension = Dimension.OVERWORLD;
                 break;
+            /*
             case NETHER:
                 actualDimension = Dimension.NETHER;
                 break;
             case THE_END:
                 actualDimension = Dimension.END;
                 break;
+            */
             default:
                 throw new IllegalArgumentException("Illegal dimension");
         }
