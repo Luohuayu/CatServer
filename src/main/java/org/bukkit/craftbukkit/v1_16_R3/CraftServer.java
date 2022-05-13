@@ -933,8 +933,8 @@ public final class CraftServer implements Server {
                 if (!saveDir.exists()) {
                     File importDir = new File(worldSession.levelPath.toFile(), s);
                     if (importDir.exists()) {
-                        logger.info(String.format("[Import Fixer] Moving %s to %s", importDir.getAbsolutePath(), saveDir.getAbsolutePath()));
-                        FileUtils.moveDirectory(importDir, saveDir);
+                        logger.info(String.format("[Import Fixer] Copying %s to %s", importDir.getAbsolutePath(), saveDir.getAbsolutePath()));
+                        FileUtils.copyDirectory(importDir, saveDir);
                     }
                 }
             }
