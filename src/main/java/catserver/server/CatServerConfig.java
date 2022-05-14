@@ -43,6 +43,9 @@ public class CatServerConfig {
 
     public boolean waitForgeServerChatEvent = false;
 
+    public boolean securityOpManager = false;
+    public boolean securityGameModeManager = false;
+
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
     public boolean disableFMLStatusModInfo = false;
@@ -87,6 +90,9 @@ public class CatServerConfig {
         defaultInstallPluginSpark = getOrWriteBooleanConfig("plugin.defaultInstall.spark", defaultInstallPluginSpark);
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
+        // security
+        securityOpManager = getOrWriteBooleanConfig("security.opManager", securityOpManager);
+        securityGameModeManager = getOrWriteBooleanConfig("security.gameModeManager", securityGameModeManager);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
