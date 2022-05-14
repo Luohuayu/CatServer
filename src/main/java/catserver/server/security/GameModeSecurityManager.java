@@ -10,7 +10,7 @@ public class GameModeSecurityManager {
 
         if (type == GameType.CREATIVE) {
             CatServer.log.warn("Player {}/{} change game mode {} to {}, the stacktrace saved in debug.log", player.getName(), player.getGameProfile().getId(), player.interactionManager.getGameType().getName(), type.getName());
-            CatServer.log.debug(OpSecurityManager.class.getName(), new Throwable());
+            CatServer.log.debug(GameModeSecurityManager.class.getName(), new Throwable());
         }
     }
 }
