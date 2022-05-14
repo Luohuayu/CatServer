@@ -46,7 +46,10 @@ public class OpSecurityManager {
     public static void removeOpHook(GameProfile profile) {
         if (!CatServer.getConfig().securityOpManager) return;
 
-        if (!AsyncCatcher.isMainThread()) throw new RuntimeException("Async de-op!");
+        if (!AsyncCatcher.isMainThread()) {
+            server.addScheduledTask(() -> server.getPlayerList().removeOp(profile));
+            throw new RuntimeException("Async de-op!");
+        }
 
         Class<?>[] callerStack = ReflectionUtils.getCallerStack();
         callerStack = Arrays.copyOfRange(callerStack, 4 /* DedicatedPlayerList */ /* ReflectionUtils: 2 OpSecurityManager: 1 DedicatedPlayerList: 1 */, callerStack.length - 1);
