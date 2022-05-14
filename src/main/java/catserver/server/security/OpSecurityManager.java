@@ -23,6 +23,8 @@ public class OpSecurityManager {
     private static final Map<GameProfile, Class<?>[]> profileStackMap = new Object2ObjectArrayMap<>();
 
     public static void addOpHook(GameProfile profile) {
+        if (!CatServer.getConfig().securityOpManager) return;
+
         if (!AsyncCatcher.isMainThread()) throw new RuntimeException("Async add op!");
 
         Class<?>[] callerStack = ReflectionUtils.getCallerStack();
@@ -42,6 +44,10 @@ public class OpSecurityManager {
     }
 
     public static void removeOpHook(GameProfile profile) {
+        if (!CatServer.getConfig().securityOpManager) return;
+
+        if (!AsyncCatcher.isMainThread()) throw new RuntimeException("Async de-op!");
+
         Class<?>[] callerStack = ReflectionUtils.getCallerStack();
         callerStack = Arrays.copyOfRange(callerStack, 4 /* DedicatedPlayerList */ /* ReflectionUtils: 2 OpSecurityManager: 1 DedicatedPlayerList: 1 */, callerStack.length - 1);
 
@@ -55,6 +61,8 @@ public class OpSecurityManager {
     }
 
     public static void tick() {
+        if (!CatServer.getConfig().securityOpManager) return;
+
         profileStackMap.forEach((profile, callerStack) -> {
             try {
                 CatServer.log.warn("Detected player {}/{} got op without command. Please check server security!", profile.getName(), profile.getId());
