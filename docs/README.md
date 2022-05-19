@@ -44,3 +44,6 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 
 ### 生成依赖库
 使用 [CatServerSRG-Generator](https://github.com/Luohuayu/CatServerSRG-Generator) 生成依赖库, 可用于编写插件操作NMS或直接修改MOD
+
+### 赞助商
+[7yPAY支付商品寄售平台 ｜ 费率低至2.5% | 无需营业执照可对接微信一清](https://pay.7ycloud.cn/help?catgithub)
