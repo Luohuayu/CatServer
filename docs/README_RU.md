@@ -1,6 +1,6 @@
 # CatServer (1.16.5)
 ![](https://img.shields.io/badge/Minecraft-1.16.5-brightgreen.svg?colorB=469C00)
-![](https://img.shields.io/badge/Forge-36.2.33-brightgreen.svg?colorB=469C00)
+![](https://img.shields.io/badge/Forge-36.2.35-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.16.5-brightgreen.svg?colorB=469C00)
 
 <b>The translation is not necessarily correct, it is recommended to view the English version.</b>
