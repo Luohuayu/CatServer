@@ -1003,7 +1003,6 @@ public final class CraftServer implements Server {
 
         getServer().loadSpawn(internal.getChunkSource().chunkMap.progressListener, internal);
 
-        pluginManager.callEvent(new WorldLoadEvent(internal.getWorld()));
         return internal.getWorld();
     }
 
