@@ -987,6 +987,7 @@ public final class CraftServer implements Server {
             catserver.server.utils.BukkitWorldSetter.get().setWorld(generator, creator.environment());
             internal = new ServerWorld(console, console.executor, worldSession, worlddata, worldKey, dimensionmanager, getServer().progressListenerFactory.create(11),
                     chunkgenerator, worlddata.worldGenSettings().isDebug(), j, creator.environment() == Environment.NORMAL ? list : ImmutableList.of(), true);
+            internal.isBukkitWorld = true;
         } finally {
             catserver.server.utils.BukkitWorldSetter.get().reset();
         }
