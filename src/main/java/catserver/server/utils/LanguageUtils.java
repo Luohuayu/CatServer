@@ -17,6 +17,7 @@ public class LanguageUtils {
         CN.put("launch.lib_failure_download", "下载文件失败(HTTP状态: %s), 你也可以手动下载: %s");
         CN.put("launch.lib_downloading", "正在下载文件 %s 大小: %s");
         CN.put("launch.lib_download_completed", "库文件下载完成, 如果出现错误只需要重新运行服务端");
+        CN.put("versioncheck.dev", "你正在使用的是非官方或开发版本的CatServer!");
         CN.put("versioncheck.new_version", "检查到CatServer有新版本(%s), 请到官网(https://catmc.org)下载更新或在catserver.yml中关闭版本检查");
         CN.put("versioncheck.failure", "CatServer更新检查失败, 请检查网络: %s");
         CN.put("spark.recommend", "服务端已安装spark插件, 推荐使用spark更好的分析性能使用情况!");
@@ -30,6 +31,7 @@ public class LanguageUtils {
         EN.put("launch.lib_failure_download", "File download failed(HTTP Status: %s), URL: %s");
         EN.put("launch.lib_downloading", "Downloading %s Size: %s");
         EN.put("launch.lib_download_completed", "The libraries file download completed, if an error occurs only need re-run the server");
+        EN.put("versioncheck.dev", "You are using an unofficial or dev build of CatServer!");
         EN.put("versioncheck.new_version", "Check CatServer has a new version(%s), you can download the update from https://catmc.org or disable the version check in catserver.yml");
         EN.put("versioncheck.failure", "CatServer version check failed, please check network: %s");
         EN.put("spark.recommend", "Spark plugin has been installed on the server, recommended to use spark to better analyze performance usage!");

@@ -15,13 +15,13 @@ import java.util.TimerTask;
 
 public class VersionCheck {
     private static final String api = "https://catserver.moe/api/version/?v=universal";
+    private final boolean isDev = !isOfficialVersion();
 
     public VersionCheck() {
-        if (!isOfficialVersion()) {
+        if (isDev) {
             if (getCurrentVersion() != null) {
-                CatServer.log.warn("You are using an unofficial build of CatServer!");
+                CatServer.log.warn(LanguageUtils.I18nToString("versioncheck.dev"));
             }
-            return;
         }
 
         new Timer(true).scheduleAtFixedRate(new TimerTask() {
@@ -37,7 +37,7 @@ public class VersionCheck {
         if (currentVersion != null) {
             try {
                 VersionData versionData = new Gson().fromJson(sendSSLRequest(api), VersionData.class);
-                if (!Strings.isNullOrEmpty(versionData.version) && !currentVersion.equals(versionData.version)) {
+                if (!isDev && !Strings.isNullOrEmpty(versionData.version) && !currentVersion.equals(versionData.version)) {
                     CatServer.log.info(String.format(LanguageUtils.I18nToString("versioncheck.new_version"), versionData.version));
                 }
                 if (!Strings.isNullOrEmpty(versionData.message)) {
