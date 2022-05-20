@@ -1,11 +1,73 @@
 --- a/net/minecraft/command/arguments/ArgumentTypes.java
 +++ b/net/minecraft/command/arguments/ArgumentTypes.java
-@@ -220,4 +_,8 @@
-          this.field_197481_c = p_i48088_3_;
+@@ -27,6 +_,10 @@
+    private static final Logger field_197488_a = LogManager.getLogger();
+    private static final Map<Class<?>, ArgumentTypes.Entry<?>> field_197489_b = Maps.newHashMap();
+    private static final Map<ResourceLocation, ArgumentTypes.Entry<?>> field_197490_c = Maps.newHashMap();
++   // CatServer start - Support lightfall (https://github.com/IzzelAliz/Arclight/blob/1.16/arclight-common/src/main/java/io/izzel/arclight/common/mixin/core/command/arguments/ArgumentTypesMixin.java)
++   private static final Set<ResourceLocation> INTERNAL_TYPES = Sets.newHashSet();
++   private static boolean arclight$reentrant = false;
++   // CatServer end
+ 
+    public static <T extends ArgumentType<?>> void func_218136_a(String p_218136_0_, Class<T> p_218136_1_, IArgumentSerializer<T> p_218136_2_) {
+       ResourceLocation resourcelocation = new ResourceLocation(p_218136_0_);
+@@ -42,6 +_,7 @@
+    }
+ 
+    public static void func_197483_a() {
++      INTERNAL_TYPES.addAll(field_197490_c.keySet()); // CatServer
+       BrigadierSerializers.func_197511_a();
+       func_218136_a("entity", EntityArgument.class, new EntityArgument.Serializer());
+       func_218136_a("game_profile", GameProfileArgument.class, new ArgumentSerializer<>(GameProfileArgument::func_197108_a));
+@@ -85,7 +_,13 @@
+          func_218136_a("test_argument", TestArgArgument.class, new ArgumentSerializer<>(TestArgArgument::func_229665_a_));
+          func_218136_a("test_class", TestTypeArgument.class, new ArgumentSerializer<>(TestTypeArgument::func_229611_a_));
+       }
+-
++      // CatServer start
++      Set<ResourceLocation> set = new java.util.HashSet<>(field_197490_c.keySet());
++      set.removeAll(INTERNAL_TYPES);
++      INTERNAL_TYPES.addAll(set);
++      INTERNAL_TYPES.add(new ResourceLocation("forge", "enum"));
++      INTERNAL_TYPES.add(new ResourceLocation("forge", "modid"));
++      // CatServer end
+    }
+ 
+    @Nullable
+@@ -104,8 +_,25 @@
+          field_197488_a.error("Could not serialize {} ({}) - will not be sent to client!", p_197484_1_, p_197484_1_.getClass());
+          p_197484_0_.func_192572_a(new ResourceLocation(""));
+       } else {
++         // CatServer start
++         boolean wrap;
++         if (!arclight$reentrant && org.spigotmc.SpigotConfig.bungee && !INTERNAL_TYPES.contains(entry.field_197481_c)) {
++            arclight$reentrant = wrap = true;
++         } else {
++            wrap = false;
++         }
++         if (wrap) {
++            p_197484_0_.func_180714_a("arclight:wrapped");
++         }
+          p_197484_0_.func_192572_a(entry.field_197481_c);
+-         entry.field_197480_b.func_197072_a(p_197484_1_, p_197484_0_);
++         PacketBuffer buf = wrap ? new PacketBuffer(io.netty.buffer.Unpooled.buffer()) : p_197484_0_;
++         entry.field_197480_b.func_197072_a(p_197484_1_, buf);
++         if (wrap) {
++            p_197484_0_.func_150787_b(buf.writerIndex());
++            p_197484_0_.writeBytes(buf);
++            arclight$reentrant = false;
++         }
++         // CatServer end
        }
     }
+ 
+@@ -219,5 +_,9 @@
+          this.field_197480_b = p_i48088_2_;
+          this.field_197481_c = p_i48088_3_;
+       }
++   }
 +   @javax.annotation.Nullable public static ResourceLocation getId(ArgumentType<?> type) {
 +      Entry<?> entry = func_201040_a(type);
 +      return entry == null ? null : entry.field_197481_c;
-+   }
+    }
  }
