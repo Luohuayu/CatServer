@@ -1,10 +1,7 @@
 package catserver.server.patcher;
 
 import catserver.server.CatServer;
-import catserver.server.patcher.plugin.EssentialsPatcher;
-import catserver.server.patcher.plugin.MythicMobsPatcher;
-import catserver.server.patcher.plugin.ProtocolBCDisablePatcher;
-import catserver.server.patcher.plugin.WorldEditPatcher;
+import catserver.server.patcher.plugin.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +11,7 @@ public class PatcherManager {
 
     static {
         registerPluginPatcher("ProtocolLib", new ProtocolBCDisablePatcher()); // Must disable background compiler, asm generator isn't work on forge
+        if (CatServer.getConfig().enableDynmapCompatible) registerPluginPatcher("dynmap", new DynmapPatcher());
         if (CatServer.getConfig().enableEssentialsNewVersionCompatible) registerPluginPatcher("Essentials", new EssentialsPatcher());
         if (CatServer.getConfig().enableMythicMobsPatcherCompatible) registerPluginPatcher("MythicMobs", new MythicMobsPatcher());
         if (CatServer.getConfig().enableWorldEditCompatible) registerPluginPatcher("WorldEdit", new WorldEditPatcher());
