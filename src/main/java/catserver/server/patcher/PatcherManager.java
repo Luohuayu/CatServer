@@ -1,10 +1,7 @@
 package catserver.server.patcher;
 
 import catserver.server.CatServer;
-import catserver.server.patcher.plugin.EssentialsPatcher;
-import catserver.server.patcher.plugin.MythicMobsPatcher;
-import catserver.server.patcher.plugin.ProtocolBCDisablePatcher;
-import catserver.server.patcher.plugin.WorldEditPatcher;
+import catserver.server.patcher.plugin.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +14,7 @@ public class PatcherManager {
         if (CatServer.getConfig().enableEssentialsNewVersionCompatible) registerPluginPatcher("Essentials", new EssentialsPatcher());
         if (CatServer.getConfig().enableMythicMobsPatcherCompatible) registerPluginPatcher("MythicMobs", new MythicMobsPatcher());
         if (CatServer.getConfig().enableWorldEditCompatible) registerPluginPatcher("WorldEdit", new WorldEditPatcher());
+        if (CatServer.getConfig().enableDynmapCompatible) registerPluginPatcher("dynmap", new DynmapPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {
