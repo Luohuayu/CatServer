@@ -1,7 +1,11 @@
 package catserver.server.patcher;
 
 import catserver.server.CatServer;
-import catserver.server.patcher.plugin.*;
+import catserver.server.patcher.plugin.DynmapPatcher;
+import catserver.server.patcher.plugin.EssentialsPatcher;
+import catserver.server.patcher.plugin.MythicMobsPatcher;
+import catserver.server.patcher.plugin.ProtocolBCDisablePatcher;
+import catserver.server.patcher.plugin.WorldEditPatcher;
 
 import java.util.HashMap;
 import java.util.Map;
