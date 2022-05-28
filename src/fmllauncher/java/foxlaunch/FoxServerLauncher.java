@@ -23,7 +23,8 @@ public class FoxServerLauncher {
         InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"));
 
         LegacyLauncher.loadJars();
-        FoxServerLauncher.class.getClassLoader().loadClass("com.google.gson.internal.bind.TypeAdapters$EnumTypeAdapter"); // Load gson patch TODO: ASM Modify
+        FoxServerLauncher.class.getClassLoader().loadClass("com.google.gson.internal.bind.TypeAdapters$EnumTypeAdapter"); // Load gson patch
+        FoxServerLauncher.class.getClassLoader().loadClass("net.minecraftforge.eventbus.EventBus"); // Load EventBus patch
 
         DataManager.gc();;
 
