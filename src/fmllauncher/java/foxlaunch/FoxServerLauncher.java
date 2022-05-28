@@ -26,7 +26,9 @@ public class FoxServerLauncher {
         FoxServerLauncher.class.getClassLoader().loadClass("com.google.gson.internal.bind.TypeAdapters$EnumTypeAdapter"); // Load gson patch
         FoxServerLauncher.class.getClassLoader().loadClass("net.minecraftforge.eventbus.EventBus"); // Load EventBus patch
 
-        DataManager.gc();;
+        catserver.server.utils.Log4j2_3201_Fixer.disableJndiLookup();
+
+        DataManager.gc();
 
         Class.forName("net.minecraftforge.server.ServerMain").getMethod("main", String[].class).invoke(null, new Object[]{ args });
     }
