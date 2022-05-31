@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_16_R3.entity;
 import catserver.server.PlayerDataFixer;
 import catserver.server.entity.CraftCustomChestHorse;
 import catserver.server.entity.CraftCustomEntity;
+import catserver.server.entity.CraftCustomHorse;
 import catserver.server.entity.CraftCustomProjectile;
 import catserver.server.entity.CraftFakePlayer;
 import com.google.common.base.Function;
@@ -129,7 +130,6 @@ import net.minecraft.entity.projectile.FishingBobberEntity;
 import net.minecraft.entity.projectile.LlamaSpitEntity;
 import net.minecraft.entity.projectile.PotionEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
-import net.minecraft.entity.projectile.ProjectileItemEntity;
 import net.minecraft.entity.projectile.ShulkerBulletEntity;
 import net.minecraft.entity.projectile.SmallFireballEntity;
 import net.minecraft.entity.projectile.SnowballEntity;
@@ -234,10 +234,11 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                             else if (entity instanceof MuleEntity) { return new CraftMule(server, (MuleEntity) entity); }
                             else if (entity instanceof TraderLlamaEntity) { return new CraftTraderLlama(server, (TraderLlamaEntity) entity); }
                             else if (entity instanceof LlamaEntity) { return new CraftLlama(server, (LlamaEntity) entity); }
+                            else { return new CraftCustomChestHorse(server, (AbstractChestedHorseEntity) entity); }
                         } else if (entity instanceof HorseEntity) { return new CraftHorse(server, (HorseEntity) entity); }
                         else if (entity instanceof SkeletonHorseEntity) { return new CraftSkeletonHorse(server, (SkeletonHorseEntity) entity); }
                         else if (entity instanceof ZombieHorseEntity) { return new CraftZombieHorse(server, (ZombieHorseEntity) entity); }
-                        else { return new CraftCustomChestHorse(server, (AbstractHorseEntity) entity); }
+                        else { return new CraftCustomHorse(server, (AbstractHorseEntity) entity); }
                     }
                     else if (entity instanceof RabbitEntity) { return new CraftRabbit(server, (RabbitEntity) entity); }
                     else if (entity instanceof PolarBearEntity) { return new CraftPolarBear(server, (PolarBearEntity) entity); }
@@ -298,7 +299,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                         else { return new CraftPiglinAbstract(server, (AbstractPiglinEntity) entity); }
                     }
                     else if (entity instanceof ZoglinEntity) { return new CraftZoglin(server, (ZoglinEntity) entity); }
-                    else  { return new CraftMonster(server, (MonsterEntity) entity); }
+                    else { return new CraftMonster(server, (MonsterEntity) entity); }
                 }
                 else if (entity instanceof GolemEntity) {
                     if (entity instanceof SnowGolemEntity) { return new CraftSnowman(server, (SnowGolemEntity) entity); }
