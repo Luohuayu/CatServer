@@ -903,6 +903,8 @@ public final class CraftServer implements Server {
             throw new IllegalArgumentException("File exists with the name '" + name + "' and isn't a folder");
         }
 
+        if ("DIM1".equalsIgnoreCase(name) || "DIM-1".equalsIgnoreCase(name)) throw new IllegalArgumentException("Dynamic loading is not supported: " + name); // CatServer
+
         if (generator == null) {
             generator = getGenerator(name);
         }
@@ -912,14 +914,12 @@ public final class CraftServer implements Server {
             case NORMAL:
                 actualDimension = Dimension.OVERWORLD;
                 break;
-            /*
             case NETHER:
                 actualDimension = Dimension.NETHER;
                 break;
             case THE_END:
                 actualDimension = Dimension.END;
                 break;
-            */
             default:
                 throw new IllegalArgumentException("Illegal dimension");
         }
