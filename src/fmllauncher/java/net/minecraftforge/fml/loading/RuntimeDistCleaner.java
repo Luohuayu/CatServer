@@ -69,11 +69,14 @@ public class RuntimeDistCleaner implements ILaunchPluginService
         {
             LOGGER.fatal(DISTXFORM, "Attempted to load class {} for invalid dist {}", classNode.name, DIST);
             // CatServer start
-            // throw new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST);
-            new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST + " (It may crash the server, please report it to the mod author)").printStackTrace();
-            classNode.methods.clear();
-            classNode.fields.clear();
-            return ILaunchPluginService.ComputeFlags.SIMPLE_REWRITE;
+            if (classNode.name.startsWith("net/minecraft/client/")) {
+                throw new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST);
+            } else {
+                new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST + " (It may crash the server, please report it to the mod author)").printStackTrace();
+                classNode.methods.clear();
+                classNode.fields.clear();
+                return ILaunchPluginService.ComputeFlags.SIMPLE_REWRITE;
+            }
             // CatServer end
         }
 
