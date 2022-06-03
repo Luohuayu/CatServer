@@ -69,7 +69,7 @@ public class RuntimeDistCleaner implements ILaunchPluginService
         {
             LOGGER.fatal(DISTXFORM, "Attempted to load class {} for invalid dist {}", classNode.name, DIST);
             // CatServer start
-            if (classNode.name.startsWith("net/minecraft/client/")) {
+            if (classNode.name.startsWith("net/minecraft/client/") && !classNode.name.equals("net/minecraft/client/world/ClientWorld")) {
                 throw new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST);
             } else {
                 new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST + " (It may crash the server, please report it to the mod author)").printStackTrace();
