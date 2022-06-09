@@ -125,6 +125,7 @@ import org.bukkit.potion.Potion;
 import org.bukkit.scheduler.BukkitWorker;
 import org.bukkit.util.StringUtil;
 import org.bukkit.util.permissions.DefaultPermissions;
+import org.jetbrains.annotations.NotNull;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.MarkedYAMLException;
@@ -1855,6 +1856,12 @@ public final class CraftServer implements Server {
         }
 
         return null;
+    }
+
+    @NotNull
+    @Override
+    public double[] getTPS() {
+        return MinecraftServer.getServer().recentTps;
     }
 
     @Override
