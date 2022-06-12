@@ -16,7 +16,7 @@
 
 # CatServer (1.18.2)
 
-##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [中文](README.md) | [Русский](README_RU.md) | [Português](README_BR.md)
+##### Select Other Language README: [English](README_EN.md) | [中文](README.md) | [Русский](README_RU.md) | [Português](README_BR.md)
 
 CatServer is a high-performance Forge+Bukkit+Spigot server<br>
 You can download the latest version from [Jenkins](https://jenkins.rbqcloud.cn:30011/job/CatServer-1.18.2/lastSuccessfulBuild/)<br>
@@ -30,12 +30,12 @@ All versions of CatServer:
 
 QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
 
-**警告: 当前版本未经过正式测试, 请勿用于生产环境**
+**Warning: The current version has not been formally tested and should not be used in production environments**
 
-### 稍安勿躁, 猫端(1.18.2)正在开发中.. 
-你可以参与开发或测试, 为项目作出贡献
+### Don't be restless, CatServer(1.18.2) is in development..
+You can contribute to the project in development or testing.
 
-#### 开发进度
+#### Development progress
 - CraftBukkit Patches (Almost done)
 - Spigot Patches (Done)
 - Patches Compatibility (In progress)
@@ -46,25 +46,25 @@ QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServe
 - MOD ASM Patcher (Not impl)
 - CatServer API (Not impl)
 
-### 如何构建和开发?
-步骤:
+### How to build and develop?
+Step:
 
-1. 克隆源码: `git clone -b 1.18.2 https://github.com/Luohuayu/CatServer.git`,
-2. 切换目录: `cd CatServer`
-3. 初始化项目: `gradlew setup`, 然后你就可以在IDEA里打开项目了
-4. 生成补丁文件 (如果你修改了Minecraft代码): `gradlew genPatches`
-5. 构建项目: `gradlew buildCatServer`
-6. 文件将生成在: `(项目目录)/projects/forge/build/libs/`
+1. Clone the source code: `git clone -b 1.18.2 https://github.com/Luohuayu/CatServer.git`,
+2. Change directory: `cd CatServer`
+3. Setup the project: `gradlew setup`, then you can open the project in IDEA
+4. Generate patch(If you change Minecraft code): `gradlew genPatches`
+5. Build the project: `gradlew buildCatServer`
+6. The file will be generated in: `(Project-Dir)/projects/forge/build/libs/`
 
-### 如何在IDEA里调试?
-运行gradle任务: `CatServer -> forge -> Tasks -> forgegradle runs -> forge_server`
+### How to debug in IDEA?
+Run gradle task: `CatServer -> forge -> Tasks -> forgegradle runs -> forge_server`
 
-然后使用IDEA调试或运行: `CatServer:projects:forge [forge_server]` (记得修改`eula.txt`同意eula)
+Then use IDEA to debug or run: `CatServer:projects:forge [forge_server]` (Remember to modify `eula.txt` to agree eula)
 
-### 为什么没有Eclipse教程?
-因为我不使用Eclipse, 你需要自己研究 (可以参考[Forge开发文档](https://mcforge.readthedocs.io/en/latest/forgedev/))
+### Why is there no Eclipse introduction?
+Since I don't use Eclipse, you need to do your own research. (You can refer [Forge Development Documentation](https://mcforge.readthedocs.io/en/latest/forgedev/))
 
-### 如何获取构建?
-**提示: 当前版本不推荐使用**
+### How to get the last build?
+**Tip: The current version is not recommended**
 
-你可以从构建站下载: [https://jenkins.rbqcloud.cn:30011/job/CatServer-1.18.2/lastSuccessfulBuild/](https://jenkins.rbqcloud.cn:30011/job/CatServer-1.18.2/lastSuccessfulBuild/)
+You can download it from our Jenkins: [https://jenkins.rbqcloud.cn:30011/job/CatServer-1.18.2/lastSuccessfulBuild/](https://jenkins.rbqcloud.cn:30011/job/CatServer-1.18.2/lastSuccessfulBuild/)
