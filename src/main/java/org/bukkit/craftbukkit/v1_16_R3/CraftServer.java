@@ -1051,8 +1051,7 @@ public final class CraftServer implements Server {
         }
 
         worlds.remove(world.getName().toLowerCase(java.util.Locale.ENGLISH));
-        console.levels.remove(handle.dimension());
-        console.unloadedWorlds.add(handle); // CatServer - Fire WorldEvent.Unload after tick
+        console.unloadedWorlds.add(handle); // CatServer - Unload world after tick
         return true;
     }
 
