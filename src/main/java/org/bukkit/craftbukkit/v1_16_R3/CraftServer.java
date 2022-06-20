@@ -1039,19 +1039,21 @@ public final class CraftServer implements Server {
             return false;
         }
 
-        try {
-            if (save) {
-                handle.save(null, true, true);
+        worlds.remove(world.getName().toLowerCase(java.util.Locale.ENGLISH));
+        // CatServer - Unload world at tick last
+        console.addTickable(() -> {
+            try {
+                if (save) {
+                    handle.save(null, true, true);
+                }
+            } catch (Exception ex) {
+                getLogger().log(Level.SEVERE, null, ex);
             }
 
-            handle.getChunkSource().close(save);
-            handle.convertable.close();
-        } catch (Exception ex) {
-            getLogger().log(Level.SEVERE, null, ex);
-        }
-
-        worlds.remove(world.getName().toLowerCase(java.util.Locale.ENGLISH));
-        console.unloadedWorlds.add(handle); // CatServer - Unload world after tick
+            MinecraftForge.EVENT_BUS.post(new WorldEvent.Unload(handle));
+            console.levels.remove(handle.dimension());
+        });
+        // CatServer end
         return true;
     }
 
