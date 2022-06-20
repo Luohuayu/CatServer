@@ -1052,6 +1052,7 @@ public final class CraftServer implements Server {
 
             MinecraftForge.EVENT_BUS.post(new WorldEvent.Unload(handle));
             console.levels.remove(handle.dimension());
+            console.markWorldsDirty();
         });
         // CatServer end
         return true;
