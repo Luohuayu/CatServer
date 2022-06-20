@@ -1050,9 +1050,9 @@ public final class CraftServer implements Server {
             getLogger().log(Level.SEVERE, null, ex);
         }
 
-        MinecraftForge.EVENT_BUS.post(new WorldEvent.Unload(handle));
         worlds.remove(world.getName().toLowerCase(java.util.Locale.ENGLISH));
         console.levels.remove(handle.dimension());
+        console.unloadedWorlds.add(handle); // CatServer - Fire WorldEvent.Unload after tick
         return true;
     }
 
