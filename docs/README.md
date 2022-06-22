@@ -42,7 +42,15 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 - 5.编译项目: `gradlew buildCatServer`
 
 ### 生成依赖库
-##### TODO
+1. 运行服务端, 等待库文件下载完成并生成SRG
+2. 按照顺序引用以下文件作为依赖(如需使用更多库请自行添加):
+```
+libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-universal.jar
+libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-server.jar
+libraries/net/minecraft/server/1.16.5-xxxxxxxx.xxxxxx/server-1.16.5-xxxxxxxx.xxxxxx-srg.jar
+libraries/net/minecraftforge/eventbus/4.0.0/eventbus-4.0.0.jar
+libraries/net/minecraftforge/forgespi/3.2.0/forgespi-3.2.0.jar
+```
 
 ### 赞助商
 [7yPAY支付商品寄售平台 ｜ 费率低至2.5% | 无需营业执照可对接微信一清](https://pay.7ycloud.cn/help?catgithub)
