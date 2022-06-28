@@ -630,6 +630,7 @@ public class ForgeHooks
 
     public static ActionResultType onPlaceItemIntoWorld(@Nonnull ItemUseContext context)
     {
+        BlockEvent.EntityPlaceEvent.hand = context.getHand(); // CatServer - fire BlockPlaceEvent
         ItemStack itemstack = context.getItemInHand();
         World world = context.getLevel();
 
@@ -714,6 +715,7 @@ public class ForgeHooks
             }
         }
         world.capturedBlockSnapshots.clear();
+        BlockEvent.EntityPlaceEvent.hand = Hand.MAIN_HAND; // CatServer - fire BlockPlaceEvent
 
         return ret;
     }

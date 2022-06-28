@@ -8,13 +8,15 @@
  import net.minecraft.particles.ParticleTypes;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.FluidTags;
-@@ -28,18 +_,35 @@
+@@ -28,18 +_,37 @@
  import net.minecraft.util.math.RayTraceResult;
  import net.minecraft.world.IWorld;
  import net.minecraft.world.World;
 +import net.minecraft.world.server.ServerWorld;
 +import org.bukkit.craftbukkit.v1_16_R3.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_16_R3.util.DummyGeneratorAccess;
 +import org.bukkit.event.player.PlayerBucketEmptyEvent;
++import org.bukkit.event.player.PlayerBucketFillEvent;
  
  public class BucketItem extends Item {
     private final Fluid field_77876_a;
@@ -44,7 +46,19 @@
        if (raytraceresult.func_216346_c() == RayTraceResult.Type.MISS) {
           return ActionResult.func_226250_c_(itemstack);
        } else if (raytraceresult.func_216346_c() != RayTraceResult.Type.BLOCK) {
-@@ -56,7 +_,10 @@
+@@ -53,10 +_,22 @@
+             if (this.field_77876_a == Fluids.field_204541_a) {
+                BlockState blockstate1 = p_77659_1_.func_180495_p(blockpos);
+                if (blockstate1.func_177230_c() instanceof IBucketPickupHandler) {
++                  // CraftBukkit start
++                  Fluid dummyFluid = ((IBucketPickupHandler)blockstate1.func_177230_c()).func_204508_a(DummyGeneratorAccess.INSTANCE, blockpos, blockstate1);
++                  PlayerBucketFillEvent event = CraftEventFactory.callPlayerBucketFillEvent(p_77659_1_, p_77659_2_, blockpos, blockpos, blockraytraceresult.func_216354_b(), itemstack, dummyFluid.func_204524_b());
++                  if (event.isCancelled()) {
++                     ((ServerPlayerEntity)p_77659_2_).field_71135_a.func_147359_a(new SChangeBlockPacket(p_77659_1_, blockpos));
++                     ((ServerPlayerEntity)p_77659_2_).getBukkitEntity().updateInventory();
++                     return ActionResult.func_226251_d_(itemstack);
++                  }
++                  // CraftBukkit end
                    Fluid fluid = ((IBucketPickupHandler)blockstate1.func_177230_c()).func_204508_a(p_77659_1_, blockpos, blockstate1);
                    if (fluid != Fluids.field_204541_a) {
                       p_77659_2_.func_71029_a(Stats.field_75929_E.func_199076_b(this));
@@ -63,16 +77,29 @@
 -               BlockPos blockpos2 = blockstate.func_177230_c() instanceof ILiquidContainer && this.field_77876_a == Fluids.field_204546_a ? blockpos : blockpos1;
 -               if (this.func_180616_a(p_77659_2_, p_77659_1_, blockpos2, blockraytraceresult)) {
 +               BlockPos blockpos2 = canBlockContainFluid(p_77659_1_, blockpos, blockstate) ? blockpos : blockpos1;
-+               if (this.tryPlaceContainedLiquid(p_77659_2_, p_77659_1_, blockpos2, blockraytraceresult)) {
++               if (this.tryPlaceContainedLiquid(p_77659_2_, p_77659_1_, blockpos2, blockraytraceresult, blockraytraceresult.func_216354_b(), blockpos, itemstack)) { // CraftBukkit
                    this.func_203792_a(p_77659_1_, itemstack, blockpos2);
                    if (p_77659_2_ instanceof ServerPlayerEntity) {
                       CriteriaTriggers.field_193137_x.func_193173_a((ServerPlayerEntity)p_77659_2_, blockpos2, itemstack);
-@@ -105,7 +_,101 @@
+@@ -104,8 +_,70 @@
+          Material material = blockstate.func_185904_a();
           boolean flag = blockstate.func_227032_a_(this.field_77876_a);
           boolean flag1 = blockstate.func_196958_f() || flag || block instanceof ILiquidContainer && ((ILiquidContainer)block).func_204510_a(p_180616_2_, p_180616_3_, blockstate, this.field_77876_a);
-          if (!flag1) {
+-         if (!flag1) {
 -            return p_180616_4_ != null && this.func_180616_a(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), (BlockRayTraceResult)null);
-+            return p_180616_4_ != null && this.tryPlaceContainedLiquid(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), null);
++         // CraftBukkit start
++         if (flag1 && p_180616_1_ != null) {
++            PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent((ServerWorld) p_180616_2_, p_180616_1_, p_180616_3_, null, null, null);
++            if (event.isCancelled()) {
++               ((ServerPlayerEntity) p_180616_1_).field_71135_a.func_147359_a(new SChangeBlockPacket(p_180616_2_, p_180616_3_)); // SPIGOT-4238: needed when looking through entity
++               ((ServerPlayerEntity) p_180616_1_).getBukkitEntity().updateInventory(); // SPIGOT-4541
++               return false;
++            }
++         }
++         // CraftBukkit end
++
++         if (!flag1) {
++            return p_180616_4_ != null && this.tryPlaceContainedLiquid(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), null, null, null, null); // CraftBukkit
 +         } else if (p_180616_2_.func_230315_m_().func_236040_e_() && this.field_77876_a.func_207185_a(FluidTags.field_206959_a)) {
 +            int i = p_180616_3_.func_177958_n();
 +            int j = p_180616_3_.func_177956_o();
@@ -103,9 +130,7 @@
 +      }
 +   }
 +
-+   // TODO : Override Method compatible Forge
-+   public boolean emptyBucket(PlayerEntity p_180616_1_, World p_180616_2_, BlockPos p_180616_3_, @Nullable BlockRayTraceResult p_180616_4_, Direction direction, BlockPos clicked, ItemStack itemStack) {
-+      // CraftBukkit end
++   public boolean tryPlaceContainedLiquid(PlayerEntity p_180616_1_, World p_180616_2_, BlockPos p_180616_3_, @Nullable BlockRayTraceResult p_180616_4_, Direction direction, BlockPos clicked, ItemStack itemstack) {
 +      if (!(this.field_77876_a instanceof FlowingFluid)) {
 +         return false;
 +      } else {
@@ -116,7 +141,7 @@
 +         boolean flag1 = blockstate.func_196958_f() || flag || block instanceof ILiquidContainer && ((ILiquidContainer)block).func_204510_a(p_180616_2_, p_180616_3_, blockstate, this.field_77876_a);
 +         // CraftBukkit start
 +         if (flag1 && p_180616_1_ != null) {
-+            PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent(p_180616_2_, p_180616_1_, p_180616_3_, clicked, direction, itemStack);
++            PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent((ServerWorld) p_180616_2_, p_180616_1_, p_180616_3_, clicked, direction, itemstack);
 +            if (event.isCancelled()) {
 +               ((ServerPlayerEntity) p_180616_1_).field_71135_a.func_147359_a(new SChangeBlockPacket(p_180616_2_, p_180616_3_)); // SPIGOT-4238: needed when looking through entity
 +               ((ServerPlayerEntity) p_180616_1_).getBukkitEntity().updateInventory(); // SPIGOT-4541
@@ -125,48 +150,7 @@
 +         }
 +         // CraftBukkit end
 +         if (!flag1) {
-+            return p_180616_4_ != null && this.tryPlaceContainedLiquid(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), null);
-+         } else if (p_180616_2_.func_230315_m_().func_236040_e_() && this.field_77876_a.func_207185_a(FluidTags.field_206959_a)) {
-+            int i = p_180616_3_.func_177958_n();
-+            int j = p_180616_3_.func_177956_o();
-+            int k = p_180616_3_.func_177952_p();
-+            p_180616_2_.func_184133_a(p_180616_1_, p_180616_3_, SoundEvents.field_187646_bt, SoundCategory.BLOCKS, 0.5F, 2.6F + (p_180616_2_.field_73012_v.nextFloat() - p_180616_2_.field_73012_v.nextFloat()) * 0.8F);
-+
-+            for(int l = 0; l < 8; ++l) {
-+               p_180616_2_.func_195594_a(ParticleTypes.field_197594_E, (double)i + Math.random(), (double)j + Math.random(), (double)k + Math.random(), 0.0D, 0.0D, 0.0D);
-+            }
-+
-+            return true;
-+         } else if (block instanceof ILiquidContainer && this.field_77876_a == Fluids.field_204546_a) {
-+            ((ILiquidContainer)block).func_204509_a(p_180616_2_, p_180616_3_, blockstate, ((FlowingFluid)this.field_77876_a).func_207204_a(false));
-+            this.func_203791_b(p_180616_1_, p_180616_2_, p_180616_3_);
-+            return true;
-+         } else {
-+            if (!p_180616_2_.field_72995_K && flag && !material.func_76224_d()) {
-+               p_180616_2_.func_175655_b(p_180616_3_, true);
-+            }
-+
-+            if (!p_180616_2_.func_180501_a(p_180616_3_, this.field_77876_a.func_207188_f().func_206883_i(), 11) && !blockstate.func_204520_s().func_206889_d()) {
-+               return false;
-+            } else {
-+               this.func_203791_b(p_180616_1_, p_180616_2_, p_180616_3_);
-+               return true;
-+            }
-+         }
-+      }
-+   }
-+
-+   public boolean tryPlaceContainedLiquid(@Nullable PlayerEntity p_180616_1_, World p_180616_2_, BlockPos p_180616_3_, @Nullable BlockRayTraceResult p_180616_4_) {
-+      if (!(this.field_77876_a instanceof FlowingFluid)) {
-+         return false;
-+      } else {
-+         BlockState blockstate = p_180616_2_.func_180495_p(p_180616_3_);
-+         Block block = blockstate.func_177230_c();
-+         Material material = blockstate.func_185904_a();
-+         boolean flag = blockstate.func_227032_a_(this.field_77876_a);
-+         boolean flag1 = blockstate.func_196958_f() || flag || block instanceof ILiquidContainer && ((ILiquidContainer)block).func_204510_a(p_180616_2_, p_180616_3_, blockstate, this.field_77876_a);
-+         if (!flag1) {
-+            return p_180616_4_ != null && this.tryPlaceContainedLiquid(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), null);
++            return p_180616_4_ != null && this.tryPlaceContainedLiquid(p_180616_1_, p_180616_2_, p_180616_4_.func_216350_a().func_177972_a(p_180616_4_.func_216354_b()), null, direction, clicked, itemstack);
           } else if (p_180616_2_.func_230315_m_().func_236040_e_() && this.field_77876_a.func_207185_a(FluidTags.field_206959_a)) {
              int i = p_180616_3_.func_177958_n();
              int j = p_180616_3_.func_177956_o();

@@ -165,6 +165,7 @@ public class ForgeEventFactory
     {
         BlockState placedAgainst = blockSnapshot.getWorld().getBlockState(blockSnapshot.getPos().relative(direction.getOpposite()));
         EntityPlaceEvent event = new BlockEvent.EntityPlaceEvent(blockSnapshot, placedAgainst, entity);
+        event.direction = direction; // CatServer - fire BlockPlaceEvent
         return MinecraftForge.EVENT_BUS.post(event);
     }
 
