@@ -1,6 +1,25 @@
 --- a/net/minecraft/inventory/container/Container.java
 +++ b/net/minecraft/inventory/container/Container.java
-@@ -21,13 +_,18 @@
+@@ -2,7 +_,10 @@
+ 
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
++
++import java.util.HashMap;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+ import net.minecraft.block.Block;
+@@ -14,6 +_,7 @@
+ import net.minecraft.entity.player.ServerPlayerEntity;
+ import net.minecraft.inventory.IInventory;
+ import net.minecraft.item.ItemStack;
++import net.minecraft.network.play.server.SSetSlotPacket;
+ import net.minecraft.tileentity.TileEntity;
+ import net.minecraft.util.IIntArray;
+ import net.minecraft.util.IWorldPosCallable;
+@@ -21,13 +_,22 @@
  import net.minecraft.util.NonNullList;
  import net.minecraft.util.math.MathHelper;
  import net.minecraft.util.registry.Registry;
@@ -11,6 +30,10 @@
  import net.minecraftforge.api.distmarker.OnlyIn;
 +import org.bukkit.craftbukkit.v1_16_R3.entity.CraftHumanEntity;
 +import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventory;
++import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
++import org.bukkit.event.Event;
++import org.bukkit.event.inventory.InventoryDragEvent;
++import org.bukkit.event.inventory.InventoryType;
 +import org.bukkit.inventory.InventoryView;
  
  public abstract class Container {
@@ -84,7 +107,7 @@
     protected Container(@Nullable ContainerType<?> p_i50105_1_, int p_i50105_2_) {
        this.field_216965_e = p_i50105_1_;
        this.field_75152_c = p_i50105_2_;
-@@ -120,9 +_,11 @@
+@@ -120,12 +_,14 @@
           ItemStack itemstack = this.field_75151_b.get(i).func_75211_c();
           ItemStack itemstack1 = this.field_75153_a.get(i);
           if (!ItemStack.func_77989_b(itemstack1, itemstack)) {
@@ -92,10 +115,114 @@
              ItemStack itemstack2 = itemstack.func_77946_l();
              this.field_75153_a.set(i, itemstack2);
  
+-            for(IContainerListener icontainerlistener : this.field_75149_d) {
+-               icontainerlistener.func_71111_a(this, i, itemstack2);
+-            }
 +            if (clientStackChanged)
-             for(IContainerListener icontainerlistener : this.field_75149_d) {
-                icontainerlistener.func_71111_a(this, i, itemstack2);
++               for(IContainerListener icontainerlistener : this.field_75149_d) {
++                  icontainerlistener.func_71111_a(this, i, itemstack2);
++               }
+          }
+       }
+ 
+@@ -202,6 +_,7 @@
+                ItemStack itemstack10 = playerinventory.func_70445_o().func_77946_l();
+                int k1 = playerinventory.func_70445_o().func_190916_E();
+ 
++               Map<Integer, ItemStack> draggedSlots = new HashMap<Integer, ItemStack>(); // CraftBukkit - Store slots from drag in map (raw slot id -> new stack)
+                for(Slot slot8 : this.field_94537_h) {
+                   ItemStack itemstack13 = playerinventory.func_70445_o();
+                   if (slot8 != null && func_94527_a(slot8, itemstack13, true) && slot8.func_75214_a(itemstack13) && (this.field_94535_f == 2 || itemstack13.func_190916_E() >= this.field_94537_h.size()) && this.func_94531_b(slot8)) {
+@@ -214,12 +_,43 @@
+                      }
+ 
+                      k1 -= itemstack14.func_190916_E() - j3;
+-                     slot8.func_75215_d(itemstack14);
++                     //slot8.set(itemstack14);
++                     draggedSlots.put(slot8.field_75222_d, itemstack14); // CraftBukkit - Put in map instead of setting
+                   }
+                }
+ 
+-               itemstack10.func_190920_e(k1);
+-               playerinventory.func_70437_b(itemstack10);
++               // CraftBukkit start - InventoryDragEvent
++               InventoryView view = getBukkitView();
++               org.bukkit.inventory.ItemStack newcursor = CraftItemStack.asCraftMirror(itemstack10);
++               newcursor.setAmount(k1);
++               Map<Integer, org.bukkit.inventory.ItemStack> eventmap = new HashMap<Integer, org.bukkit.inventory.ItemStack>();
++               for (Map.Entry<Integer, ItemStack> ditem : draggedSlots.entrySet()) {
++                  eventmap.put(ditem.getKey(), CraftItemStack.asBukkitCopy(ditem.getValue()));
++               }
++               // It's essential that we set the cursor to the new value here to prevent item duplication if a plugin closes the inventory.
++               ItemStack oldCursor = playerinventory.func_70445_o();
++               playerinventory.func_70437_b(CraftItemStack.asNMSCopy(newcursor));
++               InventoryDragEvent event = new InventoryDragEvent(view, (newcursor.getType() != org.bukkit.Material.AIR ? newcursor : null), CraftItemStack.asBukkitCopy(oldCursor), this.field_94535_f == 1, eventmap);
++               p_241440_4_.field_70170_p.getCBServer().getPluginManager().callEvent(event);
++               // Whether or not a change was made to the inventory that requires an update.
++               boolean needsUpdate = event.getResult() != Event.Result.DEFAULT;
++               if (event.getResult() != Event.Result.DENY) {
++                  for (Map.Entry<Integer, ItemStack> dslot : draggedSlots.entrySet()) {
++                     view.setItem(dslot.getKey(), CraftItemStack.asBukkitCopy(dslot.getValue()));
++                  }
++                  // The only time the carried item will be set to null is if the inventory is closed by the server.
++                  // If the inventory is closed by the server, then the cursor items are dropped.  This is why we change the cursor early.
++                  if (playerinventory.func_70445_o() != null) {
++                     playerinventory.func_70437_b(CraftItemStack.asNMSCopy(event.getCursor()));
++                     needsUpdate = true;
++                  }
++               } else {
++                  playerinventory.func_70437_b(oldCursor);
++               }
++               if (needsUpdate && p_241440_4_ instanceof ServerPlayerEntity) {
++                  ((ServerPlayerEntity) p_241440_4_).func_71120_a(this);
++               }
++               // CraftBukkit end
              }
+ 
+             this.func_94533_d();
+@@ -232,8 +_,12 @@
+          if (p_241440_1_ == -999) {
+             if (!playerinventory.func_70445_o().func_190926_b()) {
+                if (p_241440_2_ == 0) {
+-                  p_241440_4_.func_71019_a(playerinventory.func_70445_o(), true);
++                  //p_241440_4_.drop(playerinventory.getCarried(), true);
++                  // CraftBukkit start
++                  ItemStack carried = playerinventory.func_70445_o();
+                   playerinventory.func_70437_b(ItemStack.field_190927_a);
++                  p_241440_4_.func_71019_a(carried, true);
++                  // CraftBukkit end
+                }
+ 
+                if (p_241440_2_ == 1) {
+@@ -321,6 +_,15 @@
+                }
+ 
+                slot6.func_75218_e();
++               // CraftBukkit start - Make sure the client has the right slot contents
++               if (p_241440_4_ instanceof ServerPlayerEntity && slot6.func_75219_a() != 64) {
++                  ((ServerPlayerEntity) p_241440_4_).field_71135_a.func_147359_a(new SSetSlotPacket(this.field_75152_c, slot6.field_75222_d, slot6.func_75211_c()));
++                  // Updating a crafting inventory makes the client reset the result slot, have to send it again
++                  if (this.getBukkitView().getType() == InventoryType.WORKBENCH || this.getBukkitView().getType() == InventoryType.CRAFTING) {
++                     ((ServerPlayerEntity) p_241440_4_).field_71135_a.func_147359_a(new SSetSlotPacket(this.field_75152_c, 0, this.func_75139_a(0).func_75211_c()));
++                  }
++               }
++               // CraftBukkit end
+             }
+          }
+       } else if (p_241440_3_ == ClickType.SWAP) {
+@@ -418,8 +_,11 @@
+    public void func_75134_a(PlayerEntity p_75134_1_) {
+       PlayerInventory playerinventory = p_75134_1_.field_71071_by;
+       if (!playerinventory.func_70445_o().func_190926_b()) {
+-         p_75134_1_.func_71019_a(playerinventory.func_70445_o(), false);
++         // CraftBukkit start - SPIGOT-4556
++         ItemStack carried = playerinventory.func_70445_o();
+          playerinventory.func_70437_b(ItemStack.field_190927_a);
++         p_75134_1_.func_71019_a(carried, false);
++         // CraftBukkit end
+       }
+ 
+    }
 @@ -500,14 +_,15 @@
              ItemStack itemstack = slot.func_75211_c();
              if (!itemstack.func_190926_b() && func_195929_a(p_75135_1_, itemstack)) {
@@ -116,12 +243,26 @@
                    slot.func_75218_e();
                    flag = true;
                 }
-@@ -608,7 +_,7 @@
-          p_94525_2_.func_190920_e(1);
-          break;
-       case 2:
+@@ -601,14 +_,14 @@
+ 
+    public static void func_94525_a(Set<Slot> p_94525_0_, int p_94525_1_, ItemStack p_94525_2_, int p_94525_3_) {
+       switch(p_94525_1_) {
+-      case 0:
+-         p_94525_2_.func_190920_e(MathHelper.func_76141_d((float)p_94525_2_.func_190916_E() / (float)p_94525_0_.size()));
+-         break;
+-      case 1:
+-         p_94525_2_.func_190920_e(1);
+-         break;
+-      case 2:
 -         p_94525_2_.func_190920_e(p_94525_2_.func_77973_b().func_77639_j());
-+         p_94525_2_.func_190920_e(p_94525_2_.func_77976_d());
++         case 0:
++            p_94525_2_.func_190920_e(MathHelper.func_76141_d((float)p_94525_2_.func_190916_E() / (float)p_94525_0_.size()));
++            break;
++         case 1:
++            p_94525_2_.func_190920_e(1);
++            break;
++         case 2:
++            p_94525_2_.func_190920_e(p_94525_2_.func_77976_d());
        }
  
        p_94525_2_.func_190917_f(p_94525_3_);
