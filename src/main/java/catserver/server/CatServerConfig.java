@@ -28,6 +28,7 @@ public class CatServerConfig {
 
     public boolean fixPlayBossSoundToOtherWorld = true;
     public boolean fixLessCrystalRespawnDragon = false;
+    public boolean preventPistonPushTileEntity = true;
     public boolean preventPistonPushRail = false;
     public boolean preventPistonPushSlimeBlock = false;
     public boolean limitFastClickGUI = false;
@@ -76,6 +77,7 @@ public class CatServerConfig {
         // vanilla
         fixPlayBossSoundToOtherWorld = getOrWriteBooleanConfig("vanilla.fixPlayBossSoundToOtherWorld", fixPlayBossSoundToOtherWorld);
         fixLessCrystalRespawnDragon = getOrWriteBooleanConfig("vanilla.fixLessCrystalRespawnDragon", fixLessCrystalRespawnDragon);
+        preventPistonPushTileEntity = getOrWriteBooleanConfig("vanilla.preventPistonPushTileEntity", preventPistonPushTileEntity);
         preventPistonPushRail = getOrWriteBooleanConfig("vanilla.preventPistonPushRail", preventPistonPushRail);
         preventPistonPushSlimeBlock = getOrWriteBooleanConfig("vanilla.preventPistonPushSlimeBlock", preventPistonPushRail);
         limitFastClickGUI = getOrWriteBooleanConfig("vanilla.limitFastClickGUI", limitFastClickGUI);
