@@ -58,6 +58,19 @@ public class WatchdogThread extends Thread {
                 log.log(Level.SEVERE, "\t If this is the case, consider increasing timeout-time in spigot.yml but note that this will replace the crash with LARGE lag spikes");
                 // CatServer remove contact us Spigotmc
                 log.log(Level.SEVERE, "Spigot version: " + Bukkit.getServer().getVersion());
+                // CatServer start
+                java.util.Map<Long, Throwable> workerExceptions = catserver.server.utils.WorkerExceptionLogger.getExceptions();
+                if (!workerExceptions.isEmpty()) {
+                    log.log(Level.SEVERE, "------------------------------");
+                    log.log(Level.SEVERE, "Worker thread exceptions:");
+                    workerExceptions.forEach((time, exception) -> {
+                        log.log(Level.SEVERE, "Time: " + time + ", Cause:" + exception.getMessage());
+                        for (StackTraceElement stackTraceElement : exception.getStackTrace()) {
+                            log.log(Level.SEVERE, stackTraceElement.toString());
+                        }
+                    });
+                }
+                // CatServer end
                 if (net.minecraft.world.World.lastPhysicsProblem != null) {
                     log.log(Level.SEVERE, "------------------------------");
                     log.log(Level.SEVERE, "During the run of the server, a physics stackoverflow was supressed");
