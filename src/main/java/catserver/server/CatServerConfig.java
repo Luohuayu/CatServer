@@ -39,6 +39,7 @@ public class CatServerConfig {
     public boolean enableMythicMobsPatcherCompatible = true;
     public boolean enableWorldEditCompatible = true;
     public boolean enableCitizensCompatible = true;
+    public boolean enableSuperiorSkyblock2Compatible = true;
     public List<String> disableHopperMoveEventWorlds = Lists.<String>newArrayList();
     public boolean defaultInstallPluginSpark = true;
 
@@ -88,6 +89,7 @@ public class CatServerConfig {
         enableMythicMobsPatcherCompatible = getOrWriteBooleanConfig("plugin.patcher.enableMythicMobsPatcherCompatible", enableMythicMobsPatcherCompatible);
         enableWorldEditCompatible = getOrWriteBooleanConfig("plugin.patcher.enableWorldEditCompatible", enableWorldEditCompatible);
         enableCitizensCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCitizensCompatible", enableCitizensCompatible);
+        enableSuperiorSkyblock2Compatible = getOrWriteBooleanConfig("plugin.patcher.enableSuperiorSkyblock2Compatible", enableSuperiorSkyblock2Compatible);
         disableHopperMoveEventWorlds = getOrWriteStringListConfig("plugin.disableHopperMoveEventWorlds", disableHopperMoveEventWorlds);
         defaultInstallPluginSpark = getOrWriteBooleanConfig("plugin.defaultInstall.spark", defaultInstallPluginSpark);
         // async
