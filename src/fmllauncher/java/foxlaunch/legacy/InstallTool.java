@@ -126,7 +126,7 @@ public class InstallTool {
             System.setOut(logOutPrint);
 
             // MCP_DATA
-            originOutPrint.println("Initializing MCP data..");
+            originOutPrint.println("[FoxLaunch] Initializing MCP data..");
 
             if(!mcpMappings.exists()) {
                 Utils.relaunch(
@@ -149,7 +149,7 @@ public class InstallTool {
             logOutPrint.flush();
 
             // JarSplitter
-            originOutPrint.println("Splitting server jar..");
+            originOutPrint.println("[FoxLaunch] Splitting server jar..");
 
             if (Utils.isJarCorrupted(minecraftSlim) || Utils.isJarCorrupted(minecraftExtra)) {
                 minecraftSlim.delete();
@@ -177,7 +177,7 @@ public class InstallTool {
             logOutPrint.flush();
 
             // SpecialSource
-            originOutPrint.println("Remapping server jar..");
+            originOutPrint.println("[FoxLaunch] Remapping server jar..");
 
             if(Utils.isJarCorrupted(minecraftSrg)) {
                 minecraftSrg.delete();
@@ -202,7 +202,7 @@ public class InstallTool {
             logOutPrint.flush();
 
             // BinaryPatcher
-            originOutPrint.println("Applying patches..");
+            originOutPrint.println("[FoxLaunch] Applying patches..");
 
             Utils.relaunch(
                     "net.minecraftforge.binarypatcher.ConsoleTool",
