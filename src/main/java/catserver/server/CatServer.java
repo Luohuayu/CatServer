@@ -9,7 +9,7 @@ public class CatServer {
     public static final String NATIVE_VERSION = "v1_18_R2";
     public static final String MINECRAFT_VERSION = "1.18.2";
 
-    public static String getVersion() {
-        return (CatServer.class.getPackage().getImplementationVersion() != null) ? CatServer.class.getPackage().getImplementationVersion() : "unknown";
+    public static String getNativeVersion() {
+        return NATIVE_VERSION;
     }
 }
