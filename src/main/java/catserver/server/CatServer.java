@@ -12,4 +12,8 @@ public class CatServer {
     public static String getNativeVersion() {
         return NATIVE_VERSION;
     }
+
+    public static String getBuildVersion() {
+        return (CatServer.class.getPackage().getImplementationVersion() != null) ? CatServer.class.getPackage().getImplementationVersion() : "unknown";
+    }
 }
