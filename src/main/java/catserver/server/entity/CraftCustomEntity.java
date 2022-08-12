@@ -26,7 +26,6 @@ public class CraftCustomEntity extends CraftEntity {
     }
 
     public EntityType getType() {
-        // TODO: FoxServer - Inject type
         return EntityType.MOD_CUSTOM;
     }
 

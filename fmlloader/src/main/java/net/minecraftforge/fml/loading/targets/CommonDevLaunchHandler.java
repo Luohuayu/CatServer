@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -80,7 +80,7 @@ public abstract class CommonDevLaunchHandler extends CommonLaunchHandler {
     protected List<Path> getFmlStuff(String[] classpath) {
         // We also want the FML things, fmlcore, javafmllanguage, mclanguage, I don't like hard coding these, but hey whatever works for now.
         return Arrays.stream(classpath)
-            .filter(e -> e.contains("fmlcore") || e.contains("javafmllanguage") || e.contains("mclanguage"))
+            .filter(e -> e.contains("fmlcore") || e.contains("javafmllanguage") || e.contains("lowcodelanguage") || e.contains("mclanguage"))
             .map(Paths::get)
             .toList();
     }

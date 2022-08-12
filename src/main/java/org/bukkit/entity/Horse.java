@@ -38,7 +38,7 @@ public interface Horse extends AbstractHorse {
          */
         LLAMA,
         /**
-         * MOD Custom
+         * MOD_CUSTOM
          */
         MOD_CUSTOM
     }

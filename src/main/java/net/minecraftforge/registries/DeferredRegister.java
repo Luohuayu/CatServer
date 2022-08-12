@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -457,7 +457,7 @@ public class DeferredRegister<T>
     @SuppressWarnings({ "unchecked", "removal", "rawtypes" })
     private void vanillaRegister(VanillaRegisterEvent event)
     {
-        if (this.registryKey != null && event.vanillaRegistry.key() == (ResourceKey) this.registryKey)
+        if (this.registryKey != null && event.vanillaRegistry.key() == (ResourceKey)this.registryKey)
         {
             this.seenRegisterEvent = true;
             for (Entry<RegistryObject<T>, Supplier<? extends T>> e : entries.entrySet())

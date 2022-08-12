@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -106,6 +106,11 @@ public class NetworkEvent extends Event
         public void add(FriendlyByteBuf buffer, ResourceLocation channelName, String context) {
             collected.add(new NetworkRegistry.LoginPayload(buffer, channelName, context));
         }
+
+        public void add(FriendlyByteBuf buffer, ResourceLocation channelName, String context, boolean needsResponse) {
+            collected.add(new NetworkRegistry.LoginPayload(buffer, channelName, context, needsResponse));
+        }
+
 
         public boolean isLocal() {
             return isLocal;

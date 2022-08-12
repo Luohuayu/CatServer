@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -33,6 +33,7 @@ public class AdvancementLoadFix {
     private static Map<Advancement, List<Advancement>> roots;
 
     public static void loadVisibility(final PlayerAdvancements playerAdvancements, final Set<Advancement> visible, final Set<Advancement> visibilityChanged, final Map<Advancement, AdvancementProgress> progress, final Set<Advancement> progressChanged, final Predicate<Advancement> shouldBeVisible) {
+        LOGGER.info("Using new advancement loading for {}", playerAdvancements);
         if (roots == null) throw new RuntimeException("Why did the advancements not load yet?!");
         final Set<Advancement> set = new HashSet<>();
         for(Map.Entry<Advancement, AdvancementProgress> entry : progress.entrySet()) {

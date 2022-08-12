@@ -1,6 +1,14 @@
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -11,15 +_,13 @@
+@@ -5,21 +_,22 @@
+ import java.util.stream.Collectors;
+ import java.util.stream.IntStream;
+ import javax.annotation.Nullable;
++
++import catserver.server.utils.NMSUtil;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.NonNullList;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
@@ -8,6 +16,7 @@
 -import net.minecraft.world.ContainerHelper;
 -import net.minecraft.world.WorldlyContainer;
 -import net.minecraft.world.WorldlyContainerHolder;
++import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.world.*;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntitySelector;
@@ -18,11 +27,12 @@
  import net.minecraft.world.inventory.AbstractContainerMenu;
  import net.minecraft.world.inventory.HopperMenu;
  import net.minecraft.world.item.ItemStack;
-@@ -31,6 +_,12 @@
+@@ -31,6 +_,13 @@
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
 +import org.bukkit.Bukkit;
++import org.bukkit.World;
 +import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
 +import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
 +import org.bukkit.entity.HumanEntity;
@@ -68,29 +78,13 @@
     public HopperBlockEntity(BlockPos p_155550_, BlockState p_155551_) {
        super(BlockEntityType.f_58933_, p_155550_, p_155551_);
     }
-@@ -67,12 +_,12 @@
-    }
- 
-    public ItemStack m_7407_(int p_59309_, int p_59310_) {
--      this.m_59640_((Player)null);
-+      this.m_59640_((Player) null);
-       return ContainerHelper.m_18969_(this.m_7086_(), p_59309_, p_59310_);
-    }
- 
-    public void m_6836_(int p_59315_, ItemStack p_59316_) {
--      this.m_59640_((Player)null);
-+      this.m_59640_((Player) null);
-       this.m_7086_().set(p_59315_, p_59316_);
-       if (p_59316_.m_41613_() > this.m_6893_()) {
-          p_59316_.m_41764_(this.m_6893_());
-@@ -89,9 +_,15 @@
+@@ -89,9 +_,14 @@
        p_155577_.f_59303_ = p_155574_.m_46467_();
        if (!p_155577_.m_59407_()) {
           p_155577_.m_59395_(0);
 -         m_155578_(p_155574_, p_155575_, p_155576_, p_155577_, () -> {
 +         // Spigot start
-+         //tryMoveItems(p_155574_, p_155575_, p_155576_, p_155577_, () -> {
-+         boolean result = m_155578_(p_155574_, p_155575_, p_155576_, p_155577_, () ->{
++         boolean result = m_155578_(p_155574_, p_155575_, p_155576_, p_155577_, () -> {
              return m_155552_(p_155574_, p_155577_);
           });
 +         if (!result && p_155577_.f_58857_.spigotConfig.hopperCheck > 1) {
@@ -118,15 +112,6 @@
                 m_155232_(p_155579_, p_155580_, p_155581_);
                 return true;
              }
-@@ -122,7 +_,7 @@
-    }
- 
-    private boolean m_59404_() {
--      for(ItemStack itemstack : this.f_59301_) {
-+      for (ItemStack itemstack : this.f_59301_) {
-          if (itemstack.m_41619_() || itemstack.m_41613_() != itemstack.m_41741_()) {
-             return false;
-          }
 @@ -131,7 +_,8 @@
        return true;
     }
@@ -178,16 +163,7 @@
                    p_155566_.m_6836_(i, itemstack);
                 }
              }
-@@ -159,7 +_,7 @@
-    }
- 
-    private static IntStream m_59339_(Container p_59340_, Direction p_59341_) {
--      return p_59340_ instanceof WorldlyContainer ? IntStream.of(((WorldlyContainer)p_59340_).m_7071_(p_59341_)) : IntStream.range(0, p_59340_.m_6643_());
-+      return p_59340_ instanceof WorldlyContainer ? IntStream.of(((WorldlyContainer) p_59340_).m_7071_(p_59341_)) : IntStream.range(0, p_59340_.m_6643_());
-    }
- 
-    private static boolean m_59385_(Container p_59386_, Direction p_59387_) {
-@@ -176,14 +_,16 @@
+@@ -176,6 +_,8 @@
     }
  
     public static boolean m_155552_(Level p_155553_, Hopper p_155554_) {
@@ -196,22 +172,11 @@
        Container container = m_155596_(p_155553_, p_155554_);
        if (container != null) {
           Direction direction = Direction.DOWN;
-          return m_59397_(container, direction) ? false : m_59339_(container, direction).anyMatch((p_59363_) -> {
--            return m_59354_(p_155554_, container, p_59363_, direction);
-+            return tryTakeInItemFromSlot(p_155554_, container, p_59363_, direction, p_155553_); // Spigot
-          });
-       } else {
--         for(ItemEntity itementity : m_155589_(p_155553_, p_155554_)) {
-+         for (ItemEntity itementity : m_155589_(p_155553_, p_155554_)) {
-             if (m_59331_(p_155554_, itementity)) {
-                return true;
-             }
-@@ -193,24 +_,50 @@
-       }
+@@ -194,15 +_,37 @@
     }
  
--   private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
-+   private static boolean tryTakeInItemFromSlot(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_, Level level) { // Spigot
+    private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
++      Level level = NMSUtil.toNMS(p_59355_.getLocation().getWorld()); // CatServer
        ItemStack itemstack = p_59356_.m_8020_(p_59357_);
        if (!itemstack.m_41619_() && m_59380_(p_59356_, itemstack, p_59357_, p_59358_)) {
           ItemStack itemstack1 = itemstack.m_41777_();
@@ -241,13 +206,12 @@
              p_59356_.m_6596_();
              return true;
           }
--
+ 
 +         itemstack1.m_41774_(origCount - itemstack2.m_41613_()); // Spigot
           p_59356_.m_6836_(p_59357_, itemstack1);
        }
--
-       return false;
-    }
+ 
+@@ -211,6 +_,13 @@
  
     public static boolean m_59331_(Container p_59332_, ItemEntity p_59333_) {
        boolean flag = false;
@@ -266,8 +230,8 @@
           boolean flag1 = p_59322_.m_7983_();
           if (itemstack.m_41619_()) {
 +            // Spigot start - SPIGOT-6693, InventorySubcontainer#setItem
-+            if (!itemstack.m_41619_() && itemstack.m_41613_() > p_59322_.m_6893_()) {
-+               itemstack = itemstack.m_41620_(p_59322_.m_6893_());
++            if (!p_59323_.m_41619_() && p_59323_.m_41613_() > p_59322_.m_6893_()) {
++               p_59323_ = p_59323_.m_41620_(p_59322_.m_6893_());
 +            }
 +            // Spigot end
              p_59322_.m_6836_(p_59324_, p_59323_);
@@ -286,7 +250,7 @@
     private static Container m_59347_(Level p_59348_, double p_59349_, double p_59350_, double p_59351_) {
        Container container = null;
        BlockPos blockpos = new BlockPos(p_59349_, p_59350_, p_59351_);
-+      if (!p_59348_.m_46805_(blockpos)) return null; // Spigot
++      if (!p_59348_.spigotConfig.hopperCanLoadChunks && !p_59348_.m_46805_(blockpos)) return null; // Spigot
        BlockState blockstate = p_59348_.m_8055_(blockpos);
        Block block = blockstate.m_60734_();
        if (block instanceof WorldlyContainerHolder) {

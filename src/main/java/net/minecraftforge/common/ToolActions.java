@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -26,12 +26,12 @@ public class ToolActions
     public static final ToolAction PICKAXE_DIG = ToolAction.get("pickaxe_dig");
 
     /**
-     *  Exposed by hoes to allow querying tool behaviours
+     *  Exposed by shovels to allow querying tool behaviours
      */
     public static final ToolAction SHOVEL_DIG = ToolAction.get("shovel_dig");
 
     /**
-     *  Exposed by shovels to allow querying tool behaviours
+     *  Exposed by hoes to allow querying tool behaviours
      */
     public static final ToolAction HOE_DIG = ToolAction.get("hoe_dig");
 
@@ -91,8 +91,8 @@ public class ToolActions
     public static final ToolAction SHEARS_DISARM = ToolAction.get("shears_disarm");
 
     /**
-     *  Passed onto {@link IForgeBlock#getToolModifiedState} when a hoe wants to turn dirt into soil
-     */
+    *  Passed onto {@link IForgeBlock#getToolModifiedState} when a hoe wants to turn dirt into soil
+    */
     public static final ToolAction HOE_TILL = ToolAction.get("till");
 
     /**

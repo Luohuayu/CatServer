@@ -3,9 +3,6 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
-
-import java.util.*;
-
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.minecraft.nbt.CompoundTag;
@@ -19,6 +16,8 @@ import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.SerializableMeta;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 import org.bukkit.inventory.meta.BookMeta;
+
+import java.util.*;
 
 import static org.spigotmc.ValidateUtils.limit;
 
@@ -357,7 +356,6 @@ public class CraftMetaBook extends CraftMetaItem implements BookMeta {
         if (this.pages != null) {
             meta.pages = new ArrayList<String>(this.pages);
         }
-        meta.spigot = meta.new SpigotMeta(); // Spigot
         return meta;
     }
 

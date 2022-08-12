@@ -51,6 +51,48 @@ public class Util {
 		}
 		return ret
 	}
+
+	public static def getArtifactsOffline(project, config, classifiers) {
+		def ret = [:]
+		config.resolvedConfiguration.resolvedArtifacts.each {
+			def art = [
+					group: it.moduleVersion.id.group,
+					name: it.moduleVersion.id.name,
+					version: it.moduleVersion.id.version,
+					classifier: it.classifier,
+					extension: it.extension,
+					file: it.file
+			]
+			def key = art.group + ':' + art.name
+			def folder = "${art.group.replace('.', '/')}/${art.name}/${art.version}/"
+			def filename = "${art.name}-${art.version}"
+			if (art.classifier != null)
+				filename += "-${art.classifier}"
+			filename += ".${art.extension}"
+			def path = "${folder}${filename}"
+			def url = "http://127.0.0.1/${path}"
+			//TODO remove when Mojang launcher is updated
+			if (!classifiers && art.classifier != null) {
+				//Mojang launcher doesn't currently support classifiers, so... move it to part of the version, and force the extension to 'jar'
+				// However, keep the path normal so that our mirror system works.
+				art.version = "${art.version}-${art.classifier}"
+				art.classifier = null
+				art.extension = 'jar'
+			}
+			ret[key] = [
+					name: "${art.group}:${art.name}:${art.version}" + (art.classifier == null ? '' : ":${art.classifier}") + (art.extension == 'jar' ? '' : "@${art.extension}"),
+					downloads: [
+							artifact: [
+									path: path,
+									url: url,
+									sha1: sha1(art.file),
+									size: art.file.length()
+							]
+					]
+			]
+		}
+		return ret
+	}
 	
 	public static def getArtifacts(project, config, classifiers) {
 		def ret = [:]

@@ -1,5 +1,6 @@
 package org.spigotmc;
 
+import catserver.server.CatServer;
 import net.minecraft.server.MinecraftServer;
 import org.bukkit.Bukkit;
 
@@ -62,7 +63,7 @@ public class WatchdogThread extends Thread {
                 log.log(Level.SEVERE, "If you are unsure or still think this is a CatServer bug, please report to https://github.com/Luohuayu/CatServer/issues");
                 log.log(Level.SEVERE, "Be sure to include ALL relevant console errors and Minecraft crash reports");
                 log.log(Level.SEVERE, "Spigot version: " + Bukkit.getServer().getVersion());
-                log.log(Level.SEVERE, "CatServer Version: " + foxserver.server.FoxServer.getVersion()); // FoxServer
+                log.log(Level.SEVERE, "CatServer Version: " + CatServer.getVersion()); // FoxServer
                 //
                 if (net.minecraft.world.level.Level.lastPhysicsProblem != null) {
                     log.log(Level.SEVERE, "------------------------------");

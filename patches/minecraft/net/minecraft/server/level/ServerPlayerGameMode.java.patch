@@ -1,11 +1,6 @@
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -3,27 +_,37 @@
- import com.mojang.logging.LogUtils;
- import java.util.Objects;
- import javax.annotation.Nullable;
-+
- import net.minecraft.advancements.CriteriaTriggers;
+@@ -7,12 +_,15 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.network.protocol.game.ClientboundBlockBreakAckPacket;
@@ -17,16 +12,16 @@
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.InteractionResultHolder;
  import net.minecraft.world.MenuProvider;
-+import net.minecraft.world.item.DoubleHighBlockItem;
++import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.ChunkPos;
- import net.minecraft.world.level.GameType;
+@@ -20,10 +_,19 @@
  import net.minecraft.world.level.Level;
--import net.minecraft.world.level.block.Block;
--import net.minecraft.world.level.block.Blocks;
--import net.minecraft.world.level.block.GameMasterBlock;
-+import net.minecraft.world.level.block.*;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.DoorBlock;
+ import net.minecraft.world.level.block.GameMasterBlock;
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -55,15 +50,6 @@
           this.m_9273_(p_143474_, this.f_9247_);
           return true;
        }
-@@ -61,7 +_,7 @@
-       this.f_9247_ = p_9274_;
-       p_9274_.m_46398_(this.f_9245_.m_150110_());
-       this.f_9245_.m_6885_();
--      this.f_9245_.f_8924_.m_6846_().m_11268_(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_GAME_MODE, this.f_9245_));
-+      this.f_9245_.f_8924_.m_6846_().broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_GAME_MODE, new ServerPlayer[]{this.f_9245_}), this.f_9245_); // CraftBukkit
-       this.f_9244_.m_8878_();
-    }
- 
 @@ -83,7 +_,7 @@
     }
  
@@ -73,20 +59,18 @@
        if (this.f_9253_) {
           BlockState blockstate = this.f_9244_.m_8055_(this.f_9254_);
           if (blockstate.m_60795_()) {
-@@ -125,7 +_,15 @@
+@@ -125,7 +_,13 @@
        double d1 = this.f_9245_.m_20186_() - ((double)p_9282_.m_123342_() + 0.5D) + 1.5D;
        double d2 = this.f_9245_.m_20189_() - ((double)p_9282_.m_123343_() + 0.5D);
        double d3 = d0 * d0 + d1 * d1 + d2 * d2;
 -      if (d3 > 36.0D) {
-+      double dist = f_9245_.m_21051_(net.minecraftforge.common.ForgeMod.REACH_DISTANCE.get()).m_22135_() + 1;
 +      net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event = net.minecraftforge.common.ForgeHooks.onLeftClickBlock(f_9245_, p_9282_, p_9284_);
 +      if (event.isCanceled() || (!this.m_9295_() && event.getUseItem() == net.minecraftforge.eventbus.api.Event.Result.DENY)) { // Restore block and te data
 +         f_9245_.f_8906_.m_141995_(new ClientboundBlockBreakAckPacket(p_9282_, f_9244_.m_8055_(p_9282_), p_9283_, false, "mod canceled"));
 +         f_9244_.m_7260_(p_9282_, f_9244_.m_8055_(p_9282_), f_9244_.m_8055_(p_9282_), 3);
 +         return;
 +      }
-+      dist *= dist;
-+      if (d3 > dist) {
++      if (!this.f_9245_.canInteractWith(p_9282_, 1)) {
           BlockState blockstate1;
           if (this.f_9245_.f_19853_.m_142572_() != null && this.f_9245_.m_146902_().m_45594_(new ChunkPos(p_9282_)) < this.f_9245_.f_19853_.m_142572_().m_6846_().m_11312_()) {
              blockstate1 = this.f_9244_.m_8055_(p_9282_);
@@ -201,7 +185,7 @@
     public boolean m_9280_(BlockPos p_9281_) {
        BlockState blockstate = this.f_9244_.m_8055_(p_9281_);
 -      if (!this.f_9245_.m_21205_().m_41720_().m_6777_(blockstate, this.f_9244_, p_9281_, this.f_9245_)) {
-+      int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(f_9244_, f_9247_, f_9245_, p_9281_);
++         int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(f_9244_, f_9247_, f_9245_, p_9281_);
 +      if (exp == -1) {
           return false;
        } else {
@@ -230,12 +214,11 @@
 -               boolean flag1 = this.f_9245_.m_36298_(blockstate);
 +               boolean flag1 = blockstate.canHarvestBlock(this.f_9244_, p_9281_, this.f_9245_); // previously player.hasCorrectToolForDrops(blockstate)
                 itemstack.m_41686_(this.f_9244_, blockstate, p_9281_, this.f_9245_);
--               if (flag && flag1) {
 +               if (itemstack.m_41619_() && !itemstack1.m_41619_())
 +                  net.minecraftforge.event.ForgeEventFactory.onPlayerDestroyItem(this.f_9245_, itemstack1, InteractionHand.MAIN_HAND);
 +               boolean flag = removeBlock(p_9281_, flag1);
 +
-+               if (flag && flag1 && foxserver.server.FoxServerEventHandler.isDropItems) { // FoxServer - handle BlockBreakEvent
+                if (flag && flag1) {
                    block.m_6240_(this.f_9244_, this.f_9245_, p_9281_, blockstate, blockentity, itemstack1);
                 }
  
@@ -266,63 +249,16 @@
           int i = p_9264_.m_41613_();
           int j = p_9264_.m_41773_();
           InteractionResultHolder<ItemStack> interactionresultholder = p_9264_.m_41682_(p_9263_, p_9262_, p_9265_);
-@@ -294,22 +_,69 @@
-       }
-    }
- 
-+   // CraftBukkit start - whole method
-+   public boolean interactResult = false;
-+   public boolean firedInteract = false;
-+   public BlockPos interactPosition;
-+   public InteractionHand interactHand;
-+   public ItemStack interactItemStack;
-+
+@@ -297,6 +_,8 @@
     public InteractionResult m_7179_(ServerPlayer p_9266_, Level p_9267_, ItemStack p_9268_, InteractionHand p_9269_, BlockHitResult p_9270_) {
        BlockPos blockpos = p_9270_.m_82425_();
        BlockState blockstate = p_9267_.m_8055_(blockpos);
-+      InteractionResult enuminteractionresult = InteractionResult.PASS;
-+      boolean cancelledBlock = false;
 +      net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event = net.minecraftforge.common.ForgeHooks.onRightClickBlock(p_9266_, p_9269_, blockpos, p_9270_);
 +      if (event.isCanceled()) return event.getCancellationResult();
-+
        if (this.f_9247_ == GameType.SPECTATOR) {
           MenuProvider menuprovider = blockstate.m_60750_(p_9267_, blockpos);
--         if (menuprovider != null) {
--            p_9266_.m_5893_(menuprovider);
-+         cancelledBlock = !(menuprovider instanceof MenuProvider);
-+      }
-+      if (p_9266_.m_36335_().m_41519_(p_9268_.m_41720_())) {
-+         cancelledBlock = true;
-+      }
-+
-+      PlayerInteractEvent event1 = CraftEventFactory.callPlayerInteractEvent(p_9266_, Action.RIGHT_CLICK_BLOCK, blockpos, p_9270_.m_82434_(), p_9268_, cancelledBlock, p_9269_);
-+      firedInteract = true;
-+      interactResult = event1.useItemInHand() == Event.Result.DENY;
-+      interactPosition = blockpos.m_7949_();
-+      interactHand = p_9269_;
-+      interactItemStack = p_9268_.m_41777_();
-+
-+      if (event1.useInteractedBlock() == Event.Result.DENY) {
-+         // If we denied a door from opening, we need to send a correcting update to the client, as it already opened the door.
-+         if (blockstate.m_60734_() instanceof DoorBlock) {
-+            boolean bottom = blockstate.m_61143_(DoorBlock.f_52730_) == DoubleBlockHalf.LOWER;
-+            p_9266_.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(p_9267_, bottom ? blockpos.m_7494_() : blockpos.m_7495_()));
-+         } else if (blockstate.m_60734_() instanceof CakeBlock) {
-+            p_9266_.getBukkitEntity().sendHealthUpdate(); // SPIGOT-1341 - reset health for cake
-+         } else if (interactItemStack.m_41720_() instanceof DoubleHighBlockItem) {
-+            // send a correcting update to the client, as it already placed the upper half of the bisected item
-+            p_9266_.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(p_9267_, blockpos.m_142300_(p_9270_.m_82434_()).m_7494_()));
-+            // send a correcting update to the client for the block above as well, this because of replaceable blocks (such as grass, sea grass etc)
-+            p_9266_.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(p_9267_, blockpos.m_7494_()));
-+         }
-+         p_9266_.getBukkitEntity().updateInventory(); // SPIGOT-2867
-+         enuminteractionresult = (event1.useItemInHand() != Event.Result.ALLOW) ? InteractionResult.SUCCESS : InteractionResult.PASS;
-+      } else if (this.f_9247_ == GameType.SPECTATOR) {
-+         MenuProvider itileinventory = blockstate.m_60750_(p_9267_, blockpos);
-+         if (itileinventory != null) {
-+            p_9266_.m_5893_(itileinventory);
-             return InteractionResult.SUCCESS;
-          } else {
+          if (menuprovider != null) {
+@@ -306,10 +_,15 @@
              return InteractionResult.PASS;
           }
        } else {
@@ -351,12 +287,3 @@
              InteractionResult interactionresult1;
              if (this.m_9295_()) {
                 int i = p_9268_.m_41613_();
-@@ -337,6 +_,8 @@
-             return InteractionResult.PASS;
-          }
-       }
-+      return enuminteractionresult;
-+      // CraftBukkit end
-    }
- 
-    public void m_9260_(ServerLevel p_9261_) {

@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -7,14 +7,11 @@ package net.minecraftforge.common.crafting.conditions;
 
 import com.google.gson.JsonObject;
 
-import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.resources.ResourceLocation;
-
-import java.util.Iterator;
 
 public class TagEmptyCondition implements ICondition
 {

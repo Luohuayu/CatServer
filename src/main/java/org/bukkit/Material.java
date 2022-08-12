@@ -1,7 +1,7 @@
 package org.bukkit;
 
+import catserver.server.utils.EnumHelper;
 import com.google.common.collect.Maps;
-import foxserver.server.utils.EnumHelper;
 import java.lang.reflect.Constructor;
 import java.util.Locale;
 import java.util.Map;
@@ -3947,12 +3947,16 @@ public enum Material implements Keyed {
     }
     // FoxServer end
 
-    // FoxServer start - constructor used to set if block is modded
     private Material(final int id, boolean flag, String modName) {
+        this(id, flag, modName, null);
+    }
+
+    // FoxServer start
+    private Material(final int id, boolean flag, String modName, NamespacedKey keyForge) {
         this(id, 64);
         this.isForgeBlock = flag;
         this.modName = modName;
-        this.keyForge = new NamespacedKey(modName, this.name().toLowerCase(Locale.ROOT).substring(modName.length() + 1));
+        this.keyForge = keyForge == null ? new NamespacedKey(modName, this.name().toLowerCase(Locale.ROOT).substring(modName.length() + 1)) : keyForge;
     }
     // FoxServer end
 
@@ -3974,11 +3978,18 @@ public enum Material implements Keyed {
 
     private Material(final int id, final int stack, final int durability, /*@NotNull*/ final Class<?> data) {
         this.id = id;
+        // FoxServer start
+        this.blockID = id;
         this.durability = (short) durability;
         this.maxStack = stack;
         this.data = data;
         this.legacy = this.name().startsWith(LEGACY_PREFIX);
         this.key = NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT));
+        if (this.modName == null) {
+            this.modName = "minecraft";
+            this.keyForge = this.key;
+        }
+        // FoxServer end
         // try to cache the constructor for this material
         try {
             if (MaterialData.class.isAssignableFrom(data)) {
@@ -5022,7 +5033,7 @@ public enum Material implements Keyed {
             case YELLOW_WOOL:
             case ZOMBIE_HEAD:
             case ZOMBIE_WALL_HEAD:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return 0 <= id && id < 256;
@@ -5077,7 +5088,7 @@ public enum Material implements Keyed {
             case SUSPICIOUS_STEW:
             case SWEET_BERRIES:
             case TROPICAL_FISH:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_BREAD:
             case LEGACY_CARROT_ITEM:
             case LEGACY_BAKED_POTATO:
@@ -5108,7 +5119,7 @@ public enum Material implements Keyed {
             case LEGACY_BEETROOT:
             case LEGACY_CHORUS_FRUIT:
             case LEGACY_BEETROOT_SOUP:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -5226,7 +5237,7 @@ public enum Material implements Keyed {
             case MUSIC_DISC_STRAD:
             case MUSIC_DISC_WAIT:
             case MUSIC_DISC_WARD:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return id >= LEGACY_GOLD_RECORD.id && id <= LEGACY_RECORD_12.id;
@@ -5933,7 +5944,7 @@ public enum Material implements Keyed {
             case YELLOW_TERRACOTTA:
             case YELLOW_WALL_BANNER:
             case YELLOW_WOOL:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_STONE:
             case LEGACY_GRASS:
             case LEGACY_DIRT:
@@ -6133,7 +6144,7 @@ public enum Material implements Keyed {
             case LEGACY_BLACK_GLAZED_TERRACOTTA:
             case LEGACY_CONCRETE:
             case LEGACY_CONCRETE_POWDER:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -6151,7 +6162,7 @@ public enum Material implements Keyed {
             case AIR:
             case CAVE_AIR:
             case VOID_AIR:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_AIR:
                 //</editor-fold>
                 return true;
@@ -6301,7 +6312,7 @@ public enum Material implements Keyed {
             case YELLOW_CARPET:
             case ZOMBIE_HEAD:
             case ZOMBIE_WALL_HEAD:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_AIR:
             case LEGACY_SAPLING:
             case LEGACY_POWERED_RAIL:
@@ -6352,7 +6363,7 @@ public enum Material implements Keyed {
             case LEGACY_BEETROOT_BLOCK:
             case LEGACY_END_GATEWAY:
             case LEGACY_STRUCTURE_VOID:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -6578,7 +6589,7 @@ public enum Material implements Keyed {
             case YELLOW_CARPET:
             case YELLOW_WALL_BANNER:
             case YELLOW_WOOL:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_WOOD:
             case LEGACY_LOG:
             case LEGACY_LEAVES:
@@ -6634,7 +6645,7 @@ public enum Material implements Keyed {
             case LEGACY_JUNGLE_DOOR:
             case LEGACY_ACACIA_DOOR:
             case LEGACY_DARK_OAK_DOOR:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -6792,7 +6803,7 @@ public enum Material implements Keyed {
             case WITHER_ROSE:
             case YELLOW_CARPET:
             case YELLOW_WOOL:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_WOOD:
             case LEGACY_LOG:
             case LEGACY_LEAVES:
@@ -6830,7 +6841,7 @@ public enum Material implements Keyed {
             case LEGACY_ACACIA_FENCE:
             case LEGACY_ACACIA_STAIRS:
             case LEGACY_DARK_OAK_STAIRS:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -7025,7 +7036,7 @@ public enum Material implements Keyed {
             case YELLOW_BANNER:
             case YELLOW_CARPET:
             case YELLOW_WOOL:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_LAVA_BUCKET:
             case LEGACY_COAL_BLOCK:
             case LEGACY_BLAZE_ROD:
@@ -7089,7 +7100,7 @@ public enum Material implements Keyed {
             case LEGACY_WOOL:
             case LEGACY_CARPET:
             case LEGACY_BOWL:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -7435,7 +7446,7 @@ public enum Material implements Keyed {
             case YELLOW_SHULKER_BOX:
             case YELLOW_TERRACOTTA:
             case YELLOW_WOOL:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_STONE:
             case LEGACY_GRASS:
             case LEGACY_DIRT:
@@ -7534,7 +7545,7 @@ public enum Material implements Keyed {
             case LEGACY_BLACK_GLAZED_TERRACOTTA:
             case LEGACY_CONCRETE:
             case LEGACY_CONCRETE_POWDER:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -7573,12 +7584,12 @@ public enum Material implements Keyed {
             case SAND:
             case WHITE_CONCRETE_POWDER:
             case YELLOW_CONCRETE_POWDER:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_SAND:
             case LEGACY_GRAVEL:
             case LEGACY_ANVIL:
             case LEGACY_CONCRETE_POWDER:
-            //</editor-fold>
+                //</editor-fold>
                 return true;
             default:
                 return false;
@@ -7720,7 +7731,7 @@ public enum Material implements Keyed {
             case YELLOW_CANDLE_CAKE:
             case YELLOW_WALL_BANNER:
             case ZOMBIE_WALL_HEAD:
-            // ----- Legacy Separator -----
+                // ----- Legacy Separator -----
             case LEGACY_ACACIA_DOOR:
             case LEGACY_BED_BLOCK:
             case LEGACY_BEETROOT_BLOCK:
@@ -7773,7 +7784,7 @@ public enum Material implements Keyed {
             case LEGACY_WATER:
             case LEGACY_WOODEN_DOOR:
             case LEGACY_WOOD_DOUBLE_STEP:
-            //</editor-fold>
+                //</editor-fold>
                 return false;
             default:
                 return true;
@@ -9792,38 +9803,50 @@ public enum Material implements Keyed {
         return Bukkit.getUnsafe().getCreativeCategory(this);
     }
 
-
-    // Magma - start <Used from https://github.com/magmafoundation/Magma-1.16.x/blob/1.16.x/src/main/java/org/bukkit/Material.java>
     // use a normalize() function to ensure it is accessible after a round-trip
     public static String normalizeName(String name) {
         return name.toUpperCase(java.util.Locale.ENGLISH).replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
     }
 
-    public static Material addMaterial(String materialName, int id, boolean isBlock, String modName, NamespacedKey keyForge) {
+    public static Material addMaterial(String materialName, int id, boolean isBlock) {
+        // Forge Blocks
         if (isBlock) {
             Material material = BY_NAME.get(materialName);
-            if (material != null) {
+            if (material != null){
                 material.blockID = id;
                 material.isForgeBlock = true;
-            } else {
-                try {
-                    material = EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, true, modName, keyForge});
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                }
+            }else {
+                material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE}, new Object[]{id, true});
             }
             BY_NAME.put(materialName, material);
             return material;
-        } else {
-            try {
-                Material material = EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, false, modName, keyForge});
-                BY_NAME.put(materialName, material);
-                return material;
-            } catch (Throwable e) {
-                e.printStackTrace();
-                return null;
-            }
+        } else { // Forge Items
+            Material material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE}, new Object[]{id, false});
+            BY_NAME.put(materialName, material);
+            return material;
         }
     }
-    // Magma - end
+
+    public static Material addMaterial(String materialName, int id, boolean isBlock, String modName) {
+        return addMaterial(materialName, id, isBlock, modName, null);
+    }
+
+    public static Material addMaterial(String materialName, int id, boolean isBlock, String modName, NamespacedKey keyForge) {
+        // Forge Blocks
+        if (isBlock) {
+            Material material = BY_NAME.get(materialName);
+            if (material != null){
+                material.blockID = id;
+                material.isForgeBlock = true;
+            }else {
+                material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, true, modName, keyForge});
+            }
+            BY_NAME.put(materialName, material);
+            return material;
+        } else { // Forge Items
+            Material material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, false, modName, keyForge});
+            BY_NAME.put(materialName, material);
+            return material;
+        }
+    }
 }

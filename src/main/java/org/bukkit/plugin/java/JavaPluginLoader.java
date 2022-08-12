@@ -7,12 +7,12 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -38,7 +38,6 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginLoader;
 import org.bukkit.plugin.RegisteredListener;
-import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.TimedRegisteredListener;
 import org.bukkit.plugin.UnknownDependencyException;
 import org.jetbrains.annotations.NotNull;
@@ -52,6 +51,7 @@ import org.yaml.snakeyaml.error.YAMLException;
 public final class JavaPluginLoader implements PluginLoader {
     final Server server;
     private final Pattern[] fileFilters = new Pattern[]{Pattern.compile("\\.jar$")};
+    private final Map<String, Class<?>> classes = new ConcurrentHashMap<String, Class<?>>();
     private final List<PluginClassLoader> loaders = new CopyOnWriteArrayList<PluginClassLoader>();
     public static final CustomTimingsHandler pluginParentTimer = new CustomTimingsHandler("** Plugins"); // Spigot
 
@@ -92,31 +92,31 @@ public final class JavaPluginLoader implements PluginLoader {
             // They are equal -- nothing needs to be done!
         } else if (dataFolder.isDirectory() && oldDataFolder.isDirectory()) {
             server.getLogger().warning(String.format(
-                "While loading %s (%s) found old-data folder: `%s' next to the new one `%s'",
-                description.getFullName(),
-                file,
-                oldDataFolder,
-                dataFolder
+                    "While loading %s (%s) found old-data folder: `%s' next to the new one `%s'",
+                    description.getFullName(),
+                    file,
+                    oldDataFolder,
+                    dataFolder
             ));
         } else if (oldDataFolder.isDirectory() && !dataFolder.exists()) {
             if (!oldDataFolder.renameTo(dataFolder)) {
                 throw new InvalidPluginException("Unable to rename old data folder: `" + oldDataFolder + "' to: `" + dataFolder + "'");
             }
             server.getLogger().log(Level.INFO, String.format(
-                "While loading %s (%s) renamed data folder: `%s' to `%s'",
-                description.getFullName(),
-                file,
-                oldDataFolder,
-                dataFolder
+                    "While loading %s (%s) renamed data folder: `%s' to `%s'",
+                    description.getFullName(),
+                    file,
+                    oldDataFolder,
+                    dataFolder
             ));
         }
 
         if (dataFolder.exists() && !dataFolder.isDirectory()) {
             throw new InvalidPluginException(String.format(
-                "Projected datafolder: `%s' for %s (%s) exists and is not a directory",
-                dataFolder,
-                description.getFullName(),
-                file
+                    "Projected datafolder: `%s' for %s (%s) exists and is not a directory",
+                    dataFolder,
+                    description.getFullName(),
+                    file
             ));
         }
 
@@ -132,7 +132,7 @@ public final class JavaPluginLoader implements PluginLoader {
 
         final PluginClassLoader loader;
         try {
-            loader = new PluginClassLoader(this, getClass().getClassLoader(), description, dataFolder, file, null);
+            loader = new PluginClassLoader(this, getClass().getClassLoader(), description, dataFolder, file);
         } catch (InvalidPluginException ex) {
             throw ex;
         } catch (Throwable ex) {
@@ -191,27 +191,46 @@ public final class JavaPluginLoader implements PluginLoader {
     }
 
     @Nullable
-    Class<?> getClassByName(final String name, boolean resolve, PluginDescriptionFile description) {
-        for (PluginClassLoader loader : loaders) {
-            try {
-                return loader.loadClass0(name, resolve, false, ((SimplePluginManager) server.getPluginManager()).isTransitiveDepend(description, loader.plugin.getDescription()));
-            } catch (ClassNotFoundException cnfe) {
+    Class<?> getClassByName(final String name) {
+        Class<?> cachedClass = classes.get(name);
+
+        if (cachedClass != null) {
+            return cachedClass;
+        } else {
+            for (PluginClassLoader loader : loaders) {
+                try {
+                    cachedClass = loader.findClass(name, false);
+                } catch (ClassNotFoundException cnfe) {}
+                if (cachedClass != null) {
+                    return cachedClass;
+                }
             }
         }
         return null;
     }
 
     void setClass(@NotNull final String name, @NotNull final Class<?> clazz) {
-        if (ConfigurationSerializable.class.isAssignableFrom(clazz)) {
-            Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
-            ConfigurationSerialization.registerClass(serializable);
+        if (!classes.containsKey(name)) {
+            classes.put(name, clazz);
+
+            if (ConfigurationSerializable.class.isAssignableFrom(clazz)) {
+                Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
+                ConfigurationSerialization.registerClass(serializable);
+            }
         }
     }
 
-    private void removeClass(@NotNull Class<?> clazz) {
-        if (ConfigurationSerializable.class.isAssignableFrom(clazz)) {
-            Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
-            ConfigurationSerialization.unregisterClass(serializable);
+    private void removeClass(@NotNull String name) {
+        Class<?> clazz = classes.remove(name);
+
+        try {
+            if ((clazz != null) && (ConfigurationSerializable.class.isAssignableFrom(clazz))) {
+                Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
+                ConfigurationSerialization.unregisterClass(serializable);
+            }
+        } catch (NullPointerException ex) {
+            // Boggle!
+            // (Native methods throwing NPEs is not fun when you can't stop it before-hand)
         }
     }
 
@@ -290,12 +309,10 @@ public final class JavaPluginLoader implements PluginLoader {
                         if (!eventClass.isAssignableFrom(event.getClass())) {
                             return;
                         }
-                        // Spigot start
                         boolean isAsync = event.isAsynchronous();
                         if (!isAsync) timings.startTiming();
                         method.invoke(listener, event);
                         if (!isAsync) timings.stopTiming();
-                        // Spigot end
                     } catch (InvocationTargetException ex) {
                         throw new EventException(ex.getCause());
                     } catch (Throwable t) {
@@ -363,16 +380,10 @@ public final class JavaPluginLoader implements PluginLoader {
                 PluginClassLoader loader = (PluginClassLoader) cloader;
                 loaders.remove(loader);
 
-                Collection<Class<?>> classes = loader.getClasses();
+                Set<String> names = loader.getClasses();
 
-                for (Class<?> clazz : classes) {
-                    removeClass(clazz);
-                }
-
-                try {
-                    loader.close();
-                } catch (IOException ex) {
-                    //
+                for (String name : names) {
+                    removeClass(name);
                 }
             }
         }

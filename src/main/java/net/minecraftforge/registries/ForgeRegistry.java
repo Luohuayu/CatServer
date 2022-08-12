@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -774,7 +774,7 @@ public class ForgeRegistry<V extends IForgeRegistryEntry<V>> implements IForgeRe
     public void loadIds(Map<ResourceLocation, Integer> ids, Map<ResourceLocation, String> overrides, Map<ResourceLocation, Integer> missing, Map<ResourceLocation, Integer[]> remapped, ForgeRegistry<V> old, ResourceLocation name)
     {
         Map<ResourceLocation, String> ovs = Maps.newHashMap(overrides);
-        for (Entry<ResourceLocation, Integer> entry : ids.entrySet())
+        for (Map.Entry<ResourceLocation, Integer> entry : ids.entrySet())
         {
             ResourceLocation itemName = entry.getKey();
             /*
@@ -847,7 +847,7 @@ public class ForgeRegistry<V extends IForgeRegistryEntry<V>> implements IForgeRe
             ovs.remove(itemName);
         }
 
-        for (Entry<ResourceLocation, String> entry :  ovs.entrySet())
+        for (Map.Entry<ResourceLocation, String> entry :  ovs.entrySet())
         {
             ResourceLocation itemName = entry.getKey();
             String owner = entry.getValue();
@@ -899,7 +899,6 @@ public class ForgeRegistry<V extends IForgeRegistryEntry<V>> implements IForgeRe
 
     private void createAndAddDummy(ResourceLocation key, int id)
     {
-
         V dummy = this.dummyFactory.createDummy(key);
         LOGGER.debug(REGISTRIES,"Registry {} Dummy Add: {} {} -> {}", this.name, key, id, dummy);
 
@@ -930,7 +929,6 @@ public class ForgeRegistry<V extends IForgeRegistryEntry<V>> implements IForgeRe
         if (realId != id)
             LOGGER.warn(REGISTRIES,"Registry {}: Object did not get ID it asked for. Name: {} Expected: {} Got: {}", this.name, key, id, realId);
         this.dummies.add(key);
-
     }
 
     //Public for tests

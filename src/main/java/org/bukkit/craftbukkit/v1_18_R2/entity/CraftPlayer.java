@@ -6,17 +6,6 @@ import com.google.common.io.BaseEncoding;
 import com.mojang.authlib.GameProfile;
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.annotation.Nullable;
-
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.Util;
 import net.minecraft.advancements.AdvancementProgress;
@@ -24,14 +13,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.ChatType;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ChunkMap;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.players.UserWhiteListEntry;
 import net.minecraft.world.entity.Entity;
@@ -70,11 +59,7 @@ import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerHideEntityEvent;
-import org.bukkit.event.player.PlayerRegisterChannelEvent;
-import org.bukkit.event.player.PlayerShowEntityEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.event.player.PlayerUnregisterChannelEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.InventoryView.Property;
 import org.bukkit.inventory.ItemStack;
@@ -85,6 +70,16 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.scoreboard.Scoreboard;
+
+import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @DelegateDeserialization(CraftOfflinePlayer.class)
 public class CraftPlayer extends CraftHumanEntity implements Player {
@@ -574,6 +569,42 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     }
 
     @Override
+    public void sendSignChange(Location loc, String[] lines) {
+        sendSignChange(loc, lines, DyeColor.BLACK);
+    }
+
+    @Override
+    public void sendSignChange(Location loc, String[] lines, DyeColor dyeColor) {
+        sendSignChange(loc, lines, dyeColor, false);
+    }
+
+    @Override
+    public void sendSignChange(Location loc, String[] lines, DyeColor dyeColor, boolean hasGlowingText) {
+        if (getHandle().connection == null) {
+            return;
+        }
+
+        if (lines == null) {
+            lines = new String[4];
+        }
+
+        Validate.notNull(loc, "Location can not be null");
+        Validate.notNull(dyeColor, "DyeColor can not be null");
+        if (lines.length < 4) {
+            throw new IllegalArgumentException("Must have at least 4 lines");
+        }
+
+        Component[] components = CraftSign.sanitizeLines(lines);
+        SignBlockEntity sign = new SignBlockEntity(new BlockPos(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), Blocks.OAK_SIGN.defaultBlockState());
+        sign.setColor(net.minecraft.world.item.DyeColor.byId(dyeColor.getWoolData()));
+        for (int i = 0; i < components.length; i++) {
+            sign.setMessage(i, components[i]);
+        }
+
+        getHandle().connection.send(sign.getUpdatePacket());
+    }
+
+    @Override
     public WorldBorder getWorldBorder() {
         return clientWorldBorder;
     }
@@ -638,52 +669,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
             }
 
             @Override
-            public void onBorderSetDamagePerBlock(net.minecraft.world.level.border.WorldBorder border, double damage) {} // NO OP
+            public void onBorderSetDamagePerBlock(net.minecraft.world.level.border.WorldBorder border, double damage) {
+            } // NO OP
 
             @Override
-            public void onBorderSetDamageSafeZOne(net.minecraft.world.level.border.WorldBorder border, double blocks) {} // NO OP
+            public void onBorderSetDamageSafeZOne(net.minecraft.world.level.border.WorldBorder border, double blocks) {
+            } // NO OP
         };
     }
 
     public boolean hasClientWorldBorder() {
         return clientWorldBorder != null;
-    }
-
-
-    @Override
-    public void sendSignChange(Location loc, String[] lines) {
-        sendSignChange(loc, lines, DyeColor.BLACK);
-    }
-
-    @Override
-    public void sendSignChange(Location loc, String[] lines, DyeColor dyeColor) {
-        sendSignChange(loc, lines, dyeColor, false);
-    }
-
-    @Override
-    public void sendSignChange(Location loc, String[] lines, DyeColor dyeColor, boolean hasGlowingText) {
-        if (getHandle().connection == null) {
-            return;
-        }
-
-        if (lines == null) {
-            lines = new String[4];
-        }
-
-        Validate.notNull(loc, "Location can not be null");
-        Validate.notNull(dyeColor, "DyeColor can not be null");
-        if (lines.length < 4) {
-            throw new IllegalArgumentException("Must have at least 4 lines");
-        }
-
-        Component[] components = CraftSign.sanitizeLines(lines);
-        SignBlockEntity sign = new SignBlockEntity(new BlockPos(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), Blocks.OAK_SIGN.defaultBlockState());
-        sign.setColor(net.minecraft.world.item.DyeColor.byId(dyeColor.getWoolData()));
-        for (int i = 0; i < components.length; i++) {
-            sign.setMessage(i, components[i]);
-        }
-
-        getHandle().connection.send(sign.getUpdatePacket());
     }
 
     @Override
@@ -1586,7 +1582,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
             throw new IllegalStateException("Cannot set scoreboard yet");
         }
         if (playerConnection.isDisconnected()) {
-            //throw new IllegalStateException("Cannot set scoreboard for invalid CraftPlayer"); // Spigot - remove this as Mojang's semi asynchronous Netty implementation can lead to races
+            // throw new IllegalStateException("Cannot set scoreboard for invalid CraftPlayer"); // Spigot - remove this as Mojang's semi asynchronous Netty implementation can lead to races
         }
 
         this.server.getScoreboardManager().setPlayerBoard(this, scoreboard);
@@ -1846,12 +1842,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
     // Spigot start
     private final Player.Spigot spigot = new Player.Spigot() {
-
-        @Override
-        public InetSocketAddress getRawAddress() {
-            return (InetSocketAddress) getHandle().connection.connection.getRawAddress();
-        }
-
         @Override
         public boolean getCollidesWithEntities() {
             return CraftPlayer.this.isCollidable();
@@ -1870,6 +1860,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
         }
 
         @Override
+        public InetSocketAddress getRawAddress() {
+            return (InetSocketAddress) getHandle().connection.connection.getRawAddress();
+        }
+
+        @Override
         public Set<Player> getHiddenPlayers() {
             Set<Player> ret = new HashSet<Player>();
             for (UUID u : hiddenEntities.keySet()) {
@@ -1878,6 +1873,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
                     ret.add(p);
                 }
             }
+
             return java.util.Collections.unmodifiableSet(ret);
         }
 
@@ -1888,8 +1884,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
         @Override
         public void sendMessage(BaseComponent... components) {
-            if (getHandle().connection == null) return;
-            ClientboundChatPacket packet = new ClientboundChatPacket(null, net.minecraft.network.chat.ChatType.SYSTEM, Util.NIL_UUID);
+            if ( getHandle().connection == null ) return;
+            ClientboundChatPacket packet = new ClientboundChatPacket(null, ChatType.SYSTEM, Util.NIL_UUID);
             packet.components = components;
             getHandle().connection.send(packet);
         }
@@ -1911,8 +1907,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
         @Override
         public void sendMessage(net.md_5.bungee.api.ChatMessageType position, BaseComponent... components) {
-            if (getHandle().connection == null) return;
-            ClientboundChatPacket packet = new ClientboundChatPacket(null, net.minecraft.network.chat.ChatType.getForIndex((byte) position.ordinal()), Util.NIL_UUID);
+            if ( getHandle().connection == null ) return;
+            ClientboundChatPacket packet = new ClientboundChatPacket(null, ChatType.getForIndex((byte) position.ordinal()), Util.NIL_UUID);
             packet.components = components;
             getHandle().connection.send(packet);
         }
@@ -1924,8 +1920,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
         @Override
         public void sendMessage(net.md_5.bungee.api.ChatMessageType position, UUID sender, BaseComponent... components) {
-            if (getHandle().connection == null) return;
-            ClientboundChatPacket packet = new ClientboundChatPacket(null, net.minecraft.network.chat.ChatType.getForIndex((byte) position.ordinal()), sender == null ? Util.NIL_UUID : sender);
+            if ( getHandle().connection == null ) return;
+
+            ClientboundChatPacket packet = new ClientboundChatPacket(null, ChatType.getForIndex((byte) position.ordinal()), sender == null ? Util.NIL_UUID : sender);
             packet.components = components;
             getHandle().connection.send(packet);
         }

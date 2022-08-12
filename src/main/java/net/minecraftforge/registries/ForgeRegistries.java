@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -47,7 +47,7 @@ import java.util.function.Supplier;
 /**
  * A class that exposes static references to all vanilla and Forge registries.
  * Created to have a central place to access the registries directly if modders need.
- * It is still advised that if you are registering things to use {@link net.minecraftforge.event.RegistryEvent.Register} or {@link DeferredRegister}, but queries and iterations can use this.
+ * It is still advised that if you are registering things to use {@link net.minecraftforge.event.RegistryEvent.Register} or {@link net.minecraftforge.registries.DeferredRegister}, but queries and iterations can use this.
  */
 public class ForgeRegistries
 {

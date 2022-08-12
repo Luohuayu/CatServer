@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URLDecoder;
 import java.security.MessageDigest;
 import java.util.Enumeration;
 import java.util.jar.JarFile;
@@ -93,7 +94,7 @@ public class Utils {
     }
 
     public static void relaunch(String mainClass, URL[] classPath, String[] args, boolean closeClassLoader) throws Exception {
-        URLClassLoader ucl = new URLClassLoader(classPath, (ClassLoader) ClassLoader.class.getMethod("getPlatformClassLoader").invoke(null));
+        URLClassLoader ucl = new URLClassLoader(classPath, null);
         Class.forName(mainClass, true, ucl).getMethod("main", String[].class).invoke(null, new Object[] { args });
         if (closeClassLoader) {
             ucl.close();
@@ -137,6 +138,26 @@ public class Utils {
             }
         } finally {
             try { file.delete(); } catch (Exception ignored) {}
+        }
+    }
+
+    public static File findServerJar() throws IOException {
+        try {
+            URL jarUrl = Utils.class.getProtectionDomain().getCodeSource().getLocation();
+            File jarFile = new File(URLDecoder.decode(jarUrl.getPath(), "UTF-8"));
+            if (jarFile.isFile()) {
+                return jarFile;
+            } else {
+                throw new IOException(jarFile.getName() + " is not a file!");
+            }
+        } catch (IOException e) {
+            String s = System.getProperty("java.class.path");
+            if (s != null) {
+                if (s.replace(":", ";").split(";").length == 1) {
+                    return new File(s);
+                }
+            }
+            throw e;
         }
     }
 }

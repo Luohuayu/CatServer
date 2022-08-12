@@ -21,7 +21,6 @@ import java.util.jar.JarFile;
 
 public class DataManager {
     private static final boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
-
     private static final Map<String, File> librariesMap = new TreeMap<>();
     private static final Map<String, String> librariesHashMap = new TreeMap<>();
     private static final Map<String, File> foxLaunchLibsMap = new TreeMap<>();
@@ -29,7 +28,7 @@ public class DataManager {
     private static final List<String> launchArgs = new ArrayList<>();
 
     public static void setupLibrariesMap() {
-        try (JarFile serverJar = new JarFile(System.getProperty("java.class.path"))) {
+        try (JarFile serverJar = new JarFile(Utils.findServerJar())) {
             String classPath = (String) serverJar.getManifest().getMainAttributes().get(Attributes.Name.CLASS_PATH);
             if (classPath != null) {
                 String[] libraries = classPath.split(" ");
@@ -79,7 +78,7 @@ public class DataManager {
                                 if (path == null) {
                                     String[] split = name[1].substring(0, name[1].length() - 4).split("-");
                                     if (split.length == 3) {
-                                        if (Objects.equals(split[0], "fmlcore") || Objects.equals(split[0], "fmlloader") || Objects.equals(split[0], "javafmllanguage") || Objects.equals(split[0], "mclanguage")) {
+                                        if (Objects.equals(split[0], "fmlcore") || Objects.equals(split[0], "fmlloader") || Objects.equals(split[0], "javafmllanguage") || Objects.equals(split[0], "mclanguage") || Objects.equals(split[0], "lowcodelanguage")) {
                                             path = new File("libraries/net/minecraftforge/" + split[0] + "/" + split[1] + "-" + split[2]);
                                         }
                                     } else if (split.length == 4) {
@@ -227,27 +226,27 @@ public class DataManager {
         launchArgs.addAll(Arrays.asList(args));
 
         File scriptFile = new File(isWindows ? "Launch-CatServer-1.18.2.bat" : "launch-catserver-1.18.2.sh");
-        if (!scriptFile.exists()) {
-            try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(scriptFile)))) {
-                for (String launchArg : launchArgs) {
-                    out.write(launchArg);
-                    out.write(" ");
-                }
-                out.flush();
-                System.out.println("A startup script has been generated. You need to use it to start the server: " + scriptFile.getCanonicalPath());
-                System.out.println("If you update the server, need to delete it and re-run the server to generate.");
-            } catch (Exception e) {
-                System.out.println("Failed to generate startup script: " + e.toString());
-            }
 
-            if (!isWindows) {
-                try {
-                    Runtime.getRuntime().exec("chmod +x " + scriptFile.getCanonicalPath());
-                } catch (Exception ignored) {}
+        if (scriptFile.exists()) {
+            scriptFile.delete();
+        }
+
+        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(scriptFile)))) {
+            for (String launchArg : launchArgs) {
+                out.write(launchArg);
+                out.write(" ");
             }
-        } else {
-            System.out.println("The startup script already exists. You need to use it to start the server: " + scriptFile.getCanonicalPath());
+            out.flush();
+            System.out.println("A startup script has been generated. You need to use it to start the server: " + scriptFile.getCanonicalPath());
             System.out.println("If you update the server, need to delete it and re-run the server to generate.");
+        } catch (Exception e) {
+            System.out.println("Failed to generate startup script: " + e.toString());
+        }
+
+        if (!isWindows) {
+            try {
+                Runtime.getRuntime().exec("chmod +x " + scriptFile.getCanonicalPath());
+            } catch (Exception ignored) {}
         }
     }
 

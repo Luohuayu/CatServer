@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -17,7 +17,6 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ReloadableServerResources;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.Container;
@@ -126,6 +125,7 @@ import net.minecraftforge.event.entity.player.UseHoeEvent;
 import net.minecraftforge.event.furnace.FurnaceFuelBurnTimeEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.event.world.BlockEvent.BlockToolInteractEvent;
+import net.minecraftforge.event.world.BlockEvent.BlockToolModificationEvent;
 import net.minecraftforge.event.world.BlockEvent.CreateFluidSourceEvent;
 import net.minecraftforge.event.world.BlockEvent.EntityMultiPlaceEvent;
 import net.minecraftforge.event.world.BlockEvent.EntityPlaceEvent;
@@ -360,11 +360,12 @@ public class ForgeEventFactory
         return 0;
     }
 
+    @Nullable
     public static BlockState onToolUse(BlockState originalState, UseOnContext context, ToolAction toolAction, boolean simulate)
     {
         // TODO 1.19: Remove ternary and just use BlockToolModificationEvent constructor with simulate parameter passed in
-        BlockEvent.BlockToolModificationEvent event = simulate
-                ? new BlockEvent.BlockToolModificationEvent(originalState, context, toolAction, true)
+        BlockToolModificationEvent event = simulate
+                ? new BlockToolModificationEvent(originalState, context, toolAction, true)
                 : new BlockToolInteractEvent(originalState, context, toolAction);
         return MinecraftForge.EVENT_BUS.post(event) ? null : event.getFinalState();
     }
@@ -866,7 +867,7 @@ public class ForgeEventFactory
 
     /**
      * TODO: Remove in 1.19
-     *
+     * 
      * @deprecated Use {@link #onPreWorldTick(Level, BooleanSupplier)}
      */
     @Deprecated(forRemoval = true, since = "1.18.1")
@@ -882,7 +883,7 @@ public class ForgeEventFactory
 
     /**
      * TODO: Remove in 1.19
-     *
+     * 
      * @deprecated Use {@link #onPostWorldTick(Level, BooleanSupplier)}
      */
     @Deprecated(forRemoval = true, since = "1.18.1")
@@ -908,7 +909,7 @@ public class ForgeEventFactory
 
     /**
      * TODO: Remove in 1.19
-     *
+     * 
      * @deprecated Use {@link #onPreServerTick(BooleanSupplier)}
      */
     @Deprecated(forRemoval = true, since = "1.18.1")
@@ -924,7 +925,7 @@ public class ForgeEventFactory
 
     /**
      * TODO: Remove in 1.19
-     *
+     * 
      * @deprecated Use {@link #onPostServerTick(BooleanSupplier)}
      */
     @Deprecated(forRemoval = true, since = "1.18.1")

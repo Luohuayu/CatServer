@@ -69,8 +69,8 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+    public String entityName;
     private CraftEntityEquipment equipment;
-    public String entityName; // CatServer
 
     public CraftLivingEntity(final CraftServer server, final net.minecraft.world.entity.LivingEntity entity) {
         super(server, entity);
@@ -78,7 +78,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
         if (entity instanceof Mob || entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
             equipment = new CraftEntityEquipment(this);
         }
-        entityName = entity.getName().getString(); // FoxServer
+        entityName = entity.getName().getString();
     }
 
     @Override
@@ -321,7 +321,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
 
     @Override
     public String toString() {
-        return "CraftLivingEntity{" + "id=" + getEntityId() + ", name=" + this.entityName + "}"; // CatServer
+        return "CraftLivingEntity{" + "id=" + getEntityId() + '}';
     }
 
     @Override

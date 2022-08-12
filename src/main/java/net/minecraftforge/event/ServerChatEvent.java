@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -12,6 +12,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Cancelable;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * ServerChatEvent is fired whenever a C01PacketChatMessage is processed. <br>
@@ -33,29 +34,44 @@ import net.minecraftforge.eventbus.api.Cancelable;
 @Cancelable
 public class ServerChatEvent extends net.minecraftforge.eventbus.api.Event
 {
-    private final String message, username;
+    private final String message;
+    @Nullable
+    private final String filteredMessage;
+    private final String username;
     private final ServerPlayer player;
+    @Nullable
     private Component component;
+    @Nullable
+    private Component filteredComponent;
+
+    @Deprecated
     public ServerChatEvent(ServerPlayer player, String message, Component component)
+    {
+        this(player, message, component, null, null);
+    }
+
+    public ServerChatEvent(ServerPlayer player, String message, Component component, @Nullable String filteredMessage, @Nullable Component filteredComponent)
     {
         super();
         this.message = message;
+        this.filteredMessage = filteredMessage;
         this.player = player;
         this.username = player.getGameProfile().getName();
         this.component = component;
+        this.filteredComponent = filteredComponent;
     }
 
-    public void setComponent(Component e)
-    {
+    public void setComponent(Component e) {
         this.component = e;
+        if (this.message.equals(filteredMessage))
+            setFilteredComponent(e);
     }
 
-    public Component getComponent()
-    {
-        return this.component;
-    }
-
+    public void setFilteredComponent(Component e) { this.filteredComponent = e; }
+    public Component getComponent() { return this.component; }
+    public Component getFilteredComponent() { return this.filteredComponent; }
     public String getMessage() { return this.message; }
+    public String getFilteredMessage() { return this.filteredMessage; }
     public String getUsername() { return this.username; }
     public ServerPlayer getPlayer() { return this.player; }
 }

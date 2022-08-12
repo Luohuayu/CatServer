@@ -1,39 +1,31 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 package net.minecraftforge.common;
 
-import com.google.common.base.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.datafixers.kinds.App;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -46,6 +38,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.core.*;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.datafix.fixes.StructuresBecomeConfiguredFix;
@@ -60,6 +53,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BannerPattern;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
 import net.minecraft.world.level.storage.WorldData;
@@ -96,10 +90,7 @@ import net.minecraft.stats.Stats;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.*;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
-import net.minecraft.world.level.levelgen.feature.StructureFeature;
 import net.minecraft.world.level.BaseSpawner;
 import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -122,20 +113,38 @@ import net.minecraftforge.common.util.MavenVersionStringHelper;
 import net.minecraftforge.common.world.BiomeGenerationSettingsBuilder;
 import net.minecraftforge.common.world.ForgeWorldPreset;
 import net.minecraftforge.common.world.MobSpawnSettingsBuilder;
-import net.minecraftforge.event.*;
+import net.minecraftforge.event.AnvilUpdateEvent;
+import net.minecraftforge.event.DifficultyChangeEvent;
+import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.event.ItemAttributeModifierEvent;
+import net.minecraftforge.event.ServerChatEvent;
+import net.minecraftforge.event.RegisterStructureConversionsEvent;
+import net.minecraftforge.event.VanillaGameEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.EntityTravelToDimensionEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
-import net.minecraftforge.event.entity.living.*;
+import net.minecraftforge.event.entity.living.EnderManAngerEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingUpdateEvent;
+import net.minecraftforge.event.entity.living.LivingFallEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingKnockBackEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
+import net.minecraftforge.event.entity.living.LootingLevelEvent;
+import net.minecraftforge.event.entity.living.ShieldBlockEvent;
 import net.minecraftforge.event.entity.player.AdvancementEvent;
 import net.minecraftforge.event.entity.player.AnvilRepairEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.living.LivingGetProjectileEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.world.BiomeLoadingEvent;
 import net.minecraftforge.event.world.BlockEvent;
@@ -408,15 +417,23 @@ public class ForgeHooks
         return !MinecraftForge.EVENT_BUS.post(new VanillaGameEvent(level, cause, vanillaEvent, position));
     }
 
+    @Deprecated
     @Nullable
     public static Component onServerChatEvent(ServerGamePacketListenerImpl net, String raw, Component comp)
     {
-        ServerChatEvent event = new ServerChatEvent(net.player, raw, comp);
+        var event = onServerChatEvent(net, raw, comp, null, null);
+        return event == null ? null : event.getComponent();
+    }
+
+    @Nullable
+    public static ServerChatEvent onServerChatEvent(ServerGamePacketListenerImpl net, String raw, Component comp, @Nullable String filtered, @Nullable Component filteredComp)
+    {
+        ServerChatEvent event = new ServerChatEvent(net.player, raw, comp, filtered, filteredComp);
         if (MinecraftForge.EVENT_BUS.post(event))
         {
             return null;
         }
-        return event.getComponent();
+        return event;
     }
 
 
@@ -809,7 +826,7 @@ public class ForgeHooks
             ret = ForgeEventFactory.loadLootTable(name, ret, lootTableManager);
 
         if (ret != null)
-           ret.freeze();
+            ret.freeze();
 
         return ret;
     }
@@ -822,8 +839,8 @@ public class ForgeHooks
                     .color(0).density(0).temperature(0).luminosity(0).viscosity(0).build(fluid);
         if (fluid instanceof WaterFluid)
             return net.minecraftforge.fluids.FluidAttributes.Water.builder(
-                    new ResourceLocation("block/water_still"),
-                    new ResourceLocation("block/water_flow"))
+                            new ResourceLocation("block/water_still"),
+                            new ResourceLocation("block/water_flow"))
                     .overlay(new ResourceLocation("block/water_overlay"))
                     .translationKey("block.minecraft.water")
                     .color(0xFF3F76E4)
@@ -831,8 +848,8 @@ public class ForgeHooks
                     .build(fluid);
         if (fluid instanceof LavaFluid)
             return net.minecraftforge.fluids.FluidAttributes.builder(
-                    new ResourceLocation("block/lava_still"),
-                    new ResourceLocation("block/lava_flow"))
+                            new ResourceLocation("block/lava_still"),
+                            new ResourceLocation("block/lava_flow"))
                     .translationKey("block.minecraft.lava")
                     .luminosity(15).density(3000).viscosity(6000).temperature(1300)
                     .sound(SoundEvents.BUCKET_FILL_LAVA, SoundEvents.BUCKET_EMPTY_LAVA)
@@ -1145,6 +1162,8 @@ public class ForgeHooks
 
     public static boolean canEntityDestroy(Level level, BlockPos pos, LivingEntity entity)
     {
+        if (!level.isLoaded(pos))
+            return false;
         BlockState state = level.getBlockState(pos);
         return ForgeEventFactory.getMobGriefingEvent(level, entity) && state.canEntityDestroy(level, pos, entity) && ForgeEventFactory.onEntityDestroyBlock(entity, pos, state);
     }
@@ -1302,7 +1321,7 @@ public class ForgeHooks
         boolean generateBonusChest = wgs.generateBonusChest();
         Registry<LevelStem> originalRegistry = wgs.dimensions();
         Optional<String> legacyCustomOptions = wgs.legacyCustomOptions;
-        
+
         // make a copy of the dimension registry; for dimensions that specify that they should use the server seed instead
         // of the hardcoded json seed, recreate them with the correct seed
         MappedRegistry<LevelStem> seededRegistry = new MappedRegistry<>(Registry.LEVEL_STEM_REGISTRY, Lifecycle.experimental(), (Function<LevelStem, Holder.Reference<LevelStem>>)null);
@@ -1319,16 +1338,16 @@ public class ForgeHooks
                 seededRegistry.register(key, dimension, originalRegistry.lifecycle(dimension));
             }
         }
-        
+
         return new WorldGenSettings(seed, generateFeatures, generateBonusChest, seededRegistry, legacyCustomOptions);
     }
-    
+
     /** Called in the LevelStem codec builder to add extra fields to dimension jsons **/
     public static App<Mu<LevelStem>, LevelStem> expandLevelStemCodec(RecordCodecBuilder.Instance<LevelStem> builder, Supplier<App<Mu<LevelStem>, LevelStem>> vanillaFieldsSupplier)
     {
-            App<Mu<LevelStem>, LevelStem> vanillaFields = vanillaFieldsSupplier.get();
-            return builder.group(vanillaFields).and(
-                    Codec.BOOL.optionalFieldOf("forge:use_server_seed", false).stable().forGetter(levelStem -> levelStem.useServerSeed()))
+        App<Mu<LevelStem>, LevelStem> vanillaFields = vanillaFieldsSupplier.get();
+        return builder.group(vanillaFields).and(
+                        Codec.BOOL.optionalFieldOf("forge:use_server_seed", false).stable().forGetter(levelStem -> levelStem.useServerSeed()))
                 .apply(builder, builder.stable((stem, useServerSeed) -> new LevelStem(stem.typeHolder(), stem.generator(), useServerSeed)));
     }
 
@@ -1402,8 +1421,8 @@ public class ForgeHooks
         {
             StringBuilder buf = new StringBuilder();
             buf.append("Forge Mod Loader could not load this save.\n\n")
-                .append("There are ").append(failedElements.size()).append(" unassigned registry entries in this save.\n")
-                .append("You will not be able to load until they are present again.\n\n");
+                    .append("There are ").append(failedElements.size()).append(" unassigned registry entries in this save.\n")
+                    .append("You will not be able to load until they are present again.\n\n");
 
             failedElements.asMap().forEach((name, entries) ->
             {
@@ -1463,6 +1482,37 @@ public class ForgeHooks
         }
     }
 
+    private static BannerPattern[] nonPatternItems;
+    private static int totalPatternRows;
+
+    static
+    {
+        refreshBannerPatternData();
+    }
+
+    public static void refreshBannerPatternData()
+    {
+        nonPatternItems = Arrays.stream(BannerPattern.values())
+                .filter(p -> !p.hasPatternItem)
+                .toArray(BannerPattern[]::new);
+        totalPatternRows = (nonPatternItems.length + 2) / 4;
+    }
+
+    public static int getTotalPatternRows()
+    {
+        return totalPatternRows;
+    }
+
+    public static int getNonPatternItemCount()
+    {
+        return nonPatternItems.length;
+    }
+
+    public static int getActualPatternIndex(int index)
+    {
+        return nonPatternItems[index].ordinal();
+    }
+
     public static boolean shouldSuppressEnderManAnger(EnderMan enderMan, Player player, ItemStack mask)
     {
         return mask.isEnderMask(player, enderMan) || MinecraftForge.EVENT_BUS.post(new EnderManAngerEvent(enderMan, player));
@@ -1493,4 +1543,19 @@ public class ForgeHooks
         return biomeLocation != null && !biomeLocation.getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE);
     }
 
+    public static Map<PackType, Integer> readTypedPackFormats(JsonObject json)
+    {
+        ImmutableMap.Builder<PackType, Integer> map = ImmutableMap.builder();
+
+        for (PackType packType : PackType.values())
+        {
+            String key = "forge:" + packType.bridgeType.name().toLowerCase(Locale.ROOT) + "_pack_format";
+            if (json.has(key))
+            {
+                map.put(packType, GsonHelper.getAsInt(json, key));
+            }
+        }
+
+        return map.buildOrThrow();
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -13,6 +13,7 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import net.minecraftforge.event.world.BiomeLoadingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,6 +27,11 @@ import com.google.common.collect.ImmutableList;
 
 import net.minecraft.world.level.biome.Biome;
 
+/**
+ * Use {@link Tags.Biomes} when possible.
+ * Note that tags are not usable yet during {@link BiomeLoadingEvent} so BiomeDictionary are still necessary there
+ */
+@Deprecated
 public class BiomeDictionary
 {
     private static final boolean DEBUG = false;
@@ -103,7 +109,6 @@ public class BiomeDictionary
         {
             this.name = name;
             this.subTypes = ImmutableList.copyOf(subTypes);
-
         }
 
         /**
@@ -350,9 +355,10 @@ public class BiomeDictionary
         {
             StringBuilder buf = new StringBuilder();
             buf.append("BiomeDictionary:\n");
+
             Type.getAll().stream()
-                    .sorted((l,r) -> l.getName().compareTo(r.getName()))
-                    .forEach(type ->
+            .sorted((l,r) -> l.getName().compareTo(r.getName()))
+            .forEach(type ->
                 buf.append("    ").append(type.name).append(": ")
                 .append(type.biomes.stream()
                     .map(ResourceKey::location)

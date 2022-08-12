@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -16,10 +16,7 @@ import net.minecraftforge.network.NetworkInstance;
 import net.minecraftforge.network.PacketDistributor;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -33,6 +30,8 @@ public class SimpleChannel
     private final IndexedMessageCodec indexedCodec;
     private final Optional<Consumer<NetworkEvent.ChannelRegistrationChangeEvent>> registryChangeConsumer;
     private List<Function<Boolean, ? extends List<? extends Pair<String,?>>>> loginPackets;
+    private Map<Class<?>, Boolean> packetsNeedResponse;
+
 
     public SimpleChannel(NetworkInstance instance) {
         this(instance, Optional.empty());
@@ -42,6 +41,7 @@ public class SimpleChannel
         this.instance = instance;
         this.indexedCodec = new IndexedMessageCodec(instance);
         this.loginPackets = new ArrayList<>();
+        this.packetsNeedResponse = new HashMap<>();
         instance.addListener(this::networkEventListener);
         instance.addGatherListener(this::networkLoginGather);
         this.registryChangeConsumer = registryChangeNotify;
@@ -56,7 +56,7 @@ public class SimpleChannel
             packetGenerator.apply(gatherEvent.isLocal()).forEach(p->{
                 FriendlyByteBuf pb = new FriendlyByteBuf(Unpooled.buffer());
                 this.indexedCodec.build(p.getRight(), pb);
-                gatherEvent.add(pb, this.instance.getChannelName(), p.getLeft());
+                gatherEvent.add(pb, this.instance.getChannelName(), p.getLeft(), packetsNeedResponse.getOrDefault(p.getRight().getClass(), true));
             });
         });
     }
@@ -166,6 +166,7 @@ public class SimpleChannel
         private BiConsumer<MSG, Integer> loginIndexSetter;
         private Function<Boolean, List<Pair<String, MSG>>> loginPacketGenerators;
         private Optional<NetworkDirection> networkDirection;
+        private boolean needsResponse = true;
 
         private static <MSG> MessageBuilder<MSG> forType(final SimpleChannel channel, final Class<MSG> type, int id, NetworkDirection networkDirection) {
             MessageBuilder<MSG> builder = new MessageBuilder<>();
@@ -209,6 +210,15 @@ public class SimpleChannel
             return this;
         }
 
+        /**
+         * Marks this packet as not needing a response when sent to the client
+         */
+        public MessageBuilder<MSG> noResponse()
+        {
+            this.needsResponse = false;
+            return this;
+        }
+
         public MessageBuilder<MSG> consumer(BiConsumer<MSG, Supplier<NetworkEvent.Context>> consumer) {
             this.consumer = consumer;
             return this;
@@ -245,6 +255,7 @@ public class SimpleChannel
             if (this.loginPacketGenerators != null) {
                 this.channel.loginPackets.add(this.loginPacketGenerators);
             }
+            this.channel.packetsNeedResponse.put(this.type, this.needsResponse);
         }
     }
 }

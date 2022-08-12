@@ -16,7 +16,7 @@ public class CraftAmbient extends CraftMob implements Ambient {
 
     @Override
     public String toString() {
-        return "CraftAmbient{name=" + this.entityName + "}"; // CatServer
+        return "CraftAmbient";
     }
 
     @Override

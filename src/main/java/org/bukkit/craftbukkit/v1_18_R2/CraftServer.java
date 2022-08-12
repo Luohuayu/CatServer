@@ -1,5 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
+import catserver.server.BukkitInjector;
+import catserver.server.remapper.ReflectionTransformer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -16,53 +18,54 @@ import com.mojang.serialization.Lifecycle;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
-
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import javax.imageio.ImageIO;
-
 import jline.console.ConsoleReader;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ConsoleInput;
 import net.minecraft.server.ServerScoreboard;
+import net.minecraft.server.bossevents.CustomBossEvent;
 import net.minecraft.server.commands.ReloadCommand;
+import net.minecraft.server.dedicated.DedicatedPlayerList;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.dedicated.DedicatedServerProperties;
+import net.minecraft.server.dedicated.DedicatedServerSettings;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.server.players.*;
-import net.minecraft.tags.*;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
+import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.ai.village.VillageSiege;
 import net.minecraft.world.entity.npc.CatSpawner;
 import net.minecraft.world.entity.npc.WanderingTraderSpawner;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.ResultContainer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.MapItem;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.RepairItemRecipe;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.CustomSpawner;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
+import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -74,42 +77,14 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.PlayerDataStorage;
 import net.minecraft.world.level.storage.PrimaryLevelData;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.bossevents.CustomBossEvent;
-import net.minecraft.server.dedicated.DedicatedPlayerList;
-import net.minecraft.server.dedicated.DedicatedServer;
-import net.minecraft.server.dedicated.DedicatedServerProperties;
-import net.minecraft.server.dedicated.DedicatedServerSettings;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.TicketType;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.datafix.DataFixers;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.ai.village.VillageSiege;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.biome.BiomeManager;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.*;
 import org.bukkit.Warning.WarningState;
 import org.bukkit.World.Environment;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarFlag;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
-import org.bukkit.boss.KeyedBossBar;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandException;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.command.SimpleCommandMap;
+import org.bukkit.boss.*;
+import org.bukkit.command.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
@@ -127,19 +102,7 @@ import org.bukkit.craftbukkit.v1_18_R2.generator.CraftWorldInfo;
 import org.bukkit.craftbukkit.v1_18_R2.generator.CustomWorldChunkManager;
 import org.bukkit.craftbukkit.v1_18_R2.generator.OldCraftChunkData;
 import org.bukkit.craftbukkit.v1_18_R2.help.SimpleHelpMap;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftBlastingRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftCampfireRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftFurnaceRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemFactory;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMerchantCustom;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftShapedRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftShapelessRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftSmithingRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftSmokingRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftStonecuttingRecipe;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.RecipeIterator;
+import org.bukkit.craftbukkit.v1_18_R2.inventory.*;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.util.CraftInventoryCreator;
 import org.bukkit.craftbukkit.v1_18_R2.map.CraftMapView;
 import org.bukkit.craftbukkit.v1_18_R2.metadata.EntityMetadataStore;
@@ -154,13 +117,7 @@ import org.bukkit.craftbukkit.v1_18_R2.tag.CraftBlockTag;
 import org.bukkit.craftbukkit.v1_18_R2.tag.CraftEntityTag;
 import org.bukkit.craftbukkit.v1_18_R2.tag.CraftFluidTag;
 import org.bukkit.craftbukkit.v1_18_R2.tag.CraftItemTag;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftIconCache;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftSpawnCategory;
-import org.bukkit.craftbukkit.v1_18_R2.util.DatFileFilter;
-import org.bukkit.craftbukkit.v1_18_R2.util.Versioning;
+import org.bukkit.craftbukkit.v1_18_R2.util.*;
 import org.bukkit.craftbukkit.v1_18_R2.util.permissions.CraftDefaultPermissions;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -181,12 +138,7 @@ import org.bukkit.loot.LootTable;
 import org.bukkit.map.MapView;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.Permission;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginLoadOrder;
-import org.bukkit.plugin.PluginManager;
-import org.bukkit.plugin.ServicesManager;
-import org.bukkit.plugin.SimplePluginManager;
-import org.bukkit.plugin.SimpleServicesManager;
+import org.bukkit.plugin.*;
 import org.bukkit.plugin.java.JavaPluginLoader;
 import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.plugin.messaging.StandardMessenger;
@@ -197,14 +149,25 @@ import org.bukkit.scheduler.BukkitWorker;
 import org.bukkit.structure.StructureManager;
 import org.bukkit.util.StringUtil;
 import org.bukkit.util.permissions.DefaultPermissions;
-import org.spigotmc.SpigotConfig;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.MarkedYAMLException;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 public final class CraftServer implements Server {
     private final String serverName = "CatServer";
-    private final String serverVersion = "1.18.2";;
+    public static String serverVersion;
     private final String bukkitVersion = Versioning.getBukkitVersion();
     private final Logger logger = Logger.getLogger("Minecraft");
     private final ServicesManager servicesManager = new SimpleServicesManager();
@@ -252,18 +215,18 @@ public final class CraftServer implements Server {
                 return player.getBukkitEntity();
             }
         }));
+        this.serverVersion = "1.18.2";
         this.structureManager = new CraftStructureManager(console.getStructureManager());
         this.scoreboardManager = new CraftScoreboardManager(console, new ServerScoreboard(console));
         Bukkit.setServer(this);
-
-        //ForgeInjectBukkit.init();
-
         // Register all the Enchantments and PotionTypes now so we can stop new registration immediately after
         Enchantments.SHARPNESS.getClass();
+        BukkitInjector.injectEnchantments(); // CatServer - Enchantment can only be done by the server implementation
         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
 
         Potion.setPotionBrewer(new CraftPotionBrewer());
         MobEffects.BLINDNESS.getClass();
+        BukkitInjector.injectMobEffects(); // CatServer - MobEffect can only be done by the server implementation
         PotionEffectType.stopAcceptingRegistrations();
         // Ugly hack :(
 
@@ -355,6 +318,7 @@ public final class CraftServer implements Server {
     }
 
     public void loadPlugins() {
+        ReflectionTransformer.init();
         pluginManager.registerInterface(JavaPluginLoader.class);
 
         File pluginFolder = (File) console.options.valueOf("plugins");
@@ -413,7 +377,6 @@ public final class CraftServer implements Server {
 
         // Build a list of all Vanilla commands and create wrappers
         for (CommandNode<CommandSourceStack> cmd : dispatcher.getDispatcher().getRoot().getChildren()) {
-            //commandMap.register("minecraft", new VanillaCommandWrapper(dispatcher, cmd));
             // Spigot start
             VanillaCommandWrapper wrapper = new VanillaCommandWrapper(dispatcher, cmd);
             if (org.spigotmc.SpigotConfig.replaceCommands.contains(wrapper.getName())) {
@@ -1003,7 +966,8 @@ public final class CraftServer implements Server {
                 throw new IllegalArgumentException("Illegal dimension");
         }
 
-        LevelStorageSource.LevelStorageAccess worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name, actualDimension);
+        LevelStorageSource.LevelStorageAccess worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name,
+                actualDimension);
 
         if (worldSession == null) return null;
 
@@ -1165,7 +1129,7 @@ public final class CraftServer implements Server {
     }
 
     @Override
-    public WorldBorder createWorldBorder() {
+    public org.bukkit.WorldBorder createWorldBorder() {
         return new CraftWorldBorder(new net.minecraft.world.level.border.WorldBorder());
     }
 
@@ -1907,13 +1871,11 @@ public final class CraftServer implements Server {
     }
 
     public List<String> tabCompleteCommand(Player player, String message, ServerLevel world, Vec3 pos) {
-
         // Spigot Start
         if ((org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains(" ")) {
             return ImmutableList.of();
         }
         // Spigot End
-
         List<String> completions = null;
         try {
             if (message.startsWith("/")) {
@@ -2261,7 +2223,7 @@ public final class CraftServer implements Server {
     private final org.bukkit.Server.Spigot spigot = new org.bukkit.Server.Spigot() {
         @Override
         public YamlConfiguration getConfig() {
-            return SpigotConfig.config;
+            return org.spigotmc.SpigotConfig.config;
         }
 
         @Override
@@ -2284,10 +2246,8 @@ public final class CraftServer implements Server {
         }
     };
 
-        public org.bukkit.Server.Spigot spigot() {
-            return spigot;
-        }
-
-        // Spigot end
-
+    public org.bukkit.Server.Spigot spigot() {
+        return spigot;
+    }
+    // Spigot end
 }

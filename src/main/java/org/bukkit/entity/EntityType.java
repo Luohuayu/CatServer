@@ -1,10 +1,10 @@
 package org.bukkit.entity;
 
+import catserver.server.entity.CraftCustomEntity;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-import catserver.server.entity.*;
 import org.bukkit.Keyed;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -289,7 +289,7 @@ public enum EntityType implements Keyed {
      */
     UNKNOWN(null, null, -1, false),
     /**
-     * Mods custom entity
+     * Mod Custom
      */
     MOD_CUSTOM("mod_custom", CraftCustomEntity.class, -1, false);
 
@@ -299,8 +299,8 @@ public enum EntityType implements Keyed {
     private final boolean independent, living;
     private final NamespacedKey key;
 
-    public static final Map<String, EntityType> NAME_MAP = new HashMap<String, EntityType>();
-    public static final Map<Short, EntityType> ID_MAP = new HashMap<Short, EntityType>();
+    private static final Map<String, EntityType> NAME_MAP = new HashMap<String, EntityType>();
+    private static final Map<Short, EntityType> ID_MAP = new HashMap<Short, EntityType>();
 
     static {
         for (EntityType type : values()) {

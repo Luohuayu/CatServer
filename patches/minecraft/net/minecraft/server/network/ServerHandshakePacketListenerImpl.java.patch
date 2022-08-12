@@ -1,15 +1,16 @@
 --- a/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
-@@ -1,5 +_,8 @@
+@@ -1,5 +_,9 @@
  package net.minecraft.server.network;
  
 +import java.net.InetAddress;
++import java.text.MessageFormat;
 +import java.util.HashMap;
 +
  import net.minecraft.SharedConstants;
  import net.minecraft.network.Connection;
  import net.minecraft.network.ConnectionProtocol;
-@@ -12,51 +_,121 @@
+@@ -12,51 +_,87 @@
  import net.minecraft.server.MinecraftServer;
  
  public class ServerHandshakePacketListenerImpl implements ServerHandshakePacketListener {
@@ -85,76 +86,42 @@
 +        switch (p_9975_.m_134735_()) {
 +            case LOGIN:
 +                this.f_9966_.m_129498_(ConnectionProtocol.LOGIN);
-+                // CraftBukkit start - Connection throttle
-+                try {
-+                    long currentTime = System.currentTimeMillis();
-+                    long connectionThrottle = this.f_9965_.server.getConnectionThrottle();
-+                    InetAddress address = ((java.net.InetSocketAddress) this.f_9966_.m_129523_()).getAddress();
-+                    synchronized (throttleTracker) {
-+                        if (throttleTracker.containsKey(address) && !"127.0.0.1".equals(address.getHostAddress()) && currentTime - throttleTracker.get(address) < connectionThrottle) {
-+                            throttleTracker.put(address, currentTime);
-+                            TranslatableComponent chatmessage = new TranslatableComponent("Connection throttled! Please wait before reconnecting.");
-+                            this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
-+                            this.f_9966_.m_129507_(chatmessage);
-+                            return;
-+                        }
-+                        throttleTracker.put(address, currentTime);
-+                        throttleCounter++;
-+                        if (throttleCounter > 200) {
-+                            throttleCounter = 0;
-+                            // Cleanup stale entries
-+                            java.util.Iterator iter = throttleTracker.entrySet().iterator();
-+                            while (iter.hasNext()) {
-+                                java.util.Map.Entry<InetAddress, Long> entry = (java.util.Map.Entry) iter.next();
-+                                if (entry.getValue() > connectionThrottle) {
-+                                    iter.remove();
-+                                }
-+                            }
-+                        }
-+                    }
-+                } catch (Throwable t) {
-+                    org.apache.logging.log4j.LogManager.getLogger().debug("Failed to check connection throttle", t);
-+                }
-+                // CraftBukkit end
 +                if (p_9975_.m_134738_() != SharedConstants.m_183709_().getProtocolVersion()) {
 +                    Component component;
 +                    if (p_9975_.m_134738_() < 754) {
-+                        component = new TranslatableComponent(java.text.MessageFormat.format(org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName())); // Spigot
++                        component = new TranslatableComponent(MessageFormat.format(org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName())); // Spigot
 +                    } else {
-+                        component = new TranslatableComponent(org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName()); // Spigot
++                        component = new TranslatableComponent(MessageFormat.format(org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName())); // Spigot
 +                    }
 +
 +                    this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(component));
 +                    this.f_9966_.m_129507_(component);
 +                } else {
 +                    this.f_9966_.m_129505_(new ServerLoginPacketListenerImpl(this.f_9965_, this.f_9966_));
-+                    ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit - set hostname
 +                    // Spigot Start
 +                    String[] split = p_9975_.f_134721_.split("\00");
 +                    if (org.spigotmc.SpigotConfig.bungee) {
-+                        if ( ( split.length == 3 || split.length == 4 ) && ( HOST_PATTERN.matcher( split[1] ).matches() ) ) {
++                        if ((split.length == 3 || split.length == 4) && (HOST_PATTERN.matcher(split[1]).matches())) {
 +                            p_9975_.f_134721_ = split[0];
 +                            f_9966_.f_129469_ = new java.net.InetSocketAddress(split[1], ((java.net.InetSocketAddress) f_9966_.m_129523_()).getPort());
-+                            f_9966_.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString( split[2] );
-+                        } else
-+                        {
-+                            TextComponent chatmessage = new TextComponent("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
++                            f_9966_.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString(split[2]);
++                        } else {
++                            Component chatmessage = new TranslatableComponent("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
 +                            this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
 +                            this.f_9966_.m_129507_(chatmessage);
 +                            return;
 +                        }
-+                        if ( split.length == 4 )
-+                        {
++                        if (split.length == 4) {
 +                            f_9966_.spoofedProfile = gson.fromJson(split[3], com.mojang.authlib.properties.Property[].class);
 +                        }
-+                    } else if ( ( split.length == 3 || split.length == 4 ) && ( HOST_PATTERN.matcher( split[1] ).matches() ) ) {
-+                        TextComponent chatmessage = new TextComponent("Unknown data in login hostname, did you forget to enable BungeeCord in spigot.yml?");
++                    } else if ((split.length == 3 || split.length == 4) && (HOST_PATTERN.matcher(split[1]).matches())) {
++                        Component chatmessage = new TranslatableComponent("Unknown data in login hostname, did you forget to enable BungeeCord in spigot.yml?");
 +                        this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
 +                        this.f_9966_.m_129507_(chatmessage);
 +                        return;
 +                    }
 +                    // Spigot End
-+                    ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit- set hostname
++                    ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit - set hostname
 +                }
 +                break;
 +            case STATUS:

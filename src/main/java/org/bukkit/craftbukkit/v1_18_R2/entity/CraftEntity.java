@@ -1,28 +1,23 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+import catserver.server.entity.*;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
-
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-
-import catserver.server.entity.*;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.AbstractFish;
 import net.minecraft.world.entity.animal.AbstractGolem;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.goat.Goat;
@@ -30,20 +25,15 @@ import net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.decoration.GlowItemFrame;
-import net.minecraft.world.entity.monster.Ghast;
-import net.minecraft.world.entity.monster.SpellcasterIllager;
-import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.monster.Slime;
-import net.minecraft.world.entity.monster.Strider;
+import net.minecraft.world.entity.monster.*;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.entity.vehicle.AbstractMinecartContainer;
 import net.minecraft.world.entity.vehicle.MinecartCommandBlock;
 import net.minecraft.world.phys.AABB;
 import org.bukkit.EntityEffect;
@@ -65,15 +55,15 @@ import org.bukkit.entity.SpawnCategory;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.metadata.MetadataValue;
-import org.bukkit.permissions.PermissibleBase;
-import org.bukkit.permissions.Permission;
-import org.bukkit.permissions.PermissionAttachment;
-import org.bukkit.permissions.PermissionAttachmentInfo;
-import org.bukkit.permissions.ServerOperator;
+import org.bukkit.permissions.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.NumberConversions;
 import org.bukkit.util.Vector;
+
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 public abstract class CraftEntity implements org.bukkit.entity.Entity {
     private static PermissibleBase perm;
@@ -173,7 +163,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                         } else if (entity instanceof net.minecraft.world.entity.animal.horse.ZombieHorse) {
                             return new CraftZombieHorse(server, (net.minecraft.world.entity.animal.horse.ZombieHorse) entity);
                         } else {
-                            return new CraftCustomEntity(server, (AbstractHorse) entity);
+                            return new CraftCustomHorse(server, (AbstractHorse) entity);
                         }
                     } else if (entity instanceof net.minecraft.world.entity.animal.Rabbit) {
                         return new CraftRabbit(server, (net.minecraft.world.entity.animal.Rabbit) entity);
@@ -368,7 +358,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
             } else if (entity instanceof net.minecraft.world.entity.projectile.ThrownExperienceBottle) {
                 return new CraftThrownExpBottle(server, (net.minecraft.world.entity.projectile.ThrownExperienceBottle) entity);
             } else if (entity instanceof ThrowableItemProjectile) {
-                return new CraftCustomProjectile(server, entity);
+                return new CraftCustomProjectile(server, (ThrowableItemProjectile) entity);
             } else {
                 return new CraftCustomEntity(server, entity);
             }
@@ -411,8 +401,6 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                 return new CraftMinecartRideable(server, (net.minecraft.world.entity.vehicle.Minecart) entity);
             } else if (entity instanceof MinecartCommandBlock) {
                 return new CraftMinecartCommand(server, (MinecartCommandBlock) entity);
-            } else if (entity instanceof AbstractMinecartContainer) {
-                return new CraftCustomMinecart(server, (AbstractMinecartContainer) entity);
             } else {
                 return new CraftCustomMinecart(server, (AbstractMinecart) entity);
             }
@@ -445,7 +433,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         } else if (entity instanceof Marker) {
             return new CraftMarker(server, (Marker) entity);
         } else if (entity instanceof Projectile) {
-            return new CraftCustomProjectile(server, entity);
+            return new CraftCustomProjectile(server, (Projectile) entity);
         } else {
             return new CraftCustomEntity(server, entity);
         }
@@ -581,6 +569,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     public List<org.bukkit.entity.Entity> getNearbyEntities(double x, double y, double z) {
         Preconditions.checkState(!entity.generation, "Cannot get nearby entities during world generation");
         org.spigotmc.AsyncCatcher.catchOp("getNearbyEntities"); // Spigot
+
         List<Entity> notchEntityList = entity.level.getEntities(entity, entity.getBoundingBox().inflate(x, y, z), Predicates.alwaysTrue());
         List<org.bukkit.entity.Entity> bukkitEntityList = new java.util.ArrayList<org.bukkit.entity.Entity>(notchEntityList.size());
 
@@ -1133,7 +1122,6 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     private final org.bukkit.entity.Entity.Spigot spigot = new org.bukkit.entity.Entity.Spigot() {
         @Override
         public void sendMessage(net.md_5.bungee.api.chat.BaseComponent component) {
-
         }
 
         @Override

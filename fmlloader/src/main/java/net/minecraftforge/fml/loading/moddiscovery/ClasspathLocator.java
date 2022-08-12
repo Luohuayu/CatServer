@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-public class ClasspathLocator extends AbstractJarFileLocator {
+public class ClasspathLocator extends AbstractJarFileModLocator {
     private static final Logger LOGGER = LogManager.getLogger();
     private final List<Path> legacyClasspath = Arrays.stream(System.getProperty("legacyClassPath", "").split(File.pathSeparator)).map(Path::of).toList();
     private boolean enabled = false;

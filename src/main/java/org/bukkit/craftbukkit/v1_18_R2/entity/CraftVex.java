@@ -38,7 +38,6 @@ public class CraftVex extends CraftMonster implements Vex {
         getHandle().setIsCharging(charging);
     }
 
-
     @Override
     public Location getBound() {
         BlockPos blockPosition = getHandle().getBoundOrigin();

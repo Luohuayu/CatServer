@@ -1,23 +1,47 @@
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
-@@ -27,12 +_,14 @@
+@@ -4,16 +_,7 @@
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+ import com.mojang.logging.LogUtils;
+ import io.netty.bootstrap.Bootstrap;
+-import io.netty.channel.Channel;
+-import io.netty.channel.ChannelException;
+-import io.netty.channel.ChannelFuture;
+-import io.netty.channel.ChannelFutureListener;
+-import io.netty.channel.ChannelHandlerContext;
+-import io.netty.channel.ChannelInitializer;
+-import io.netty.channel.ChannelOption;
+-import io.netty.channel.DefaultEventLoopGroup;
+-import io.netty.channel.EventLoopGroup;
+-import io.netty.channel.SimpleChannelInboundHandler;
++import io.netty.channel.*;
+ import io.netty.channel.epoll.Epoll;
+ import io.netty.channel.epoll.EpollEventLoopGroup;
+ import io.netty.channel.epoll.EpollSocketChannel;
+@@ -27,12 +_,6 @@
  import io.netty.util.AttributeKey;
  import io.netty.util.concurrent.Future;
  import io.netty.util.concurrent.GenericFutureListener;
-+
- import java.net.InetSocketAddress;
- import java.net.SocketAddress;
- import java.util.Queue;
- import java.util.concurrent.RejectedExecutionException;
- import javax.annotation.Nullable;
- import javax.crypto.Cipher;
-+
+-import java.net.InetSocketAddress;
+-import java.net.SocketAddress;
+-import java.util.Queue;
+-import java.util.concurrent.RejectedExecutionException;
+-import javax.annotation.Nullable;
+-import javax.crypto.Cipher;
  import net.minecraft.Util;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -51,366 +_,398 @@
+@@ -50,367 +_,405 @@
+ import org.slf4j.Marker;
  import org.slf4j.MarkerFactory;
  
++import javax.annotation.Nullable;
++import javax.crypto.Cipher;
++import java.net.InetSocketAddress;
++import java.net.SocketAddress;
++import java.util.Queue;
++import java.util.concurrent.RejectedExecutionException;
++
  public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
 -   private static final float f_178299_ = 0.75F;
 -   private static final Logger f_129465_ = LogUtils.getLogger();
@@ -296,11 +320,6 @@
 +    private final Queue<Connection.PacketHolder> f_129467_ = Queues.newConcurrentLinkedQueue();
 +    private Channel f_129468_;
 +    public SocketAddress f_129469_;
-+    // Spigot Start
-+    public java.util.UUID spoofedUUID;
-+    public com.mojang.authlib.properties.Property[] spoofedProfile;
-+    public boolean preparing = true;
-+    // Spigot End
 +    private PacketListener f_129470_;
 +    private Component f_129471_;
 +    private boolean f_129472_;
@@ -312,10 +331,21 @@
 +    private int f_129478_;
 +    private boolean f_129479_;
 +    private java.util.function.Consumer<Connection> activationHandler;
++    // Spigot Start
++    public java.util.UUID spoofedUUID;
++    public com.mojang.authlib.properties.Property[] spoofedProfile;
++    public boolean preparing = true;
++    // Spigot End
 +
 +    public Connection(PacketFlow p_129482_) {
 +        this.f_129466_ = p_129482_;
 +    }
++
++    // Spigot Start
++    public SocketAddress getRawAddress() {
++        return this.f_129468_.remoteAddress();
++    }
++    // Spigot End
 +
 +    public void channelActive(ChannelHandlerContext p_129525_) throws Exception {
 +        super.channelActive(p_129525_);
@@ -613,7 +643,7 @@
 +        this.preparing = false;
 +        // Spigot End
 +        if (this.f_129468_.isOpen()) {
-+            this.f_129468_.close(); // We can't wait as this may be called from an event loop.
++            this.f_129468_.close().awaitUninterruptibly();
 +            this.f_129471_ = p_129508_;
 +        }
 +
@@ -632,8 +662,7 @@
 +    }
 +
 +    public static Connection m_178300_(InetSocketAddress p_178301_, boolean p_178302_) {
-+        if (p_178301_.getAddress() instanceof java.net.Inet6Address)
-+            System.setProperty("java.net.preferIPv4Stack", "false");
++        net.minecraftforge.network.DualStackUtils.checkIPv6(p_178301_.getAddress());
 +        final Connection connection = new Connection(PacketFlow.CLIENTBOUND);
 +        connection.activationHandler = net.minecraftforge.network.NetworkHooks::registerClientLoginChannel;
 +        Class<? extends SocketChannel> oclass;
@@ -706,7 +735,7 @@
 +            if (this.f_129468_.pipeline().get("decompress") instanceof CompressionDecoder) {
 +                ((CompressionDecoder) this.f_129468_.pipeline().get("decompress")).m_182677_(p_129485_, p_182682_);
 +            } else {
-+                this.f_129468_.pipeline().addBefore("decoder", "decompress", new CompressionDecoder(p_129485_, p_182682_));
++                this.f_129468_.pipeline().addAfter("splitter", "decompress", new CompressionDecoder(p_129485_, p_182682_));
 +            }
 +
 +            if (this.f_129468_.pipeline().get("compress") instanceof CompressionEncoder) {
@@ -725,11 +754,6 @@
 +        }
 +
 +    }
-+    // Spigot Start
-+    public SocketAddress getRawAddress() {
-+        return this.f_129468_.remoteAddress();
-+    }
-+    // Spigot End
 +
 +    public void m_129541_() {
 +        if (this.f_129468_ != null && !this.f_129468_.isOpen()) {
@@ -742,7 +766,6 @@
 +                } else if (this.m_129538_() != null) {
 +                    this.m_129538_().m_7026_(new TranslatableComponent("multiplayer.disconnect.generic"));
 +                }
-+                this.f_129467_.clear(); // Free up packet queue.
 +            }
 +
 +        }

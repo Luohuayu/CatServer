@@ -9,16 +9,27 @@
 
 You can contribute to the project by join in development or testing.
 
+### 开发提示 (Devlop tips)
+- 跳过移除 LootItemRandomChanceCondition.java.patch (Skip delete LootItemRandomChanceCondition.java.patch)
+- 请勿添加/修改 /src/test/ 下任意文件 (Skip create&change package: /src/test/ all files)
+
+#### 核心版本 (Core Version)
+- CraftBukkit ([**10ba1beb642**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/commits/10ba1beb64286206f4edc8d4b44c6472639d044e))
+- Bukkit ([**6a039faf748**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/bukkit/commits/6a039faf7488beba29527a112404cbab84d0cbd3))
+- MinecraftForge ([**1.18.2-40.1.63-6443abc**](https://github.com/MinecraftForge/MinecraftForge/commit/6443adcb6f7dcbfc108135ed9891a12eaa56c9c2))
+
 #### 开发进度 (Development progress)
 - CraftBukkit Patches (Almost done)
-- Spigot Patches (Done)
+- Spigot Patches (Almost done)
 - Patches Compatibility (In progress)
 - FoxLaunch (Done)
-- BukkitInjector (Not impl)
-- Plugin Remapper (Not impl)
+- BukkitInjector (Almost done)
+- Plugin Remapper (Done)
 - Plugin ASM Patcher (Not impl)
 - MOD ASM Patcher (Not impl)
 - CatServer API (Not impl)
+- CatServer Eventhandler (Not impl)
+- CatServer Hooks (Not impl)
 
 ### 如何构建和开发? (How to build and develop?)
 步骤:

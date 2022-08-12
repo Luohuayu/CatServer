@@ -1,16 +1,14 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 package net.minecraftforge.common;
 
-import com.google.common.collect.Multimap;
-import foxserver.server.FoxServerEventHandler;
+import catserver.server.CatServerEventHandler;
 import net.minecraft.commands.synchronization.EmptyArgumentSerializer;
 import net.minecraft.commands.synchronization.ArgumentTypes;
 import net.minecraft.commands.synchronization.ArgumentSerializer;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.RangedAttribute;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -18,20 +16,19 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.item.Items;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.core.Registry;
-import net.minecraft.world.level.storage.WorldData;
-import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
+import net.minecraftforge.common.crafting.PartialNBTIngredient;
 import net.minecraftforge.common.crafting.DifferenceIngredient;
 import net.minecraftforge.common.crafting.IntersectionIngredient;
-import net.minecraftforge.common.crafting.PartialNBTIngredient;
-import net.minecraftforge.common.data.ExistingFileHelper;
-import net.minecraftforge.common.data.ForgeFluidTagsProvider;
+import net.minecraftforge.common.data.*;
+import net.minecraftforge.common.extensions.IForgeEntity;
+import net.minecraftforge.common.extensions.IForgePlayer;
 import net.minecraftforge.common.loot.CanToolPerformAction;
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.common.loot.LootTableIdCondition;
-import net.minecraftforge.common.util.MavenVersionStringHelper;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fluids.FluidAttributes;
@@ -57,7 +54,6 @@ import org.apache.logging.log4j.Logger;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.crafting.CompoundIngredient;
 import net.minecraftforge.common.crafting.ConditionalRecipe;
@@ -72,10 +68,6 @@ import net.minecraftforge.common.crafting.conditions.NotCondition;
 import net.minecraftforge.common.crafting.conditions.OrCondition;
 import net.minecraftforge.common.crafting.conditions.TagEmptyCondition;
 import net.minecraftforge.common.crafting.conditions.TrueCondition;
-import net.minecraftforge.common.data.ForgeBlockTagsProvider;
-import net.minecraftforge.common.data.ForgeItemTagsProvider;
-import net.minecraftforge.common.data.ForgeLootTableProvider;
-import net.minecraftforge.common.data.ForgeRecipeProvider;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
@@ -99,8 +91,26 @@ public class ForgeMod
     public static final RegistryObject<Attribute> NAMETAG_DISTANCE = ATTRIBUTES.register("nametag_distance", () -> new RangedAttribute("forge.nameTagDistance", 64.0D, 0.0D, 64.0).setSyncable(true));
     public static final RegistryObject<Attribute> ENTITY_GRAVITY = ATTRIBUTES.register("entity_gravity", () -> new RangedAttribute("forge.entity_gravity", 0.08D, -8.0D, 8.0D).setSyncable(true));
 
-    public static final RegistryObject<Attribute> REACH_DISTANCE = ATTRIBUTES.register("reach_distance", () -> new RangedAttribute("generic.reachDistance", 5.0D, 0.0D, 1024.0D).setSyncable(true));
+    /**
+     * Reach Distance represents the distance at which a player may interact with the world.  The default is 4.5 blocks.  Players in creative mode have an additional 0.5 blocks of reach distance.
+     * @see IForgePlayer#getReachDistance()
+     * @see IForgePlayer#canInteractWith(BlockPos, double)
+     * @see IForgePlayer#canInteractWith(Entity, double)
+     */
+    public static final RegistryObject<Attribute> REACH_DISTANCE = ATTRIBUTES.register("reach_distance", () -> new RangedAttribute("generic.reachDistance", 4.5D, 0.0D, 1024.0D).setSyncable(true));
 
+    /**
+     * Attack Range represents the distance at which a player may attack an entity.  The default is 3 blocks.  Players in creative mode have an additional 3 blocks of attack reach.
+     * @see IForgePlayer#getAttackRange()
+     * @see IForgePlayer#canHit(Entity, double)
+     */
+    public static final RegistryObject<Attribute> ATTACK_RANGE = ATTRIBUTES.register("attack_range", () -> new RangedAttribute("generic.attack_range", 3.0D, 0.0D, 1024.0D).setSyncable(true));
+
+    /**
+     * Step Height Addition modifies the amount of blocks an entity may walk up without jumping.
+     * @see IForgeEntity#getStepHeight()
+     */
+    public static final RegistryObject<Attribute> STEP_HEIGHT_ADDITION = ATTRIBUTES.register("step_height_addition", () -> new RangedAttribute("forge.stepHeight", 0.0D, -512.0D, 512.0D).setSyncable(true));
     private static boolean enableMilkFluid = false;
     public static final RegistryObject<Fluid> MILK = RegistryObject.create(new ResourceLocation("milk"), ForgeRegistries.FLUIDS);
     public static final RegistryObject<Fluid> FLOWING_MILK = RegistryObject.create(new ResourceLocation("flowing_milk"), ForgeRegistries.FLUIDS);
@@ -157,9 +167,13 @@ public class ForgeMod
         MinecraftForge.EVENT_BUS.register(MinecraftForge.INTERNAL_HANDLER);
         MinecraftForge.EVENT_BUS.addListener(this::mappingChanged);
         BiomeDictionary.init();
-        MinecraftForge.EVENT_BUS.register(new FoxServerEventHandler()); // FoxServer EventHandler
-
+        MinecraftForge.EVENT_BUS.register(new CatServerEventHandler()); // CatServer - register EventHandler
         ForgeRegistries.ITEMS.tags().addOptionalTagDefaults(Tags.Items.ENCHANTING_FUELS, Set.of(Items.LAPIS_LAZULI.delegate));
+
+        if (FMLEnvironment.dist == Dist.CLIENT)
+        {
+            ModelLoaderRegistry.init();
+        }
     }
 
     public void registerCapabilities(RegisterCapabilitiesEvent event)
@@ -171,8 +185,7 @@ public class ForgeMod
 
     public void preInit(FMLCommonSetupEvent evt)
     {
-        // FoxServer - Disable Forge VersionCheck
-        //VersionChecker.startVersionCheck();
+        VersionChecker.startVersionCheck();
 
         registerArgumentTypes();
         VanillaPacketSplitter.register();
@@ -214,6 +227,7 @@ public class ForgeMod
             gen.addProvider(new ForgeFluidTagsProvider(gen, existingFileHelper));
             gen.addProvider(new ForgeRecipeProvider(gen));
             gen.addProvider(new ForgeLootTableProvider(gen));
+            gen.addProvider(new ForgeBiomeTagsProvider(gen, existingFileHelper));
         }
     }
 

@@ -1,12 +1,14 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 package net.minecraftforge.event;
 
-import java.util.function.BooleanSupplier;
 import net.minecraft.world.entity.player.Player;
+
+import java.util.function.BooleanSupplier;
+
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.eventbus.api.Event;
@@ -32,11 +34,12 @@ public class TickEvent extends Event
     }
 
     public static class ServerTickEvent extends TickEvent {
+
         private final BooleanSupplier haveTime;
 
         /**
          * TODO: Remove in 1.19
-         *
+         * 
          * @deprecated Use {@link ServerTickEvent#ServerTickEvent(Phase, BooleanSupplier)}
          */
         @Deprecated(forRemoval = true, since = "1.18.1")
@@ -75,7 +78,7 @@ public class TickEvent extends Event
 
         /**
          * TODO: Remove in 1.19
-         *
+         * 
          * @deprecated Use {@link WorldTickEvent#WorldTickEvent(LogicalSide, Phase, Level, BooleanSupplier)}
          */
         @Deprecated(forRemoval = true, since = "1.18.1")
@@ -85,7 +88,6 @@ public class TickEvent extends Event
         }
 
         public WorldTickEvent(LogicalSide side, Phase phase, Level world, BooleanSupplier haveTime)
-
         {
             super(Type.WORLD, side, phase);
             this.world = world;
@@ -96,7 +98,7 @@ public class TickEvent extends Event
          * @return {@code true} whether the server has enough time to perform any
          *         additional tasks (usually IO related) during the current tick,
          *         otherwise {@code false}
-         *
+         * 
          * @see ServerTickEvent#haveTime()
          */
         public boolean haveTime()

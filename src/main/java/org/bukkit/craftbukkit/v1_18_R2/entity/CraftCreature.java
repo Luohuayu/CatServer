@@ -16,6 +16,6 @@ public class CraftCreature extends CraftMob implements Creature {
 
     @Override
     public String toString() {
-        return "CraftCreature{name=" + this.entityName + "}"; // CatServer
+        return "CraftCreature";
     }
 }

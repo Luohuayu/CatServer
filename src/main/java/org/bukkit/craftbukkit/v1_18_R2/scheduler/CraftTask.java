@@ -30,8 +30,8 @@ public class CraftTask implements BukkitTask, Runnable {
     private final Plugin plugin;
     private final int id;
     private final long createdAt = System.nanoTime();
-
     final CustomTimingsHandler timings; // Spigot
+
     CraftTask() {
         this(null, null, CraftTask.NO_REPEATING, CraftTask.NO_REPEATING);
     }

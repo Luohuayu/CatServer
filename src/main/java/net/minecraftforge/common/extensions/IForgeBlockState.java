@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -695,5 +695,20 @@ public interface IForgeBlockState
     default boolean supportsExternalFaceHiding()
     {
         return self().getBlock().supportsExternalFaceHiding(self());
+    }
+
+    /**
+     * Called after the {@link BlockState} at the given {@link BlockPos} was changed and neighbors were updated.
+     * This method is called on the server and client side.
+     * Modifying the level is disallowed in this method.
+     * Useful for calculating additional data based on the new state and the neighbor's reactions to the state change.
+     *
+     * @param level The level the state was modified in
+     * @param pos The blocks position in the level
+     * @param oldState The previous state of the block at the given position, may be a different block than this one
+     */
+    default void onBlockStateChange(LevelReader level, BlockPos pos, BlockState oldState)
+    {
+        self().getBlock().onBlockStateChange(level, pos, oldState, self());
     }
 }

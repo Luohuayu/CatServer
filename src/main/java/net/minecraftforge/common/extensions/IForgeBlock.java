@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -673,11 +673,8 @@ public interface IForgeBlock
      * @param toolAction The action being performed by the tool
      * @param simulate If {@code true}, no actions that modify the world in any way should be performed. If {@code false}, the world may be modified.
      * @return The resulting state after the action has been performed
-     * @deprecated Override and use {@link #getToolModifiedState(BlockState, UseOnContext, ToolAction, boolean)} instead
      */
     @Nullable
-    // TODO 1.19: Remove this and move the default impl to the newer method in 1.19. Has to stay here to preserve behavior of overrides on this method.
-    @Deprecated(forRemoval = true, since = "1.18.2")
     default BlockState getToolModifiedState(BlockState state, UseOnContext context, ToolAction toolAction, boolean simulate)
     {
         BlockState toolModifiedState = getToolModifiedState(state, context.getLevel(), context.getClickedPos(),
@@ -716,8 +713,11 @@ public interface IForgeBlock
      * @param stack The stack being used by the player
      * @param toolAction The action being performed by the tool
      * @return The resulting state after the action has been performed
+     * @deprecated Override and use {@link #getToolModifiedState(BlockState, UseOnContext, ToolAction, boolean)} instead
      */
     @Nullable
+    // TODO 1.19: Remove this and move the default impl to the newer method in 1.19. Has to stay here to preserve behavior of overrides on this method.
+    @Deprecated(forRemoval = true, since = "1.18.2")
     default BlockState getToolModifiedState(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack, ToolAction toolAction)
     {
         if (!stack.canPerformAction(toolAction)) return null;
@@ -726,7 +726,6 @@ public interface IForgeBlock
         else if(ToolActions.AXE_WAX_OFF == toolAction) return Optional.ofNullable(HoneycombItem.WAX_OFF_BY_BLOCK.get().get(state.getBlock())).map((p_150694_) -> {
             return p_150694_.withPropertiesOf(state);
         }).orElse(null);
-        //else if(ToolActions.HOE_TILL.equals(toolAction)) return HoeItem.getHoeTillingState(state); //TODO HoeItem bork
         else if (ToolActions.SHOVEL_FLATTEN == toolAction) return ShovelItem.getShovelPathingState(state);
         return null;
     }
@@ -833,4 +832,17 @@ public interface IForgeBlock
         }
         return true;
     }
+
+    /**
+     * Called after the {@link BlockState} at the given {@link BlockPos} was changed and neighbors were updated.
+     * This method is called on the server and client side.
+     * Modifying the level is disallowed in this method.
+     * Useful for calculating additional data based on the new state and the neighbor's reactions to the state change.
+     *
+     * @param level The level the state was modified in
+     * @param pos The blocks position in the level
+     * @param oldState The previous state of the block at the given position, may be a different block than this one
+     * @param newState The new state of the block at the given position
+     */
+    default void onBlockStateChange(LevelReader level, BlockPos pos, BlockState oldState, BlockState newState) { }
 }

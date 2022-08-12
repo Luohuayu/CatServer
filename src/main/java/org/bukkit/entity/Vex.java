@@ -26,7 +26,6 @@ public interface Vex extends Monster {
      */
     void setCharging(boolean charging);
 
-
     /**
      * Gets the bound of this entity.
      *

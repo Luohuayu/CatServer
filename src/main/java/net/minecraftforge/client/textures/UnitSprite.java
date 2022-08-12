@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -19,8 +19,8 @@ import java.util.function.Function;
  */
 public class UnitSprite extends TextureAtlasSprite
 {
-    public static final UnitSprite INSTANCE = new UnitSprite();
     public static final ResourceLocation LOCATION = new ResourceLocation("forge", "unit");
+    public static final UnitSprite INSTANCE = new UnitSprite();
     public static final Function<Material, TextureAtlasSprite> GETTER = (x) -> INSTANCE;
 
     private UnitSprite()

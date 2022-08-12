@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -18,7 +18,7 @@ import javax.annotation.Nonnull;
  * You can also set the result to ALLOW to mark the event as processed
  * and damage the hoe.
  *
- * setResult(ALLOW) is the same as the old setHandled()
+ * setResult(ALLOW) is the same as the old setHandled();
  */
 @Cancelable
 @HasResult

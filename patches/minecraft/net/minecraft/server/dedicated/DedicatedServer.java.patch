@@ -1,14 +1,39 @@
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -7,6 +_,7 @@
+@@ -1,5 +_,7 @@
+ package net.minecraft.server.dedicated;
+ 
++import catserver.server.BukkitInjector;
++import catserver.server.Metrics;
+ import com.google.common.base.Strings;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+@@ -7,29 +_,12 @@
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.logging.LogUtils;
+-import java.io.BufferedReader;
+-import java.io.IOException;
+-import java.io.InputStreamReader;
+-import java.io.Writer;
+-import java.net.InetAddress;
+-import java.net.Proxy;
+-import java.nio.charset.StandardCharsets;
+-import java.nio.file.Files;
+-import java.nio.file.Path;
+-import java.util.Collections;
+-import java.util.List;
+-import java.util.Locale;
+-import java.util.function.BooleanSupplier;
+-import java.util.regex.Pattern;
+-import javax.annotation.Nullable;
+-import net.minecraft.DefaultUncaughtExceptionHandler;
+-import net.minecraft.DefaultUncaughtExceptionHandlerWithName;
+-import net.minecraft.SharedConstants;
+-import net.minecraft.SystemReport;
+-import net.minecraft.Util;
 +import com.mojang.serialization.DynamicOps;
- import java.io.BufferedReader;
- import java.io.IOException;
- import java.io.InputStreamReader;
-@@ -30,6 +_,7 @@
++import net.minecraft.*;
  import net.minecraft.commands.CommandSourceStack;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.NonNullList;
@@ -16,7 +41,7 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.server.ConsoleInput;
  import net.minecraft.server.MinecraftServer;
-@@ -52,12 +_,19 @@
+@@ -52,13 +_,33 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.CreativeModeTab;
  import net.minecraft.world.item.Items;
@@ -27,15 +52,29 @@
  import net.minecraft.world.level.block.entity.SkullBlockEntity;
  import net.minecraft.world.level.storage.LevelStorageSource;
 +import org.apache.logging.log4j.LogManager;
-+import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
- import org.slf4j.Logger;
 +import org.apache.logging.log4j.io.IoBuilder;
 +import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 +import org.bukkit.event.server.RemoteServerCommandEvent;
 +import org.bukkit.event.server.ServerCommandEvent;
+ import org.slf4j.Logger;
  
++import javax.annotation.Nullable;
++import java.io.IOException;
++import java.io.Writer;
++import java.net.InetAddress;
++import java.net.Proxy;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.Collections;
++import java.util.List;
++import java.util.Locale;
++import java.util.function.BooleanSupplier;
++import java.util.regex.Pattern;
++
  public class DedicatedServer extends MinecraftServer implements ServerInterface {
     static final Logger f_139598_ = LogUtils.getLogger();
+    private static final int f_142864_ = 5000;
 @@ -78,8 +_,8 @@
     @Nullable
     private final Component f_142863_;
@@ -65,7 +104,7 @@
              String s1;
              try {
                 while(!DedicatedServer.this.m_129918_() && DedicatedServer.this.m_130010_() && (s1 = bufferedreader.readLine()) != null) {
-@@ -99,9 +_,37 @@
+@@ -99,9 +_,31 @@
              } catch (IOException ioexception1) {
                 DedicatedServer.f_139598_.error("Exception handling console input", (Throwable)ioexception1);
              }
@@ -80,22 +119,16 @@
 +         global.removeHandler(handler);
 +      }
 +
-+      global.addHandler(new org.bukkit.craftbukkit.v1_18_R2.util.ForwardLogHandler());
++    global.addHandler(new org.bukkit.craftbukkit.v1_18_R2.util.ForwardLogHandler());
 +
-+      // Paper start - Not needed with TerminalConsoleAppender
-+      final org.apache.logging.log4j.Logger logger = LogManager.getRootLogger();
-+      /*
-+      final org.apache.logging.log4j.core.Logger logger = ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger());
-+
++   final org.apache.logging.log4j.core.Logger logger = ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger());
 +      for (org.apache.logging.log4j.core.Appender appender : logger.getAppenders().values()) {
-+         if (appender instanceof org.apache.logging.log4j.core.appender.ConsoleAppender) {
-+            logger.removeAppender(appender);
-+         }
++      if (appender instanceof org.apache.logging.log4j.core.appender.ConsoleAppender) {
++         logger.removeAppender(appender);
 +      }
++   }
 +
 +      new org.bukkit.craftbukkit.v1_18_R2.util.TerminalConsoleWriterThread(System.out, this.reader).start();
-+      */
-+      // Paper end
 +
 +      System.setOut(IoBuilder.forLogger(logger).setLevel( org.apache.logging.log4j.Level.INFO).buildPrintStream());
 +      System.setErr(IoBuilder.forLogger(logger).setLevel( org.apache.logging.log4j.Level.WARN).buildPrintStream());
@@ -104,12 +137,11 @@
        thread.setDaemon(true);
        thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(f_139598_));
        thread.start();
-@@ -152,7 +_,15 @@
+@@ -152,7 +_,14 @@
        if (!this.m_129797_()) {
           f_139598_.warn("**** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!");
           f_139598_.warn("The server will make no attempt to authenticate usernames. Beware.");
 -         f_139598_.warn("While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.");
-+         //LOGGER.warn("While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.");
 +         // Spigot start
 +         if (org.spigotmc.SpigotConfig.bungee) {
 +            DedicatedServer.f_139598_.warn("Whilst this makes it possible to use BungeeCord, unless access to your server is properly restricted, it also opens up the ability for hackers to connect with any username they choose.");
@@ -121,19 +153,30 @@
           f_139598_.warn("To change this, set \"online-mode\" to \"true\" in the server.properties file.");
        }
  
-@@ -163,15 +_,26 @@
-       if (!OldUsersConverter.m_11106_(this)) {
+@@ -164,14 +_,38 @@
           return false;
        } else {
-+         // CraftBukkit start
           this.m_129823_(new DedicatedPlayerList(this, this.m_206579_(), this.f_129745_));
-+         server.loadPlugins();
-+         server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
-+         // CraftBukkit end
 +         // Spigot start
 +         org.spigotmc.SpigotConfig.init((java.io.File) options.valueOf("spigot-settings"));
 +         org.spigotmc.SpigotConfig.registerCommands();
 +         // Spigot end
++
++         // CatServer start - BukkitInjector
++         if (!BukkitInjector.initializedBukkit) {
++            BukkitInjector.injectItemMaterials();
++            BukkitInjector.injectBlockMaterials();
++            BukkitInjector.injectBiomes();
++            BukkitInjector.injectBannerPatterns();
++            BukkitInjector.injectEntityTypes();
++            BukkitInjector.initializedBukkit = true;
++         }
++         // CatServer end
++
++         // CatServer start - load plugins after init SpigotConfig
++         server.loadPlugins();
++         server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
++         // CatServer end
 +
           long i = Util.m_137569_();
           SkullBlockEntity.m_196700_(this.m_129927_(), this.m_129925_(), this);
@@ -144,6 +187,7 @@
           long j = Util.m_137569_() - i;
           String s = String.format(Locale.ROOT, "%.3fs", (double)j / 1.0E9D);
           f_139598_.info("Done ({})! For help, type \"help\"", (Object)s);
++         Metrics.LoliServerMetrics.startMetrics();
 +         this.f_129726_ = Util.m_137550_(); //Forge: Update server time to prevent watchdog/spaming during long load.
           if (dedicatedserverproperties.f_139744_ != null) {
              this.m_129900_().m_46170_(GameRules.f_46153_).m_46246_(dedicatedserverproperties.f_139744_, this);
@@ -157,7 +201,7 @@
           }
  
 -         if (this.m_139669_() > 0L) {
-+         if (false && this.m_139669_() > 0L) {  // Spigot - disable
++         if (false && this.m_139669_() > 0L) { // Spigot - disable
              Thread thread1 = new Thread(new ServerWatchdog(this));
              thread1.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandlerWithName(f_139598_));
              thread1.setName("Server Watchdog");

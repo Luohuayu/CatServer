@@ -22,16 +22,6 @@ function initializeCoreMod() {
                 return classNode;
             }
         },
-        'bucketitem': {
-            'target': {
-                'type': 'CLASS',
-                'name': 'net.minecraft.world.item.BucketItem'
-            },
-            'transformer': function(classNode) {
-                ASMAPI.redirectFieldToMethod(classNode, ASMAPI.mapField('f_40687_'), 'getFluid')
-                return classNode;
-            }
-        },
         'stairsblock': {
             'target': {
                 'type': 'CLASS',

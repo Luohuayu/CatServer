@@ -1,17 +1,17 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 package net.minecraftforge.event;
 
 import com.google.common.collect.ImmutableList;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ReloadableServerResources;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.crafting.conditions.ICondition;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.ModLoader;
 
@@ -20,10 +20,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-import net.minecraft.server.packs.resources.PreparableReloadListener.PreparationBarrier;
-
 /**
- * The main ResourceManager is recreated on each reload, through {@link MinecraftServer.ReloadableResources}'s creation.
+ * The main ResourceManager is recreated on each reload, just after {@link ReloadableServerResources}'s creation.
  *
  * The event is fired on each reload and lets modders add their own ReloadListeners, for server-side resources.
  * The event is fired on the {@link MinecraftForge#EVENT_BUS}
@@ -51,10 +49,21 @@ public class AddReloadListenerEvent extends Event
        return ImmutableList.copyOf(listeners);
     }
 
-
+    /**
+     * @return The ReloableServerResources being reloaded.
+     */
     public ReloadableServerResources getServerResources()
     {
         return serverResources;
+    }
+
+    /**
+     * This context object holds data relevant to the current reload, such as staged tags.
+     * @return The condition context for the currently active reload.
+     */
+    public ICondition.IContext getConditionContext()
+    {
+        return serverResources.getConditionContext();
     }
 
     private static class WrappedStateAwareListener implements PreparableReloadListener {

@@ -1,25 +1,69 @@
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -10,7 +_,9 @@
+@@ -1,5 +_,6 @@
+ package net.minecraft.server;
+ 
++import catserver.server.CatServer;
+ import com.google.common.base.Splitter;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Lists;
+@@ -10,52 +_,11 @@
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.logging.LogUtils;
 +import com.mojang.serialization.DynamicOps;
  import it.unimi.dsi.fastutil.longs.LongIterator;
-+
- import java.awt.image.BufferedImage;
- import java.io.ByteArrayOutputStream;
- import java.io.File;
-@@ -51,6 +_,9 @@
- import java.util.function.Function;
- import javax.annotation.Nullable;
- import javax.imageio.ImageIO;
-+
+-import java.awt.image.BufferedImage;
+-import java.io.ByteArrayOutputStream;
+-import java.io.File;
+-import java.io.IOException;
+-import java.io.UnsupportedEncodingException;
+-import java.io.Writer;
+-import java.lang.management.ManagementFactory;
+-import java.lang.management.ThreadInfo;
+-import java.lang.management.ThreadMXBean;
+-import java.net.Proxy;
+-import java.net.URLEncoder;
+-import java.nio.charset.StandardCharsets;
+-import java.nio.file.Files;
+-import java.nio.file.Path;
+-import java.security.KeyPair;
+-import java.text.SimpleDateFormat;
+-import java.util.Arrays;
+-import java.util.Base64;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.Comparator;
+-import java.util.Date;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Random;
+-import java.util.Set;
+-import java.util.UUID;
+-import java.util.Map.Entry;
+-import java.util.concurrent.CompletableFuture;
+-import java.util.concurrent.Executor;
+-import java.util.concurrent.RejectedExecutionException;
+-import java.util.concurrent.atomic.AtomicReference;
+-import java.util.function.BooleanSupplier;
+-import java.util.function.Consumer;
+-import java.util.function.Function;
+-import javax.annotation.Nullable;
+-import javax.imageio.ImageIO;
+-import net.minecraft.CrashReport;
+-import net.minecraft.ReportedException;
+-import net.minecraft.SharedConstants;
+-import net.minecraft.SystemReport;
+-import net.minecraft.Util;
 +import jline.console.ConsoleReader;
 +import joptsimple.OptionSet;
- import net.minecraft.CrashReport;
- import net.minecraft.ReportedException;
- import net.minecraft.SharedConstants;
++import net.minecraft.*;
+ import net.minecraft.commands.CommandSource;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
 @@ -65,6 +_,7 @@
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.data.worldgen.features.MiscOverworldFeatures;
@@ -28,7 +72,60 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -144,1693 +_,1990 @@
+@@ -75,13 +_,7 @@
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.bossevents.CustomBossEvents;
+-import net.minecraft.server.level.DemoMode;
+-import net.minecraft.server.level.PlayerRespawnLogic;
+-import net.minecraft.server.level.ServerChunkCache;
+-import net.minecraft.server.level.ServerLevel;
+-import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.level.ServerPlayerGameMode;
+-import net.minecraft.server.level.TicketType;
++import net.minecraft.server.level.*;
+ import net.minecraft.server.level.progress.ChunkProgressListener;
+ import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
+ import net.minecraft.server.network.ServerConnectionListener;
+@@ -96,19 +_,8 @@
+ import net.minecraft.server.players.PlayerList;
+ import net.minecraft.server.players.ServerOpListEntry;
+ import net.minecraft.server.players.UserWhiteList;
+-import net.minecraft.util.Crypt;
+-import net.minecraft.util.CryptException;
+-import net.minecraft.util.FrameTimer;
+-import net.minecraft.util.ModCheck;
+-import net.minecraft.util.Mth;
+-import net.minecraft.util.NativeModuleLister;
+-import net.minecraft.util.ProgressListener;
+-import net.minecraft.util.Unit;
+-import net.minecraft.util.profiling.EmptyProfileResults;
+-import net.minecraft.util.profiling.ProfileResults;
+-import net.minecraft.util.profiling.ProfilerFiller;
+-import net.minecraft.util.profiling.ResultField;
+-import net.minecraft.util.profiling.SingleTickProfiler;
++import net.minecraft.util.*;
++import net.minecraft.util.profiling.*;
+ import net.minecraft.util.profiling.jfr.JvmProfiler;
+ import net.minecraft.util.profiling.jfr.callback.ProfiledDuration;
+ import net.minecraft.util.profiling.metrics.profiling.ActiveMetricsRecorder;
+@@ -124,14 +_,7 @@
+ import net.minecraft.world.entity.npc.WanderingTraderSpawner;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.crafting.RecipeManager;
+-import net.minecraft.world.level.ChunkPos;
+-import net.minecraft.world.level.CustomSpawner;
+-import net.minecraft.world.level.DataPackConfig;
+-import net.minecraft.world.level.ForcedChunksSavedData;
+-import net.minecraft.world.level.GameRules;
+-import net.minecraft.world.level.GameType;
+-import net.minecraft.world.level.Level;
+-import net.minecraft.world.level.LevelSettings;
++import net.minecraft.world.level.*;
+ import net.minecraft.world.level.biome.BiomeManager;
+ import net.minecraft.world.level.border.BorderChangeListener;
+ import net.minecraft.world.level.border.WorldBorder;
+@@ -144,1693 +_,2043 @@
  import net.minecraft.world.level.levelgen.WorldGenSettings;
  import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
@@ -48,13 +145,37 @@
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
  import org.apache.commons.lang3.Validate;
-+import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
- import org.slf4j.Logger;
 +import org.bukkit.Bukkit;
-+import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 +import org.bukkit.craftbukkit.Main;
++import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
++import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 +import org.bukkit.event.server.ServerLoadEvent;
+ import org.slf4j.Logger;
 +import org.spigotmc.SlackActivityAccountant;
++
++import javax.annotation.Nullable;
++import javax.imageio.ImageIO;
++import java.awt.image.BufferedImage;
++import java.io.*;
++import java.lang.management.ManagementFactory;
++import java.lang.management.ThreadInfo;
++import java.lang.management.ThreadMXBean;
++import java.net.Proxy;
++import java.net.URLEncoder;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.security.KeyPair;
++import java.text.SimpleDateFormat;
++import java.util.*;
++import java.util.Map.Entry;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executor;
++import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.BooleanSupplier;
++import java.util.function.Consumer;
++import java.util.function.Function;
  
  public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements CommandSource, AutoCloseable {
 -   private static final Logger f_129750_ = LogUtils.getLogger();
@@ -403,7 +524,7 @@
 +            p_206554_.m_143974_(this);
 +        }
 +
-+        //this.connection = new ServerConnectionListener(this);
++        //this.connection = new ServerConnectionListener(this); // Spigot
 +        this.f_129756_ = p_206555_;
 +        this.f_129744_ = p_206547_;
 +        this.f_129745_ = p_206547_.m_78301_();
@@ -497,6 +618,7 @@
 +        }
 +
 +        ServerLevel serverlevel = new ServerLevel(this, this.f_129738_, this.f_129744_, serverleveldata, Level.f_46428_, holder, p_129816_, chunkgenerator, flag, j, list, true);
++        // ForgeInject.addEnumEnvironment(this.worldData.worldGenSettings().dimensions()); TODO
 +        this.f_129762_.put(Level.f_46428_, serverlevel);
 +        DimensionDataStorage dimensiondatastorage = serverlevel.m_8895_();
 +        this.m_129841_(dimensiondatastorage);
@@ -2160,13 +2282,20 @@
 +        serverleveldata.m_7831_(serverlevel2.m_6857_().m_61970_());
 +        this.f_129749_.m_5917_(this.m_129901_().m_136307_());
 +        this.f_129744_.m_78290_(this.m_206579_(), this.f_129749_, this.m_6846_().m_6960_());
++
++        // CatServer start - save level.data with all worlds
 +        if (p_129887_) {
 +            for (ServerLevel serverlevel1 : this.m_129785_()) {
++                if (serverlevel1.convertable != this.f_129744_) {
++                    serverlevel1.worldDataServer.m_7831_(serverlevel1.m_6857_().m_61970_());
++                    serverlevel1.worldDataServer.m_5917_(this.m_129901_().m_136307_());
++                    serverlevel1.convertable.m_78287_(this.m_206579_(), serverlevel1.worldDataServer);
++                }
 +                f_129750_.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", (Object) serverlevel1.m_7726_().f_8325_.m_182285_());
 +            }
-+
 +            f_129750_.info("ThreadedAnvilChunkStorage: All dimensions are saved");
 +        }
++        // CatServer end
 +
 +        return flag;
 +    }
@@ -2207,11 +2336,6 @@
 +        }
 +        // CraftBukkit end
 +        f_129750_.info("Stopping server");
-+        // CraftBukkit start
-+        if (this.server != null) {
-+            this.server.disablePlugins();
-+        }
-+        // CraftBukkit end
 +        if (this.m_129919_() != null) {
 +            this.m_129919_().m_9718_();
 +        }
@@ -2227,8 +2351,11 @@
 +            } // CraftBukkit - SPIGOT-625 - give server at least a chance to send packets
 +        }
 +
-+        f_129750_.info("Saving worlds");
++        if (this.server != null) {
++            this.server.disablePlugins();
++        }
 +
++        f_129750_.info("Saving worlds");
 +        for (ServerLevel serverlevel : this.m_129785_()) {
 +            if (serverlevel != null) {
 +                serverlevel.f_8564_ = false;
@@ -2277,7 +2404,6 @@
 +            this.m_129927_().m_11006_();
 +        }
 +        // Spigot end
-+
 +    }
 +
 +    public String m_130009_() {
@@ -2373,6 +2499,7 @@
 +            }
 +        } catch (Throwable throwable1) {
 +            f_129750_.error("Encountered an unexpected exception", throwable1);
++            f_129750_.error("Encountered an unexpected exception", throwable1);
 +            // Spigot Start
 +            if (throwable1.getCause() != null) {
 +                MinecraftServer.f_129750_.error("\tCause of unexpected exception was", throwable1.getCause());
@@ -2420,6 +2547,29 @@
 +
 +        }
 +
++    }
++
++    private static CrashReport m_206568_(Throwable p_206569_) {
++        ReportedException reportedexception = null;
++
++        for (Throwable throwable = p_206569_; throwable != null; throwable = throwable.getCause()) {
++            if (throwable instanceof ReportedException) {
++                ReportedException reportedexception1 = (ReportedException) throwable;
++                reportedexception = reportedexception1;
++            }
++        }
++
++        CrashReport crashreport;
++        if (reportedexception != null) {
++            crashreport = reportedexception.m_134761_();
++            if (reportedexception != p_206569_) {
++                crashreport.m_127514_("Wrapped in").m_128162_("Wrapping exception", p_206569_);
++            }
++        } else {
++            crashreport = new CrashReport("Exception in server tick loop", p_206569_);
++        }
++
++        return crashreport;
 +    }
 +
 +    private boolean m_129960_() {
@@ -2567,10 +2717,10 @@
 +        SpigotTimings.schedulerTimer.startTiming(); // Spigot
 +        this.server.getScheduler().mainThreadHeartbeat(this.f_129766_); // CraftBukkit
 +        SpigotTimings.schedulerTimer.stopTiming(); // Spigot
-+        SpigotTimings.commandFunctionsTimer.startTiming(); // Spigot
 +        this.f_129754_.m_6180_("commandFunctions");
-+        SpigotTimings.commandFunctionsTimer.stopTiming(); // Spigot
++        SpigotTimings.commandFunctionsTimer.startTiming(); // Spigot
 +        this.m_129890_().m_136128_();
++        SpigotTimings.commandFunctionsTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6182_("levels");
 +
 +        // CraftBukkit start
@@ -2708,7 +2858,7 @@
 +
 +    @DontObfuscate
 +    public String m_130001_() {
-+        return foxserver.server.FoxServer.NAME; // FoxServer
++        return CatServer.NAME; // CatServer - CatServer > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
 +    }
 +
 +    public SystemReport m_177935_(SystemReport p_177936_) {

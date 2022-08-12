@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -11,9 +11,7 @@ import net.minecraft.data.BuiltinRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -200,7 +198,7 @@ public final class RegistryObject<T> implements Supplier<T>
         return new RegistryObject<>(name, registryName, modid, true);
     }
 
-    private static RegistryObject<?> EMPTY = new RegistryObject<>();
+    private static final RegistryObject<?> EMPTY = new RegistryObject<>();
 
     private static <T> RegistryObject<T> empty() {
         @SuppressWarnings("unchecked")

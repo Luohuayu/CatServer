@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -8,10 +8,12 @@ package net.minecraftforge.client.extensions;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraftforge.client.model.pipeline.LightUtil;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.Buffer;
@@ -26,6 +28,13 @@ import net.minecraft.core.Vec3i;
 
 public interface IForgeVertexConsumer
 {
+    // TODO 1.19: Make not default and not nullable
+    @Nullable
+    default VertexFormat getVertexFormat()
+    {
+        return null;
+    }
+
     // Copy of putBulkData, but enables tinting and per-vertex alpha
     default void putBulkData(PoseStack.Pose poseStack, BakedQuad bakedQuad, float red, float green, float blue, int packedLight, int packedOverlay, boolean readExistingColor) {
         putBulkData(poseStack, bakedQuad, red, green, blue, 1.0f, packedLight, packedOverlay, readExistingColor);

@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -23,7 +23,7 @@ import static cpw.mods.modlauncher.api.LamdbaExceptionUtils.uncheck;
 /**
  * Support loading mods located in JAR files in the mods folder
  */
-public class ModsFolderLocator extends AbstractJarFileLocator {
+public class ModsFolderLocator extends AbstractJarFileModLocator {
     private static final String SUFFIX = ".jar";
     private static final Logger LOGGER = LogManager.getLogger();
     private final Path modFolder;

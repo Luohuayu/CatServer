@@ -1,12 +1,6 @@
 --- a/net/minecraft/server/Main.java
 +++ b/net/minecraft/server/Main.java
-@@ -8,13 +_,18 @@
- import com.mojang.logging.LogUtils;
- import com.mojang.serialization.DynamicOps;
- import com.mojang.serialization.Lifecycle;
-+
- import java.awt.GraphicsEnvironment;
- import java.io.File;
+@@ -13,7 +_,10 @@
  import java.net.Proxy;
  import java.nio.file.Path;
  import java.nio.file.Paths;
@@ -15,11 +9,9 @@
 +import java.util.concurrent.CompletableFuture;
 +import java.util.concurrent.atomic.AtomicReference;
  import java.util.function.BooleanSupplier;
-+
  import joptsimple.OptionParser;
  import joptsimple.OptionSet;
- import joptsimple.OptionSpec;
-@@ -53,187 +_,267 @@
+@@ -53,6 +_,7 @@
  import net.minecraft.world.level.storage.LevelSummary;
  import net.minecraft.world.level.storage.PrimaryLevelData;
  import net.minecraft.world.level.storage.WorldData;
@@ -27,442 +19,189 @@
  import org.slf4j.Logger;
  
  public class Main {
--   private static final Logger f_129670_ = LogUtils.getLogger();
--
--   @DontObfuscate
--   public static void main(String[] p_129699_) {
--      SharedConstants.m_142977_();
--      OptionParser optionparser = new OptionParser();
--      OptionSpec<Void> optionspec = optionparser.accepts("nogui");
--      OptionSpec<Void> optionspec1 = optionparser.accepts("initSettings", "Initializes 'server.properties' and 'eula.txt', then quits");
--      OptionSpec<Void> optionspec2 = optionparser.accepts("demo");
--      OptionSpec<Void> optionspec3 = optionparser.accepts("bonusChest");
--      OptionSpec<Void> optionspec4 = optionparser.accepts("forceUpgrade");
--      OptionSpec<Void> optionspec5 = optionparser.accepts("eraseCache");
--      OptionSpec<Void> optionspec6 = optionparser.accepts("safeMode", "Loads level with vanilla datapack only");
--      OptionSpec<Void> optionspec7 = optionparser.accepts("help").forHelp();
--      OptionSpec<String> optionspec8 = optionparser.accepts("singleplayer").withRequiredArg();
--      OptionSpec<String> optionspec9 = optionparser.accepts("universe").withRequiredArg().defaultsTo(".");
--      OptionSpec<String> optionspec10 = optionparser.accepts("world").withRequiredArg();
--      OptionSpec<Integer> optionspec11 = optionparser.accepts("port").withRequiredArg().ofType(Integer.class).defaultsTo(-1);
--      OptionSpec<String> optionspec12 = optionparser.accepts("serverId").withRequiredArg();
--      OptionSpec<Void> optionspec13 = optionparser.accepts("jfrProfile");
--      OptionSpec<String> optionspec14 = optionparser.nonOptions();
--
--      try {
--         OptionSet optionset = optionparser.parse(p_129699_);
--         if (optionset.has(optionspec7)) {
--            optionparser.printHelpOn(System.err);
--            return;
--         }
--
--         CrashReport.m_127529_();
--         if (optionset.has(optionspec13)) {
--            JvmProfiler.f_185340_.m_183425_(Environment.SERVER);
--         }
--
--         Bootstrap.m_135870_();
--         Bootstrap.m_135889_();
--         Util.m_137584_();
--         Path path = Paths.get("server.properties");
--         DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path);
--         dedicatedserversettings.m_139780_();
+@@ -77,6 +_,41 @@
+       OptionSpec<String> optionspec12 = optionparser.accepts("serverId").withRequiredArg();
+       OptionSpec<Void> optionspec13 = optionparser.accepts("jfrProfile");
+       OptionSpec<String> optionspec14 = optionparser.nonOptions();
++      optionparser.accepts("allowUpdates").withRequiredArg().ofType(Boolean.class).defaultsTo(Boolean.TRUE); // Forge: allow mod updates to proceed
++      optionparser.accepts("gameDir").withRequiredArg().ofType(File.class).defaultsTo(new File(".")); //Forge: Consume this argument, we use it in the launcher, and the client side.
++      final OptionSpec<net.minecraft.core.BlockPos> spawnPosOpt;
++      boolean gametestEnabled = Boolean.getBoolean("forge.gameTestServer");
++      if (gametestEnabled) {
++         spawnPosOpt = optionparser.accepts("spawnPos").withRequiredArg().withValuesConvertedBy(new net.minecraftforge.gametest.BlockPosValueConverter()).defaultsTo(new net.minecraft.core.BlockPos(0, 60, 0));
++      } else {
++         spawnPosOpt = null;
++      }
++
++      optionparser.acceptsAll(Arrays.asList("b", "bukkit-settings"), "File for bukkit settings")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("bukkit.yml"))
++              .describedAs("Yml file");
++
++      optionparser.acceptsAll(Arrays.asList("C", "commands-settings"), "File for command settings")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("commands.yml"))
++              .describedAs("Yml file");
++
++      optionparser.acceptsAll(Arrays.asList("P", "plugins"), "Plugin directory to use")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("plugins"))
++              .describedAs("Plugin directory");
++
++      // Spigot Start
++      optionparser.acceptsAll(Arrays.asList("S", "spigot-settings"), "File for spigot settings")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("spigot.yml"))
++              .describedAs("Yml file");
++      // Spigot End
+ 
+       try {
+          OptionSet optionset = optionparser.parse(p_129699_);
+@@ -84,6 +_,13 @@
+             optionparser.printHelpOn(System.err);
+             return;
+          }
++         Path path1 = Paths.get("eula.txt");
++         Eula eula = new Eula(path1);
++
++         if (!eula.m_135944_()) {
++            f_129670_.info("You need to agree to the EULA in order to run the server. Go to eula.txt for more info.");
++            return;
++         }
+ 
+          CrashReport.m_127529_();
+          if (optionset.has(optionspec13)) {
+@@ -93,29 +_,28 @@
+          Bootstrap.m_135870_();
+          Bootstrap.m_135889_();
+          Util.m_137584_();
++         if (!optionset.has(optionspec1)) net.minecraftforge.server.loading.ServerModLoader.load(); // Load mods before we load almost anything else anymore. Single spot now. Only loads if they haven't passed the initserver param
+          Path path = Paths.get("server.properties");
+          DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path);
+          dedicatedserversettings.m_139780_();
 -         Path path1 = Paths.get("eula.txt");
 -         Eula eula = new Eula(path1);
--         if (optionset.has(optionspec1)) {
--            f_129670_.info("Initialized '{}' and '{}'", path.toAbsolutePath(), path1.toAbsolutePath());
--            return;
--         }
--
+          if (optionset.has(optionspec1)) {
+             f_129670_.info("Initialized '{}' and '{}'", path.toAbsolutePath(), path1.toAbsolutePath());
+             return;
+          }
+ 
 -         if (!eula.m_135944_()) {
 -            f_129670_.info("You need to agree to the EULA in order to run the server. Go to eula.txt for more info.");
 -            return;
 -         }
 -
--         File file1 = new File(optionset.valueOf(optionspec9));
--         YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY);
--         MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
--         GameProfileRepository gameprofilerepository = yggdrasilauthenticationservice.createProfileRepository();
--         GameProfileCache gameprofilecache = new GameProfileCache(gameprofilerepository, new File(file1, MinecraftServer.f_129742_.getName()));
--         String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_);
--         LevelStorageSource levelstoragesource = LevelStorageSource.m_78242_(file1.toPath());
--         LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_78260_(s);
--         LevelSummary levelsummary = levelstoragesource$levelstorageaccess.m_78308_();
--         if (levelsummary != null) {
--            if (levelsummary.m_193020_()) {
--               f_129670_.info("This world must be opened in an older version (like 1.6.4) to be safely converted");
--               return;
--            }
--
--            if (!levelsummary.m_193021_()) {
--               f_129670_.info("This world was created by an incompatible version.");
--               return;
--            }
--         }
--
--         boolean flag = optionset.has(optionspec6);
--         if (flag) {
--            f_129670_.warn("Safe mode active, only vanilla datapack will be loaded");
--         }
--
--         PackRepository packrepository = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), PackSource.f_10529_));
--
--         WorldStem worldstem;
--         try {
--            WorldStem.InitConfig worldstem$initconfig = new WorldStem.InitConfig(packrepository, Commands.CommandSelection.DEDICATED, dedicatedserversettings.m_139777_().f_139711_, flag);
--            worldstem = WorldStem.m_206911_(worldstem$initconfig, () -> {
--               DataPackConfig datapackconfig = levelstoragesource$levelstorageaccess.m_78309_();
--               return datapackconfig == null ? DataPackConfig.f_45842_ : datapackconfig;
--            }, (p_206543_, p_206544_) -> {
--               RegistryAccess.Writable registryaccess$writable = RegistryAccess.m_206197_();
--               DynamicOps<Tag> dynamicops = RegistryOps.m_206813_(NbtOps.f_128958_, registryaccess$writable, p_206543_);
--               WorldData worlddata1 = levelstoragesource$levelstorageaccess.m_211747_(dynamicops, p_206544_, registryaccess$writable.m_211816_());
--               if (worlddata1 != null) {
--                  return Pair.of(worlddata1, registryaccess$writable.m_203557_());
--               } else {
--                  LevelSettings levelsettings;
--                  WorldGenSettings worldgensettings;
--                  if (optionset.has(optionspec2)) {
--                     levelsettings = MinecraftServer.f_129743_;
--                     worldgensettings = WorldGenSettings.m_64645_(registryaccess$writable);
--                  } else {
--                     DedicatedServerProperties dedicatedserverproperties = dedicatedserversettings.m_139777_();
--                     levelsettings = new LevelSettings(dedicatedserverproperties.f_139741_, dedicatedserverproperties.f_139740_, dedicatedserverproperties.f_139752_, dedicatedserverproperties.f_139739_, false, new GameRules(), p_206544_);
--                     worldgensettings = optionset.has(optionspec3) ? dedicatedserverproperties.m_180927_(registryaccess$writable).m_64671_() : dedicatedserverproperties.m_180927_(registryaccess$writable);
--                  }
--
--                  PrimaryLevelData primaryleveldata = new PrimaryLevelData(levelsettings, worldgensettings, Lifecycle.stable());
--                  return Pair.of(primaryleveldata, registryaccess$writable.m_203557_());
--               }
--            }, Util.m_183991_(), Runnable::run).get();
--         } catch (Exception exception) {
--            f_129670_.warn("Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode", (Throwable)exception);
--            packrepository.close();
--            return;
--         }
--
--         worldstem.m_206901_();
--         RegistryAccess.Frozen registryaccess$frozen = worldstem.f_206894_();
--         dedicatedserversettings.m_139777_().m_180927_(registryaccess$frozen);
--         WorldData worlddata = worldstem.f_206895_();
--         if (optionset.has(optionspec4)) {
--            m_195488_(levelstoragesource$levelstorageaccess, DataFixers.m_14512_(), optionset.has(optionspec5), () -> {
--               return true;
--            }, worlddata.m_5961_());
--         }
--
--         levelstoragesource$levelstorageaccess.m_78287_(registryaccess$frozen, worlddata);
+          File file1 = new File(optionset.valueOf(optionspec9));
+          YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY);
+          MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
+          GameProfileRepository gameprofilerepository = yggdrasilauthenticationservice.createProfileRepository();
+          GameProfileCache gameprofilecache = new GameProfileCache(gameprofilerepository, new File(file1, MinecraftServer.f_129742_.getName()));
+          String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_);
++         if (s == null || s.isEmpty() || new File(file1, s).getAbsolutePath().equals(new File(s).getAbsolutePath())) {
++            f_129670_.error("Invalid world directory specified, must not be null, empty or the same directory as your universe! " + s);
++            return;
++         }
+          LevelStorageSource levelstoragesource = LevelStorageSource.m_78242_(file1.toPath());
+          LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_78260_(s);
++         levelstoragesource$levelstorageaccess.readAdditionalLevelSaveData();
+          LevelSummary levelsummary = levelstoragesource$levelstorageaccess.m_78308_();
+          if (levelsummary != null) {
+             if (levelsummary.m_193020_()) {
+@@ -135,6 +_,10 @@
+          }
+ 
+          PackRepository packrepository = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), PackSource.f_10529_));
++         AtomicReference<DataPackConfig> config = new AtomicReference<>();
++         AtomicReference<DynamicOps<Tag>> ops = new AtomicReference<>();
++
++
+ 
+          WorldStem worldstem;
+          try {
+@@ -145,6 +_,8 @@
+             }, (p_206543_, p_206544_) -> {
+                RegistryAccess.Writable registryaccess$writable = RegistryAccess.m_206197_();
+                DynamicOps<Tag> dynamicops = RegistryOps.m_206813_(NbtOps.f_128958_, registryaccess$writable, p_206543_);
++               config.set(p_206544_);
++               ops.set(dynamicops);
+                WorldData worlddata1 = levelstoragesource$levelstorageaccess.m_211747_(dynamicops, p_206544_, registryaccess$writable.m_211816_());
+                if (worlddata1 != null) {
+                   return Pair.of(worlddata1, registryaccess$writable.m_203557_());
+@@ -160,6 +_,8 @@
+                      worldgensettings = optionset.has(optionspec3) ? dedicatedserverproperties.m_180927_(registryaccess$writable).m_64671_() : dedicatedserverproperties.m_180927_(registryaccess$writable);
+                   }
+ 
++                  // Forge: Deserialize the WorldGenSettings to ensure modded dims are loaded on first server load. Vanilla behavior only loads from the server.properties and deserializes only after the 2nd server load.
++                  worldgensettings = WorldGenSettings.f_64600_.encodeStart(dynamicops, worldgensettings).flatMap(nbt -> WorldGenSettings.f_64600_.parse(dynamicops, nbt)).getOrThrow(false, errorMsg -> {});
+                   PrimaryLevelData primaryleveldata = new PrimaryLevelData(levelsettings, worldgensettings, Lifecycle.stable());
+                   return Pair.of(primaryleveldata, registryaccess$writable.m_203557_());
+                }
+@@ -181,22 +_,44 @@
+          }
+ 
+          levelstoragesource$levelstorageaccess.m_78287_(registryaccess$frozen, worlddata);
 -         final DedicatedServer dedicatedserver = MinecraftServer.m_129872_((p_206536_) -> {
 -            DedicatedServer dedicatedserver1 = new DedicatedServer(p_206536_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
 -            dedicatedserver1.m_129981_(optionset.valueOf(optionspec8));
 -            dedicatedserver1.m_129801_(optionset.valueOf(optionspec11));
 -            dedicatedserver1.m_129975_(optionset.has(optionspec2));
 -            dedicatedserver1.m_129948_(optionset.valueOf(optionspec12));
--            boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec14).contains("nogui");
--            if (flag1 && !GraphicsEnvironment.isHeadless()) {
--               dedicatedserver1.m_139667_();
--            }
--
--            return dedicatedserver1;
--         });
--         Thread thread = new Thread("Server Shutdown Thread") {
--            public void run() {
--               dedicatedserver.m_7570_(true);
--            }
--         };
--         thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(f_129670_));
--         Runtime.getRuntime().addShutdownHook(thread);
--      } catch (Exception exception1) {
--         f_129670_.error(LogUtils.FATAL_MARKER, "Failed to start the minecraft server", (Throwable)exception1);
--      }
--
--   }
--
--   private static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
--      f_129670_.info("Forcing world upgrade!");
--      WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_195493_, p_195491_);
--      Component component = null;
--
--      while(!worldupgrader.m_18829_()) {
--         Component component1 = worldupgrader.m_18837_();
--         if (component != component1) {
--            component = component1;
--            f_129670_.info(worldupgrader.m_18837_().getString());
--         }
--
--         int i = worldupgrader.m_18834_();
--         if (i > 0) {
--            int j = worldupgrader.m_18835_() + worldupgrader.m_18836_();
--            f_129670_.info("{}% completed ({} / {} chunks)...", Mth.m_14143_((float)j / (float)i * 100.0F), j, i);
--         }
--
--         if (!p_195492_.getAsBoolean()) {
--            worldupgrader.m_18820_();
--         } else {
-+    private static final Logger f_129670_ = LogUtils.getLogger();
-+
-+    @DontObfuscate
-+    public static void main(String[] p_129699_) {
-+        SharedConstants.m_142977_();
-+        OptionParser optionparser = new OptionParser();
-+        OptionSpec<Void> optionspec = optionparser.accepts("nogui");
-+        OptionSpec<Void> optionspec1 = optionparser.accepts("initSettings", "Initializes 'server.properties' and 'eula.txt', then quits");
-+        OptionSpec<Void> optionspec2 = optionparser.accepts("demo");
-+        OptionSpec<Void> optionspec3 = optionparser.accepts("bonusChest");
-+        OptionSpec<Void> optionspec4 = optionparser.accepts("forceUpgrade");
-+        OptionSpec<Void> optionspec5 = optionparser.accepts("eraseCache");
-+        OptionSpec<Void> optionspec6 = optionparser.accepts("safeMode", "Loads level with vanilla datapack only");
-+        OptionSpec<Void> optionspec7 = optionparser.accepts("help").forHelp();
-+        OptionSpec<String> optionspec8 = optionparser.accepts("singleplayer").withRequiredArg();
-+        OptionSpec<String> optionspec9 = optionparser.accepts("universe").withRequiredArg().defaultsTo(".");
-+        OptionSpec<String> optionspec10 = optionparser.accepts("world").withRequiredArg();
-+        OptionSpec<Integer> optionspec11 = optionparser.accepts("port").withRequiredArg().ofType(Integer.class).defaultsTo(-1);
-+        OptionSpec<String> optionspec12 = optionparser.accepts("serverId").withRequiredArg();
-+        OptionSpec<Void> optionspec13 = optionparser.accepts("jfrProfile");
-+        OptionSpec<String> optionspec14 = optionparser.nonOptions();
-+        optionparser.accepts("allowUpdates").withRequiredArg().ofType(Boolean.class).defaultsTo(Boolean.TRUE); // Forge: allow mod updates to proceed
-+        optionparser.accepts("gameDir").withRequiredArg().ofType(File.class).defaultsTo(new File(".")); //Forge: Consume this argument, we use it in the launcher, and the client side.
-+        final OptionSpec<net.minecraft.core.BlockPos> spawnPosOpt;
-+        boolean gametestEnabled = Boolean.getBoolean("forge.gameTestServer");
-+        if (gametestEnabled) {
-+            spawnPosOpt = optionparser.accepts("spawnPos").withRequiredArg().withValuesConvertedBy(new net.minecraftforge.gametest.BlockPosValueConverter()).defaultsTo(new net.minecraft.core.BlockPos(0, 60, 0));
-+        } else {
-+            spawnPosOpt = null;
-+        }
-+
-+        optionparser.acceptsAll(Arrays.asList("b", "bukkit-settings"), "File for bukkit settings")
-+                .withRequiredArg()
-+                .ofType(File.class)
-+                .defaultsTo(new File("bukkit.yml"))
-+                .describedAs("Yml file");
-+
-+        optionparser.acceptsAll(Arrays.asList("C", "commands-settings"), "File for command settings")
-+                .withRequiredArg()
-+                .ofType(File.class)
-+                .defaultsTo(new File("commands.yml"))
-+                .describedAs("Yml file");
-+
-+        optionparser.acceptsAll(Arrays.asList("P", "plugins"), "Plugin directory to use")
-+                .withRequiredArg()
-+                .ofType(File.class)
-+                .defaultsTo(new File("plugins"))
-+                .describedAs("Plugin directory");
-+
-+        // Spigot Start
-+        optionparser.acceptsAll(Arrays.asList("S", "spigot-settings"), "File for spigot settings")
-+                .withRequiredArg()
-+                .ofType(File.class)
-+                .defaultsTo(new File("spigot.yml"))
-+                .describedAs("Yml file");
-+        // Spigot End
-+
-+        try {
-+            OptionSet optionset = optionparser.parse(p_129699_);
-+            if (optionset.has(optionspec7)) {
-+                optionparser.printHelpOn(System.err);
-+                return;
++         final MinecraftServer dedicatedserver = MinecraftServer.m_129872_((p_129697_) -> {
++            MinecraftServer dedicatedserver1;
++            if (gametestEnabled) {
++               net.minecraftforge.gametest.ForgeGameTestHooks.registerGametests();
++               java.util.Collection<net.minecraft.gametest.framework.GameTestBatch> testBatches = net.minecraft.gametest.framework.GameTestRunner.m_127724_(net.minecraft.gametest.framework.GameTestRegistry.m_127658_());
++               net.minecraft.core.BlockPos spawnPos = optionset.valueOf(spawnPosOpt);
++               dedicatedserver1 = new net.minecraft.gametest.framework.GameTestServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, testBatches, spawnPos);
++            } else {
++               dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(),p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
 +            }
-+            Path path1 = Paths.get("eula.txt");
-+            Eula eula = new Eula(path1);
-+
-+            // Spigot Start
-+            boolean eulaAgreed = Boolean.getBoolean("com.mojang.eula.agree");
-+            if (eulaAgreed) {
-+                System.err.println("You have used the Spigot command line EULA agreement flag.");
-+                System.err.println("By using this setting you are indicating your agreement to Mojang's EULA (https://account.mojang.com/documents/minecraft_eula).");
-+                System.err.println("If you do not agree to the above EULA please stop your server and remove this flag immediately.");
-+            }
-+            // Spigot End
-+            if (!eula.m_135944_() && !eulaAgreed) { // Spigot
-+                f_129670_.info("You need to agree to the EULA in order to run the server. Go to eula.txt for more info.");
-+                return;
-+            }
-+
-+            CrashReport.m_127529_();
-+            if (optionset.has(optionspec13)) {
-+                JvmProfiler.f_185340_.m_183425_(Environment.SERVER);
-+            }
-+
-+            Bootstrap.m_135870_();
-+            Bootstrap.m_135889_();
-+            Util.m_137584_();
-+            if (!optionset.has(optionspec1))
-+                net.minecraftforge.server.loading.ServerModLoader.load(); // Load mods before we load almost anything else anymore. Single spot now. Only loads if they haven't passed the initserver param
-+            Path path = Paths.get("server.properties");
-+            DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path);
-+            dedicatedserversettings.m_139780_();
-+            if (optionset.has(optionspec1)) {
-+                f_129670_.info("Initialized '{}' and '{}'", path.toAbsolutePath(), path1.toAbsolutePath());
-+                return;
-+            }
-+
-+            File file1 = new File(optionset.valueOf(optionspec9));
-+            YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY);
-+            MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
-+            GameProfileRepository gameprofilerepository = yggdrasilauthenticationservice.createProfileRepository();
-+            GameProfileCache gameprofilecache = new GameProfileCache(gameprofilerepository, new File(file1, MinecraftServer.f_129742_.getName()));
-+            String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_);
-+            if (s == null || s.isEmpty() || new File(file1, s).getAbsolutePath().equals(new File(s).getAbsolutePath())) {
-+                f_129670_.error("Invalid world directory specified, must not be null, empty or the same directory as your universe! " + s);
-+                return;
-+            }
-+            LevelStorageSource levelstoragesource = LevelStorageSource.m_78242_(file1.toPath());
-+            LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_78260_(s);
-+            levelstoragesource$levelstorageaccess.readAdditionalLevelSaveData();
-+            LevelSummary levelsummary = levelstoragesource$levelstorageaccess.m_78308_();
-+            if (levelsummary != null) {
-+                if (levelsummary.m_193020_()) {
-+                    f_129670_.info("This world must be opened in an older version (like 1.6.4) to be safely converted");
-+                    return;
-+                }
-+
-+                if (!levelsummary.m_193021_()) {
-+                    f_129670_.info("This world was created by an incompatible version.");
-+                    return;
-+                }
-+            }
-+
-+            boolean flag = optionset.has(optionspec6);
-+            if (flag) {
-+                f_129670_.warn("Safe mode active, only vanilla datapack will be loaded");
-+            }
-+
-+            PackRepository packrepository = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), PackSource.f_10529_));
-+            AtomicReference<DataPackConfig> config = new AtomicReference<>();
-+            AtomicReference<DynamicOps<Tag>> ops = new AtomicReference<>();
-+
-+
-+            WorldStem worldstem;
-             try {
--               Thread.sleep(1000L);
--            } catch (InterruptedException interruptedexception) {
--            }
--         }
--      }
--
--   }
-+                WorldStem.InitConfig worldstem$initconfig = new WorldStem.InitConfig(packrepository, Commands.CommandSelection.DEDICATED, dedicatedserversettings.m_139777_().f_139711_, flag);
-+                worldstem = WorldStem.m_206911_(worldstem$initconfig, () -> {
-+                    DataPackConfig datapackconfig = levelstoragesource$levelstorageaccess.m_78309_();
-+                    return datapackconfig == null ? DataPackConfig.f_45842_ : datapackconfig;
-+                }, (p_206543_, p_206544_) -> {
-+                    RegistryAccess.Writable registryaccess$writable = RegistryAccess.m_206197_();
-+                    DynamicOps<Tag> dynamicops = RegistryOps.m_206813_(NbtOps.f_128958_, registryaccess$writable, p_206543_);
-+                    config.set(p_206544_);
-+                    ops.set(dynamicops);
-+                    WorldData worlddata1 = levelstoragesource$levelstorageaccess.m_211747_(dynamicops, p_206544_, registryaccess$writable.m_211816_());
-+                    if (worlddata1 != null) {
-+                        return Pair.of(worlddata1, registryaccess$writable.m_203557_());
-+                    } else {
-+                        LevelSettings levelsettings;
-+                        WorldGenSettings worldgensettings;
-+                        if (optionset.has(optionspec2)) {
-+                            levelsettings = MinecraftServer.f_129743_;
-+                            worldgensettings = WorldGenSettings.m_64645_(registryaccess$writable);
-+                        } else {
-+                            DedicatedServerProperties dedicatedserverproperties = dedicatedserversettings.m_139777_();
-+                            levelsettings = new LevelSettings(dedicatedserverproperties.f_139741_, dedicatedserverproperties.f_139740_, dedicatedserverproperties.f_139752_, dedicatedserverproperties.f_139739_, false, new GameRules(), p_206544_);
-+                            worldgensettings = optionset.has(optionspec3) ? dedicatedserverproperties.m_180927_(registryaccess$writable).m_64671_() : dedicatedserverproperties.m_180927_(registryaccess$writable);
-+                        }
-+
-+                        // Forge: Deserialize the WorldGenSettings to ensure modded dims are loaded on first server load. Vanilla behavior only loads from the server.properties and deserializes only after the 2nd server load.
-+                        worldgensettings = WorldGenSettings.f_64600_.encodeStart(dynamicops, worldgensettings).flatMap(nbt -> WorldGenSettings.f_64600_.parse(dynamicops, nbt)).getOrThrow(false, errorMsg -> {});
-+                        PrimaryLevelData primaryleveldata = new PrimaryLevelData(levelsettings, worldgensettings, Lifecycle.stable());
-+                        return Pair.of(primaryleveldata, registryaccess$writable.m_203557_());
-+                    }
-+                }, Util.m_183991_(), Runnable::run).get();
-+            } catch (Exception exception) {
-+                f_129670_.warn("Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode", (Throwable) exception);
-+                packrepository.close();
-+                return;
-+            }
-+
-+            worldstem.m_206901_();
-+            RegistryAccess.Frozen registryaccess$frozen = worldstem.f_206894_();
-+            dedicatedserversettings.m_139777_().m_180927_(registryaccess$frozen);
-+            WorldData worlddata = worldstem.f_206895_();
-+            if (optionset.has(optionspec4)) {
-+                m_195488_(levelstoragesource$levelstorageaccess, DataFixers.m_14512_(), optionset.has(optionspec5), () -> {
-+                    return true;
-+                }, worlddata.m_5961_());
-+            }
-+
-+            levelstoragesource$levelstorageaccess.m_78287_(registryaccess$frozen, worlddata);
-+            final MinecraftServer dedicatedserver = MinecraftServer.m_129872_((p_129697_) -> {
-+                MinecraftServer dedicatedserver1;
-+                if (gametestEnabled) {
-+                    net.minecraftforge.gametest.ForgeGameTestHooks.registerGametests();
-+                    java.util.Collection<net.minecraft.gametest.framework.GameTestBatch> testBatches = net.minecraft.gametest.framework.GameTestRunner.m_127724_(net.minecraft.gametest.framework.GameTestRegistry.m_127658_());
-+                    net.minecraft.core.BlockPos spawnPos = optionset.valueOf(spawnPosOpt);
-+                    dedicatedserver1 = new net.minecraft.gametest.framework.GameTestServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, testBatches, spawnPos);
-+                } else {
-+                    dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(), p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
-+                }
 +            /*
 +            dedicatedserver1.setSingleplayerName(optionset.valueOf(optionspec8));
 +            dedicatedserver1.setPort(optionset.valueOf(optionspec11));
 +            dedicatedserver1.setDemo(optionset.has(optionspec2));
 +            dedicatedserver1.setId(optionset.valueOf(optionspec12));
 +            */
-+                boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec14).contains("nogui");
-+                dedicatedserver1.options = optionset;
-+                if (dedicatedserver1 instanceof DedicatedServer dedicatedServer && flag1 && !GraphicsEnvironment.isHeadless()) {
-+                    // dedicatedserver1.showGui();
-+                }
-+
-+                if (optionset.has("port")) {
-+                    int port = (Integer) optionset.valueOf("port");
-+                    if (port > 0) {
-+                        dedicatedserver1.m_129801_(port);
-+                    }
-+                }
-+
-+
-+                return dedicatedserver1;
-+            });
-+            Thread thread = new Thread("Server Shutdown Thread") {
-+                public void run() {
-+                    // FORGE: Halting as GameTestServer will cause issues as it always calls System#exit on both crash and normal exit, so skip it
-+                    if (!(dedicatedserver instanceof net.minecraft.gametest.framework.GameTestServer))
-+                        dedicatedserver.m_7570_(true);
-+                    org.apache.logging.log4j.LogManager.shutdown(); // we're manually managing the logging shutdown on the server. Make sure we do it here at the end.
-+                }
-+            };
-+            thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(f_129670_));
-+            Runtime.getRuntime().addShutdownHook(thread);
-+        } catch (Exception exception1) {
-+            f_129670_.error(LogUtils.FATAL_MARKER, "Failed to start the minecraft server", (Throwable) exception1);
-+        }
-+
-+    }
-+
-+    public static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
-+        Main.f_129670_.info("Forcing world upgrade! {}", p_195489_.m_78277_()); // CraftBukkit
-+        WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_195493_, p_195491_);
-+        Component component = null;
-+
-+        while (!worldupgrader.m_18829_()) {
-+            Component component1 = worldupgrader.m_18837_();
-+            if (component != component1) {
-+                component = component1;
-+                f_129670_.info(worldupgrader.m_18837_().getString());
+             boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec14).contains("nogui");
+-            if (flag1 && !GraphicsEnvironment.isHeadless()) {
+-               dedicatedserver1.m_139667_();
+-            }
++			dedicatedserver1.options = optionset;
++            if (dedicatedserver1 instanceof DedicatedServer dedicatedServer && flag1 && !GraphicsEnvironment.isHeadless()) {
++               // dedicatedserver1.showGui();
 +            }
 +
-+            int i = worldupgrader.m_18834_();
-+            if (i > 0) {
-+                int j = worldupgrader.m_18835_() + worldupgrader.m_18836_();
-+                f_129670_.info("{}% completed ({} / {} chunks)...", Mth.m_14143_((float) j / (float) i * 100.0F), j, i);
++            if (optionset.has("port")) {
++               int port = (Integer) optionset.valueOf("port");
++               if (port > 0) {
++                  dedicatedserver1.m_129801_(port);
++               }
 +            }
 +
-+            if (!p_195492_.getAsBoolean()) {
-+                worldupgrader.m_18820_();
-+            } else {
-+                try {
-+                    Thread.sleep(1000L);
-+                } catch (InterruptedException interruptedexception) {
-+                }
-+            }
-+        }
-+
-+    }
- }
+ 
+             return dedicatedserver1;
+          });
+          Thread thread = new Thread("Server Shutdown Thread") {
+             public void run() {
++               // FORGE: Halting as GameTestServer will cause issues as it always calls System#exit on both crash and normal exit, so skip it
++               if (!(dedicatedserver instanceof net.minecraft.gametest.framework.GameTestServer))
+                dedicatedserver.m_7570_(true);
++               org.apache.logging.log4j.LogManager.shutdown(); // we're manually managing the logging shutdown on the server. Make sure we do it here at the end.
+             }
+          };
+          thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(f_129670_));
+@@ -207,8 +_,8 @@
+ 
+    }
+ 
+-   private static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
+-      f_129670_.info("Forcing world upgrade!");
++   public static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
++      Main.f_129670_.info("Forcing world upgrade! {}", p_195489_.m_78277_()); // CraftBukkit
+       WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_195493_, p_195491_);
+       Component component = null;
+ 

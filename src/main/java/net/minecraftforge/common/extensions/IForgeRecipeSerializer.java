@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -13,13 +13,13 @@ import net.minecraftforge.common.crafting.conditions.ICondition;
 
 public interface IForgeRecipeSerializer<T extends Recipe<?>>
 {
-    private RecipeSerializer<T> self()
-    {
-        return (RecipeSerializer<T>) this;
-    }
+	private RecipeSerializer<T> self()
+	{
+		return (RecipeSerializer<T>) this;
+	}
 
-    default T fromJson(ResourceLocation recipeLoc, JsonObject recipeJson, ICondition.IContext context)
-    {
-        return self().fromJson(recipeLoc, recipeJson);
-    }
+	default T fromJson(ResourceLocation recipeLoc, JsonObject recipeJson, ICondition.IContext context)
+	{
+		return self().fromJson(recipeLoc, recipeJson);
+	}
 }

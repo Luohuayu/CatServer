@@ -63,6 +63,7 @@ import org.bukkit.Effect;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Raid;
 import org.bukkit.Sound;
@@ -161,7 +162,8 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     @Override
     public Location getSpawnLocation() {
         BlockPos spawn = world.getSharedSpawnPos();
-        return new Location(this, spawn.getX(), spawn.getY(), spawn.getZ());
+        float yaw = world.getSharedSpawnAngle();
+        return new Location(this, spawn.getX(), spawn.getY(), spawn.getZ(), yaw, 0);
     }
 
     @Override
@@ -573,6 +575,11 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     @Override
     public UUID getUID() {
         return world.uuid;
+    }
+
+    @Override
+    public NamespacedKey getKey() {
+        return CraftNamespacedKey.fromMinecraft(world.dimension().location());
     }
 
     @Override
@@ -1779,7 +1786,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         if (data != null && !particle.getDataType().isInstance(data)) {
             throw new IllegalArgumentException("data should be " + particle.getDataType() + " got " + data.getClass());
         }
-        // FoxServer  TODO
+        // FoxServer TODO
         getHandle().sendParticles(
                 CraftParticle.toNMS(particle, data), // Particle
                 x, y, z, // Position
@@ -1797,7 +1804,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
     }
 
-    // Spigot start
     @Override
     public int getViewDistance() {
         return world.spigotConfig.viewDistance;
@@ -1807,7 +1813,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     public int getSimulationDistance() {
         return world.spigotConfig.simulationDistance;
     }
-    // Spigot end
 
     // Spigot start
     private final Spigot spigot = new Spigot() {
@@ -1874,7 +1879,8 @@ public class CraftWorld extends CraftRegionAccessor implements World {
             this.persistentDataContainer.putAll((CompoundTag) c);
         }
     }
-    
+
+
     @Override
     public boolean generateTree(@NotNull Location location, @NotNull Random random, @NotNull TreeType type, @Nullable Predicate<BlockState> statePredicate) {
         return false;

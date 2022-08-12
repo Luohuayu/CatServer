@@ -2,8 +2,19 @@ package org.bukkit.entity;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;
-
-import org.bukkit.*;
+import org.bukkit.DyeColor;
+import org.bukkit.Effect;
+import org.bukkit.GameMode;
+import org.bukkit.Instrument;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Note;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
+import org.bukkit.WeatherType;
+import org.bukkit.WorldBorder;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.block.Block;
@@ -1159,7 +1170,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @throws UnsupportedOperationException if setting the border to that of
      * a world in which the player is not currently present.
      *
-     * @see Server#createWorldBorder()
+     * @see @link Server#createWorldBorder()
      */
     public void setWorldBorder(@Nullable WorldBorder border);
 

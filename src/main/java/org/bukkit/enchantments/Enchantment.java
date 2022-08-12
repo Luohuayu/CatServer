@@ -389,9 +389,4 @@ public abstract class Enchantment implements Keyed {
     public static Enchantment[] values() {
         return byName.values().toArray(new Enchantment[byName.size()]);
     }
-
-    // FoxServer start - Only for inject, don't use it!
-    public static Map<String, Enchantment> _getByName() { return byName; };
-    public static Map<NamespacedKey, Enchantment> _getByKey() { return byKey; };
-    // FoxServer end
 }

@@ -2,39 +2,12 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.LinkedHashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
+import com.google.common.collect.*;
+import net.minecraft.nbt.*;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.item.BlockItem;
-import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.EnumUtils;
+import org.apache.commons.lang3.Validate;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
@@ -64,6 +37,21 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.Repairable;
 import org.bukkit.inventory.meta.tags.CustomItemTagContainer;
 import org.bukkit.persistence.PersistentDataContainer;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static org.spigotmc.ValidateUtils.limit;
 
@@ -102,7 +90,6 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
                 NBT,
                 ;
             }
-
             To value();
         }
 
@@ -319,18 +306,18 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
             CompoundTag display = tag.getCompound(DISPLAY.NBT);
 
             if (display.contains(NAME.NBT)) {
-                displayName = limit(display.getString(NAME.NBT), 8192); // Spigot
+                displayName = limit( display.getString(NAME.NBT), 8192 ); // Spigot
             }
 
             if (display.contains(LOCNAME.NBT)) {
-                locName = limit(display.getString(LOCNAME.NBT), 8192); // Spigot
+                locName = limit( display.getString(LOCNAME.NBT), 8192 ); // Spigot
             }
 
             if (display.contains(LORE.NBT)) {
                 ListTag list = display.getList(LORE.NBT, CraftMagicNumbers.NBT.TAG_STRING);
                 lore = new ArrayList<String>(list.size());
                 for (int index = 0; index < list.size(); index++) {
-                    String line = limit(list.getString(index), 8192); // Spigot
+                    String line = limit( list.getString(index), 8192 ); // Spigot
                     lore.add(line);
                 }
             }
@@ -813,8 +800,9 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
     public boolean removeEnchant(Enchantment ench) {
         Validate.notNull(ench, "Enchantment cannot be null");
         // Spigot start
-        boolean b = hasEnchants() && enchantments.remove(ench) != null;
-        if (enchantments != null && enchantments.isEmpty()) {
+        boolean b = hasEnchants() && enchantments.remove( ench ) != null;
+        if ( enchantments != null && enchantments.isEmpty() )
+        {
             this.enchantments = null;
         }
         return b;
@@ -905,7 +893,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
 
     @Override
     public boolean hasBlockData() {
-        return this.blockData != null;
+       return this.blockData != null;
     }
 
     @Override

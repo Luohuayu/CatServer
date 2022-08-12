@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -7,7 +7,6 @@ package net.minecraftforge.event.entity.living;
 
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.common.extensions.IForgeItem;
 import net.minecraftforge.eventbus.api.Cancelable;
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Minecraft Forge - Forge Development LLC
+ * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
@@ -20,8 +20,6 @@ import java.util.jar.Manifest;
 
 public class ServerMain {
     public static void main(String[] args) {
-        System.out.println("Loading libraries, please wait...");
-
         try {
             Class.forName("cpw.mods.modlauncher.Launcher", false, ClassLoader.getSystemClassLoader());
             Class.forName("net.minecraftforge.forgespi.Environment", false, ClassLoader.getSystemClassLoader());
