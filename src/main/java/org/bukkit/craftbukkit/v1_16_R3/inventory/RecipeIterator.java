@@ -26,10 +26,14 @@ public class RecipeIterator implements Iterator<Recipe> {
     public Recipe next() {
         if (current == null || !current.hasNext()) {
             current = recipes.next().getValue().values().iterator();
+            return next();
         }
-
         IRecipe<?> recipe = current.next();
-        return recipe == null ? null : recipe.toBukkitRecipe();
+        try {
+            return recipe.toBukkitRecipe();
+        } catch (Throwable e) {
+            throw new RuntimeException("Error converting recipe " + recipe.getId(), e);
+        }
     }
 
     @Override
