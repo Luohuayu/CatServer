@@ -185,8 +185,6 @@ public class ForgeMod
 
     public void preInit(FMLCommonSetupEvent evt)
     {
-        VersionChecker.startVersionCheck();
-
         registerArgumentTypes();
         VanillaPacketSplitter.register();
     }
