@@ -818,7 +818,7 @@ public class CraftEventFactory {
             } else if (source == DamageSource.IN_FIRE) {
                 cause = DamageCause.FIRE;
             } else {
-                throw new IllegalStateException(String.format("Unhandled damage of %s by %s from %s", entity, damager, source.msgId));
+                cause = DamageCause.CUSTOM; // CauldronX - handle unknown cause
             }
             EntityDamageEvent event = new EntityDamageByBlockEvent(damager, entity.getBukkitEntity(), cause, modifiers, modifierFunctions);
             event.setCancelled(cancelled);
@@ -846,7 +846,7 @@ public class CraftEventFactory {
             } else if (source == DamageSource.MAGIC) {
                 cause = DamageCause.MAGIC;
             } else {
-                throw new IllegalStateException(String.format("Unhandled damage of %s by %s from %s", entity, damager.getHandle(), source.msgId));
+                cause = DamageCause.CUSTOM; // CauldronX - handle unknown cause
             }
             EntityDamageEvent event = new EntityDamageByEntityEvent(damager, entity.getBukkitEntity(), cause, modifiers, modifierFunctions);
             event.setCancelled(cancelled);
@@ -894,9 +894,9 @@ public class CraftEventFactory {
 
         if (cause != null) {
             return callEntityDamageEvent(null, entity, cause, modifiers, modifierFunctions, cancelled);
+        } else {
+            return new EntityDamageEvent(entity.getBukkitEntity(), DamageCause.CUSTOM, modifiers, modifierFunctions); // CauldronX - handle unknown cause && do not throw exception
         }
-
-        throw new IllegalStateException(String.format("Unhandled damage of %s from %s", entity, source.msgId));
     }
 
     private static EntityDamageEvent callEntityDamageEvent(Entity damager, Entity damagee, DamageCause cause, Map<DamageModifier, Double> modifiers, Map<DamageModifier, Function<? super Double, Double>> modifierFunctions) {
