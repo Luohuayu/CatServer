@@ -817,6 +817,20 @@ public class CraftEventFactory {
                 cause = DamageCause.MAGIC;
             } else if (source == DamageSource.IN_FIRE) {
                 cause = DamageCause.FIRE;
+            } else if (source == DamageSource.ON_FIRE) {
+                cause = DamageCause.FIRE_TICK;
+            } else if (source == DamageSource.LAVA) {
+                cause = DamageCause.LAVA;
+            } else if (damager instanceof LightningStrike) {
+                cause = DamageCause.LIGHTNING;
+            } else if (source == MELTING) {
+                cause = DamageCause.MELTING;
+            } else if (source == POISON) {
+                cause = DamageCause.POISON;
+            } else if (source == DamageSource.LIGHTNING_BOLT) {
+                cause = DamageCause.LIGHTNING;
+            } else if (source == DamageSource.GENERIC) {
+                cause = DamageCause.CUSTOM;
             } else {
                 cause = DamageCause.CUSTOM; // CauldronX - handle unknown cause
             }
@@ -845,6 +859,18 @@ public class CraftEventFactory {
                 cause = DamageCause.DRAGON_BREATH;
             } else if (source == DamageSource.MAGIC) {
                 cause = DamageCause.MAGIC;
+            } else if (source == DamageSource.CACTUS) {
+                cause = DamageCause.CONTACT;
+            } else if (source == DamageSource.IN_FIRE) {
+                cause = DamageCause.FIRE;
+            } else if (source == DamageSource.ON_FIRE) {
+                cause = DamageCause.FIRE_TICK;
+            } else if (source == DamageSource.LAVA) {
+                cause = DamageCause.LAVA;
+            } else if (source == MELTING) {
+                cause = DamageCause.MELTING;
+            } else if (source == POISON) {
+                cause = DamageCause.POISON;
             } else {
                 cause = DamageCause.CUSTOM; // CauldronX - handle unknown cause
             }
