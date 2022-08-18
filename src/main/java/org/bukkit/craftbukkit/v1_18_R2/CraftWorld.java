@@ -47,6 +47,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ImposterProtoChunk;
@@ -1862,6 +1863,12 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     public DragonBattle getEnderDragonBattle() {
         return (getHandle().dragonFight() == null) ? null : new CraftDragonBattle(getHandle().dragonFight());
     }
+
+    // CatServer start
+    public BlockEntity getTileEntityAt(int x, int y, int z) {
+        return world.getBlockEntity(new BlockPos(x, y, z));
+    }
+    // CatServer end
 
     @Override
     public PersistentDataContainer getPersistentDataContainer() {

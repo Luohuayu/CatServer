@@ -28,7 +28,8 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
     static boolean SUPPORTS_LAZY_CAPABILITIES = true;
 
     private final @Nonnull Class<B> baseClass;
-    private @Nullable CapabilityDispatcher capabilities;
+    @Nullable
+    public CapabilityDispatcher capabilities;
     private boolean valid = true;
 
     private boolean                       isLazy             = false;

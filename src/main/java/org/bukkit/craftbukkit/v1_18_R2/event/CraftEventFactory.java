@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.event;
 
 import catserver.server.CatServer;
+import catserver.server.inventory.CatInventoryUtils;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Lists;
@@ -1567,16 +1568,7 @@ public class CraftEventFactory {
         CraftLootTable craftLootTable = new CraftLootTable(key, lootTable);
         List<org.bukkit.inventory.ItemStack> bukkitLoot = loot.stream().map(CraftItemStack::asCraftMirror).collect(Collectors.toCollection(ArrayList::new));
 
-        InventoryHolder owner;
-
-        try {
-            owner = inventory.getOwner();
-        } catch (AbstractMethodError error) {
-            CatServer.LOGGER.error("An error occurred while handling Mod inventory: " + error.getMessage());
-            owner = null;
-        }
-
-        LootGenerateEvent event = new LootGenerateEvent(world, (entity != null ? entity.getBukkitEntity() : null), owner, craftLootTable, CraftLootTable.convertContext(lootInfo), bukkitLoot, plugin);
+        LootGenerateEvent event = new LootGenerateEvent(world, (entity != null ? entity.getBukkitEntity() : null), CatInventoryUtils.getOwner(inventory), craftLootTable, CraftLootTable.convertContext(lootInfo), bukkitLoot, plugin); // CatServer
         Bukkit.getPluginManager().callEvent(event);
         return event;
     }

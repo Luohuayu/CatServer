@@ -43,7 +43,7 @@ public class CraftBlockEntityState<T extends BlockEntity> extends CraftBlockStat
     }
 
     // gets the wrapped TileEntity
-    protected T getTileEntity() {
+    public T getTileEntity() {
         return tileEntity;
     }
 

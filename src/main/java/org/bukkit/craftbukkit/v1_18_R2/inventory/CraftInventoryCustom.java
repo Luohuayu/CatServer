@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +30,12 @@ public class CraftInventoryCustom extends CraftInventory {
     public CraftInventoryCustom(InventoryHolder owner, int size, String title) {
         super(new MinecraftInventory(owner, size, title));
     }
+
+    // CatServer start - add CatCustomInventory
+    public CraftInventoryCustom(InventoryHolder owner, NonNullList<ItemStack> items) {
+        super(new MinecraftInventory(owner, items));
+    }
+    // CatServer end
 
     static class MinecraftInventory implements Container {
         private final NonNullList<ItemStack> items;
@@ -60,6 +67,16 @@ public class CraftInventoryCustom extends CraftInventory {
             this.owner = owner;
             this.type = InventoryType.CHEST;
         }
+
+        // CatServer start - add CatCustomInventory
+        public MinecraftInventory(InventoryHolder owner, NonNullList<ItemStack> items) {
+            this.items = items;
+            this.title = "Chest";
+            this.viewers = new ArrayList<>();
+            this.owner = owner;
+            this.type = InventoryType.CHEST;
+        }
+        // CatServer end
 
         @Override
         public int getContainerSize() {

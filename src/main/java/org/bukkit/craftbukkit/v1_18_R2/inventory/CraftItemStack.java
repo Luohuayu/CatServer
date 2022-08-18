@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
+import catserver.server.inventory.CatForgeItemCap;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import static org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.*;
 import com.google.common.collect.ImmutableMap;
@@ -62,6 +63,7 @@ public final class CraftItemStack extends ItemStack {
         if (hasItemMeta(original)) {
             stack.setItemMeta(getItemMeta(original));
         }
+        CatForgeItemCap.setItemCap(original, stack);
         return stack;
     }
 
@@ -92,6 +94,7 @@ public final class CraftItemStack extends ItemStack {
      */
     private CraftItemStack(net.minecraft.world.item.ItemStack item) {
         this.handle = item;
+        CatForgeItemCap.setItemCap(item, this);
     }
 
     private CraftItemStack(ItemStack item) {

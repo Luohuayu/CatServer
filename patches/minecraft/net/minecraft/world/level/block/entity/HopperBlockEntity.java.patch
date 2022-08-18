@@ -1,10 +1,12 @@
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -5,21 +_,22 @@
+@@ -5,21 +_,24 @@
  import java.util.stream.Collectors;
  import java.util.stream.IntStream;
  import javax.annotation.Nullable;
 +
++import catserver.server.inventory.CatCustomInventory;
++import catserver.server.inventory.CatInventoryUtils;
 +import catserver.server.utils.NMSUtil;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
@@ -27,7 +29,7 @@
  import net.minecraft.world.inventory.AbstractContainerMenu;
  import net.minecraft.world.inventory.HopperMenu;
  import net.minecraft.world.item.ItemStack;
-@@ -31,6 +_,13 @@
+@@ -31,6 +_,14 @@
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
@@ -38,6 +40,7 @@
 +import org.bukkit.entity.HumanEntity;
 +import org.bukkit.event.inventory.InventoryMoveItemEvent;
 +import org.bukkit.event.inventory.InventoryPickupItemEvent;
++import org.bukkit.inventory.InventoryHolder;
  
  public class HopperBlockEntity extends RandomizableContainerBlockEntity implements Hopper {
     public static final int f_155547_ = 8;
@@ -78,7 +81,7 @@
     public HopperBlockEntity(BlockPos p_155550_, BlockState p_155551_) {
        super(BlockEntityType.f_58933_, p_155550_, p_155551_);
     }
-@@ -89,9 +_,14 @@
+@@ -89,11 +_,15 @@
        p_155577_.f_59303_ = p_155574_.m_46467_();
        if (!p_155577_.m_59407_()) {
           p_155577_.m_59395_(0);
@@ -92,26 +95,33 @@
 +         }
 +         // Spigot end
        }
- 
+-
     }
-@@ -103,7 +_,7 @@
+ 
+    private static boolean m_155578_(Level p_155579_, BlockPos p_155580_, BlockState p_155581_, HopperBlockEntity p_155582_, BooleanSupplier p_155583_) {
+@@ -103,20 +_,17 @@
           if (!p_155582_.m_59407_() && p_155581_.m_61143_(HopperBlock.f_54022_)) {
              boolean flag = false;
              if (!p_155582_.m_7983_()) {
 -               flag = m_155562_(p_155579_, p_155580_, p_155581_, p_155582_);
 +               flag = ejectItems(p_155579_, p_155580_, p_155581_, p_155582_);
              }
- 
+-
              if (!p_155582_.m_59404_()) {
-@@ -111,7 +_,7 @@
+                flag |= p_155583_.getAsBoolean();
              }
- 
+-
              if (flag) {
 -               p_155582_.m_59395_(8);
 +               p_155582_.m_59395_(p_155579_.spigotConfig.hopperTransfer); // Spigot
                 m_155232_(p_155579_, p_155580_, p_155581_);
                 return true;
              }
+          }
+-
+          return false;
+       }
+    }
 @@ -131,7 +_,8 @@
        return true;
     }
@@ -122,7 +132,7 @@
        Container container = m_155592_(p_155563_, p_155564_, p_155565_);
        if (container == null) {
           return false;
-@@ -140,15 +_,38 @@
+@@ -140,15 +_,41 @@
           if (m_59385_(container, direction)) {
              return false;
           } else {
@@ -141,10 +151,13 @@
 +                  if (container instanceof CompoundContainer) {
 +                     destinationInventory = new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryDoubleChest((CompoundContainer) container);
 +                  } else {
-+                     destinationInventory = container.getOwner().getInventory();
++                  // CatServer start
++                     destinationInventory = CatInventoryUtils.getBukkitInventory(container); // CatServer
 +                  }
-+
-+                  InventoryMoveItemEvent event = new InventoryMoveItemEvent(container.getOwner().getInventory(), oitemstack.clone(), destinationInventory, true);
++                  InventoryHolder owner = CatInventoryUtils.getOwner((BlockEntity) p_155566_); // CauldronX TODO
++                  org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new CatCustomInventory(p_155566_).getInventory()); // CauldronX TODO
++                  InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopperOwner, oitemstack.clone(), destinationInventory, true);
++                  // CatServer end
 +                  p_155563_.getCraftServer().getPluginManager().callEvent(event);
 +                  if (event.isCancelled()) {
 +                     p_155566_.m_6836_(i, itemstack);
@@ -172,7 +185,7 @@
        Container container = m_155596_(p_155553_, p_155554_);
        if (container != null) {
           Direction direction = Direction.DOWN;
-@@ -194,15 +_,37 @@
+@@ -194,15 +_,41 @@
     }
  
     private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
@@ -190,9 +203,13 @@
 +         if (p_59356_ instanceof CompoundContainer) {
 +            sourceInventory = new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryDoubleChest((CompoundContainer) p_59356_);
 +         } else {
-+            sourceInventory = p_59355_.getOwner().getInventory();
++         // CatServer start
++            sourceInventory = CatInventoryUtils.getOwner(p_59356_).getInventory();
 +         }
++         InventoryHolder owner = CatInventoryUtils.getOwner(p_59355_);
++         org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new CatCustomInventory(p_59355_).getInventory());
 +         InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, oitemstack.clone(), p_59355_.getOwner().getInventory(), false);
++         // CatServer end
 +
 +         Bukkit.getServer().getPluginManager().callEvent(event);
 +         if (event.isCancelled()) {
@@ -211,12 +228,14 @@
           p_59356_.m_6836_(p_59357_, itemstack1);
        }
  
-@@ -211,6 +_,13 @@
+@@ -211,6 +_,15 @@
  
     public static boolean m_59331_(Container p_59332_, ItemEntity p_59333_) {
        boolean flag = false;
 +      // CraftBukkit start
-+      InventoryPickupItemEvent event = new InventoryPickupItemEvent(p_59332_.getOwner().getInventory(), (org.bukkit.entity.Item) p_59333_.getBukkitEntity());
++      InventoryHolder owner = CatInventoryUtils.getOwner(p_59332_);
++      org.bukkit.inventory.Inventory sourceInventory = owner != null ? owner.getInventory() : new CatCustomInventory(p_59332_).getInventory();
++      InventoryPickupItemEvent event = new InventoryPickupItemEvent(sourceInventory, (org.bukkit.entity.Item) p_59333_.getBukkitEntity());
 +      p_59333_.f_19853_.getCraftServer().getPluginManager().callEvent(event);
 +      if (event.isCancelled()) {
 +         return false;

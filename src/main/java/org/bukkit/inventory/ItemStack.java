@@ -1,5 +1,6 @@
 package org.bukkit.inventory;
 
+import catserver.server.inventory.CatForgeItemCap;
 import com.google.common.collect.ImmutableMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,6 +28,7 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
     private int amount = 0;
     private MaterialData data = null;
     private ItemMeta meta;
+    private CatForgeItemCap forgeItemCap;
 
     @Utility
     protected ItemStack() {}
@@ -304,6 +306,10 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
                 itemStack.data = this.data.clone();
             }
 
+            if (this.forgeItemCap != null) {
+                itemStack.forgeItemCap = this.forgeItemCap.clone();
+            }
+
             return itemStack;
         } catch (CloneNotSupportedException e) {
             throw new Error(e);
@@ -319,6 +325,7 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
         hash = hash * 31 + getAmount();
         hash = hash * 31 + (getDurability() & 0xffff);
         hash = hash * 31 + (hasItemMeta() ? (meta == null ? getItemMeta().hashCode() : meta.hashCode()) : 0);
+        hash = hash * 31 + (hasForgeItemCap() ? forgeItemCap.hashCode() : 0);
 
         return hash;
     }
@@ -466,6 +473,10 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
             result.put("meta", meta);
         }
 
+        if (hasForgeItemCap()) {
+            result.put("forgeCapNBT", forgeItemCap.serializeNBT());
+        }
+
         return result;
     }
 
@@ -536,6 +547,10 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
             }
         }
 
+        if (args.containsKey("forgeCapNBT")) {
+            result.setForgeItemCap(CatForgeItemCap.deserializeNBT((String) args.get("forgeCapNBT")));
+        }
+
         return result;
     }
 
@@ -595,4 +610,18 @@ public class ItemStack implements Cloneable, ConfigurationSerializable {
 
         return true;
     }
+
+    // CatServer start
+    public boolean hasForgeItemCap() {
+        return forgeItemCap != null;
+    }
+
+    public void setForgeItemCap(CatForgeItemCap forgeItemCap) {
+        this.forgeItemCap = forgeItemCap;
+    }
+
+    public CatForgeItemCap getForgeItemCap() {
+        return this.forgeItemCap;
+    }
+    // CatServer end
 }
