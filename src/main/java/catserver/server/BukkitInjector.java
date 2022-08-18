@@ -2,6 +2,10 @@ package catserver.server;
 
 import catserver.server.entity.CraftCustomEntity;
 import catserver.server.utils.EnumHelper;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableMap;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
@@ -10,10 +14,12 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BannerPattern;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.banner.PatternType;
 import org.bukkit.craftbukkit.v1_18_R2.enchantments.CraftEnchantment;
 import org.bukkit.craftbukkit.v1_18_R2.potion.CraftPotionEffectType;
@@ -29,6 +35,12 @@ public class BukkitInjector {
 
     public static boolean initializedBukkit = false;
     public static Map<net.minecraft.world.entity.EntityType<?>, String> entityTypeMap = new HashMap<>();
+    public static BiMap<ResourceKey<LevelStem>, World.Environment> environment =
+            HashBiMap.create(ImmutableMap.<ResourceKey<LevelStem>, World.Environment>builder()
+                    .put(LevelStem.OVERWORLD, World.Environment.NORMAL)
+                    .put(LevelStem.NETHER, World.Environment.NETHER)
+                    .put(LevelStem.END, World.Environment.THE_END)
+                    .build());
 
     public static void injectEnchantments() {
         for (Map.Entry<ResourceKey<Enchantment>, Enchantment> entry : ForgeRegistries.ENCHANTMENTS.getEntries()) {
@@ -119,6 +131,22 @@ public class BukkitInjector {
                 ID_MAP.put((short) typeId, bukkitType);
                 BukkitInjector.entityTypeMap.put(entry.getValue(), entityType);
                 CatServer.LOGGER.info(String.format("Registered forge EntityType: %s", entry.getValue().getRegistryName().toString()));
+            }
+        }
+    }
+
+    public static void injectEnvironment(Registry<LevelStem> registry) {
+        int i = World.Environment.values().length;
+        for (Map.Entry<ResourceKey<LevelStem>, LevelStem> entry : registry.entrySet()) {
+            ResourceKey<LevelStem> key = entry.getKey();
+            World.Environment bukkitEnv = environment.get(key);
+            if (bukkitEnv == null) {
+                String name = normalizeName(key.location().toString());
+                int id = i - 1;
+                bukkitEnv = EnumHelper.addEnum(World.Environment.class, name, new Class[] {Integer.TYPE}, new Object[]{id});
+                environment.put(key, bukkitEnv);
+                CatServer.LOGGER.info(String.format("Registered forge Environment: %s", name));
+                i++;
             }
         }
     }
