@@ -28,6 +28,7 @@ public class MappingLoader {
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/joptsimple", "joptsimple");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/apache", "org/apache");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/objectweb/asm", "org/objectweb/asm");
+            globalJarMapping.classes.put("org.apache.commons.lang.WordUtils", "org.apache.commons.lang3.text.WordUtils"); // commons-lang TODO
 
             loadNmsMappings(globalJarMapping, CatServer.NATIVE_VERSION);
 
