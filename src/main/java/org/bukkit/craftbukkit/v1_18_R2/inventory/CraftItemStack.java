@@ -39,7 +39,7 @@ public final class CraftItemStack extends ItemStack {
             return net.minecraft.world.item.ItemStack.EMPTY;
         }
 
-        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, original.getAmount());
+        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, original.getAmount(), original.hasForgeItemCap() ? original.getForgeItemCap().getItemCap() : null);
         if (original.hasItemMeta()) {
             setItemMeta(stack, original.getItemMeta());
         }
