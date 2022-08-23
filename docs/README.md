@@ -16,7 +16,7 @@ You can contribute to the project by join in development or testing.
 #### 核心版本 (Core Version)
 - CraftBukkit ([**10ba1beb642**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/commits/10ba1beb64286206f4edc8d4b44c6472639d044e))
 - Bukkit ([**6a039faf748**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/bukkit/commits/6a039faf7488beba29527a112404cbab84d0cbd3))
-- MinecraftForge ([**1.18.2-40.1.63-6443abc**](https://github.com/MinecraftForge/MinecraftForge/commit/6443adcb6f7dcbfc108135ed9891a12eaa56c9c2))
+- MinecraftForge ([**1.18.2-40.1.73-84d354a**](https://github.com/MinecraftForge/MinecraftForge/commit/84d354a7ddd34dcd6196b8557ff12e174cd09d4a))
 
 #### 开发进度 (Development progress)
 - CraftBukkit Patches (Almost done)
@@ -25,10 +25,10 @@ You can contribute to the project by join in development or testing.
 - FoxLaunch (Done)
 - BukkitInjector (Almost done)
 - Plugin Remapper (Done)
-- Plugin ASM Patcher (Not impl)
+- Plugin ASM Patcher (Done)
 - MOD ASM Patcher (Not impl)
 - CatServer API (Not impl)
-- CatServer Eventhandler (Not impl)
+- CatServer Eventhandler (In progress)
 - CatServer Hooks (Not impl)
 
 ### 如何构建和开发? (How to build and develop?)

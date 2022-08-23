@@ -25,6 +25,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.locale.Language;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.*;
@@ -224,9 +225,25 @@ public class ForgeHooksClient
         }
     }
 
+    @Deprecated(forRemoval = true, since = "1.18.2")
     public static void dispatchRenderLast(LevelRenderer context, PoseStack poseStack, float partialTick, Matrix4f projectionMatrix, long finishTimeNano)
     {
         MinecraftForge.EVENT_BUS.post(new RenderLevelLastEvent(context, poseStack, partialTick, projectionMatrix, finishTimeNano));
+    }
+
+    public static void dispatchRenderStage(RenderLevelStageEvent.Stage stage, LevelRenderer levelRenderer, PoseStack poseStack, Matrix4f projectionMatrix, int renderTick, Camera camera, Frustum frustum)
+    {
+        var profiler = Minecraft.getInstance().getProfiler();
+        profiler.push(stage.toString());
+        MinecraftForge.EVENT_BUS.post(new RenderLevelStageEvent(stage, levelRenderer, poseStack, projectionMatrix, renderTick, MinecraftForgeClient.getPartialTick(), camera, frustum));
+        profiler.pop();
+    }
+
+    public static void dispatchRenderStage(RenderType renderType, LevelRenderer levelRenderer, PoseStack poseStack, Matrix4f projectionMatrix, int renderTick, Camera camera, Frustum frustum)
+    {
+        RenderLevelStageEvent.Stage stage = RenderLevelStageEvent.Stage.fromRenderType(renderType);
+        if (stage != null)
+            dispatchRenderStage(stage, levelRenderer, poseStack, projectionMatrix, renderTick, camera, frustum);
     }
 
     public static boolean renderSpecificFirstPersonHand(InteractionHand hand, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick, float interpPitch, float swingProgress, float equipProgress, ItemStack stack)
