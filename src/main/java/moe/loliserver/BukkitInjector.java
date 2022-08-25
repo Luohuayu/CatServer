@@ -210,8 +210,7 @@ public class BukkitInjector {
                 permissionDefault = PermissionDefault.FALSE;
                 break;
         }
-        Permission permission = new Permission(name, desc, permissionDefault);
-        DefaultPermissions.registerPermission(permission, false);
+        DefaultPermissions.registerPermission(name, desc, permissionDefault);
     }
 
     public static void addEnumVillagerProfession() {
