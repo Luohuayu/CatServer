@@ -92,7 +92,7 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
-@@ -118,30 +_,12 @@
+@@ -118,30 +_,13 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.entity.projectile.AbstractArrow;
  import net.minecraft.world.entity.vehicle.Boat;
@@ -113,6 +113,7 @@
 -import net.minecraft.world.level.Level;
 -import net.minecraft.world.level.LevelReader;
 +import net.minecraft.world.inventory.*;
++import net.minecraft.world.inventory.ClickType;
 +import net.minecraft.world.item.*;
 +import net.minecraft.world.level.*;
  import net.minecraft.world.level.block.Blocks;
@@ -127,7 +128,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
-@@ -149,1309 +_,1872 @@
+@@ -149,1309 +_,2161 @@
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
  import net.minecraft.world.phys.shapes.VoxelShape;
@@ -136,10 +137,16 @@
 +import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 +import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryView;
 +import org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage;
++import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 +import org.bukkit.craftbukkit.v1_18_R2.util.LazyPlayerSet;
 +import org.bukkit.craftbukkit.v1_18_R2.util.Waitable;
++import org.bukkit.event.inventory.*;
 +import org.bukkit.event.player.*;
++import org.bukkit.inventory.CraftingInventory;
++import org.bukkit.inventory.InventoryView;
++import org.bukkit.inventory.SmithingInventory;
  import org.slf4j.Logger;
 +import org.spigotmc.SpigotConfig;
 +
@@ -251,7 +258,7 @@
 +    private long f_9749_;
 +    // CraftBukkit start - multithreaded fields
 +    private volatile int f_9750_;
-+    private static final AtomicIntegerFieldUpdater chatSpamField = AtomicIntegerFieldUpdater.newUpdater(ServerGamePacketListenerImpl.class, new String(new char[] {'f', '_', '9', '7', '5', '0', '_'}) /* chatSpamTickCount */ );
++    private static final AtomicIntegerFieldUpdater chatSpamField = AtomicIntegerFieldUpdater.newUpdater(ServerGamePacketListenerImpl.class, new String(new char[]{'f', '_', '9', '7', '5', '0', '_'}) /* chatSpamTickCount */);
 +    // CraftBukkit end
 +    private int f_9751_;
 +    private double f_9753_;
@@ -2722,9 +2729,11 @@
 +
 +    public void m_5914_(ServerboundContainerClickPacket p_9856_) {
 +        PacketUtils.m_131359_(p_9856_, this, this.f_9743_.m_183503_());
++        if (this.f_9743_.m_6107_()) return; // CraftBukkit
 +        this.f_9743_.m_9243_();
-+        if (this.f_9743_.f_36096_.f_38840_ == p_9856_.m_133959_()) {
-+            if (this.f_9743_.m_5833_()) {
++        if (this.f_9743_.f_36096_.f_38840_ == p_9856_.m_133959_() && this.f_9743_.f_36096_.m_6875_(this.f_9743_)) { // CraftBukkit
++            boolean cancelled = this.f_9743_.m_5833_(); // CraftBukkit - see below if
++            if (false/*this.player.isSpectator()*/) { // CraftBukkit
 +                this.f_9743_.f_36096_.m_150429_();
 +            } else {
 +                int i = p_9856_.m_133962_();
@@ -2733,7 +2742,288 @@
 +                } else {
 +                    boolean flag = p_9856_.m_182741_() != this.f_9743_.f_36096_.m_182424_();
 +                    this.f_9743_.f_36096_.m_150443_();
-+                    this.f_9743_.f_36096_.m_150399_(i, p_9856_.m_133963_(), p_9856_.m_133966_(), this.f_9743_);
++                    //this.player.containerMenu.clicked(i, p_9856_.getButtonNum(), p_9856_.getClickType(), this.player);
++                    // CraftBukkit start - Call InventoryClickEvent
++                    if (p_9856_.m_133962_() < -1 && p_9856_.m_133962_() != -999) {
++                        return;
++                    }
++                    InventoryView inventory = this.f_9743_.f_36096_.getBukkitView();
++                    // CauldronX start - fix InventoryView is null
++                    if (inventory == null) {
++                        inventory = new CraftInventoryView(this.f_9743_.getBukkitEntity(), MinecraftServer.getServer().server.createInventory(this.f_9743_.getBukkitEntity(), InventoryType.CHEST), this.f_9743_.f_36096_);
++                        this.f_9743_.f_36096_.setBukkitView(inventory);
++                    }
++                    // CauldronX end
++                    InventoryType.SlotType type = inventory.getSlotType(p_9856_.m_133962_());
++                    InventoryClickEvent event;
++                    org.bukkit.event.inventory.ClickType click = org.bukkit.event.inventory.ClickType.UNKNOWN;
++                    InventoryAction action = InventoryAction.UNKNOWN;
++                    ItemStack itemstack = ItemStack.f_41583_;
++                    switch (p_9856_.m_133966_()) {
++                        case PICKUP:
++                            if (p_9856_.m_133963_() == 0) {
++                                click = org.bukkit.event.inventory.ClickType.LEFT;
++                            } else if (p_9856_.m_133963_() == 1) {
++                                click = org.bukkit.event.inventory.ClickType.RIGHT;
++                            }
++                            if (p_9856_.m_133963_() == 0 || p_9856_.m_133963_() == 1) {
++                                action = InventoryAction.NOTHING; // Don't want to repeat ourselves
++                                if (p_9856_.m_133962_() == -999) {
++                                    if (!f_9743_.f_36096_.m_142621_().m_41619_()) {
++                                        action = p_9856_.m_133963_() == 0 ? InventoryAction.DROP_ALL_CURSOR : InventoryAction.DROP_ONE_CURSOR;
++                                    }
++                                } else if (p_9856_.m_133962_() < 0) {
++                                    action = InventoryAction.NOTHING;
++                                } else {
++                                    Slot slot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                    if (slot != null) {
++                                        ItemStack clickedItem = slot.m_7993_();
++                                        ItemStack cursor = f_9743_.f_36096_.m_142621_();
++                                        if (clickedItem.m_41619_()) {
++                                            if (!cursor.m_41619_()) {
++                                                action = p_9856_.m_133963_() == 0 ? InventoryAction.PLACE_ALL : InventoryAction.PLACE_ONE;
++                                            }
++                                        } else if (slot.m_8010_(f_9743_)) {
++                                            if (cursor.m_41619_()) {
++                                                action = p_9856_.m_133963_() == 0 ? InventoryAction.PICKUP_ALL : InventoryAction.PICKUP_HALF;
++                                            } else if (slot.m_5857_(cursor)) {
++                                                if (clickedItem.m_41656_(cursor) && ItemStack.m_41658_(clickedItem, cursor)) {
++                                                    int toPlace = p_9856_.m_133963_() == 0 ? cursor.m_41613_() : 1;
++                                                    toPlace = Math.min(toPlace, clickedItem.m_41741_() - clickedItem.m_41613_());
++                                                    toPlace = Math.min(toPlace, slot.f_40218_.m_6893_() - clickedItem.m_41613_());
++                                                    if (toPlace == 1) {
++                                                        action = InventoryAction.PLACE_ONE;
++                                                    } else if (toPlace == cursor.m_41613_()) {
++                                                        action = InventoryAction.PLACE_ALL;
++                                                    } else if (toPlace < 0) {
++                                                        action = toPlace != -1 ? InventoryAction.PICKUP_SOME : InventoryAction.PICKUP_ONE; // this happens with oversized stacks
++                                                    } else if (toPlace != 0) {
++                                                        action = InventoryAction.PLACE_SOME;
++                                                    }
++                                                } else if (cursor.m_41613_() <= slot.m_6641_()) {
++                                                    action = InventoryAction.SWAP_WITH_CURSOR;
++                                                }
++                                            } else if (cursor.m_41720_() == clickedItem.m_41720_() && ItemStack.m_41658_(cursor, clickedItem)) {
++                                                if (clickedItem.m_41613_() >= 0) {
++                                                    if (clickedItem.m_41613_() + cursor.m_41613_() <= cursor.m_41741_()) {
++                                                        // As of 1.5, this is result slots only
++                                                        action = InventoryAction.PICKUP_ALL;
++                                                    }
++                                                }
++                                            }
++                                        }
++                                    }
++                                }
++                            }
++                            break;
++                        // TODO check on updates
++                        case QUICK_MOVE:
++                            if (p_9856_.m_133963_() == 0) {
++                                click = org.bukkit.event.inventory.ClickType.SHIFT_LEFT;
++                            } else if (p_9856_.m_133963_() == 1) {
++                                click = org.bukkit.event.inventory.ClickType.SHIFT_RIGHT;
++                            }
++                            if (p_9856_.m_133963_() == 0 || p_9856_.m_133963_() == 1) {
++                                if (p_9856_.m_133962_() < 0) {
++                                    action = InventoryAction.NOTHING;
++                                } else {
++                                    Slot slot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                    if (slot != null && slot.m_8010_(this.f_9743_) && slot.m_6657_()) {
++                                        action = InventoryAction.MOVE_TO_OTHER_INVENTORY;
++                                    } else {
++                                        action = InventoryAction.NOTHING;
++                                    }
++                                }
++                            }
++                            break;
++                        case SWAP:
++                            if ((p_9856_.m_133963_() >= 0 && p_9856_.m_133963_() < 9) || p_9856_.m_133963_() == 40) {
++                                click = (p_9856_.m_133963_() == 40) ? org.bukkit.event.inventory.ClickType.SWAP_OFFHAND : org.bukkit.event.inventory.ClickType.NUMBER_KEY;
++                                Slot clickedSlot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                if (clickedSlot.m_8010_(f_9743_)) {
++                                    ItemStack hotbar = this.f_9743_.m_150109_().m_8020_(p_9856_.m_133963_());
++                                    boolean canCleanSwap = hotbar.m_41619_() || (clickedSlot.f_40218_ == f_9743_.m_150109_() && clickedSlot.m_5857_(hotbar)); // the slot will accept the hotbar item
++                                    if (clickedSlot.m_6657_()) {
++                                        if (canCleanSwap) {
++                                            action = InventoryAction.HOTBAR_SWAP;
++                                        } else {
++                                            action = InventoryAction.HOTBAR_MOVE_AND_READD;
++                                        }
++                                    } else if (!clickedSlot.m_6657_() && !hotbar.m_41619_() && clickedSlot.m_5857_(hotbar)) {
++                                        action = InventoryAction.HOTBAR_SWAP;
++                                    } else {
++                                        action = InventoryAction.NOTHING;
++                                    }
++                                } else {
++                                    action = InventoryAction.NOTHING;
++                                }
++                            }
++                            break;
++                        case CLONE:
++                            if (p_9856_.m_133963_() == 2) {
++                                click = org.bukkit.event.inventory.ClickType.MIDDLE;
++                                if (p_9856_.m_133962_() < 0) {
++                                    action = InventoryAction.NOTHING;
++                                } else {
++                                    Slot slot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                    if (slot != null && slot.m_6657_() && f_9743_.m_150110_().f_35937_ && f_9743_.f_36096_.m_142621_().m_41619_()) {
++                                        action = InventoryAction.CLONE_STACK;
++                                    } else {
++                                        action = InventoryAction.NOTHING;
++                                    }
++                                }
++                            } else {
++                                click = org.bukkit.event.inventory.ClickType.UNKNOWN;
++                                action = InventoryAction.UNKNOWN;
++                            }
++                            break;
++                        case THROW:
++                            if (p_9856_.m_133962_() >= 0) {
++                                if (p_9856_.m_133963_() == 0) {
++                                    click = org.bukkit.event.inventory.ClickType.DROP;
++                                    Slot slot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                    if (slot != null && slot.m_6657_() && slot.m_8010_(f_9743_) && !slot.m_7993_().m_41619_() && slot.m_7993_().m_41720_() != Item.m_41439_(Blocks.f_50016_)) {
++                                        action = InventoryAction.DROP_ONE_SLOT;
++                                    } else {
++                                        action = InventoryAction.NOTHING;
++                                    }
++                                } else if (p_9856_.m_133963_() == 1) {
++                                    click = org.bukkit.event.inventory.ClickType.CONTROL_DROP;
++                                    Slot slot = this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_());
++                                    if (slot != null && slot.m_6657_() && slot.m_8010_(f_9743_) && !slot.m_7993_().m_41619_() && slot.m_7993_().m_41720_() != Item.m_41439_(Blocks.f_50016_)) {
++                                        action = InventoryAction.DROP_ALL_SLOT;
++                                    } else {
++                                        action = InventoryAction.NOTHING;
++                                    }
++                                }
++                            } else {
++                                // Sane default (because this happens when they are holding nothing. Don't ask why.)
++                                click = org.bukkit.event.inventory.ClickType.LEFT;
++                                if (p_9856_.m_133963_() == 1) {
++                                    click = org.bukkit.event.inventory.ClickType.RIGHT;
++                                }
++                                action = InventoryAction.NOTHING;
++                            }
++                            break;
++                        case QUICK_CRAFT:
++                            this.f_9743_.f_36096_.m_150399_(p_9856_.m_133962_(), p_9856_.m_133963_(), p_9856_.m_133966_(), this.f_9743_);
++                            break;
++                        case PICKUP_ALL:
++                            click = org.bukkit.event.inventory.ClickType.DOUBLE_CLICK;
++                            action = InventoryAction.NOTHING;
++                            if (p_9856_.m_133962_() >= 0 && !this.f_9743_.f_36096_.m_142621_().m_41619_()) {
++                                ItemStack cursor = this.f_9743_.f_36096_.m_142621_();
++                                action = InventoryAction.NOTHING;
++                                // Quick check for if we have any of the item
++                                if (inventory.getTopInventory().contains(CraftMagicNumbers.getMaterial(cursor.m_41720_())) || inventory.getBottomInventory().contains(CraftMagicNumbers.getMaterial(cursor.m_41720_()))) {
++                                    action = InventoryAction.COLLECT_TO_CURSOR;
++                                }
++                            }
++                            break;
++                        default:
++                            break;
++                    }
++
++                    if (p_9856_.m_133966_() != ClickType.QUICK_CRAFT) {
++                        if (click == org.bukkit.event.inventory.ClickType.NUMBER_KEY) {
++                            event = new InventoryClickEvent(inventory, type, p_9856_.m_133962_(), click, action, p_9856_.m_133963_());
++                        } else {
++                            event = new InventoryClickEvent(inventory, type, p_9856_.m_133962_(), click, action);
++                        }
++
++                        org.bukkit.inventory.Inventory top = inventory.getTopInventory();
++                        if (p_9856_.m_133962_() == 0 && top instanceof CraftingInventory) {
++                            org.bukkit.inventory.Recipe recipe = ((CraftingInventory) top).getRecipe();
++                            if (recipe != null) {
++                                if (click == org.bukkit.event.inventory.ClickType.NUMBER_KEY) {
++                                    event = new CraftItemEvent(recipe, inventory, type, p_9856_.m_133962_(), click, action, p_9856_.m_133963_());
++                                } else {
++                                    event = new CraftItemEvent(recipe, inventory, type, p_9856_.m_133962_(), click, action);
++                                }
++                            }
++                        }
++
++                        if (p_9856_.m_133962_() == 2 && top instanceof SmithingInventory) {
++                            org.bukkit.inventory.ItemStack result = ((SmithingInventory) top).getResult();
++                            if (result != null) {
++                                if (click == org.bukkit.event.inventory.ClickType.NUMBER_KEY) {
++                                    event = new SmithItemEvent(inventory, type, p_9856_.m_133962_(), click, action, p_9856_.m_133963_());
++                                } else {
++                                    event = new SmithItemEvent(inventory, type, p_9856_.m_133962_(), click, action);
++                                }
++                            }
++                        }
++
++                        event.setCancelled(cancelled);
++                        AbstractContainerMenu oldContainer = this.f_9743_.f_36096_; // SPIGOT-1224
++                        cserver.getPluginManager().callEvent(event);
++                        if (this.f_9743_.f_36096_ != oldContainer) {
++                            return;
++                        }
++
++                        switch (event.getResult()) {
++                            case ALLOW:
++                            case DEFAULT:
++                                this.f_9743_.f_36096_.m_150399_(i, p_9856_.m_133963_(), p_9856_.m_133966_(), this.f_9743_);
++                                break;
++                            case DENY:
++                                /* Needs enum constructor in InventoryAction
++                                if (action.modifiesOtherSlots()) {
++
++                                } else {
++                                    if (action.modifiesCursor()) {
++                                        this.player.playerConnection.sendPacket(new Packet103SetSlot(-1, -1, this.player.inventory.getCarried()));
++                                    }
++                                    if (action.modifiesClicked()) {
++                                        this.player.playerConnection.sendPacket(new Packet103SetSlot(this.player.activeContainer.windowId, packet102windowclick.slot, this.player.activeContainer.getSlot(packet102windowclick.slot).getItem()));
++                                    }
++                                }
++                                */
++                                switch (action) {
++                                    // Modified other slots
++                                    case PICKUP_ALL:
++                                    case MOVE_TO_OTHER_INVENTORY:
++                                    case HOTBAR_MOVE_AND_READD:
++                                    case HOTBAR_SWAP:
++                                    case COLLECT_TO_CURSOR:
++                                    case UNKNOWN:
++                                        this.f_9743_.f_36096_.m_150429_();
++                                        break;
++                                    // Modified cursor and clicked
++                                    case PICKUP_SOME:
++                                    case PICKUP_HALF:
++                                    case PICKUP_ONE:
++                                    case PLACE_ALL:
++                                    case PLACE_SOME:
++                                    case PLACE_ONE:
++                                    case SWAP_WITH_CURSOR:
++                                        this.f_9743_.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(-1, -1, this.f_9743_.f_36095_.m_182425_(), this.f_9743_.f_36096_.m_142621_()));
++                                        this.f_9743_.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(this.f_9743_.f_36096_.f_38840_, this.f_9743_.f_36095_.m_182425_(), p_9856_.m_133962_(), this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_()).m_7993_()));
++                                        break;
++                                    // Modified clicked only
++                                    case DROP_ALL_SLOT:
++                                    case DROP_ONE_SLOT:
++                                        this.f_9743_.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(this.f_9743_.f_36096_.f_38840_, this.f_9743_.f_36095_.m_182425_(), p_9856_.m_133962_(), this.f_9743_.f_36096_.m_38853_(p_9856_.m_133962_()).m_7993_()));
++                                        break;
++                                    // Modified cursor only
++                                    case DROP_ALL_CURSOR:
++                                    case DROP_ONE_CURSOR:
++                                    case CLONE_STACK:
++                                        this.f_9743_.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(-1, -1, this.f_9743_.f_36095_.m_182425_(), this.f_9743_.f_36096_.m_142621_()));
++                                        break;
++                                    // Nothing
++                                    case NOTHING:
++                                        break;
++                                }
++                        }
++
++                        if (event instanceof CraftItemEvent || event instanceof SmithItemEvent) {
++                            // Need to update the inventory on crafting to
++                            // correctly support custom recipes
++                            f_9743_.f_36096_.m_150429_();
++                        }
++                    }
++                    // CraftBukkit end
 +
 +                    for (Entry<ItemStack> entry : Int2ObjectMaps.fastIterable(p_9856_.m_179582_())) {
 +                        this.f_9743_.f_36096_.m_182414_(entry.getIntKey(), entry.getValue());
