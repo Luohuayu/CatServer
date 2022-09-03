@@ -1803,25 +1803,25 @@ public final class CraftServer implements Server {
     @Override
     @Deprecated
     public int getMonsterSpawnLimit() {
-        return getSpawnLimit(SpawnCategory.ANIMAL);
+        return getSpawnLimit(SpawnCategory.MONSTER);
     }
 
     @Override
     @Deprecated
     public int getAnimalSpawnLimit() {
-        return getSpawnLimit(SpawnCategory.WATER_ANIMAL);
+        return getSpawnLimit(SpawnCategory.ANIMAL);
     }
 
     @Override
     @Deprecated
     public int getWaterAnimalSpawnLimit() {
-        return getSpawnLimit(SpawnCategory.WATER_AMBIENT);
+        return getSpawnLimit(SpawnCategory.WATER_ANIMAL);
     }
 
     @Override
     @Deprecated
     public int getWaterAmbientSpawnLimit() {
-        return getSpawnLimit(SpawnCategory.WATER_UNDERGROUND_CREATURE);
+        return getSpawnLimit(SpawnCategory.WATER_AMBIENT);
     }
 
     @Override

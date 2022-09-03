@@ -1,8 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
-import com.google.common.base.Preconditions;
 import java.util.Locale;
 import java.util.UUID;
+import com.google.common.base.Preconditions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffects;
 import org.apache.commons.lang3.Validate;
@@ -66,13 +66,13 @@ public class CraftVillagerZombie extends CraftZombie implements ZombieVillager {
     public int getConversionTime() {
         Preconditions.checkState(isConverting(), "Entity not converting");
 
-        return getHandle().conversionTime;
+        return getHandle().villagerConversionTime;
     }
 
     @Override
     public void setConversionTime(int time) {
         if (time < 0) {
-            getHandle().conversionTime = -1;
+            getHandle().villagerConversionTime = -1;
             getHandle().getEntityData().set(net.minecraft.world.entity.monster.ZombieVillager.DATA_CONVERTING_ID, false);
             getHandle().conversionStarter = null;
             getHandle().removeEffect(MobEffects.DAMAGE_BOOST, org.bukkit.event.entity.EntityPotionEffectEvent.Cause.CONVERSION);

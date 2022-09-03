@@ -1,7 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.scoreboard;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import com.google.common.collect.ImmutableSet;
 import net.minecraft.world.scores.PlayerTeam;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
@@ -114,7 +114,7 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
     public void setCanSeeFriendlyInvisibles(boolean enabled) throws IllegalStateException {
         CraftScoreboard scoreboard = checkState();
 
-        team.setAllowFriendlyFire(enabled);
+        team.setSeeFriendlyInvisibles(enabled);
     }
 
     @Override

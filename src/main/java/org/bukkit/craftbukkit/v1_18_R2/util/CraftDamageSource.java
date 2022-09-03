@@ -19,7 +19,7 @@ public final class CraftDamageSource extends DamageSource {
 
         // Check fire
         if (original.isExplosion()) {
-            newSource.setExplosion();
+            newSource.setIsFire();
         }
 
         return newSource;

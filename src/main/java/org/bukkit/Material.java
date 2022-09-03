@@ -2,6 +2,7 @@ package org.bukkit;
 
 import catserver.server.utils.EnumHelper;
 import com.google.common.collect.Maps;
+
 import java.lang.reflect.Constructor;
 import java.util.Locale;
 import java.util.Map;
@@ -4016,6 +4017,18 @@ public enum Material implements Keyed {
         return id;
     }
 
+    public int getForgeBlockID() {
+        return blockID;
+    }
+
+    public String getModName() {
+        return modName;
+    }
+
+    public NamespacedKey getKeyForge() {
+        return keyForge;
+    }
+
     /**
      * Do not use for any reason.
      *
@@ -5151,7 +5164,7 @@ public enum Material implements Keyed {
      * but the returned Material will be a modern material (ie this method is
      * useful for updating stored data).
      *
-     * @param name Name of the material to get
+     * @param name       Name of the material to get
      * @param legacyName whether this is a legacy name lookup
      * @return Material if found, or null
      */
@@ -5191,9 +5204,9 @@ public enum Material implements Keyed {
      * namespace, converted to uppercase, then stripped of special characters in
      * an attempt to format it like the enum.
      *
-     * @param name Name of the material to get
+     * @param name       Name of the material to get
      * @param legacyName whether this is a legacy name (see
-     * {@link #getMaterial(java.lang.String, boolean)}
+     *                   {@link #getMaterial(java.lang.String, boolean)}
      * @return Material if found, or null
      */
     @Nullable
@@ -7793,13 +7806,13 @@ public enum Material implements Keyed {
 
     /**
      * Checks if this Material can be interacted with.
-     *
+     * <p>
      * Interactable materials include those with functionality when they are
      * interacted with by a player such as chests, furnaces, etc.
-     *
+     * <p>
      * Some blocks such as piston heads and stairs are considered interactable
      * though may not perform any additional functionality.
-     *
+     * <p>
      * Note that the interactability of some materials may be dependant on their
      * state as well. This method will return true if there is at least one
      * state in which additional interact handling is performed for the
@@ -9682,12 +9695,12 @@ public enum Material implements Keyed {
 
     /**
      * Returns a value that represents how 'slippery' the block is.
-     *
+     * <p>
      * Blocks with higher slipperiness, like {@link Material#ICE} can be slid on
      * further by the player and other entities.
-     *
+     * <p>
      * Most blocks have a default slipperiness of {@code 0.6f}.
-     *
+     * <p>
      * Only available when {@link #isBlock()} is true.
      *
      * @return the slipperiness of this block
@@ -9738,7 +9751,7 @@ public enum Material implements Keyed {
 
     /**
      * Get the best suitable slot for this Material.
-     *
+     * <p>
      * For most items this will be {@link EquipmentSlot#HAND}.
      *
      * @return the best EquipmentSlot for this Material
@@ -9808,45 +9821,33 @@ public enum Material implements Keyed {
         return name.toUpperCase(java.util.Locale.ENGLISH).replaceAll("(:|\\s)", "_").replaceAll("\\W", "");
     }
 
-    public static Material addMaterial(String materialName, int id, boolean isBlock) {
-        // Forge Blocks
-        if (isBlock) {
-            Material material = BY_NAME.get(materialName);
-            if (material != null){
-                material.blockID = id;
-                material.isForgeBlock = true;
-            }else {
-                material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE}, new Object[]{id, true});
-            }
-            BY_NAME.put(materialName, material);
-            return material;
-        } else { // Forge Items
-            Material material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE}, new Object[]{id, false});
-            BY_NAME.put(materialName, material);
-            return material;
-        }
-    }
-
-    public static Material addMaterial(String materialName, int id, boolean isBlock, String modName) {
-        return addMaterial(materialName, id, isBlock, modName, null);
-    }
-
     public static Material addMaterial(String materialName, int id, boolean isBlock, String modName, NamespacedKey keyForge) {
-        // Forge Blocks
         if (isBlock) {
             Material material = BY_NAME.get(materialName);
-            if (material != null){
+            if (material != null) {
                 material.blockID = id;
                 material.isForgeBlock = true;
-            }else {
-                material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, true, modName, keyForge});
+                BY_NAME.put(materialName, material);
+                return material;
+            } else {
+                try {
+                    material = EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, true, modName, keyForge});
+                    BY_NAME.put(materialName, material);
+                    return material;
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                    return null;
+                }
             }
-            BY_NAME.put(materialName, material);
-            return material;
-        } else { // Forge Items
-            Material material = (Material) EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, false, modName, keyForge});
-            BY_NAME.put(materialName, material);
-            return material;
+        } else {
+            try {
+                Material material = EnumHelper.addEnum(Material.class, materialName, new Class[]{Integer.TYPE, Boolean.TYPE, String.class, NamespacedKey.class}, new Object[]{id, false, modName, keyForge});
+                BY_NAME.put(materialName, material);
+                return material;
+            } catch (Throwable e) {
+                e.printStackTrace();
+                return null;
+            }
         }
     }
 }

@@ -1,10 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2.map;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Level;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -14,7 +10,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
-import org.bukkit.entity.Player;
 import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 
@@ -156,7 +151,7 @@ public final class CraftMapView implements MapView {
 
             canvas.setBase(render.buffer);
             try {
-                renderer.render(this, canvas, (Player) player); //TODO
+                renderer.render(this, canvas, player);
             } catch (Throwable ex) {
                 Bukkit.getLogger().log(Level.SEVERE, "Could not render map using renderer " + renderer.getClass().getName(), ex);
             }
