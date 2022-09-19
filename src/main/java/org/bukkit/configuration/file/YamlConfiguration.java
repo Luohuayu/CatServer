@@ -47,13 +47,14 @@ public class YamlConfiguration extends FileConfiguration {
         return header + dump;
     }
 
+    private static boolean incompatible = false; // CatServer
     @Override
     public void loadFromString(@NotNull String contents) throws InvalidConfigurationException {
         Validate.notNull(contents, "Contents cannot be null");
 
         Map<?, ?> input;
         try {
-            loaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE); // SPIGOT-5881: Not ideal, but was default pre SnakeYAML 1.26
+            try { if (!incompatible) loaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE); /* // SPIGOT-5881: Not ideal, but was default pre SnakeYAML 1.26 */ } catch (NoSuchMethodError e) { System.out.println("[CatServer] Incompatible snakeyaml version detected!\n" + e.toString()); incompatible = true; } // CatServer
             input = (Map<?, ?>) yaml.load(contents);
         } catch (YAMLException e) {
             throw new InvalidConfigurationException(e);
