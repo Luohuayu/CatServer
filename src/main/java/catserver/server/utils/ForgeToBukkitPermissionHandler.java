@@ -51,6 +51,6 @@ public class ForgeToBukkitPermissionHandler implements IPermissionHandler {
 
     @Override
     public String getNodeDescription(String node) {
-        return Bukkit.getPluginManager().getPermission(node) != null ? Bukkit.getPluginManager().getPermission(node).getDescription() : "Not set";
+        return Bukkit.getPluginManager().getPermission(node) != null ? Bukkit.getPluginManager().getPermission(node).getDescription() : "";
     }
 }

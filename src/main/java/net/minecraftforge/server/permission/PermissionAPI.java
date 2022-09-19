@@ -95,4 +95,10 @@ public class PermissionAPI
         Preconditions.checkNotNull(player, "Player can't be null!");
         return hasPermission(player.getGameProfile(), node, new PlayerContext(player));
     }
+
+    // CatServer start - Set permission hook to Bukkit
+    public static void setPermissionHook() {
+        permissionHandler = new catserver.server.utils.ForgeToBukkitPermissionHandler();
+    }
+    // CatServer end
 }
