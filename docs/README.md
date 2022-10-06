@@ -3,7 +3,7 @@
 ![](https://img.shields.io/badge/Forge-14.23.5.2860-brightgreen.svg?colorB=469C00)
 ![](https://img.shields.io/badge/Spigot-1.12.2-brightgreen.svg?colorB=469C00)
 
-##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md)
+##### 选择其他语言简介 (Select Other Language README): [English](README_EN.md) | [Русский](README_RU.md) | [Português](README_BR.md)
 
 CatServer是一个高性能和高兼容性的Forge+Bukkit+Spigot服务端核心<br>
 国内最早开发的1.12.2版本核心, 支持大部分MOD和插件同时稳定运行<br>
