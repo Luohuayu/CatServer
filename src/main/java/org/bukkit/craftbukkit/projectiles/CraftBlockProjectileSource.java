@@ -20,7 +20,6 @@ import net.minecraft.entity.projectile.EntitySpectralArrow;
 import net.minecraft.entity.projectile.EntityThrowable;
 import net.minecraft.entity.projectile.EntityTippedArrow;
 import net.minecraft.entity.projectile.EntityWitherSkull;
-import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.MathHelper;
 import org.apache.commons.lang3.Validate;
@@ -48,15 +47,15 @@ import org.bukkit.projectiles.BlockProjectileSource;
 import org.bukkit.util.Vector;
 
 public class CraftBlockProjectileSource implements BlockProjectileSource {
-    private final TileEntityDispenser dispenserBlock;
+    private final IBlockSource dispenserBlock; // Catserver - Fix mod block reusing BehaviorProjectileDispense causing server crash
 
-    public CraftBlockProjectileSource(TileEntityDispenser dispenserBlock) {
+    public CraftBlockProjectileSource(IBlockSource dispenserBlock) { // Catserver - Fix mod block reusing BehaviorProjectileDispense causing server crash
         this.dispenserBlock = dispenserBlock;
     }
 
     @Override
     public Block getBlock() {
-        return dispenserBlock.getWorld().getWorld().getBlockAt(dispenserBlock.getPos().getX(), dispenserBlock.getPos().getY(), dispenserBlock.getPos().getZ());
+        return dispenserBlock.getWorld().getWorld().getBlockAt(dispenserBlock.getBlockPos().getX(), dispenserBlock.getBlockPos().getY(), dispenserBlock.getBlockPos().getZ()); // Catserver - Fix mod block reusing BehaviorProjectileDispense causing server crash
     }
 
     @Override
@@ -68,7 +67,7 @@ public class CraftBlockProjectileSource implements BlockProjectileSource {
     public <T extends Projectile> T launchProjectile(Class<? extends T> projectile, Vector velocity) {
         Validate.isTrue(getBlock().getType() == Material.DISPENSER, "Block is no longer dispenser");
         // Copied from BlockDispenser.dispense()
-        IBlockSource isourceblock = new BlockSourceImpl(dispenserBlock.getWorld(), dispenserBlock.getPos());
+        IBlockSource isourceblock = dispenserBlock; // Catserver - Fix mod block reusing BehaviorProjectileDispense causing server crash
         // Copied from DispenseBehaviorProjectile
         IPosition iposition = BlockDispenser.getDispensePosition(isourceblock);
         EnumFacing enumdirection = (EnumFacing) isourceblock.getBlockState().getValue(BlockDispenser.FACING);

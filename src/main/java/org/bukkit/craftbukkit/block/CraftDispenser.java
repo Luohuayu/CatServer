@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.block;
 
 import net.minecraft.block.BlockDispenser;
+import net.minecraft.block.BlockSourceImpl;
 import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.util.math.BlockPos;
@@ -45,7 +46,7 @@ public class CraftDispenser extends CraftLootable<TileEntityDispenser> implement
             return null;
         }
 
-        return new CraftBlockProjectileSource((TileEntityDispenser) this.getTileEntityFromWorld());
+        return new CraftBlockProjectileSource(new BlockSourceImpl(((CraftWorld) this.getWorld()).getHandle(), new BlockPos(getX(), getY(), getZ()))); // Catserver - Fix mod block reusing BehaviorProjectileDispense causing server crash
     }
 
     @Override
