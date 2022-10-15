@@ -48,6 +48,7 @@ public class CatServerConfig {
     public boolean securityOpManager = false;
     public boolean securityGameModeManager = false;
 
+    public boolean disableOfflineModeGameProfileLookup = false;
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
     public boolean disableFMLStatusModInfo = false;
@@ -98,6 +99,7 @@ public class CatServerConfig {
         securityOpManager = getOrWriteBooleanConfig("security.opManager", securityOpManager);
         securityGameModeManager = getOrWriteBooleanConfig("security.gameModeManager", securityGameModeManager);
         // general
+        disableOfflineModeGameProfileLookup = getOrWriteBooleanConfig("disableOfflineModeGameProfileLookup", disableOfflineModeGameProfileLookup);
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
         disableFMLStatusModInfo = getOrWriteBooleanConfig("disableFMLStatusModInfo", disableFMLStatusModInfo);

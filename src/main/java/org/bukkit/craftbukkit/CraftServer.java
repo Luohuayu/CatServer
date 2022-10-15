@@ -1366,7 +1366,7 @@ public final class CraftServer implements Server {
         OfflinePlayer result = getPlayerExact(name);
         if (result == null) {
             // This is potentially blocking :(
-            GameProfile profile = console.getPlayerProfileCache().getGameProfileForUsername(name);
+            GameProfile profile = (!getOnlineMode() && CatServer.getConfig().disableOfflineModeGameProfileLookup) ? null : console.getPlayerProfileCache().getGameProfileForUsername(name); // CatServer
             if (profile == null) {
                 // Make an OfflinePlayer using an offline mode UUID since the name has no profile
                 result = getOfflinePlayer(new GameProfile(UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(Charsets.UTF_8)), name));
