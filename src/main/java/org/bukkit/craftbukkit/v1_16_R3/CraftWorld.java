@@ -288,6 +288,53 @@ public class CraftWorld implements World {
     }
 
     @Override
+    public int getEntityCount() {
+        int ret = 0;
+        for (net.minecraft.entity.Entity entity : world.entitiesById.values()) {
+            if (entity.isChunkLoaded()) {
+                ++ret;
+            }
+        }
+        return ret;
+    }
+
+    @Override
+    public int getTileEntityCount() {
+        // We don't use the full world tile entity list, so we must iterate chunks
+        Long2ObjectLinkedOpenHashMap<ChunkHolder> chunks = world.getChunkSource().chunkMap.visibleChunkMap;
+        int size = 0;
+        for (ChunkHolder playerchunk : chunks.values()) {
+            net.minecraft.world.chunk.Chunk chunk = playerchunk.getTickingChunk();
+            if (chunk == null) {
+                continue;
+            }
+            size += chunk.blockEntities.size();
+        }
+        return size;
+    }
+
+    @Override
+    public int getTickableTileEntityCount() {
+        return world.tickableBlockEntities.size();
+    }
+
+    @Override
+    public int getChunkCount() {
+        int ret = 0;
+        for (ChunkHolder chunkHolder : world.getChunkSource().chunkMap.visibleChunkMap.values()) {
+            if (chunkHolder.getTickingChunk() != null) {
+                ++ret;
+            }
+        }
+        return ret;
+    }
+
+    @Override
+    public int getPlayerCount() {
+        return world.players().size();
+    }
+
+    @Override
     public Block getBlockAt(int x, int y, int z) {
         return CraftBlock.at(world, new BlockPos(x, y, z));
     }
