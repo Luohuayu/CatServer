@@ -1,5 +1,13 @@
 --- a/net/minecraft/block/FireBlock.java
 +++ b/net/minecraft/block/FireBlock.java
+@@ -5,6 +_,7 @@
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+ import java.util.Map;
+ import java.util.Random;
++import java.util.concurrent.atomic.AtomicReference;
+ import java.util.function.Function;
+ import java.util.stream.Collectors;
+ import net.minecraft.item.BlockItemUseContext;
 @@ -24,6 +_,10 @@
  import net.minecraft.world.IWorldReader;
  import net.minecraft.world.World;
@@ -120,7 +128,7 @@
                             }
                          }
                       }
-@@ -193,30 +_,39 @@
+@@ -193,33 +_,47 @@
        return p_176537_1_.func_175727_C(p_176537_2_) || p_176537_1_.func_175727_C(p_176537_2_.func_177976_e()) || p_176537_1_.func_175727_C(p_176537_2_.func_177974_f()) || p_176537_1_.func_175727_C(p_176537_2_.func_177978_c()) || p_176537_1_.func_175727_C(p_176537_2_.func_177968_d());
     }
  
@@ -136,43 +144,47 @@
  
 -   private void func_176536_a(World p_176536_1_, BlockPos p_176536_2_, int p_176536_3_, Random p_176536_4_, int p_176536_5_) {
 -      int i = this.func_220274_q(p_176536_1_.func_180495_p(p_176536_2_));
--      if (p_176536_4_.nextInt(p_176536_3_) < i) {
--         BlockState blockstate = p_176536_1_.func_180495_p(p_176536_2_);
--         if (p_176536_4_.nextInt(p_176536_5_ + 10) < 5 && !p_176536_1_.func_175727_C(p_176536_2_)) {
--            int j = Math.min(p_176536_5_ + p_176536_4_.nextInt(5) / 4, 15);
--            p_176536_1_.func_180501_a(p_176536_2_, this.func_235494_a_(p_176536_1_, p_176536_2_, j), 3);
++   // CatServer start - fix tryCatchFire mixin shadow exception
++   private AtomicReference<BlockPos> catserver$tryCatchFirePos = new AtomicReference<>();
 +   private void tryCatchFire(World worldIn, BlockPos pos, int chance, Random random, int age, Direction face, BlockPos sourceposition) { // CraftBukkit add sourceposition
-+      int i = worldIn.func_180495_p(pos).getFlammability(worldIn, pos, face);
-+      if (random.nextInt(chance) < i) {
-+         BlockState blockstate = worldIn.func_180495_p(pos);
++      catserver$tryCatchFirePos.set(sourceposition);
++      this.tryCatchFire(worldIn, pos, chance, random, age, face);
++   }
 +
++   private void tryCatchFire(World p_176536_1_, BlockPos p_176536_2_, int p_176536_3_, Random p_176536_4_, int p_176536_5_, Direction face) {
++      int i = p_176536_1_.func_180495_p(p_176536_2_).getFlammability(p_176536_1_, p_176536_2_, face);
+       if (p_176536_4_.nextInt(p_176536_3_) < i) {
+          BlockState blockstate = p_176536_1_.func_180495_p(p_176536_2_);
++         BlockPos sourceposition = catserver$tryCatchFirePos.getAndSet(null); // CatServer
 +         // CraftBukkit start
-+         org.bukkit.block.Block theBlock = worldIn.getWorld().getBlockAt(pos.func_177958_n(), pos.func_177956_o(), pos.func_177952_p());
-+         org.bukkit.block.Block sourceBlock = worldIn.getWorld().getBlockAt(sourceposition.func_177958_n(), sourceposition.func_177956_o(), sourceposition.func_177952_p());
++         org.bukkit.block.Block theBlock = p_176536_1_.getWorld().getBlockAt(p_176536_2_.func_177958_n(), p_176536_2_.func_177956_o(), p_176536_2_.func_177952_p());
++         org.bukkit.block.Block sourceBlock = p_176536_1_.getWorld().getBlockAt(sourceposition.func_177958_n(), sourceposition.func_177956_o(), sourceposition.func_177952_p());
 +         BlockBurnEvent event = new BlockBurnEvent(theBlock, sourceBlock);
-+         worldIn.getCBServer().getPluginManager().callEvent(event);
++         p_176536_1_.getCBServer().getPluginManager().callEvent(event);
 +         if (event.isCancelled()) {
 +            return;
 +         }
 +         // CraftBukkit end
-+
-+         if (random.nextInt(age + 10) < 5 && !worldIn.func_175727_C(pos)) {
-+            int j = Math.min(age + random.nextInt(5) / 4, 15);
-+            worldIn.func_180501_a(pos, this.func_235494_a_(worldIn, pos, j), 3);
+          if (p_176536_4_.nextInt(p_176536_5_ + 10) < 5 && !p_176536_1_.func_175727_C(p_176536_2_)) {
+             int j = Math.min(p_176536_5_ + p_176536_4_.nextInt(5) / 4, 15);
+             p_176536_1_.func_180501_a(p_176536_2_, this.func_235494_a_(p_176536_1_, p_176536_2_, j), 3);
           } else {
--            p_176536_1_.func_217377_a(p_176536_2_, false);
-+            worldIn.func_217377_a(pos, false);
+             p_176536_1_.func_217377_a(p_176536_2_, false);
           }
- 
+-
 -         Block block = blockstate.func_177230_c();
 -         if (block instanceof TNTBlock) {
 -            TNTBlock tntblock = (TNTBlock)block;
 -            TNTBlock.func_196534_a(p_176536_1_, p_176536_2_);
 -         }
-+         blockstate.catchFire(worldIn, pos, face, null);
++         blockstate.catchFire(p_176536_1_, p_176536_2_, face, null);
        }
- 
+-
     }
++   // CatServer end
+ 
+    private BlockState func_235494_a_(IWorld p_235494_1_, BlockPos p_235494_2_, int p_235494_3_) {
+       BlockState blockstate = func_235326_a_(p_235494_1_, p_235494_2_);
 @@ -228,7 +_,7 @@
  
     private boolean func_196447_a(IBlockReader p_196447_1_, BlockPos p_196447_2_) {
