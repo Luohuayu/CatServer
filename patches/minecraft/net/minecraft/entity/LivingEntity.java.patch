@@ -1,6 +1,6 @@
 --- a/net/minecraft/entity/LivingEntity.java
 +++ b/net/minecraft/entity/LivingEntity.java
-@@ -8,19 +_,24 @@
+@@ -8,19 +_,26 @@
  import com.mojang.datafixers.util.Pair;
  import com.mojang.serialization.DataResult;
  import com.mojang.serialization.Dynamic;
@@ -16,6 +16,8 @@
 +import java.util.Set;
  import java.util.UUID;
 +import com.google.common.base.Function;
++
++import java.util.concurrent.atomic.AtomicReference;
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
 +
@@ -129,7 +131,7 @@
     private LivingEntity field_110150_bn;
     private int field_142016_bo;
     private float field_70746_aG;
-@@ -199,10 +_,40 @@
+@@ -199,10 +_,36 @@
     private float field_205018_bM;
     protected Brain<?> field_213378_br;
  
@@ -142,10 +144,6 @@
 +   public boolean collides = true;
 +   public Set<UUID> collidableExemptions = new HashSet<>();
 +   public boolean canPickUpLoot;
-+
-+   //LoliServer start
-+   public EntityRegainHealthEvent.RegainReason rawRegainReason = EntityRegainHealthEvent.RegainReason.CUSTOM;
-+   //LoliServer end
 +
 +   @Override
 +   public float getBukkitYaw() {
@@ -478,36 +476,38 @@
        if (effectinstance != null) {
           this.func_70688_c(effectinstance);
           return true;
-@@ -894,19 +_,53 @@
+@@ -894,19 +_,54 @@
  
     }
  
-+   // CraftBukkit start - Delegate so we can handle providing a reason for health being regained
-    public void func_70691_i(float p_70691_1_) {
-+      heal(p_70691_1_, rawRegainReason); // LoliServer - use rawRegainReason to put arg for compatible with asm mod;.
++   // CatServer start
++   public AtomicReference<EntityRegainHealthEvent.RegainReason> catserver$healReason = new AtomicReference<>(EntityRegainHealthEvent.RegainReason.CUSTOM);
++   public void heal(float p_70691_1_, EntityRegainHealthEvent.RegainReason reason) {
++      this.catserver$healReason.set(reason);
++      this.func_70691_i(p_70691_1_);
 +   }
 +
-+   public void heal(float healAmount, EntityRegainHealthEvent.RegainReason regainReason) {
-+      healAmount = net.minecraftforge.event.ForgeEventFactory.onLivingHeal(this, healAmount);
-+      if (healAmount <= 0) {
-+         return;
-+      }
+    public void func_70691_i(float p_70691_1_) {
++      p_70691_1_ = net.minecraftforge.event.ForgeEventFactory.onLivingHeal(this, p_70691_1_);
++      if (p_70691_1_ <= 0) return;
        float f = this.func_110143_aJ();
        if (f > 0.0F) {
 -         this.func_70606_j(f + p_70691_1_);
-+         EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), healAmount, regainReason);
-+         // Suppress during worldgen
++         //this.setHealth(f + p_70691_1_);
++         EntityRegainHealthEvent.RegainReason regainReason = this.catserver$healReason.getAndSet(EntityRegainHealthEvent.RegainReason.CUSTOM);
++         EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), f, regainReason);
++         // Suppress during worldGen
 +         if (this.valid) {
 +            this.field_70170_p.getCBServer().getPluginManager().callEvent(event);
 +         }
-+
 +         if (!event.isCancelled()) {
 +            this.func_70606_j((float) (this.func_110143_aJ() + event.getAmount()));
 +         }
 +         // CraftBukkit end
        }
- 
+-
     }
++   // CatServer end
  
     public float func_110143_aJ() {
 +      // CraftBukkit start - Use unscaled health
@@ -576,13 +576,13 @@
              this.field_110153_bc = p_70097_2_;
              flag1 = false;
           } else {
--            this.field_110153_bc = p_70097_2_;
--            this.field_70172_ad = 20;
 +            // CraftBukkit start
-             this.func_70665_d(p_70097_1_, p_70097_2_);
++            this.damageEntity0(p_70097_1_, p_70097_2_);
 +
 +            // CraftBukkit end
-+            this.field_110153_bc = p_70097_2_;
+             this.field_110153_bc = p_70097_2_;
+-            this.field_70172_ad = 20;
+-            this.func_70665_d(p_70097_1_, p_70097_2_);
 +            this.field_70172_ad = this.field_70771_an; // CraftBukkit - restore use of maxNoDamageTicks
              this.field_70738_aO = 10;
              this.field_70737_aN = this.field_70738_aO;
@@ -896,28 +896,37 @@
     protected float func_70672_c(DamageSource p_70672_1_, float p_70672_2_) {
        if (p_70672_1_.func_151517_h()) {
           return p_70672_2_;
-@@ -1447,23 +_,156 @@
+@@ -1447,7 +_,15 @@
     }
  
     protected void func_70665_d(DamageSource p_70665_1_, float p_70665_2_) {
--      if (!this.func_180431_b(p_70665_1_)) {
--         p_70665_2_ = this.func_70655_b(p_70665_1_, p_70665_2_);
--         p_70665_2_ = this.func_70672_c(p_70665_1_, p_70665_2_);
--         float f2 = Math.max(p_70665_2_ - this.func_110139_bj(), 0.0F);
--         this.func_110149_m(this.func_110139_bj() - (p_70665_2_ - f2));
--         float f = p_70665_2_ - f2;
--         if (f > 0.0F && f < 3.4028235E37F && p_70665_1_.func_76346_g() instanceof ServerPlayerEntity) {
--            ((ServerPlayerEntity)p_70665_1_.func_76346_g()).func_195067_a(Stats.field_212735_F, Math.round(f * 10.0F));
--         }
--
--         if (f2 != 0.0F) {
--            float f1 = this.func_110143_aJ();
++      // CatServer start
++      if (true) {
++         this.damageEntity0(p_70665_1_, p_70665_2_);
++         return;
++      }
++      // CatServer end
+       if (!this.func_180431_b(p_70665_1_)) {
++         p_70665_2_ = net.minecraftforge.common.ForgeHooks.onLivingHurt(this, p_70665_1_, p_70665_2_);
++         if (p_70665_2_ <= 0) return;
+          p_70665_2_ = this.func_70655_b(p_70665_1_, p_70665_2_);
+          p_70665_2_ = this.func_70672_c(p_70665_1_, p_70665_2_);
+          float f2 = Math.max(p_70665_2_ - this.func_110139_bj(), 0.0F);
+@@ -1457,15 +_,163 @@
+             ((ServerPlayerEntity)p_70665_1_.func_76346_g()).func_195067_a(Stats.field_212735_F, Math.round(f * 10.0F));
+          }
+ 
++         f2 = net.minecraftforge.common.ForgeHooks.onLivingDamage(this, p_70665_1_, f2);
+          if (f2 != 0.0F) {
+             float f1 = this.func_110143_aJ();
 -            this.func_70606_j(f1 - f2);
--            this.func_110142_aN().func_94547_a(p_70665_1_, f1, f2);
--            this.func_110149_m(this.func_110139_bj() - f2);
-+      damageEntity0(p_70665_1_, p_70665_2_);
-+   }
-+
+             this.func_110142_aN().func_94547_a(p_70665_1_, f1, f2);
++            this.func_70606_j(f1 - f2); // Forge: moved to fix MC-121048
+             this.func_110149_m(this.func_110139_bj() - f2);
+          }
+       }
+    }
+ 
 +   // CraftBukkit start
 +   protected boolean damageEntity0(final DamageSource damagesource, float f) { // void -> boolean, add final
 +      if (!this.func_180431_b(damagesource)) {
@@ -1024,9 +1033,7 @@
 +         if (f > 0 || !human) {
 +            if (human) {
 +               // PAIL: Be sure to drag all this code from the EntityPlayer subclass each update.
-+               ((PlayerEntity) this).withExhaustionReason(org.bukkit.event.entity.EntityExhaustionEvent.ExhaustionReason.DAMAGED);
-+               ((PlayerEntity) this).func_71020_j(damagesource.func_76345_d());
-+               ((PlayerEntity) this).setDefaultExhaustionReason();
++               ((PlayerEntity) this).causeFoodExhaustion(damagesource.func_76345_d(), org.bukkit.event.entity.EntityExhaustionEvent.ExhaustionReason.DAMAGED);
 +               if (f < 3.4028235E37F) {
 +                  ((PlayerEntity) this).func_195067_a(Stats.field_188112_z, Math.round(f * 10.0F));
 +               }
@@ -1062,12 +1069,14 @@
 +               return originalDamage > 0;
 +            }
 +            // CraftBukkit end
-          }
-       }
++         }
++      }
 +      return false; // CraftBukkit
-    }
- 
++   }
++
     public CombatTracker func_110142_aN() {
+       return this.field_94063_bt;
+    }
 @@ -1490,7 +_,16 @@
     }
  
