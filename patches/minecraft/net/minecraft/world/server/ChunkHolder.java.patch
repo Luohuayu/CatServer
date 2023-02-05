@@ -68,3 +68,58 @@
           this.func_219305_a(p_244385_1_, p_244385_2_);
        }
  
+@@ -289,6 +_,30 @@
+       boolean flag1 = this.field_219317_l <= ChunkManager.field_219249_a;
+       ChunkHolder.LocationType chunkholder$locationtype = func_219286_c(this.field_219316_k);
+       ChunkHolder.LocationType chunkholder$locationtype1 = func_219286_c(this.field_219317_l);
++
++      // CraftBukkit start
++      // ChunkUnloadEvent: Called before the chunk is unloaded: isChunkLoaded is still true and chunk can still be modified by plugins.
++      if (chunkholder$locationtype.func_219065_a(LocationType.BORDER) && !chunkholder$locationtype1.func_219065_a(LocationType.BORDER)) {
++         this.func_219301_a(ChunkStatus.field_222617_m).thenAccept((either) -> {
++            Chunk chunk = (Chunk) either.left().orElse(null);
++            if (chunk != null) {
++               p_219291_1_.callbackExecutor.execute(() -> {
++                  // Minecraft will apply the chunks tick lists to the world once the chunk got loaded, and then store the tick
++                  // lists again inside the chunk once the chunk becomes inaccessible and set the chunk's needsSaving flag.
++                  // These actions may however happen deferred, so we manually set the needsSaving flag already here.
++                  chunk.func_177427_f(true);
++                  chunk.unloadCallback();
++               });
++            }
++         }).exceptionally((throwable) -> {
++            // ensure exceptions are printed, by default this is not the case
++            MinecraftServer.field_147145_h.fatal("Failed to schedule unload callback for chunk " + this.field_219319_n, throwable);
++            return null;
++         });
++         // Run callback right away if the future was already done
++         p_219291_1_.callbackExecutor.run();
++      }
++
+       if (flag) {
+          Either<IChunk, ChunkHolder.IChunkLoadingError> either = Either.right(new ChunkHolder.IChunkLoadingError() {
+             public String toString() {
+@@ -352,6 +_,23 @@
+ 
+       this.field_219327_v.func_219066_a(this.field_219319_n, this::func_219281_j, this.field_219317_l, this::func_219275_d);
+       this.field_219316_k = this.field_219317_l;
++      // CraftBukkit start
++      // ChunkLoadEvent: Called after the chunk is loaded: isChunkLoaded returns true and chunk is ready to be modified by plugins.
++      if (!chunkholder$locationtype.func_219065_a(LocationType.BORDER) && chunkholder$locationtype1.func_219065_a(LocationType.BORDER)) {
++         this.func_219301_a(ChunkStatus.field_222617_m).thenAccept((either) -> {
++            Chunk chunk = (Chunk) either.left().orElse(null);
++            if (chunk != null) {
++               p_219291_1_.callbackExecutor.execute(chunk::loadCallback);
++            }
++         }).exceptionally((throwable) -> {
++            // ensure exceptions are printed, by default this is not the case
++            MinecraftServer.field_147145_h.fatal("Failed to schedule load callback for chunk " + this.field_219319_n, throwable);
++            return null;
++         });
++         // Run callback right away if the future was already done
++         p_219291_1_.callbackExecutor.run();
++      }
++      // CraftBukkit end
+    }
+ 
+    public static ChunkStatus func_219278_b(int p_219278_0_) {
