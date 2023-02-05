@@ -1,6 +1,6 @@
 --- a/net/minecraft/world/World.java
 +++ b/net/minecraft/world/World.java
-@@ -1,11 +_,15 @@
+@@ -1,12 +_,17 @@
  package net.minecraft.world;
  
  import com.google.common.collect.Lists;
@@ -14,8 +14,10 @@
  import java.util.List;
 +import java.util.Map;
  import java.util.Random;
++import java.util.concurrent.atomic.AtomicBoolean;
  import java.util.function.Consumer;
  import java.util.function.Predicate;
+ import java.util.function.Supplier;
 @@ -20,6 +_,7 @@
  import net.minecraft.crash.ReportedException;
  import net.minecraft.entity.Entity;
@@ -279,9 +281,12 @@
     public Chunk func_212866_a_(int p_212866_1_, int p_212866_2_) {
        return (Chunk)this.func_217348_a(p_212866_1_, p_212866_2_, ChunkStatus.field_222617_m);
     }
-@@ -173,6 +_,17 @@
+@@ -172,7 +_,20 @@
+       return this.func_241211_a_(p_180501_1_, p_180501_2_, p_180501_3_, 512);
     }
  
++   // CatServer start - fix bpo mod mixin injection exception
++   private AtomicBoolean catserver$captureBlockState = new AtomicBoolean(); // CatServer - creating in the method body will affect mixin injection, so use global instead
     public boolean func_241211_a_(BlockPos p_241211_1_, BlockState p_241211_2_, int p_241211_3_, int p_241211_4_) {
 +      // CraftBukkit start - tree generation
 +      if (this.captureTreeGeneration) {
@@ -297,17 +302,16 @@
        if (func_189509_E(p_241211_1_)) {
           return false;
        } else if (!this.field_72995_K && this.func_234925_Z_()) {
-@@ -180,17 +_,66 @@
+@@ -180,17 +_,67 @@
        } else {
           Chunk chunk = this.func_175726_f(p_241211_1_);
           Block block = p_241211_2_.func_177230_c();
 -         BlockState blockstate = chunk.func_177436_a(p_241211_1_, p_241211_2_, (p_241211_3_ & 64) != 0);
 +         // CraftBukkit start - capture blockstates
-+         boolean captured = false;
 +         if (this.captureBlockStates && !this.capturedBlockStates.containsKey(p_241211_1_)) {
 +            CapturedBlockState blockstate = CapturedBlockState.getBlockState(this, p_241211_1_, p_241211_3_);
 +            this.capturedBlockStates.put(p_241211_1_.func_185334_h(), blockstate);
-+            captured = true;
++            catserver$captureBlockState.set(true); // CatServer
 +         }
 +         // CraftBukkit end
 +
@@ -322,10 +326,11 @@
 +         int oldLight = old.getLightValue(this, p_241211_1_);
 +         int oldOpacity = old.func_200016_a(this, p_241211_1_);
 +
-+         BlockState blockstate = chunk.setBlockState(p_241211_1_, p_241211_2_, (p_241211_3_ & 64) != 0, (p_241211_3_ & 1024) == 0);
++         chunk.catserver$doPlace.set((p_241211_3_ & 1024) == 0); // CatServer
++         BlockState blockstate = chunk.func_177436_a(p_241211_1_, p_241211_2_, (p_241211_3_ & 64) != 0); // CatServer
           if (blockstate == null) {
 +            // CraftBukkit start - remove blockstate if failed (or the same)
-+            if (this.captureBlockStates && captured) {
++            if (this.captureBlockStates && catserver$captureBlockState.getAndSet(false)) { // CatServer
 +               this.capturedBlockStates.remove(p_241211_1_);
 +            }
 +            // CraftBukkit end
@@ -355,6 +360,7 @@
 +         }
 +      }
 +   }
++   // CatServer end
 +
 +   // Split off from original setBlockState(BlockPos, BlockState, int, int) method in order to directly send client and physic updates
 +   public void markAndNotifyBlock(BlockPos p_241211_1_, @Nullable Chunk chunk, BlockState blockstate, BlockState p_241211_2_, int p_241211_3_, int p_241211_4_)
