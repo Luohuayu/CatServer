@@ -49,6 +49,9 @@ public class FoxServerLauncher {
                 DataManager.getVersionData("mcp")
         };
 
+        launchArgs = Arrays.copyOf(launchArgs, launchArgs.length + args.length);
+        System.arraycopy(args, 0, launchArgs, launchArgs.length, args.length);
+
         DataManager.gc();
 
         Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { launchArgs } );

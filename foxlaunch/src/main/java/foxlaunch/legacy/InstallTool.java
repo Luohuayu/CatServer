@@ -102,7 +102,7 @@ public class InstallTool {
         System.setOut(logOutPrint);
 
         // BUNDLER_EXTRACT
-        originOutPrint.println("Unpacking vanilla server jar..");
+        originOutPrint.println("[FoxLaunch] Unpacking vanilla server jar..");
 
         if(Utils.isJarCorrupted(minecraftUnpack)) {
             minecraftUnpack.delete();
@@ -126,7 +126,7 @@ public class InstallTool {
         }
 
         // MCP_DATA
-        originOutPrint.println("Initializing MCP data..");
+        originOutPrint.println("[FoxLaunch] Initializing MCP data..");
 
         if(!mcpMappings.exists()) {
             Utils.relaunch(
@@ -147,7 +147,7 @@ public class InstallTool {
         }
 
         // DOWNLOAD_MOJMAPS
-        originOutPrint.println("Downloading vanilla mappings..");
+        originOutPrint.println("[FoxLaunch] Downloading vanilla mappings..");
 
         if (!minecraftMappings.exists()) {
             Utils.relaunch(
@@ -168,7 +168,7 @@ public class InstallTool {
         }
 
         // MERGE_MAPPING
-        originOutPrint.println("Merging mappings..");
+        originOutPrint.println("[FoxLaunch] Merging mappings..");
 
         if (!mergedMappings.exists()) {
             Utils.relaunch(
@@ -191,7 +191,7 @@ public class InstallTool {
         }
 
         // JarSplitter
-        originOutPrint.println("Splitting server jar..");
+        originOutPrint.println("[FoxLaunch] Splitting server jar..");
 
         if (Utils.isJarCorrupted(minecraftSlim) || Utils.isJarCorrupted(minecraftExtra)) {
             minecraftSlim.delete();
@@ -217,7 +217,7 @@ public class InstallTool {
         }
 
         // ForgeAutoRenamingTool
-        originOutPrint.println("Remapping server jar..");
+        originOutPrint.println("[FoxLaunch] Remapping server jar..");
 
         if(Utils.isJarCorrupted(minecraftSrg)) {
             minecraftSrg.delete();
@@ -244,7 +244,7 @@ public class InstallTool {
         }
 
         // BinaryPatcher
-        originOutPrint.println("Applying patches..");
+        originOutPrint.println("[FoxLaunch] Applying patches..");
 
         Utils.relaunch(
                 "net.minecraftforge.binarypatcher.ConsoleTool",

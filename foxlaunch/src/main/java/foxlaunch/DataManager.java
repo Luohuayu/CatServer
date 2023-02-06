@@ -20,7 +20,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class DataManager {
-    private static final boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
     private static final Map<String, File> librariesMap = new TreeMap<>();
     private static final Map<String, File> librariesWithoutLaunchMap = new TreeMap<>();
     private static final Map<String, String> librariesHashMap = new TreeMap<>();
@@ -105,7 +104,18 @@ public class DataManager {
                                     }
                                     out.flush();
                                 }
-                            } else if (Objects.equals(name[1], "libraries.txt")) {
+                            } else if (Objects.equals(name[1], "libraries-launch.txt")) {
+                                try (BufferedReader reader = new BufferedReader(new InputStreamReader(serverJar.getInputStream(jarEntry)))) {
+                                    String line = reader.readLine();
+                                    if (line.startsWith("libraries/")) {
+                                        String[] split = line.split(";");
+                                        for (String library : split) {
+                                            File file = new File(library);
+                                            librariesMap.put(file.getName(), file.getParentFile());
+                                        }
+                                    }
+                                }
+                            } else if (Objects.equals(name[1], "libraries-all.txt")) {
                                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(serverJar.getInputStream(jarEntry)))) {
                                     String line = reader.readLine();
                                     if (Objects.equals(line, "===ALGORITHM SHA-256")) {
@@ -114,16 +124,10 @@ public class DataManager {
                                             if (split.length == 2) {
                                                 String[] split2 = split[0].split(":");
                                                 if (split2.length == 3) {
-                                                    librariesWithoutLaunchMap.put(split2[1] + "-" + split2[2] + ".jar", new File("libraries/" + split2[0].replace("\\.", "/") + "/" + split2[1] + "/" + split2[2] + "/"));
+                                                    librariesWithoutLaunchMap.put(split2[1] + "-" + split2[2] + ".jar", new File("libraries/" + split2[0].replace(".", "/") + "/" + split2[1] + "/" + split2[2] + "/"));
                                                     librariesHashMap.put(split2[1] + "-" + split2[2] + ".jar", split[1]);
                                                 }
                                             }
-                                        }
-                                    } else if (line.startsWith("libraries/")) {
-                                        String[] split = line.split(";");
-                                        for (String library : split) {
-                                            File file = new File(library);
-                                            librariesMap.put(file.getName(), file.getParentFile());
                                         }
                                     }
                                 }
