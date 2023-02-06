@@ -5,24 +5,53 @@ import foxlaunch.legacy.LegacyLauncher;
 import java.util.Arrays;
 
 public class FoxServerLauncher {
+    private static final boolean skipCheckLibraries = Boolean.parseBoolean(System.getProperty("catserver.skipCheckLibraries"));
+
     public static void main(String[] args) throws Throwable {
+        System.out.println("Loading libraries, please wait...");
+
         if (!checkJavaVersion()) {
             System.out.println(String.format(LanguageUtils.I18nToString("launch.java_wrong"), System.getProperty("java.version")));
             Thread.sleep(5000);
             return;
         }
 
-        System.out.println("Loading libraries, please wait...");
+        if (!LegacyLauncher.setup()) {
+            System.out.println(
+                    "The current Java version may not be compatible, you may need to add these parameters before -jar: \n" +
+                            "--add-exports=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.base/java.util.jar=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED"
+            );
+        }
 
-        DataManager.setupLibrariesMap();
-        DataManager.unpackData();
-        DataManager.downloadLibraries();
-
+        DataManager.setup();
+        if (!skipCheckLibraries) {
+            DataManager.downloadLibraries();
+        }
         InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"));
 
-        if (!LegacyLauncher.tryLaunch(Arrays.asList(args), DataManager.getLaunchArgs(), DataManager::gc)) {
-            DataManager.generateLaunchScript(args);
-        }
+        LegacyLauncher.loadJars();
+
+        System.setProperty("java.net.preferIPv6Addresses", "system");
+        System.setProperty("ignoreList", "bootstraplauncher-1.0.0.jar,securejarhandler-1.0.3.jar,asm-commons-9.2.jar,asm-util-9.2.jar,asm-analysis-9.2.jar,asm-tree-9.2.jar,asm-9.2.jar");
+        System.setProperty("libraryDirectory", "libraries");
+        System.setProperty("legacyClassPath", String.join(";", DataManager.getLibrariesMap().entrySet().stream().map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
+
+        String[] launchArgs = new String[] {
+                "--launchTarget",
+                "forgeserver",
+                "--fml.forgeVersion",
+                DataManager.getVersionData("forge"),
+                "--fml.mcVersion",
+                DataManager.getVersionData("minecraft"),
+                "--fml.forgeGroup",
+                "net.minecraftforge",
+                "--fml.mcpVersion",
+                DataManager.getVersionData("mcp")
+        };
+
+        DataManager.gc();
+
+        Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { launchArgs } );
     }
 
     private static boolean checkJavaVersion() {

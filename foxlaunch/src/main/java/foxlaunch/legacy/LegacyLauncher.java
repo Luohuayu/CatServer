@@ -1,69 +1,30 @@
 package foxlaunch.legacy;
 
+import foxlaunch.DataManager;
 import java.io.File;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class LegacyLauncher {
-    public static boolean tryLaunch(List<String> userArgs, List<String> fmlArgs, Runnable callbackGC) throws Throwable {
-        if (true) return false; // TODO: 未完成
-        if (JarLoader.inst == null || !JVMHack.init) return false;
+    public static boolean setup() {
+        if (!JVMHack.init) return false;
 
         try {
-            for (String fmlArg : fmlArgs) {
-                if (fmlArg.startsWith("-D")) {
-                    String[] param = fmlArg.substring(2).split("=");
-                    if (param.length == 2) {
-                        System.setProperty(param[0], param[1]);
-                    }
-                } else if (fmlArg.startsWith("--add-opens ")) {
-                    String[] param = fmlArg.substring(12).split("=");
-                    String[] param2 = param[0].split("/");
-                    if (param2.length == 2) {
-                        JVMHack.addModuleOptionDynamic("addOpens", param2[0], param2[1], param[1]);
-                    }
-                } else if (fmlArg.startsWith("--add-exports ")) {
-                    String[] param = fmlArg.substring(14).split("=");
-                    String[] param2 = param[0].split("/");
-                    if (param2.length == 2) {
-                        JVMHack.addModuleOptionDynamic("addExports", param2[0], param2[1], param[1]);
-                    }
-                } else if (fmlArg.startsWith("-p ")) {
-                    for (String cp : fmlArg.substring(3).replace("\\:", "\\;").split(";")) {
-                        JarLoader.loadJar(new File(cp));
-                    }
-                }
-            }
-
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            JVMHack.addModuleOptionDynamic("addExportsToAllUnnamed", "java.base", "sun.security.util", null);
+            JVMHack.addModuleOptionDynamic("addOpensToAllUnnamed", "java.base", "java.util.jar", null);
+            JVMHack.addModuleOptionDynamic("addOpensToAllUnnamed", "java.base", "java.lang", null);
+        } catch (Exception e) {
             return false;
         }
 
-        List<String> args = new ArrayList<>();
-        args.addAll(
-                fmlArgs.stream()
-                        .filter(s ->
-                                s.startsWith("--launchTarget") ||
-                                s.startsWith("--fml.forgeVersion") ||
-                                s.startsWith("--fml.mcVersion") ||
-                                s.startsWith("--fml.forgeGroup") ||
-                                s.startsWith("--fml.mcpVersion")
-
-                        )
-                        .collect(Collectors.toList())
-        );
-        args.addAll(userArgs);
-
-        callbackGC.run();
-        Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { args.toArray(new String[0]) } );
-
         return true;
+    }
+
+    public static void loadJars() throws Exception {
+        for (Map.Entry<String, File> entry : DataManager.getLibrariesMap().entrySet()) {
+            JarLoader.loadJar(new File(entry.getValue(), entry.getKey()));
+        }
     }
 
     static class JVMHack {
