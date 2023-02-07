@@ -40,4 +40,12 @@ Provide API to allow plugins to interact with mods easily<br>
 - 5.Build: `gradlew buildCatServer`
 
 ### Generate dependency
-##### TODO
+1. Run the server, Wait for the libraries to be downloaded and generate the SRG
+2. Import the following jar in order as dependencies (if you need to use more libraries, please add them yourself):
+```
+libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-universal.jar
+libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-server.jar
+libraries/net/minecraft/server/1.16.5-xxxxxxxx.xxxxxx/server-1.16.5-xxxxxxxx.xxxxxx-srg.jar
+libraries/net/minecraftforge/eventbus/4.0.0/eventbus-4.0.0.jar
+libraries/net/minecraftforge/forgespi/3.2.0/forgespi-3.2.0.jar
+```
