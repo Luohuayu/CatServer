@@ -44,51 +44,72 @@
     private final List<IntReferenceHolder> field_216964_d = Lists.newArrayList();
     @Nullable
     private final ContainerType<?> field_216965_e;
-@@ -40,6 +_,62 @@
+@@ -40,6 +_,82 @@
     private final List<IContainerListener> field_75149_d = Lists.newArrayList();
     private final Set<PlayerEntity> field_75148_f = Sets.newHashSet();
  
-+   // CraftBukkit start
 +   public boolean checkReachable = true;
 +   private ITextComponent title;
 +
-+   public InventoryView bukkitView = null;
++   public InventoryView bukkitView;
++   private boolean isBukkitViewCreated;
++
++   @Nullable
 +   public InventoryView getBukkitView(){
++      if(!isBukkitViewCreated) {
++         isBukkitViewCreated = true;
++         bukkitView = computeBukkitView();
++         return bukkitView;
++      }
 +      return bukkitView;
 +   }
 +
 +   public void setBukkitView(InventoryView iv) {
 +      bukkitView = iv;
++      isBukkitViewCreated = true;
++   }
++
++   @Nullable
++   private InventoryView computeBukkitView() {
++      Set<IInventory> uniqueInventorySet = new java.util.HashSet<>();
++      for(Slot slot : field_75151_b)
++         if (slot.field_75224_c != null) uniqueInventorySet.add(slot.field_75224_c);
++      List<IInventory> inventories = new java.util.ArrayList<>(uniqueInventorySet);
++      PlayerInventory playerInv = null;
++
++      for(java.util.Iterator<IInventory> it = inventories.iterator(); it.hasNext();) {
++         IInventory inv = it.next();
++         if(inv instanceof PlayerInventory) {
++            playerInv = (PlayerInventory) inv;
++            it.remove();
++            break;
++         } else if (inv instanceof net.minecraftforge.items.wrapper.PlayerInvWrapper) {
++            playerInv = catserver.server.inventory.CatCustomInventory.getPlayerInv((net.minecraftforge.items.wrapper.PlayerInvWrapper) inv);
++            it.remove();
++            break;
++         }
++      }
++      if(playerInv == null)
++         return null;
++      org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer bukkitPlayer = (org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer) playerInv.field_70458_d.getBukkitEntity();
++      org.bukkit.inventory.Inventory craftInv;
++      if(inventories.size() != 1)
++         craftInv = org.bukkit.Bukkit.getServer().createInventory(bukkitPlayer, InventoryType.CHEST);
++      else
++         craftInv = new CraftInventory(inventories.get(0));
++
++      return new org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryView(bukkitPlayer, craftInv, this);
 +   }
 +
 +   public void transferTo(Container other, CraftHumanEntity player) {
-+      InventoryView source = this.getBukkitView();
-+      InventoryView destination = other.getBukkitView();
++      InventoryView source = this.getBukkitView(); InventoryView destination = other.getBukkitView();
 +      if (source != null) {
-+         try {
-+            ((CraftInventory) source.getTopInventory()).getInventory().onClose(player);
-+         } catch (AbstractMethodError ex) {
-+            // modded
-+         }
-+
-+         try {
-+            ((CraftInventory) source.getBottomInventory()).getInventory().onClose(player);
-+         } catch (AbstractMethodError ex) {
-+            // modded
-+         }
++         ((CraftInventory) source.getTopInventory()).getInventory().onClose(player);
++         ((CraftInventory) source.getBottomInventory()).getInventory().onClose(player);
 +      }
 +      if (destination != null) {
-+         try {
-+            ((CraftInventory) destination.getTopInventory()).getInventory().onOpen(player);
-+         } catch (AbstractMethodError ex) {
-+            // modded
-+         }
-+
-+         try {
-+            ((CraftInventory) destination.getBottomInventory()).getInventory().onOpen(player);
-+         } catch (AbstractMethodError ex) {
-+            // modded
-+         }
++         ((CraftInventory) destination.getTopInventory()).getInventory().onOpen(player);
++         ((CraftInventory) destination.getBottomInventory()).getInventory().onOpen(player);
 +      }
 +   }
 +
@@ -102,7 +123,6 @@
 +   public final void setTitle(final ITextComponent title) {
 +      this.title = title;
 +   }
-+   // CraftBukkit end
 +
     protected Container(@Nullable ContainerType<?> p_i50105_1_, int p_i50105_2_) {
        this.field_216965_e = p_i50105_1_;
