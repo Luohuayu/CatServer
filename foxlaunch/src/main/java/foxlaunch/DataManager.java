@@ -38,7 +38,19 @@ public class DataManager {
         }
 
         try (JarFile serverJar = new JarFile(Utils.findServerJar())) {
+            String classPath = Objects.requireNonNull(serverJar.getManifest().getMainAttributes().getValue("Installer-Class-Path"), "Missing MANIFEST.MF?");
+            String[] libraries = classPath.split(" ");
+            for (String library : libraries) {
+                File file = new File(library);
+                librariesWithoutLaunchMap.put(file.getName(), file.getParentFile());
+            }
+
+            if (librariesWithoutLaunchMap.size() == 0) {
+                throw new RuntimeException("Installer Class-Path is empty!");
+            }
+
             librariesWithoutLaunchMap.put("minecraft_server.1.18.2.jar", new File("foxlaunch-data/"));
+            librariesMap.put("bootstraplauncher-1.0.0.jar", new File("libraries/cpw/mods/bootstraplauncher/1.0.0/"));
 
             versionData.put("minecraft", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.SPECIFICATION_VERSION)));
             versionData.put("mcp", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.IMPLEMENTATION_VERSION)));
@@ -124,7 +136,6 @@ public class DataManager {
                                             if (split.length == 2) {
                                                 String[] split2 = split[0].split(":");
                                                 if (split2.length == 3) {
-                                                    librariesWithoutLaunchMap.put(split2[1] + "-" + split2[2] + ".jar", new File("libraries/" + split2[0].replace(".", "/") + "/" + split2[1] + "/" + split2[2] + "/"));
                                                     librariesHashMap.put(split2[1] + "-" + split2[2] + ".jar", split[1]);
                                                 }
                                             }

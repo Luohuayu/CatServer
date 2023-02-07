@@ -14,7 +14,7 @@ import java.net.URL;
 import java.util.Objects;
 
 public class InstallTool {
-    public static void install(String minecraftVersion, String mcpVersion, String forgeVersion) throws Exception {
+    public static boolean install(String minecraftVersion, String mcpVersion, String forgeVersion) throws Exception {
         if (minecraftVersion == null || mcpVersion == null || forgeVersion == null) {
             throw new RuntimeException(String.format("Missing version data: [minecraft: %s, mcp: %s, forge: %s]", minecraftVersion, mcpVersion, forgeVersion));
         }
@@ -25,9 +25,7 @@ public class InstallTool {
                 Utils.pathToURL("foxlaunch-libs/srgutils-0.4.11.jar"),
                 Utils.pathToURL("libraries/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar"),
                 Utils.pathToURL("libraries/net/md-5/SpecialSource/1.10.0/SpecialSource-1.10.0.jar"),
-                Utils.pathToURL("libraries/com/opencsv/opencsv/4.4/opencsv-4.4.jar"),
                 Utils.pathToURL("libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar"),
-                Utils.pathToURL("libraries/net/sf/opencsv/opencsv/4.4/opencsv-4.4.jar"),
                 Utils.pathToURL("libraries/com/google/guava/guava/31.0.1-jre/guava-31.0.1-jre.jar"),
                 Utils.pathToURL("libraries/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.jar"),
                 Utils.pathToURL("libraries/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.jar"),
@@ -91,7 +89,7 @@ public class InstallTool {
             if (installHASH.exists()) {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(installHASH)))) {
                     if (Objects.equals(reader.readLine(), Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(serverLZMA), serverLZMA.getName()))) {
-                        return;
+                        return false;
                     }
                 }
             }
@@ -267,5 +265,7 @@ public class InstallTool {
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(installHASH)))) {
             writer.write( Objects.requireNonNull(Utils.getFileSHA256(serverJar), serverJar.getName()) + Objects.requireNonNull(Utils.getFileSHA256(serverLZMA), serverLZMA.getName()));
         }
+
+        return true;
     }
 }

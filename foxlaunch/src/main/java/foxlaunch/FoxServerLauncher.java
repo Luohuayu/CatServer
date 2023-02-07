@@ -27,7 +27,9 @@ public class FoxServerLauncher {
         if (!skipCheckLibraries) {
             DataManager.downloadLibraries();
         }
-        InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"));
+        if (InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"))) {
+            System.out.println(LanguageUtils.I18nToString("launch.server_installed"));
+        }
 
         LegacyLauncher.loadJars();
 

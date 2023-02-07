@@ -17,6 +17,7 @@ public class LanguageUtils {
         CN.put("launch.lib_failure_download_source_error", "下载源不可用(地址: %s | HTTP状态: %s), 已切换其他下载源");
         CN.put("launch.lib_downloading", "正在下载文件 %s 大小: %s");
         CN.put("launch.lib_download_completed", "库文件下载完成, 如果出现错误只需要重新运行服务端");
+        CN.put("launch.server_installed", "服务端初始化完成, 如果出现错误只需要重新运行服务端");
 
         EN.put("launch.java_wrong", "Current Java version (%s) is not supported, please replace to Java17");
         EN.put("launch.lib_missing", "Missing libraries file, downloading.. (Add -Dcatserver.skipCheckLibraries=true to the jvm flag to skip it)");
@@ -25,6 +26,7 @@ public class LanguageUtils {
         EN.put("launch.lib_failure_download_source_error", "Download source not available(URL: %s | HTTP Status: %s), switched to another download source");
         EN.put("launch.lib_downloading", "Downloading %s Size: %s");
         EN.put("launch.lib_download_completed", "The libraries file download completed, if an error occurs only need re-run the server");
+        EN.put("launch.server_installed", "The server initialization complete, if an error occurs only need re-run the server");
 
         current = ("zh".equals(Locale.getDefault().getLanguage()) ? CN : EN);
     }
