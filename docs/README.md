@@ -48,4 +48,3 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 ### 赞助商
 [昱通云 - 想开服? 点我点我! >_<](https://blog.ytonidc.com/2022/06/05/server-price/)
 
-[7yPAY支付商品寄售平台 ｜ 费率低至2.5% | 无需营业执照可对接微信一清](https://pay.7ycloud.cn/help?catgithub)
