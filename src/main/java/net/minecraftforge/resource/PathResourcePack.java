@@ -37,8 +37,6 @@ public class PathResourcePack extends AbstractPackResources
     private final Path source;
     private final String packName;
 
-    private final ResourceCacheManager cacheManager = new ResourceCacheManager(true, ForgeConfig.COMMON.indexModPackCachesOnThread, (packType, namespace) -> resolve(packType.getDirectory(), namespace).toAbsolutePath());
-
 
     /**
      * Constructs a java.nio.Path-based resource pack.
@@ -52,21 +50,6 @@ public class PathResourcePack extends AbstractPackResources
         super(new File("dummy"));
         this.source = source;
         this.packName = packName;
-    }
-
-    @Override
-    public void initForNamespace(final String namespace)
-    {
-        if (ResourceCacheManager.shouldUseCache())
-        {
-            this.cacheManager.index(namespace);
-        }
-    }
-
-    @Override
-    public void init(final PackType packType)
-    {
-        getNamespacesFromDisk(packType).forEach(this::initForNamespace);
     }
 
     /**
@@ -127,11 +110,6 @@ public class PathResourcePack extends AbstractPackResources
             Path root = resolve(type.getDirectory(), resourceNamespace).toAbsolutePath();
             Path inputPath = root.getFileSystem().getPath(pathIn);
 
-            if (ResourceCacheManager.shouldUseCache() && this.cacheManager.hasCached(type, resourceNamespace))
-            {
-                return this.cacheManager.getResources(type, resourceNamespace, inputPath, filter);
-            }
-
             return Files.walk(root)
                     .map(root::relativize)
                     .filter(path -> path.getNameCount() <= maxDepth && !path.toString().endsWith(".mcmeta") && path.startsWith(inputPath))
@@ -149,16 +127,6 @@ public class PathResourcePack extends AbstractPackResources
 
     @Override
     public Set<String> getNamespaces(PackType type)
-    {
-        if (ResourceCacheManager.shouldUseCache())
-        {
-            return this.cacheManager.getNamespaces(type);
-        }
-
-        return getNamespacesFromDisk(type);
-    }
-
-    public Set<String> getNamespacesFromDisk(PackType type)
     {
         try {
             Path root = resolve(type.getDirectory());

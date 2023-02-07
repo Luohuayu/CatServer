@@ -16,7 +16,7 @@ You can contribute to the project by join in development or testing.
 #### 核心版本 (Core Version)
 - CraftBukkit ([**10ba1beb642**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/commits/10ba1beb64286206f4edc8d4b44c6472639d044e))
 - Bukkit ([**6a039faf748**](https://hub.spigotmc.org/stash/projects/SPIGOT/repos/bukkit/commits/6a039faf7488beba29527a112404cbab84d0cbd3))
-- MinecraftForge ([**1.18.2-40.1.73-84d354a**](https://github.com/MinecraftForge/MinecraftForge/commit/84d354a7ddd34dcd6196b8557ff12e174cd09d4a))
+- MinecraftForge ([**1.18.2-40.1.83-9ef5d54**](https://github.com/MinecraftForge/MinecraftForge/commit/9ef5d545f83b46cbae094eb2c92289792d4a32df))
 
 #### 开发进度 (Development progress)
 - CraftBukkit Patches (Almost done)
