@@ -616,6 +616,7 @@ public class ForgeChunkManager
     static void unloadWorld(World world)
     {
         forcedChunks.remove(world);
+        tickets.remove(world); // CatServer
 
         // World save fires before this event so the chunk loading info will be done
         if (!(world instanceof WorldServer))
@@ -855,6 +856,7 @@ public class ForgeChunkManager
         {
             return;
         }
+        if (tickets.get(ticket.world) == null) return; // CatServer
         ticket.requestedChunks.remove(chunk);
         MinecraftForge.EVENT_BUS.post(new UnforceChunkEvent(ticket, chunk));
         LinkedHashMultimap<ChunkPos, Ticket> copy = LinkedHashMultimap.create(forcedChunks.get(ticket.world));
