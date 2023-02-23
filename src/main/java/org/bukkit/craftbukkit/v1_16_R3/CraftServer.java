@@ -19,6 +19,7 @@ import com.mojang.serialization.Lifecycle;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
+import jline.console.ConsoleReader;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.block.Block;
@@ -1086,6 +1087,10 @@ public final class CraftServer implements Server {
             return;
         }
         worlds.put(world.getName().toLowerCase(java.util.Locale.ENGLISH), world);
+    }
+
+    public ConsoleReader getReader() {
+        return console.reader;
     }
 
     @Override

@@ -1,9 +1,10 @@
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -2,10 +_,12 @@
+@@ -2,10 +_,13 @@
  
  import com.google.common.base.Strings;
  import com.google.common.collect.Lists;
++import jline.console.ConsoleReader;
 +import moe.loliserver.Metrics;
  import com.mojang.authlib.GameProfile;
  import com.mojang.authlib.GameProfileRepository;
@@ -62,9 +63,10 @@
     public boolean func_71197_b() throws IOException {
        Thread thread = new Thread("Server console handler") {
           public void run() {
+-            BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
 +            // CraftBukkit start
 +            if (net.minecraftforge.server.console.TerminalHandler.handleCommands(DedicatedServer.this)) return;
-             BufferedReader bufferedreader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
++            ConsoleReader bufferedreader = reader;
 +            // MC-33041, SPIGOT-5538: if System.in is not valid due to javaw, then return
 +            try {
 +               System.in.available();
@@ -98,7 +100,7 @@
                 }
              } catch (IOException ioexception1) {
                 DedicatedServer.field_155771_h.error("Exception handling console input", (Throwable)ioexception1);
-@@ -94,6 +_,20 @@
+@@ -94,6 +_,27 @@
  
           }
        };
@@ -111,7 +113,14 @@
 +      }
 +      global.addHandler(new org.bukkit.craftbukkit.v1_16_R3.util.ForwardLogHandler());
 +
-+      final org.apache.logging.log4j.Logger logger = LogManager.getRootLogger();
++      final org.apache.logging.log4j.core.Logger logger = ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger());
++      for (org.apache.logging.log4j.core.Appender appender : logger.getAppenders().values()) {
++         if (appender instanceof org.apache.logging.log4j.core.appender.ConsoleAppender) {
++            logger.removeAppender(appender);
++         }
++      }
++
++      new org.bukkit.craftbukkit.v1_16_R3.util.TerminalConsoleWriterThread(System.out, this.reader).start();
 +
 +      System.setOut(IoBuilder.forLogger(logger).setLevel(Level.INFO).buildPrintStream());
 +      System.setErr(IoBuilder.forLogger(logger).setLevel(Level.WARN).buildPrintStream());

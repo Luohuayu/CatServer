@@ -19,7 +19,7 @@
  import java.awt.image.BufferedImage;
  import java.io.File;
  import java.io.IOException;
-@@ -37,19 +_,53 @@
+@@ -37,19 +_,55 @@
  import java.util.Date;
  import java.util.List;
  import java.util.Map;
@@ -40,11 +40,13 @@
  import javax.imageio.ImageIO;
 +
 +import com.mojang.serialization.Lifecycle;
++import jline.console.ConsoleReader;
 +import net.minecraft.world.storage.*;
 +import org.apache.commons.lang3.Validate;
 +import org.apache.logging.log4j.LogManager;
 +import org.apache.logging.log4j.Logger;
 +import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.Main;
 +import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
 +import org.bukkit.craftbukkit.v1_16_R3.SpigotTimings;
 +import org.bukkit.event.server.ServerLoadEvent;
@@ -142,7 +144,7 @@
     protected long field_211151_aa = Util.func_211177_b();
     private long field_213213_ab;
     private boolean field_213214_ac;
-@@ -219,16 +_,39 @@
+@@ -219,16 +_,40 @@
     private final FrameTimer field_213215_ap = new FrameTimer();
     private boolean field_205745_an;
     private float field_211152_ao;
@@ -165,6 +167,7 @@
 +   public static OptionSet options;
 +   public org.bukkit.command.ConsoleCommandSender console;
 +   public org.bukkit.command.RemoteConsoleCommandSender remoteConsole;
++   public ConsoleReader reader;
 +   public static int currentTick = (int) (System.currentTimeMillis() / 50);
 +   public java.util.Queue<Runnable> processQueue = new java.util.concurrent.ConcurrentLinkedQueue<Runnable>();
 +   public int autosavePeriod;
@@ -186,13 +189,34 @@
           atomicreference.get().func_240802_v_();
        }, "Server thread");
        thread.setUncaughtExceptionHandler((p_240779_0_, p_240779_1_) -> {
-@@ -259,7 +_,11 @@
+@@ -259,7 +_,32 @@
        this.field_240765_ak_ = new TemplateManager(p_i232576_8_.func_240970_h_(), p_i232576_3_, p_i232576_7_);
        this.field_175590_aa = p_i232576_1_;
        this.field_213217_au = Util.func_215072_e();
 +      this.datapackconfiguration = defaultDatapackCodec;
 +      // CraftBukkit start
 +      this.vanillaCommandDispatcher = p_i232576_8_.field_240953_c_; // CraftBukkit
++      // Try to see if we're actually running in a terminal, disable jline if not
++      if (System.console() == null && System.getProperty("jline.terminal") == null) {
++         System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
++         Main.useJline = false;
++      }
++      try {
++         reader = new ConsoleReader(System.in, System.out);
++         reader.setExpandEvents(false); // Avoid parsing exceptions for uncommonly used event designators
++      } catch (Throwable e) {
++         try {
++            // Try again with jline disabled for Windows users without C++ 2008 Redistributable
++            System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
++            System.setProperty("user.language", "en");
++            Main.useJline = false;
++            reader = new ConsoleReader(System.in, System.out);
++            reader.setExpandEvents(false);
++         } catch (IOException ex) {
++            field_147145_h.warn((String) null, ex);
++         }
++      }
++      Runtime.getRuntime().addShutdownHook(new org.bukkit.craftbukkit.v1_16_R3.util.ServerShutdownThread(this));
     }
 +   // CraftBukkit end
  
@@ -496,11 +520,17 @@
           this.func_71228_a(crashreport);
        } finally {
           try {
-@@ -670,7 +_,12 @@
+@@ -670,7 +_,18 @@
           } catch (Throwable throwable) {
              field_147145_h.error("Exception stopping the server", throwable);
           } finally {
 +            net.minecraftforge.fml.server.ServerLifecycleHooks.handleServerStopped(this);
++            // CraftBukkit start - Restore terminal to original settings
++            try {
++               reader.getTerminal().restore();
++            } catch (Exception ignored) {
++            }
++            // CraftBukkit end
 +            org.spigotmc.WatchdogThread.doStop(); // Spigot
 +
              this.func_71240_o();
