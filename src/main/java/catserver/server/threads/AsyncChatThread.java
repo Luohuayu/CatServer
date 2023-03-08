@@ -1,5 +1,6 @@
 package catserver.server.threads;
 
+import catserver.server.CatServer;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.network.NetHandlerPlayServer;
 
@@ -13,7 +14,9 @@ public class AsyncChatThread {
     public static void shutdown() {
         try {
             executors.shutdown();
-            executors.awaitTermination(Long.MAX_VALUE, TimeUnit.MINUTES);
+            if (!executors.awaitTermination(10, TimeUnit.SECONDS)) {
+                CatServer.log.warn("An AsyncChatThread shutdown timed out! (Is there a plugin to register PlayerChatEvent?)");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
