@@ -2,6 +2,8 @@ package foxlaunch;
 
 import foxlaunch.legacy.InstallTool;
 import foxlaunch.legacy.LegacyLauncher;
+
+import java.lang.reflect.Array;
 import java.util.Arrays;
 
 public class FoxServerLauncher {
@@ -27,6 +29,7 @@ public class FoxServerLauncher {
         if (!skipCheckLibraries) {
             DataManager.downloadLibraries();
         }
+        args = FoxServerLauncher.removeArg(args, "nogui");
         if (InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"))) {
             System.out.println(LanguageUtils.I18nToString("launch.server_installed"));
         }
@@ -68,5 +71,29 @@ public class FoxServerLauncher {
             System.out.println("Unknown java version: " + classVersion);
         }
         return false;
+    }
+
+    private static String[] removeArg(String [] mainArgs, String arg) {
+        if (Arrays.stream(mainArgs).anyMatch(unlessArg -> unlessArg.equalsIgnoreCase(arg))) {
+            if (mainArgs.length > 0) {
+                int index = -1;
+                for (int i = 0; i < mainArgs.length; i++) {
+                    if (mainArgs[i].equalsIgnoreCase(arg)) {
+                        index = i;
+                        break;
+                    }
+                }
+                if (index >= 0) {
+                    String[] newArgs = (String[]) Array.newInstance(mainArgs.getClass().getComponentType(), mainArgs.length - 1);
+                    if (newArgs.length > 0) {
+                        System.arraycopy(mainArgs, 0, newArgs, 0, index);
+                        System.arraycopy(mainArgs, index + 1, newArgs, index, newArgs.length - index);
+                    }
+                    mainArgs = newArgs;
+                    System.out.println(String.format("[FoxLaunch] Incompatible parameters detected: %s , removed..", arg));
+                }
+            }
+        }
+        return mainArgs;
     }
 }
