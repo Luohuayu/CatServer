@@ -102,7 +102,7 @@ public class RenderLevelStageEvent extends Event
     /**
      * Use to create a custom {@link RenderLevelStageEvent.Stage}s.
      * Fired after the LevelRenderer has been created.
-     *
+     * 
      * Fired on the Mod bus {@link IModBusEvent}
      */
     public static class RegisterStageEvent extends Event implements IModBusEvent
@@ -161,7 +161,7 @@ public class RenderLevelStageEvent extends Event
          * Use this to render custom effects into the world, such as custom entity-like objects or special rendering effects.
          * Called within a fabulous graphics target.
          * Happens after entities render.
-         *
+         * 
          * @see ForgeRenderTypes#TRANSLUCENT_ON_PARTICLES_TARGET
          */
         public static final Stage AFTER_PARTICLES = register("after_particles", null);

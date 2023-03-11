@@ -1,29 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import net.minecraft.world.Container;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.AnvilMenu;
-import net.minecraft.world.inventory.BeaconMenu;
-import net.minecraft.world.inventory.BlastFurnaceMenu;
-import net.minecraft.world.inventory.BrewingStandMenu;
-import net.minecraft.world.inventory.CartographyTableMenu;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.CraftingMenu;
-import net.minecraft.world.inventory.DispenserMenu;
-import net.minecraft.world.inventory.EnchantmentMenu;
-import net.minecraft.world.inventory.FurnaceMenu;
-import net.minecraft.world.inventory.GrindstoneMenu;
-import net.minecraft.world.inventory.HopperMenu;
-import net.minecraft.world.inventory.LecternMenu;
-import net.minecraft.world.inventory.LoomMenu;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.MerchantMenu;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
-import net.minecraft.world.inventory.SimpleContainerData;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.inventory.SmithingMenu;
-import net.minecraft.world.inventory.SmokerMenu;
-import net.minecraft.world.inventory.StonecutterMenu;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.*;
 import net.minecraft.world.item.ItemStack;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.inventory.InventoryType;
@@ -36,7 +15,7 @@ public class CraftContainer extends AbstractContainerMenu {
     private InventoryType cachedType;
     private AbstractContainerMenu delegate;
 
-    public CraftContainer(InventoryView view, net.minecraft.world.entity.player.Player player, int id) {
+    public CraftContainer(InventoryView view, Player player, int id) {
         super(getNotchInventoryType(view.getTopInventory()), id);
         this.view = view;
         // TODO: Do we need to check that it really is a CraftInventory?
@@ -46,7 +25,7 @@ public class CraftContainer extends AbstractContainerMenu {
         setupSlots(top, bottom, player);
     }
 
-    public CraftContainer(final Inventory inventory, final net.minecraft.world.entity.player.Player player, int id) {
+    public CraftContainer(final Inventory inventory, final Player player, int id) {
         this(new InventoryView() {
             @Override
             public Inventory getTopInventory() {
@@ -149,7 +128,7 @@ public class CraftContainer extends AbstractContainerMenu {
         }
     }
 
-    private void setupSlots(Container top, net.minecraft.world.entity.player.Inventory bottom, net.minecraft.world.entity.player.Player entityhuman) {
+    private void setupSlots(Container top, net.minecraft.world.entity.player.Inventory bottom, Player entityhuman) {
         int windowId = -1;
         switch (cachedType) {
             case CREATIVE:
@@ -260,7 +239,7 @@ public class CraftContainer extends AbstractContainerMenu {
         // End copy from ContainerWorkbench
     }
 
-    private void setupAnvil(net.minecraft.world.Container top, net.minecraft.world.Container bottom) {
+    private void setupAnvil(Container top, Container bottom) {
         // This code copied from ContainerAnvilAbstract
         this.addSlot(new Slot(top, 0, 27, 47));
         this.addSlot(new Slot(top, 1, 76, 47));
@@ -282,12 +261,12 @@ public class CraftContainer extends AbstractContainerMenu {
     }
 
     @Override
-    public ItemStack quickMoveStack(net.minecraft.world.entity.player.Player entityhuman, int i) {
+    public ItemStack quickMoveStack(Player entityhuman, int i) {
         return (delegate != null) ? delegate.quickMoveStack(entityhuman, i) : super.quickMoveStack(entityhuman, i);
     }
 
     @Override
-    public boolean stillValid(net.minecraft.world.entity.player.Player entity) {
+    public boolean stillValid(Player entity) {
         return true;
     }
 

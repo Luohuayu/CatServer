@@ -4,8 +4,8 @@ public class TickLimiter {
     private final int maxTime;
     private long startTime;
 
-    public TickLimiter(int maxTime) {
-        this.maxTime = maxTime;
+    public TickLimiter(int maxtime) {
+        this.maxTime = maxtime;
     }
 
     public void initTick() {

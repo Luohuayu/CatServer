@@ -8,8 +8,8 @@ import org.bukkit.inventory.BrewerInventory;
 
 public class CraftBrewingStand extends CraftContainer<BrewingStandBlockEntity> implements BrewingStand {
 
-    public CraftBrewingStand(World world, final BrewingStandBlockEntity te) {
-        super(world, te);
+    public CraftBrewingStand(World world, BrewingStandBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

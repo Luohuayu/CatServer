@@ -2,8 +2,11 @@ package org.bukkit.craftbukkit.v1_18_R2.generator;
 
 import java.util.HashSet;
 import java.util.Set;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import org.bukkit.Material;
 import org.bukkit.block.Biome;
@@ -20,12 +23,12 @@ import org.bukkit.material.MaterialData;
 public final class OldCraftChunkData implements ChunkGenerator.ChunkData {
     private final int minHeight;
     private final int maxHeight;
-    private final net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> biomes;
     private final LevelChunkSection[] sections;
+    private final Registry<net.minecraft.world.level.biome.Biome> biomes;
     private Set<BlockPos> tiles;
     private final Set<BlockPos> lights = new HashSet<>();
 
-    public OldCraftChunkData(int minHeight, int maxHeight, net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> biomes) {
+    public OldCraftChunkData(int minHeight, int maxHeight, Registry<net.minecraft.world.level.biome.Biome> biomes) {
         this.minHeight = minHeight;
         this.maxHeight = maxHeight;
         this.biomes = biomes;
@@ -92,7 +95,7 @@ public final class OldCraftChunkData implements ChunkGenerator.ChunkData {
         return CraftBlockData.fromData(getTypeId(x, y, z));
     }
 
-    public void setRegion(int xMin, int yMin, int zMin, int xMax, int yMax, int zMax, net.minecraft.world.level.block.state.BlockState type) {
+    public void setRegion(int xMin, int yMin, int zMin, int xMax, int yMax, int zMax, BlockState type) {
         // Clamp to sane values.
         if (xMin > 0xf || yMin >= maxHeight || zMin > 0xf) {
             return;
@@ -129,7 +132,7 @@ public final class OldCraftChunkData implements ChunkGenerator.ChunkData {
         }
     }
 
-    public net.minecraft.world.level.block.state.BlockState getTypeId(int x, int y, int z) {
+    public BlockState getTypeId(int x, int y, int z) {
         if (x != (x & 0xf) || y < minHeight || y >= maxHeight || z != (z & 0xf)) {
             return Blocks.AIR.defaultBlockState();
         }
@@ -146,7 +149,7 @@ public final class OldCraftChunkData implements ChunkGenerator.ChunkData {
         return CraftMagicNumbers.toLegacyData(getTypeId(x, y, z));
     }
 
-    private void setBlock(int x, int y, int z, net.minecraft.world.level.block.state.BlockState type) {
+    private void setBlock(int x, int y, int z, BlockState type) {
         if (x != (x & 0xf) || y < minHeight || y >= maxHeight || z != (z & 0xf)) {
             return;
         }
@@ -154,7 +157,7 @@ public final class OldCraftChunkData implements ChunkGenerator.ChunkData {
         section.setBlockState(x, y & 0xf, z, type);
 
         // SPIGOT-1753: Capture light blocks, for light updates
-        if (type.getLightEmission() > 0) { // PAIL rename getLightEmission
+        if (type.getLightEmission() > 0) {
             lights.add(new BlockPos(x, y, z));
         } else {
             lights.remove(new BlockPos(x, y, z));

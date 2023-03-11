@@ -16,7 +16,12 @@ import net.minecraftforge.network.NetworkInstance;
 import net.minecraftforge.network.PacketDistributor;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -31,7 +36,6 @@ public class SimpleChannel
     private final Optional<Consumer<NetworkEvent.ChannelRegistrationChangeEvent>> registryChangeConsumer;
     private List<Function<Boolean, ? extends List<? extends Pair<String,?>>>> loginPackets;
     private Map<Class<?>, Boolean> packetsNeedResponse;
-
 
     public SimpleChannel(NetworkInstance instance) {
         this(instance, Optional.empty());

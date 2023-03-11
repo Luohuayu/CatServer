@@ -1,29 +1,5 @@
 --- a/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
 +++ b/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-@@ -2,8 +_,6 @@
- 
- import com.google.common.collect.Lists;
- import com.mojang.logging.LogUtils;
--import java.util.List;
--import javax.annotation.Nullable;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.particles.ParticleTypes;
- import net.minecraft.nbt.CompoundTag;
-@@ -20,13 +_,7 @@
- import net.minecraft.world.damagesource.DamageSource;
- import net.minecraft.world.damagesource.EntityDamageSource;
- import net.minecraft.world.effect.MobEffectInstance;
--import net.minecraft.world.entity.Entity;
--import net.minecraft.world.entity.EntitySelector;
--import net.minecraft.world.entity.EntityType;
--import net.minecraft.world.entity.ExperienceOrb;
--import net.minecraft.world.entity.LivingEntity;
--import net.minecraft.world.entity.Mob;
--import net.minecraft.world.entity.MoverType;
-+import net.minecraft.world.entity.*;
- import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
- import net.minecraft.world.entity.ai.attributes.Attributes;
- import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 @@ -36,8 +_,12 @@
  import net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhaseManager;
  import net.minecraft.world.entity.monster.Enemy;
@@ -37,7 +13,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.dimension.end.EndDragonFight;
  import net.minecraft.world.level.levelgen.Heightmap;
-@@ -46,10 +_,18 @@
+@@ -46,8 +_,13 @@
  import net.minecraft.world.level.pathfinder.BinaryHeap;
  import net.minecraft.world.level.pathfinder.Node;
  import net.minecraft.world.level.pathfinder.Path;
@@ -50,25 +26,30 @@
 +import org.bukkit.event.entity.EntityRegainHealthEvent;
  import org.slf4j.Logger;
  
-+import javax.annotation.Nullable;
-+import java.util.List;
-+
  public class EnderDragon extends Mob implements Enemy {
-    private static final Logger f_31087_ = LogUtils.getLogger();
-    public static final EntityDataAccessor<Integer> f_31067_ = SynchedEntityData.m_135353_(EnderDragon.class, EntityDataSerializers.f_135028_);
+@@ -61,7 +_,7 @@
+    private static final String f_149570_ = "DragonPhase";
+    public final double[][] f_31092_ = new double[64][3];
+    public int f_31093_ = -1;
+-   private final EnderDragonPart[] f_31089_;
++   public final EnderDragonPart[] f_31089_;
+    public final EnderDragonPart f_31080_;
+    private final EnderDragonPart f_31090_;
+    private final EnderDragonPart f_31091_;
 @@ -85,6 +_,7 @@
     private final Node[] f_31077_ = new Node[24];
     private final int[] f_31078_ = new int[24];
     private final BinaryHeap f_31079_ = new BinaryHeap();
-+   private Explosion explosionSource = new Explosion(null, this, null, null, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, Explosion.BlockInteraction.DESTROY); // CraftBukkit - reusable source for CraftTNTPrimed.getSource()
++   private Explosion explosionSource; // CraftBukkit
  
     public EnderDragon(EntityType<? extends EnderDragon> p_31096_, Level p_31097_) {
        super(EntityType.f_20565_, p_31097_);
-@@ -107,6 +_,14 @@
+@@ -107,6 +_,15 @@
        }
  
        this.f_31074_ = new EnderDragonPhaseManager(this);
 +      this.m_20234_(f_19843_.getAndAdd(this.f_31089_.length + 1) + 1); // Forge: Fix MC-158205: Make sure part ids are successors of parent mob id
++      this.explosionSource = new Explosion(p_31097_, this, null, null, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, Explosion.BlockInteraction.DESTROY); // CraftBukkit - reusable source for CraftTNTPrimed.getSource()
 +   }
 +
 +   @Override
@@ -91,7 +72,16 @@
        this.m_146874_();
        if (this.f_19853_.f_46443_) {
           this.m_21153_(this.m_21223_());
-@@ -349,7 +_,14 @@
+@@ -219,7 +_,7 @@
+                }
+ 
+                Vec3 vec31 = dragonphaseinstance.m_5535_();
+-               if (vec31 != null) {
++               if (vec31 != null && dragonphaseinstance.m_7309_() != EnderDragonPhase.f_31387_) { // CraftBukkit - Don't move when hovering
+                   double d7 = vec31.f_82479_ - this.m_20185_();
+                   double d8 = vec31.f_82480_ - this.m_20186_();
+                   double d9 = vec31.f_82481_ - this.m_20189_();
+@@ -349,7 +_,13 @@
           if (this.f_31086_.m_146910_()) {
              this.f_31086_ = null;
           } else if (this.f_19797_ % 10 == 0 && this.m_21223_() < this.m_21233_()) {
@@ -99,7 +89,6 @@
 +            // CraftBukkit start
 +            EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), 1.0F, EntityRegainHealthEvent.RegainReason.ENDER_CRYSTAL);
 +            this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
-+
 +            if (!event.isCancelled()) {
 +               this.m_21153_((float) (this.m_21223_() + event.getAmount()));
 +            }
@@ -107,17 +96,15 @@
           }
        }
  
-@@ -414,14 +_,22 @@
+@@ -413,6 +_,7 @@
+       int j1 = Mth.m_14107_(p_31140_.f_82293_);
        boolean flag = false;
        boolean flag1 = false;
++      List<org.bukkit.block.Block> destroyedBlocks = new java.util.ArrayList<org.bukkit.block.Block>(); // CraftBukkit
  
-+      // CraftBukkit start - Create a list to hold all the destroyed blocks
-+      List<org.bukkit.block.Block> destroyedBlocks = new java.util.ArrayList<org.bukkit.block.Block>();
-+      // CraftBukkit end
-+
        for(int k1 = i; k1 <= l; ++k1) {
           for(int l1 = j; l1 <= i1; ++l1) {
-             for(int i2 = k; i2 <= j1; ++i2) {
+@@ -420,8 +_,11 @@
                 BlockPos blockpos = new BlockPos(k1, l1, i2);
                 BlockState blockstate = this.f_19853_.m_8055_(blockpos);
                 if (!blockstate.m_60795_() && blockstate.m_60767_() != Material.f_76309_) {
@@ -127,12 +114,11 @@
 +                     // CraftBukkit start - Add blocks to list rather than destroying them
 +                     // flag1 = this.level.removeBlock(blockpos, false) || flag1;
 +                     flag1 = true;
-+                     destroyedBlocks.add( CraftBlock.at(f_19853_, blockpos));
-+                     // CraftBukkit end
++                     destroyedBlocks.add(CraftBlock.at(f_19853_, blockpos));
                    } else {
                       flag = true;
                    }
-@@ -430,6 +_,52 @@
+@@ -430,6 +_,51 @@
           }
        }
  
@@ -167,12 +153,12 @@
 +            Block nmsBlock = craftBlock.getNMS().m_60734_();
 +            if (nmsBlock.m_6903_(explosionSource)) {
 +               BlockEntity tileentity = craftBlock.getNMS().m_155947_() ? this.f_19853_.m_7702_(blockposition) : null;
-+               LootContext.Builder loottableinfo_builder = (new LootContext.Builder((ServerLevel ) this.f_19853_)).m_78977_(this.f_19853_.f_46441_).m_78972_( LootContextParams.f_81460_, Vec3.m_82512_(blockposition)).m_78972_(LootContextParams.f_81463_, ItemStack.f_41583_).m_78972_(LootContextParams.f_81464_, 1.0F / event.getYield()).m_78984_(LootContextParams.f_81462_, tileentity);
++               LootContext.Builder loottableinfo_builder = (new LootContext.Builder((ServerLevel) this.f_19853_)).m_78977_(this.f_19853_.f_46441_).m_78972_(LootContextParams.f_81460_, Vec3.m_82512_(blockposition)).m_78972_(LootContextParams.f_81463_, ItemStack.f_41583_).m_78972_(LootContextParams.f_81464_, 1.0F / event.getYield()).m_78984_(LootContextParams.f_81462_, tileentity);
 +
 +               craftBlock.getNMS().m_60724_(loottableinfo_builder).forEach((itemstack) -> {
 +                  Block.m_49840_(f_19853_, blockposition, itemstack);
 +               });
-+               craftBlock.getNMS().m_60612_((ServerLevel ) f_19853_, blockposition, ItemStack.f_41583_);
++               craftBlock.getNMS().m_60612_((ServerLevel) f_19853_, blockposition, ItemStack.f_41583_);
 +            }
 +            nmsBlock.m_7592_(f_19853_, blockposition, explosionSource);
 +
@@ -181,11 +167,10 @@
 +      }
 +      // CraftBukkit end
 +
-+
        if (flag1) {
           BlockPos blockpos1 = new BlockPos(i + this.f_19796_.nextInt(l - i + 1), j + this.f_19796_.nextInt(i1 - j + 1), k + this.f_19796_.nextInt(j1 - k + 1));
           this.f_19853_.m_46796_(2008, blockpos1, 0);
-@@ -514,11 +_,28 @@
+@@ -514,7 +_,8 @@
  
        if (this.f_19853_ instanceof ServerLevel) {
           if (this.f_31084_ > 150 && this.f_31084_ % 5 == 0 && flag) {
@@ -195,27 +180,6 @@
           }
  
           if (this.f_31084_ == 1 && !this.m_20067_()) {
--            this.f_19853_.m_6798_(1028, this.m_142538_(), 0);
-+            // CraftBukkit start - Use relative location for far away sounds
-+            int viewDistance = ((ServerLevel) this.f_19853_).getCraftServer().getViewDistance() * 16;
-+            for (net.minecraft.server.level.ServerPlayer player : this.f_19853_.m_142572_().m_6846_().f_11196_) {
-+               double deltaX = this.m_20185_() - player.m_20185_();
-+               double deltaZ = this.m_20189_() - player.m_20189_();
-+               double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
-+               if ( f_19853_.spigotConfig.dragonDeathSoundRadius > 0 && distanceSquared > f_19853_.spigotConfig.dragonDeathSoundRadius * f_19853_.spigotConfig.dragonDeathSoundRadius ) continue; // Spigot
-+               if (distanceSquared > viewDistance * viewDistance) {
-+                  double deltaLength = Math.sqrt(distanceSquared);
-+                  double relativeX = player.m_20185_() + (deltaX / deltaLength) * viewDistance;
-+                  double relativeZ = player.m_20189_() + (deltaZ / deltaLength) * viewDistance;
-+                  player.f_8906_.m_141995_(new net.minecraft.network.protocol.game.ClientboundLevelEventPacket(1028, new BlockPos((int) relativeX, (int) this.m_20186_(), (int) relativeZ), 0, true));
-+               } else {
-+                  player.f_8906_.m_141995_(new net.minecraft.network.protocol.game.ClientboundLevelEventPacket(1028, new BlockPos((int) this.m_20185_(), (int) this.m_20186_(), (int) this.m_20189_()), 0, true));
-+               }
-+            }
-+            // CraftBukkit end
-          }
-       }
- 
 @@ -527,7 +_,8 @@
        this.f_20883_ = this.m_146908_();
        if (this.f_31084_ == 200 && this.f_19853_ instanceof ServerLevel) {

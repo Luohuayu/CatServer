@@ -1,5 +1,7 @@
 package catserver.server.patcher;
 
+import catserver.server.patcher.plugins.EssentialsPatcher;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -7,7 +9,7 @@ public class PatcherManager {
     private static Map<String, IPatcher> pluginPatcher = new HashMap<>();
 
     static {
-        // TODO
+        registerPluginPatcher("Essentials", new EssentialsPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {

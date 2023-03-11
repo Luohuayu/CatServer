@@ -1,25 +1,23 @@
 --- a/net/minecraft/server/Main.java
 +++ b/net/minecraft/server/Main.java
-@@ -13,7 +_,10 @@
+@@ -1,5 +_,6 @@
+ package net.minecraft.server;
+ 
++import catserver.server.utils.MinecraftServerHelper;
+ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
+@@ -13,7 +_,9 @@
  import java.net.Proxy;
  import java.nio.file.Path;
  import java.nio.file.Paths;
 +import java.util.Arrays;
  import java.util.Optional;
-+import java.util.concurrent.CompletableFuture;
 +import java.util.concurrent.atomic.AtomicReference;
  import java.util.function.BooleanSupplier;
  import joptsimple.OptionParser;
  import joptsimple.OptionSet;
-@@ -53,6 +_,7 @@
- import net.minecraft.world.level.storage.LevelSummary;
- import net.minecraft.world.level.storage.PrimaryLevelData;
- import net.minecraft.world.level.storage.WorldData;
-+import org.apache.logging.log4j.LogManager;
- import org.slf4j.Logger;
- 
- public class Main {
-@@ -77,6 +_,41 @@
+@@ -77,6 +_,36 @@
        OptionSpec<String> optionspec12 = optionparser.accepts("serverId").withRequiredArg();
        OptionSpec<Void> optionspec13 = optionparser.accepts("jfrProfile");
        OptionSpec<String> optionspec14 = optionparser.nonOptions();
@@ -30,7 +28,7 @@
 +      if (gametestEnabled) {
 +         spawnPosOpt = optionparser.accepts("spawnPos").withRequiredArg().withValuesConvertedBy(new net.minecraftforge.gametest.BlockPosValueConverter()).defaultsTo(new net.minecraft.core.BlockPos(0, 60, 0));
 +      } else {
-+         spawnPosOpt = null;
++          spawnPosOpt = null;
 +      }
 +
 +      optionparser.acceptsAll(Arrays.asList("b", "bukkit-settings"), "File for bukkit settings")
@@ -38,26 +36,21 @@
 +              .ofType(File.class)
 +              .defaultsTo(new File("bukkit.yml"))
 +              .describedAs("Yml file");
-+
-+      optionparser.acceptsAll(Arrays.asList("C", "commands-settings"), "File for command settings")
-+              .withRequiredArg()
-+              .ofType(File.class)
-+              .defaultsTo(new File("commands.yml"))
-+              .describedAs("Yml file");
-+
-+      optionparser.acceptsAll(Arrays.asList("P", "plugins"), "Plugin directory to use")
-+              .withRequiredArg()
-+              .ofType(File.class)
-+              .defaultsTo(new File("plugins"))
-+              .describedAs("Plugin directory");
-+
-+      // Spigot Start
 +      optionparser.acceptsAll(Arrays.asList("S", "spigot-settings"), "File for spigot settings")
 +              .withRequiredArg()
 +              .ofType(File.class)
 +              .defaultsTo(new File("spigot.yml"))
 +              .describedAs("Yml file");
-+      // Spigot End
++      optionparser.acceptsAll(Arrays.asList("C", "commands-settings"), "File for command settings")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("commands.yml"))
++              .describedAs("Yml file");
++      optionparser.acceptsAll(Arrays.asList("P", "plugins"), "Plugin directory to use")
++              .withRequiredArg()
++              .ofType(File.class)
++              .defaultsTo(new File("plugins"))
++              .describedAs("Plugin directory");
  
        try {
           OptionSet optionset = optionparser.parse(p_129699_);
@@ -111,23 +104,45 @@
           LevelSummary levelsummary = levelstoragesource$levelstorageaccess.m_78308_();
           if (levelsummary != null) {
              if (levelsummary.m_193020_()) {
-@@ -135,6 +_,10 @@
+@@ -134,7 +_,30 @@
+             f_129670_.warn("Safe mode active, only vanilla datapack will be loaded");
           }
  
++         // CatServer start
++
++         // CatServer end
++
           PackRepository packrepository = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), PackSource.f_10529_));
-+         AtomicReference<DataPackConfig> config = new AtomicReference<>();
-+         AtomicReference<DynamicOps<Tag>> ops = new AtomicReference<>();
-+
-+
++         // CraftBukkit start
++         File bukkitDataPackFolder = new File(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), "bukkit");
++         if (!bukkitDataPackFolder.exists()) {
++            bukkitDataPackFolder.mkdirs();
++         }
++         File mcMeta = new File(bukkitDataPackFolder, "pack.mcmeta");
++         try {
++            com.google.common.io.Files.write("{\n"
++                    + "    \"pack\": {\n"
++                    + "        \"description\": \"Data pack for resources provided by Bukkit plugins\",\n"
++                    + "        \"pack_format\": " + SharedConstants.m_183709_().getPackVersion() + "\n"
++                    + "    }\n"
++                    + "}\n", mcMeta, com.google.common.base.Charsets.UTF_8);
++         } catch (java.io.IOException ex) {
++            throw new RuntimeException("Could not initialize Bukkit datapack", ex);
++         }
++         AtomicReference<DataPackConfig> dataPackConfig = new AtomicReference<>();
++         AtomicReference<DynamicOps<Tag>>dynamicOps = new AtomicReference<>();
++         // CraftBukkit end
  
           WorldStem worldstem;
           try {
-@@ -145,6 +_,8 @@
+@@ -145,6 +_,10 @@
              }, (p_206543_, p_206544_) -> {
                 RegistryAccess.Writable registryaccess$writable = RegistryAccess.m_206197_();
                 DynamicOps<Tag> dynamicops = RegistryOps.m_206813_(NbtOps.f_128958_, registryaccess$writable, p_206543_);
-+               config.set(p_206544_);
-+               ops.set(dynamicops);
++               // CatServer start
++               dataPackConfig.set(p_206544_);
++               dynamicOps.set(dynamicops);
++               // CatServer end
                 WorldData worlddata1 = levelstoragesource$levelstorageaccess.m_211747_(dynamicops, p_206544_, registryaccess$writable.m_211816_());
                 if (worlddata1 != null) {
                    return Pair.of(worlddata1, registryaccess$writable.m_203557_());
@@ -140,17 +155,14 @@
                    PrimaryLevelData primaryleveldata = new PrimaryLevelData(levelsettings, worldgensettings, Lifecycle.stable());
                    return Pair.of(primaryleveldata, registryaccess$writable.m_203557_());
                 }
-@@ -181,22 +_,44 @@
+@@ -181,22 +_,34 @@
           }
  
           levelstoragesource$levelstorageaccess.m_78287_(registryaccess$frozen, worlddata);
 -         final DedicatedServer dedicatedserver = MinecraftServer.m_129872_((p_206536_) -> {
 -            DedicatedServer dedicatedserver1 = new DedicatedServer(p_206536_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
--            dedicatedserver1.m_129981_(optionset.valueOf(optionspec8));
--            dedicatedserver1.m_129801_(optionset.valueOf(optionspec11));
--            dedicatedserver1.m_129975_(optionset.has(optionspec2));
--            dedicatedserver1.m_129948_(optionset.valueOf(optionspec12));
 +         final MinecraftServer dedicatedserver = MinecraftServer.m_129872_((p_129697_) -> {
++            MinecraftServerHelper.getInstance().load(optionset, dataPackConfig.get(), dynamicOps.get()); // CatServer
 +            MinecraftServer dedicatedserver1;
 +            if (gametestEnabled) {
 +               net.minecraftforge.gametest.ForgeGameTestHooks.registerGametests();
@@ -158,30 +170,18 @@
 +               net.minecraft.core.BlockPos spawnPos = optionset.valueOf(spawnPosOpt);
 +               dedicatedserver1 = new net.minecraft.gametest.framework.GameTestServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, testBatches, spawnPos);
 +            } else {
-+               dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(),p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
++               dedicatedserver1 = new DedicatedServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
 +            }
-+            /*
-+            dedicatedserver1.setSingleplayerName(optionset.valueOf(optionspec8));
-+            dedicatedserver1.setPort(optionset.valueOf(optionspec11));
-+            dedicatedserver1.setDemo(optionset.has(optionspec2));
-+            dedicatedserver1.setId(optionset.valueOf(optionspec12));
-+            */
+             dedicatedserver1.m_129981_(optionset.valueOf(optionspec8));
+             dedicatedserver1.m_129801_(optionset.valueOf(optionspec11));
+             dedicatedserver1.m_129975_(optionset.has(optionspec2));
+             dedicatedserver1.m_129948_(optionset.valueOf(optionspec12));
              boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec14).contains("nogui");
 -            if (flag1 && !GraphicsEnvironment.isHeadless()) {
 -               dedicatedserver1.m_139667_();
--            }
-+			dedicatedserver1.options = optionset;
 +            if (dedicatedserver1 instanceof DedicatedServer dedicatedServer && flag1 && !GraphicsEnvironment.isHeadless()) {
-+               // dedicatedserver1.showGui();
-+            }
-+
-+            if (optionset.has("port")) {
-+               int port = (Integer) optionset.valueOf("port");
-+               if (port > 0) {
-+                  dedicatedserver1.m_129801_(port);
-+               }
-+            }
-+
++               // dedicatedServer.showGui(); // CatServer - disable MinecraftServer GUI
+             }
  
              return dedicatedserver1;
           });
@@ -201,7 +201,7 @@
 -   private static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
 -      f_129670_.info("Forcing world upgrade!");
 +   public static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
-+      Main.f_129670_.info("Forcing world upgrade! {}", p_195489_.m_78277_()); // CraftBukkit
++      f_129670_.info("Forcing world upgrade! {}", p_195489_.m_78277_()); // CraftBukkit
        WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_195493_, p_195491_);
        Component component = null;
  

@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class LimitStream extends FilterInputStream {
-
     private final NbtAccounter limit;
 
     public LimitStream(InputStream is, NbtAccounter limit) {

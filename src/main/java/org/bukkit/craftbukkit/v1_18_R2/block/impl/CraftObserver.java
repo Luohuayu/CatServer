@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftObserver extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Observer, org.bukkit.block.data.Directional, org.bukkit.block.data.Powerable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftObserver extends CraftBlockData implements org.bukkit.block.data.type.Observer, org.bukkit.block.data.Directional, org.bukkit.block.data.Powerable {
 
     public CraftObserver() {
         super();
@@ -13,7 +15,7 @@ public final class CraftObserver extends org.bukkit.craftbukkit.v1_18_R2.block.d
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.ObserverBlock.class, "facing");
 
@@ -32,7 +34,7 @@ public final class CraftObserver extends org.bukkit.craftbukkit.v1_18_R2.block.d
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.ObserverBlock.class, "powered");
 

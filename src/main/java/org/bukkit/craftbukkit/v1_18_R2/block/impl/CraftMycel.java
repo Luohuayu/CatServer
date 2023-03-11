@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftMycel extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Snowable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftMycel extends CraftBlockData implements org.bukkit.block.data.Snowable {
 
     public CraftMycel() {
         super();
@@ -13,7 +15,7 @@ public final class CraftMycel extends org.bukkit.craftbukkit.v1_18_R2.block.data
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftSnowable
+    // org.bukkit.craftbukkit.block.data.CraftSnowable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty SNOWY = getBoolean(net.minecraft.world.level.block.MyceliumBlock.class, "snowy");
 

@@ -1,8 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.JukeboxBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.JukeboxBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
 import org.bukkit.Effect;
@@ -15,8 +15,8 @@ import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 
 public class CraftJukebox extends CraftBlockEntityState<JukeboxBlockEntity> implements Jukebox {
 
-    public CraftJukebox(World world, JukeboxBlockEntity te) {
-        super(world, te);
+    public CraftJukebox(World world, JukeboxBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

@@ -1,10 +1,26 @@
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -79,9 +_,11 @@
- import net.minecraft.stats.Stats;
- import net.minecraft.util.Mth;
- import net.minecraft.util.Unit;
-+import net.minecraft.util.datafix.fixes.BlockEntityKeepPacked;
+@@ -1,9 +_,11 @@
+ package net.minecraft.server.level;
+ 
++import catserver.server.CatServerCaptures;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.datafixers.util.Either;
+ import com.mojang.logging.LogUtils;
++
+ import java.util.Collection;
+ import java.util.List;
+ import java.util.Optional;
+@@ -11,6 +_,7 @@
+ import java.util.Random;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
+ import net.minecraft.BlockUtil;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.CrashReport;
+@@ -82,6 +_,7 @@
  import net.minecraft.world.Container;
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.MenuProvider;
@@ -20,14 +36,6 @@
  import net.minecraft.world.inventory.AbstractContainerMenu;
  import net.minecraft.world.inventory.ContainerListener;
  import net.minecraft.world.inventory.ContainerSynchronizer;
-@@ -112,6 +_,7 @@
- import net.minecraft.world.item.ServerItemCooldowns;
- import net.minecraft.world.item.WrittenBookItem;
- import net.minecraft.world.item.crafting.Recipe;
-+import net.minecraft.world.item.enchantment.EnchantmentHelper;
- import net.minecraft.world.item.trading.MerchantOffers;
- import net.minecraft.world.level.ChunkPos;
- import net.minecraft.world.level.GameRules;
 @@ -119,6 +_,7 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.biome.BiomeManager;
@@ -36,528 +44,1378 @@
  import net.minecraft.world.level.block.HorizontalDirectionalBlock;
  import net.minecraft.world.level.block.NetherPortalBlock;
  import net.minecraft.world.level.block.entity.BlockEntity;
-@@ -132,9 +_,23 @@
+@@ -132,1393 +_,1944 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Score;
 +import net.minecraft.world.scores.Scoreboard;
  import net.minecraft.world.scores.Team;
  import net.minecraft.world.scores.criteria.ObjectiveCriteria;
++import org.apache.commons.lang3.SystemUtils;
++import org.bukkit.Bukkit;
 +import org.bukkit.Location;
++import org.bukkit.WeatherType;
++import org.bukkit.World;
++import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftWorldBorder;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
-+import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryHorse;
-+import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.v1_18_R2.event.CraftPortalEvent;
++import org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage;
 +import org.bukkit.craftbukkit.v1_18_R2.util.CraftDimensionUtil;
++import org.bukkit.entity.Item;
 +import org.bukkit.event.player.*;
-+import org.bukkit.inventory.HorseInventory;
 +import org.bukkit.inventory.MainHand;
  import org.slf4j.Logger;
-+import org.bukkit.Bukkit;
-+import org.bukkit.WeatherType;
-+import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
-+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
  
  public class ServerPlayer extends Player {
-    private static final Logger f_8907_ = LogUtils.getLogger();
-@@ -227,16 +_,80 @@
-    public int f_8943_;
-    public boolean f_8944_;
- 
-+   // CraftBukkit start
-+   public String displayName;
-+   public org.bukkit.Location compassTarget;
-+   public int newExp = 0;
-+   public int newLevel = 0;
-+   public int newTotalExp = 0;
-+   public boolean keepLevel = false;
-+   public double maxHealthCache;
-+   public boolean joining = true;
-+   public boolean sentListPacket = false;
-+   public Integer clientViewDistance;
-+   public String kickLeaveMessage = null; // SPIGOT-3034: Forward leave message to PlayerQuitEvent
-+   public String locale = "en_us"; // CraftBukkit - add, lowercase
-+   // CraftBukkit end
-+
-+   @Override
-+   public CraftPlayer getBukkitEntity() {
-+      return (CraftPlayer) super.getBukkitEntity();
-+   }
-+
-    public ServerPlayer(MinecraftServer p_143384_, ServerLevel p_143385_, GameProfile p_143386_) {
-       super(p_143385_, p_143385_.m_8900_(), p_143385_.m_8901_(), p_143386_);
-       this.f_8939_ = p_143384_.m_7950_(this);
-       this.f_8941_ = p_143384_.m_177933_(this);
-       this.f_8924_ = p_143384_;
+-   private static final Logger f_8907_ = LogUtils.getLogger();
+-   private static final int f_143381_ = 32;
+-   private static final int f_143382_ = 10;
+-   public ServerGamePacketListenerImpl f_8906_;
+-   public final MinecraftServer f_8924_;
+-   public final ServerPlayerGameMode f_8941_;
+-   private final PlayerAdvancements f_8909_;
+-   private final ServerStatsCounter f_8910_;
+-   private float f_8911_ = Float.MIN_VALUE;
+-   private int f_8912_ = Integer.MIN_VALUE;
+-   private int f_8913_ = Integer.MIN_VALUE;
+-   private int f_8914_ = Integer.MIN_VALUE;
+-   private int f_8915_ = Integer.MIN_VALUE;
+-   private int f_8916_ = Integer.MIN_VALUE;
+-   private float f_8917_ = -1.0E8F;
+-   private int f_8918_ = -99999999;
+-   private boolean f_8919_ = true;
+-   private int f_8920_ = -99999999;
+-   private int f_8921_ = 60;
+-   private ChatVisiblity f_8922_ = ChatVisiblity.FULL;
+-   private boolean f_8923_ = true;
+-   private long f_8925_ = Util.m_137550_();
+-   @Nullable
+-   private Entity f_8926_;
+-   private boolean f_8927_;
+-   private boolean f_8928_;
+-   private final ServerRecipeBook f_8929_ = new ServerRecipeBook();
+-   @Nullable
+-   private Vec3 f_8930_;
+-   private int f_8931_;
+-   private boolean f_8932_;
+-   @Nullable
+-   private Vec3 f_184125_;
+-   @Nullable
+-   private Vec3 f_8933_;
+-   @Nullable
+-   private Vec3 f_184126_;
+-   private SectionPos f_8934_ = SectionPos.m_123173_(0, 0, 0);
+-   private ResourceKey<Level> f_8935_ = Level.f_46428_;
+-   @Nullable
+-   private BlockPos f_8936_;
+-   private boolean f_8937_;
+-   private float f_8938_;
+-   private final TextFilter f_8939_;
+-   private boolean f_143378_;
+-   private boolean f_184127_ = true;
+-   private final ContainerSynchronizer f_143379_ = new ContainerSynchronizer() {
+-      public void m_142589_(AbstractContainerMenu p_143448_, NonNullList<ItemStack> p_143449_, ItemStack p_143450_, int[] p_143451_) {
+-         ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetContentPacket(p_143448_.f_38840_, p_143448_.m_182425_(), p_143449_, p_143450_));
+-
+-         for(int i = 0; i < p_143451_.length; ++i) {
+-            this.m_143454_(p_143448_, i, p_143451_[i]);
+-         }
+-
+-      }
+-
+-      public void m_142074_(AbstractContainerMenu p_143441_, int p_143442_, ItemStack p_143443_) {
+-         ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(p_143441_.f_38840_, p_143441_.m_182425_(), p_143442_, p_143443_));
+-      }
+-
+-      public void m_142529_(AbstractContainerMenu p_143445_, ItemStack p_143446_) {
+-         ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(-1, p_143445_.m_182425_(), -1, p_143446_));
+-      }
+-
+-      public void m_142145_(AbstractContainerMenu p_143437_, int p_143438_, int p_143439_) {
+-         this.m_143454_(p_143437_, p_143438_, p_143439_);
+-      }
+-
+-      private void m_143454_(AbstractContainerMenu p_143455_, int p_143456_, int p_143457_) {
+-         ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetDataPacket(p_143455_.f_38840_, p_143456_, p_143457_));
+-      }
+-   };
+-   private final ContainerListener f_143380_ = new ContainerListener() {
+-      public void m_7934_(AbstractContainerMenu p_143466_, int p_143467_, ItemStack p_143468_) {
+-         Slot slot = p_143466_.m_38853_(p_143467_);
+-         if (!(slot instanceof ResultSlot)) {
+-            if (slot.f_40218_ == ServerPlayer.this.m_150109_()) {
+-               CriteriaTriggers.f_10571_.m_43149_(ServerPlayer.this, ServerPlayer.this.m_150109_(), p_143468_);
+-            }
+-
+-         }
+-      }
+-
+-      public void m_142153_(AbstractContainerMenu p_143462_, int p_143463_, int p_143464_) {
+-      }
+-   };
+-   public int f_8940_;
+-   public int f_8943_;
+-   public boolean f_8944_;
+-
+-   public ServerPlayer(MinecraftServer p_143384_, ServerLevel p_143385_, GameProfile p_143386_) {
+-      super(p_143385_, p_143385_.m_8900_(), p_143385_.m_8901_(), p_143386_);
+-      this.f_8939_ = p_143384_.m_7950_(this);
+-      this.f_8941_ = p_143384_.m_177933_(this);
+-      this.f_8924_ = p_143384_;
 -      this.f_8910_ = p_143384_.m_6846_().m_11239_(this);
-+      this.f_8910_ = p_143384_.m_6846_().getPlayerStats(this);
-       this.f_8909_ = p_143384_.m_6846_().m_11296_(this);
-       this.f_19793_ = 1.0F;
-       this.m_9201_(p_143385_);
+-      this.f_8909_ = p_143384_.m_6846_().m_11296_(this);
+-      this.f_19793_ = 1.0F;
+-      this.m_9201_(p_143385_);
 -   }
-+
-+      // CraftBukkit start
-+      this.displayName = this.m_6302_();
-+      this.bukkitPickUpLoot = true;
-+      this.maxHealthCache = this.m_21233_();
-+   }
-+
-+   // Yes, this doesn't match Vanilla, but it's the best we can do for now.
-+   // If this is an issue, PRs are welcome
-+   public final BlockPos getSpawnPoint(ServerLevel worldserver) {
-+      BlockPos blockposition = worldserver.m_8900_();
-+
-+      if (worldserver.m_6042_().m_63935_() && worldserver.f_8549_.m_5464_() != GameType.ADVENTURE) {
-+         int i = Math.max(0, this.f_8924_.m_129803_(worldserver));
-+         int j = Mth.m_14107_(worldserver.m_6857_().m_61941_((double) blockposition.m_123341_(), (double) blockposition.m_123343_()));
-+
-+         if (j < i) {
-+            i = j;
-+         }
-+
-+         if (j <= 1) {
-+            i = 1;
-+         }
-+
-+         long k = (long) (i * 2 + 1);
-+         long l = k * k;
-+         int i1 = l > 2147483647L ? Integer.MAX_VALUE : (int) l;
-+         int j1 = this.m_9237_(i1);
-+         int k1 = (new Random()).nextInt(i1);
-+
-+         for (int l1 = 0; l1 < i1; ++l1) {
-+            int i2 = (k1 + j1 * l1) % i1;
-+            int j2 = i2 % (i * 2 + 1);
-+            int k2 = i2 / (i * 2 + 1);
-+            BlockPos blockposition1 = PlayerRespawnLogic.m_183928_(worldserver, blockposition.m_123341_() + j2 - i, blockposition.m_123343_() + k2 - i);
-+
-+            if (blockposition1 != null) {
-+               return blockposition1;
-+            }
-+         }
-+      }
-+
-+      return blockposition;
-+   }
-+   // CraftBukkit end
- 
-    private void m_9201_(ServerLevel p_9202_) {
-       BlockPos blockpos = p_9202_.m_8900_();
-@@ -294,11 +_,20 @@
-       if (p_9131_.m_128425_("recipeBook", 10)) {
-          this.f_8929_.m_12794_(p_9131_.m_128469_("recipeBook"), this.f_8924_.m_129894_());
-       }
-+      this.getBukkitEntity().readExtraData(p_9131_); // CraftBukkit
- 
-       if (this.m_5803_()) {
-          this.m_5796_();
-       }
- 
-+      // CraftBukkit start
-+      String spawnWorld = p_9131_.m_128461_("SpawnWorld");
-+      CraftWorld oldWorld = (CraftWorld) Bukkit.getWorld(spawnWorld);
-+      if (oldWorld != null) {
-+         this.f_8935_ = oldWorld.getHandle().m_46472_();
-+      }
-+      // CraftBukkit end
-+
-       if (p_9131_.m_128425_("SpawnX", 99) && p_9131_.m_128425_("SpawnY", 99) && p_9131_.m_128425_("SpawnZ", 99)) {
-          this.f_8936_ = new BlockPos(p_9131_.m_128451_("SpawnX"), p_9131_.m_128451_("SpawnY"), p_9131_.m_128451_("SpawnZ"));
-          this.f_8937_ = p_9131_.m_128471_("SpawnForced");
-@@ -324,7 +_,18 @@
- 
-       Entity entity1 = this.m_20201_();
-       Entity entity = this.m_20202_();
--      if (entity != null && entity1 != this && entity1.m_146898_()) {
-+      // CraftBukkit start - handle non-persistent vehicles
-+      boolean persistVehicle = true;
-+      if (entity1 != null) {
-+         Entity vehicle;
-+         for (vehicle = entity1; vehicle != null; vehicle = vehicle.m_20202_()) {
-+            if (!vehicle.persist) {
-+               persistVehicle = false;
-+               break;
-+            }
-+         }
-+      }
-+      if (persistVehicle && entity != null && entity1 != this && entity1.m_146898_()) {
-          CompoundTag compoundtag1 = new CompoundTag();
-          CompoundTag compoundtag2 = new CompoundTag();
-          entity1.m_20223_(compoundtag2);
-@@ -345,8 +_,33 @@
-             p_9197_.m_128365_("SpawnDimension", p_9134_);
-          });
-       }
+-
+-   private void m_9201_(ServerLevel p_9202_) {
+-      BlockPos blockpos = p_9202_.m_8900_();
+-      if (p_9202_.m_6042_().m_63935_() && p_9202_.m_142572_().m_129910_().m_5464_() != GameType.ADVENTURE) {
+-         int i = Math.max(0, this.f_8924_.m_129803_(p_9202_));
+-         int j = Mth.m_14107_(p_9202_.m_6857_().m_61941_((double)blockpos.m_123341_(), (double)blockpos.m_123343_()));
+-         if (j < i) {
+-            i = j;
+-         }
+-
+-         if (j <= 1) {
+-            i = 1;
+-         }
+-
+-         long k = (long)(i * 2 + 1);
+-         long l = k * k;
+-         int i1 = l > 2147483647L ? Integer.MAX_VALUE : (int)l;
+-         int j1 = this.m_9237_(i1);
+-         int k1 = (new Random()).nextInt(i1);
+-
+-         for(int l1 = 0; l1 < i1; ++l1) {
+-            int i2 = (k1 + j1 * l1) % i1;
+-            int j2 = i2 % (i * 2 + 1);
+-            int k2 = i2 / (i * 2 + 1);
+-            BlockPos blockpos1 = PlayerRespawnLogic.m_183928_(p_9202_, blockpos.m_123341_() + j2 - i, blockpos.m_123343_() + k2 - i);
+-            if (blockpos1 != null) {
+-               this.m_20035_(blockpos1, 0.0F, 0.0F);
+-               if (p_9202_.m_45786_(this)) {
+-                  break;
+-               }
+-            }
+-         }
+-      } else {
+-         this.m_20035_(blockpos, 0.0F, 0.0F);
+-
+-         while(!p_9202_.m_45786_(this) && this.m_20186_() < (double)(p_9202_.m_151558_() - 1)) {
+-            this.m_6034_(this.m_20185_(), this.m_20186_() + 1.0D, this.m_20189_());
+-         }
+-      }
 -
 -   }
-+      this.getBukkitEntity().setExtraData(p_9197_); // CraftBukkit
-+
-+
-+   }
-+
-+   // CraftBukkit start - World fallback code, either respawn location or global spawn
-+   public void spawnIn(Level world) {
-+      this.f_19853_ = world;
-+      if (world == null) {
-+         this.m_146912_();
-+         Vec3 position = null;
-+         if (this.f_8935_ != null) {
-+            world = this.m_183503_().getCraftServer().getHandle().m_7873_().m_129880_(this.f_8935_);
-+            if (world != null && this.m_8961_() != null) {
-+               position = Player.m_36130_((ServerLevel ) world, this.m_8961_(), this.m_8962_(), false, false).orElse(null);
-+            }
-+         }
-+         if (world == null || position == null) {
-+            world = (( CraftWorld ) Bukkit.getServer().getWorlds().get(0)).getHandle();
-+            position = Vec3.m_82512_(((ServerLevel) world).m_8900_());
-+         }
-+         this.f_19853_ = world;
-+         this.m_6034_(position.m_7096_(), position.m_7098_(), position.m_7094_());
-+      }
-+      this.f_8941_.m_9260_((ServerLevel ) world);
-+   }
-+   // CraftBukkit end
- 
-    public void m_8985_(int p_8986_) {
-       float f = (float)this.m_36323_();
-@@ -398,6 +_,11 @@
-    }
- 
-    public void m_8119_() {
-+      // CraftBukkit start
-+      if (this.joining) {
-+         this.joining = false;
-+      }
-+      // CraftBukkit end
-       this.f_8941_.m_7712_();
-       --this.f_8921_;
-       if (this.f_19802_ > 0) {
-@@ -450,7 +_,8 @@
-          }
- 
-          if (this.m_21223_() != this.f_8917_ || this.f_8918_ != this.f_36097_.m_38702_() || this.f_36097_.m_38722_() == 0.0F != this.f_8919_) {
+-
+-   private int m_9237_(int p_9238_) {
+-      return p_9238_ <= 16 ? p_9238_ - 1 : 17;
+-   }
+-
+-   public void m_7378_(CompoundTag p_9131_) {
+-      super.m_7378_(p_9131_);
+-      if (p_9131_.m_128425_("enteredNetherPosition", 10)) {
+-         CompoundTag compoundtag = p_9131_.m_128469_("enteredNetherPosition");
+-         this.f_8933_ = new Vec3(compoundtag.m_128459_("x"), compoundtag.m_128459_("y"), compoundtag.m_128459_("z"));
+-      }
+-
+-      this.f_8928_ = p_9131_.m_128471_("seenCredits");
+-      if (p_9131_.m_128425_("recipeBook", 10)) {
+-         this.f_8929_.m_12794_(p_9131_.m_128469_("recipeBook"), this.f_8924_.m_129894_());
+-      }
+-
+-      if (this.m_5803_()) {
+-         this.m_5796_();
+-      }
+-
+-      if (p_9131_.m_128425_("SpawnX", 99) && p_9131_.m_128425_("SpawnY", 99) && p_9131_.m_128425_("SpawnZ", 99)) {
+-         this.f_8936_ = new BlockPos(p_9131_.m_128451_("SpawnX"), p_9131_.m_128451_("SpawnY"), p_9131_.m_128451_("SpawnZ"));
+-         this.f_8937_ = p_9131_.m_128471_("SpawnForced");
+-         this.f_8938_ = p_9131_.m_128457_("SpawnAngle");
+-         if (p_9131_.m_128441_("SpawnDimension")) {
+-            this.f_8935_ = Level.f_46427_.parse(NbtOps.f_128958_, p_9131_.m_128423_("SpawnDimension")).resultOrPartial(f_8907_::error).orElse(Level.f_46428_);
+-         }
+-      }
+-
+-   }
+-
+-   public void m_7380_(CompoundTag p_9197_) {
+-      super.m_7380_(p_9197_);
+-      this.m_143430_(p_9197_);
+-      p_9197_.m_128379_("seenCredits", this.f_8928_);
+-      if (this.f_8933_ != null) {
+-         CompoundTag compoundtag = new CompoundTag();
+-         compoundtag.m_128347_("x", this.f_8933_.f_82479_);
+-         compoundtag.m_128347_("y", this.f_8933_.f_82480_);
+-         compoundtag.m_128347_("z", this.f_8933_.f_82481_);
+-         p_9197_.m_128365_("enteredNetherPosition", compoundtag);
+-      }
+-
+-      Entity entity1 = this.m_20201_();
+-      Entity entity = this.m_20202_();
+-      if (entity != null && entity1 != this && entity1.m_146898_()) {
+-         CompoundTag compoundtag1 = new CompoundTag();
+-         CompoundTag compoundtag2 = new CompoundTag();
+-         entity1.m_20223_(compoundtag2);
+-         compoundtag1.m_128362_("Attach", entity.m_142081_());
+-         compoundtag1.m_128365_("Entity", compoundtag2);
+-         p_9197_.m_128365_("RootVehicle", compoundtag1);
+-      }
+-
+-      p_9197_.m_128365_("recipeBook", this.f_8929_.m_12805_());
+-      p_9197_.m_128359_("Dimension", this.f_19853_.m_46472_().m_135782_().toString());
+-      if (this.f_8936_ != null) {
+-         p_9197_.m_128405_("SpawnX", this.f_8936_.m_123341_());
+-         p_9197_.m_128405_("SpawnY", this.f_8936_.m_123342_());
+-         p_9197_.m_128405_("SpawnZ", this.f_8936_.m_123343_());
+-         p_9197_.m_128379_("SpawnForced", this.f_8937_);
+-         p_9197_.m_128350_("SpawnAngle", this.f_8938_);
+-         ResourceLocation.f_135803_.encodeStart(NbtOps.f_128958_, this.f_8935_.m_135782_()).resultOrPartial(f_8907_::error).ifPresent((p_9134_) -> {
+-            p_9197_.m_128365_("SpawnDimension", p_9134_);
+-         });
+-      }
+-
+-   }
+-
+-   public void m_8985_(int p_8986_) {
+-      float f = (float)this.m_36323_();
+-      float f1 = (f - 1.0F) / f;
+-      this.f_36080_ = Mth.m_14036_((float)p_8986_ / f, 0.0F, f1);
+-      this.f_8920_ = -1;
+-   }
+-
+-   public void m_9174_(int p_9175_) {
+-      this.f_36078_ = p_9175_;
+-      this.f_8920_ = -1;
+-   }
+-
+-   public void m_6749_(int p_9200_) {
+-      super.m_6749_(p_9200_);
+-      this.f_8920_ = -1;
+-   }
+-
+-   public void m_7408_(ItemStack p_9079_, int p_9080_) {
+-      super.m_7408_(p_9079_, p_9080_);
+-      this.f_8920_ = -1;
+-   }
+-
+-   public void m_143399_(AbstractContainerMenu p_143400_) {
+-      p_143400_.m_38893_(this.f_143380_);
+-      p_143400_.m_150416_(this.f_143379_);
+-   }
+-
+-   public void m_143429_() {
+-      this.m_143399_(this.f_36095_);
+-   }
+-
+-   public void m_8108_() {
+-      super.m_8108_();
+-      this.f_8906_.m_141995_(new ClientboundPlayerCombatEnterPacket());
+-   }
+-
+-   public void m_8098_() {
+-      super.m_8098_();
+-      this.f_8906_.m_141995_(new ClientboundPlayerCombatEndPacket(this.m_21231_()));
+-   }
+-
+-   protected void m_6763_(BlockState p_9103_) {
+-      CriteriaTriggers.f_10570_.m_31269_(this, p_9103_);
+-   }
+-
+-   protected ItemCooldowns m_7478_() {
+-      return new ServerItemCooldowns(this);
+-   }
+-
+-   public void m_8119_() {
+-      this.f_8941_.m_7712_();
+-      --this.f_8921_;
+-      if (this.f_19802_ > 0) {
+-         --this.f_19802_;
+-      }
+-
+-      this.f_36096_.m_38946_();
+-      if (!this.f_19853_.f_46443_ && !this.f_36096_.m_6875_(this)) {
+-         this.m_6915_();
+-         this.f_36096_ = this.f_36095_;
+-      }
+-
+-      Entity entity = this.m_8954_();
+-      if (entity != this) {
+-         if (entity.m_6084_()) {
+-            this.m_19890_(entity.m_20185_(), entity.m_20186_(), entity.m_20189_(), entity.m_146908_(), entity.m_146909_());
+-            this.m_183503_().m_7726_().m_8385_(this);
+-            if (this.m_36342_()) {
+-               this.m_9213_(this);
+-            }
+-         } else {
+-            this.m_9213_(this);
+-         }
+-      }
+-
+-      CriteriaTriggers.f_10589_.m_70641_(this);
+-      if (this.f_8930_ != null) {
+-         CriteriaTriggers.f_10587_.m_49116_(this, this.f_8930_, this.f_19797_ - this.f_8931_);
+-      }
+-
+-      this.m_184139_();
+-      this.m_184140_();
+-      this.f_8909_.m_135992_(this);
+-   }
+-
+-   public void m_9240_() {
+-      try {
+-         if (!this.m_5833_() || !this.m_146899_()) {
+-            super.m_8119_();
+-         }
+-
+-         for(int i = 0; i < this.m_150109_().m_6643_(); ++i) {
+-            ItemStack itemstack = this.m_150109_().m_8020_(i);
+-            if (itemstack.m_41720_().m_7807_()) {
+-               Packet<?> packet = ((ComplexItem)itemstack.m_41720_()).m_7233_(itemstack, this.f_19853_, this);
+-               if (packet != null) {
+-                  this.f_8906_.m_141995_(packet);
+-               }
+-            }
+-         }
+-
+-         if (this.m_21223_() != this.f_8917_ || this.f_8918_ != this.f_36097_.m_38702_() || this.f_36097_.m_38722_() == 0.0F != this.f_8919_) {
 -            this.f_8906_.m_141995_(new ClientboundSetHealthPacket(this.m_21223_(), this.f_36097_.m_38702_(), this.f_36097_.m_38722_()));
-+            //this.connection.send(new ClientboundSetHealthPacket(this.getHealth(), this.foodData.getFoodLevel(), this.foodData.getSaturationLevel()));
-+            this.f_8906_.m_141995_(new ClientboundSetHealthPacket(this.getBukkitEntity().getScaledHealth(), this.f_36097_.m_38702_(), this.f_36097_.m_38722_())); //Craftbukkit
-             this.f_8917_ = this.m_21223_();
-             this.f_8918_ = this.f_36097_.m_38702_();
-             this.f_8919_ = this.f_36097_.m_38722_() == 0.0F;
-@@ -461,6 +_,12 @@
-             this.m_9104_(ObjectiveCriteria.f_83593_, Mth.m_14167_(this.f_8911_));
-          }
- 
-+         // CraftBukkit start - Force max health updates
-+         if (this.maxHealthCache != this.m_21233_()) {
-+            this.getBukkitEntity().updateScaledHealth();
-+         }
-+         // CraftBukkit end
-+
-          if (this.f_36097_.m_38702_() != this.f_8912_) {
-             this.f_8912_ = this.f_36097_.m_38702_();
-             this.m_9104_(ObjectiveCriteria.f_83594_, Mth.m_14167_((float)this.f_8912_));
-@@ -495,6 +_,20 @@
-             CriteriaTriggers.f_10582_.m_53645_(this);
-          }
- 
-+         // CraftBukkit start - initialize oldLevel, fire PlayerLevelChangeEvent, and tick client-sided world border
-+         if (this.oldLevel == -1) {
-+            this.oldLevel = this.f_36078_;
-+         }
-+
-+         if (this.oldLevel != this.f_36078_) {
-+            CraftEventFactory.callPlayerLevelChangeEvent(this.getBukkitEntity(), this.oldLevel, this.f_36078_);
-+            this.oldLevel = this.f_36078_;
-+         }
-+
-+         if (this.getBukkitEntity().hasClientWorldBorder()) {
-+            ((CraftWorldBorder) this.getBukkitEntity().getWorldBorder()).getHandle().m_61969_();
-+         }
-+         // CraftBukkit end
-       } catch (Throwable throwable) {
-          CrashReport crashreport = CrashReport.m_127521_(throwable, "Ticking player");
-          CrashReportCategory crashreportcategory = crashreport.m_127514_("Player being ticked");
-@@ -535,15 +_,59 @@
-    }
- 
-    private void m_9104_(ObjectiveCriteria p_9105_, int p_9106_) {
+-            this.f_8917_ = this.m_21223_();
+-            this.f_8918_ = this.f_36097_.m_38702_();
+-            this.f_8919_ = this.f_36097_.m_38722_() == 0.0F;
+-         }
+-
+-         if (this.m_21223_() + this.m_6103_() != this.f_8911_) {
+-            this.f_8911_ = this.m_21223_() + this.m_6103_();
+-            this.m_9104_(ObjectiveCriteria.f_83593_, Mth.m_14167_(this.f_8911_));
+-         }
+-
+-         if (this.f_36097_.m_38702_() != this.f_8912_) {
+-            this.f_8912_ = this.f_36097_.m_38702_();
+-            this.m_9104_(ObjectiveCriteria.f_83594_, Mth.m_14167_((float)this.f_8912_));
+-         }
+-
+-         if (this.m_20146_() != this.f_8913_) {
+-            this.f_8913_ = this.m_20146_();
+-            this.m_9104_(ObjectiveCriteria.f_83595_, Mth.m_14167_((float)this.f_8913_));
+-         }
+-
+-         if (this.m_21230_() != this.f_8914_) {
+-            this.f_8914_ = this.m_21230_();
+-            this.m_9104_(ObjectiveCriteria.f_83596_, Mth.m_14167_((float)this.f_8914_));
+-         }
+-
+-         if (this.f_36079_ != this.f_8916_) {
+-            this.f_8916_ = this.f_36079_;
+-            this.m_9104_(ObjectiveCriteria.f_83597_, Mth.m_14167_((float)this.f_8916_));
+-         }
+-
+-         if (this.f_36078_ != this.f_8915_) {
+-            this.f_8915_ = this.f_36078_;
+-            this.m_9104_(ObjectiveCriteria.f_83598_, Mth.m_14167_((float)this.f_8915_));
+-         }
+-
+-         if (this.f_36079_ != this.f_8920_) {
+-            this.f_8920_ = this.f_36079_;
+-            this.f_8906_.m_141995_(new ClientboundSetExperiencePacket(this.f_36080_, this.f_36079_, this.f_36078_));
+-         }
+-
+-         if (this.f_19797_ % 20 == 0) {
+-            CriteriaTriggers.f_10582_.m_53645_(this);
+-         }
+-
+-      } catch (Throwable throwable) {
+-         CrashReport crashreport = CrashReport.m_127521_(throwable, "Ticking player");
+-         CrashReportCategory crashreportcategory = crashreport.m_127514_("Player being ticked");
+-         this.m_7976_(crashreportcategory);
+-         throw new ReportedException(crashreport);
+-      }
+-   }
+-
+-   public void m_183634_() {
+-      if (this.m_21223_() > 0.0F && this.f_184125_ != null) {
+-         CriteriaTriggers.f_184759_.m_186165_(this, this.f_184125_);
+-      }
+-
+-      this.f_184125_ = null;
+-      super.m_183634_();
+-   }
+-
+-   public void m_184139_() {
+-      if (this.f_19789_ > 0.0F && this.f_184125_ == null) {
+-         this.f_184125_ = this.m_20182_();
+-      }
+-
+-   }
+-
+-   public void m_184140_() {
+-      if (this.m_20202_() != null && this.m_20202_().m_20077_()) {
+-         if (this.f_184126_ == null) {
+-            this.f_184126_ = this.m_20182_();
+-         } else {
+-            CriteriaTriggers.f_184760_.m_186165_(this, this.f_184126_);
+-         }
+-      }
+-
+-      if (this.f_184126_ != null && (this.m_20202_() == null || !this.m_20202_().m_20077_())) {
+-         this.f_184126_ = null;
+-      }
+-
+-   }
+-
+-   private void m_9104_(ObjectiveCriteria p_9105_, int p_9106_) {
 -      this.m_36329_().m_83427_(p_9105_, this.m_6302_(), (p_9178_) -> {
-+       // CraftBukkit - Use our scores instead
-+       this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9105_, this.m_6302_(), (p_9178_) -> {
-          p_9178_.m_83402_(p_9106_);
+-         p_9178_.m_83402_(p_9106_);
 -      });
-+       });
-    }
- 
-    public void m_6667_(DamageSource p_9035_) {
-+      if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, p_9035_)) return;
-       boolean flag = this.f_19853_.m_46469_().m_46207_(GameRules.f_46142_);
+-   }
+-
+-   public void m_6667_(DamageSource p_9035_) {
+-      boolean flag = this.f_19853_.m_46469_().m_46207_(GameRules.f_46142_);
 -      if (flag) {
 -         Component component = this.m_21231_().m_19293_();
-+
-+      // CraftBukkit start - fire PlayerDeathEvent
-+      if (this.m_146910_()) {
-+         return;
-+      }
-+      java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<org.bukkit.inventory.ItemStack>(this.m_150109_().m_6643_());
-+      boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || this.m_5833_();
-+
-+      if (!keepInventory) {
-+         for (ItemStack item : this.m_150109_().getContents()) {
-+            if (!item.m_41619_() && !EnchantmentHelper.m_44924_(item)) {
-+               loot.add(CraftItemStack.asCraftMirror(item));
-+            }
-+         }
-+      }
-+      // SPIGOT-5071: manually add player loot tables (SPIGOT-5195 - ignores keepInventory rule)
-+      this.m_7625_(p_9035_, this.f_20889_ > 0);
-+      for (org.bukkit.inventory.ItemStack item : this.drops) {
-+         loot.add(item);
-+      }
-+      this.drops.clear(); // SPIGOT-5188: make sure to clear
-+
-+
-+      Component defaultMessage = this.m_21231_().m_19293_();
-+
-+      String deathmessage = defaultMessage.getString();
-+      keepLevel = keepInventory; // SPIGOT-2222: pre-set keepLevel
-+      org.bukkit.event.entity.PlayerDeathEvent event = CraftEventFactory.callPlayerDeathEvent(this, loot, deathmessage, keepInventory);
-+
-+      // SPIGOT-943 - only call if they have an inventory open
-+      if (this.f_36096_ != this.f_36095_) {
-+         this.m_6915_();
-+      }
-+
-+      String deathMessage = event.getDeathMessage();
-+
-+      if (deathMessage != null && deathMessage.length() > 0 && flag) { // TODO: allow plugins to override?
-+         Component component;
-+         if (deathMessage.equals(deathmessage)) {
-+            component = this.m_21231_().m_19293_();
-+         } else {
-+            component = org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage.fromStringOrNull(deathMessage);
-+         }
-+
-          this.f_8906_.m_9831_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), component), (p_9142_) -> {
-             if (!p_9142_.isSuccess()) {
-                int i = 256;
-@@ -575,11 +_,18 @@
-          this.m_9215_();
-       }
- 
+-         this.f_8906_.m_9831_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), component), (p_9142_) -> {
+-            if (!p_9142_.isSuccess()) {
+-               int i = 256;
+-               String s = component.m_130668_(256);
+-               Component component1 = new TranslatableComponent("death.attack.message_too_long", (new TextComponent(s)).m_130940_(ChatFormatting.YELLOW));
+-               Component component2 = (new TranslatableComponent("death.attack.even_more_magic", this.m_5446_())).m_130938_((p_143420_) -> {
+-                  return p_143420_.m_131144_(new HoverEvent(HoverEvent.Action.f_130831_, component1));
+-               });
+-               this.f_8906_.m_141995_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), component2));
+-            }
+-
+-         });
+-         Team team = this.m_5647_();
+-         if (team != null && team.m_7468_() != Team.Visibility.ALWAYS) {
+-            if (team.m_7468_() == Team.Visibility.HIDE_FOR_OTHER_TEAMS) {
+-               this.f_8924_.m_6846_().m_11249_(this, component);
+-            } else if (team.m_7468_() == Team.Visibility.HIDE_FOR_OWN_TEAM) {
+-               this.f_8924_.m_6846_().m_11278_(this, component);
+-            }
+-         } else {
+-            this.f_8924_.m_6846_().m_11264_(component, ChatType.SYSTEM, Util.f_137441_);
+-         }
+-      } else {
+-         this.f_8906_.m_141995_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), TextComponent.f_131282_));
+-      }
+-
+-      this.m_36328_();
+-      if (this.f_19853_.m_46469_().m_46207_(GameRules.f_46126_)) {
+-         this.m_9215_();
+-      }
+-
 -      if (!this.m_5833_()) {
 -         this.m_6668_(p_9035_);
-+      // SPIGOT-5478 must be called manually now
-+      this.m_21226_();
-+      // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
-+      if (!event.getKeepInventory()) {
-+         this.m_150109_().m_6211_();
-       }
- 
+-      }
+-
 -      this.m_36329_().m_83427_(ObjectiveCriteria.f_83590_, this.m_6302_(), Score::m_83392_);
-+      this.m_9213_(this); // Remove spectated target
-+      // CraftBukkit end
-+
-+      // CraftBukkit - Get our scores instead
-+      this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83590_, this.m_6302_(), Score::m_83392_);
-       LivingEntity livingentity = this.m_21232_();
-       if (livingentity != null) {
-          this.m_36246_(Stats.f_12987_.m_12902_(livingentity.m_6095_()));
-@@ -612,10 +_,12 @@
-          this.m_36401_(p_9051_);
-          String s = this.m_6302_();
-          String s1 = p_9050_.m_6302_();
+-      LivingEntity livingentity = this.m_21232_();
+-      if (livingentity != null) {
+-         this.m_36246_(Stats.f_12987_.m_12902_(livingentity.m_6095_()));
+-         livingentity.m_5993_(this, this.f_20897_, p_9035_);
+-         this.m_21268_(livingentity);
+-      }
+-
+-      this.f_19853_.m_7605_(this, (byte)3);
+-      this.m_36220_(Stats.f_12935_);
+-      this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12991_));
+-      this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12992_));
+-      this.m_20095_();
+-      this.m_146917_(0);
+-      this.m_146868_(false);
+-      this.m_21231_().m_19296_();
+-   }
+-
+-   private void m_9215_() {
+-      AABB aabb = (new AABB(this.m_142538_())).m_82377_(32.0D, 10.0D, 32.0D);
+-      this.f_19853_.m_6443_(Mob.class, aabb, EntitySelector.f_20408_).stream().filter((p_9188_) -> {
+-         return p_9188_ instanceof NeutralMob;
+-      }).forEach((p_9057_) -> {
+-         ((NeutralMob)p_9057_).m_21676_(this);
+-      });
+-   }
+-
+-   public void m_5993_(Entity p_9050_, int p_9051_, DamageSource p_9052_) {
+-      if (p_9050_ != this) {
+-         super.m_5993_(p_9050_, p_9051_, p_9052_);
+-         this.m_36401_(p_9051_);
+-         String s = this.m_6302_();
+-         String s1 = p_9050_.m_6302_();
 -         this.m_36329_().m_83427_(ObjectiveCriteria.f_83592_, s, Score::m_83392_);
-+         // CraftBukkit - Get our scores instead
-+         this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83592_, s, Score::m_83392_);
-          if (p_9050_ instanceof Player) {
-             this.m_36220_(Stats.f_12938_);
+-         if (p_9050_ instanceof Player) {
+-            this.m_36220_(Stats.f_12938_);
 -            this.m_36329_().m_83427_(ObjectiveCriteria.f_83591_, s, Score::m_83392_);
-+            // CraftBukkit - Get our scores instead
-+            this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83591_, s, Score::m_83392_);
-          } else {
-             this.m_36220_(Stats.f_12936_);
-          }
-@@ -631,7 +_,8 @@
-       if (playerteam != null) {
-          int i = playerteam.m_7414_().m_126656_();
-          if (i >= 0 && i < p_9127_.length) {
+-         } else {
+-            this.m_36220_(Stats.f_12936_);
+-         }
+-
+-         this.m_9124_(s, s1, ObjectiveCriteria.f_83599_);
+-         this.m_9124_(s1, s, ObjectiveCriteria.f_83600_);
+-         CriteriaTriggers.f_10568_.m_48104_(this, p_9050_, p_9052_);
+-      }
+-   }
+-
+-   private void m_9124_(String p_9125_, String p_9126_, ObjectiveCriteria[] p_9127_) {
+-      PlayerTeam playerteam = this.m_36329_().m_83500_(p_9126_);
+-      if (playerteam != null) {
+-         int i = playerteam.m_7414_().m_126656_();
+-         if (i >= 0 && i < p_9127_.length) {
 -            this.m_36329_().m_83427_(p_9127_[i], p_9125_, Score::m_83392_);
-+            // CraftBukkit - Get our scores instead
-+            this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9127_[i], p_9125_, Score::m_83392_);
-          }
-       }
- 
-@@ -670,7 +_,7 @@
-    }
- 
-    private boolean m_9216_() {
+-         }
+-      }
+-
+-   }
+-
+-   public boolean m_6469_(DamageSource p_9037_, float p_9038_) {
+-      if (this.m_6673_(p_9037_)) {
+-         return false;
+-      } else {
+-         boolean flag = this.f_8924_.m_6982_() && this.m_9216_() && "fall".equals(p_9037_.f_19326_);
+-         if (!flag && this.f_8921_ > 0 && p_9037_ != DamageSource.f_19317_) {
++    private static final Logger f_8907_ = LogUtils.getLogger();
++    private static final int f_143381_ = 32;
++    private static final int f_143382_ = 10;
++    public ServerGamePacketListenerImpl f_8906_;
++    public final MinecraftServer f_8924_;
++    public final ServerPlayerGameMode f_8941_;
++    private final PlayerAdvancements f_8909_;
++    private final ServerStatsCounter f_8910_;
++    private float f_8911_ = Float.MIN_VALUE;
++    private int f_8912_ = Integer.MIN_VALUE;
++    private int f_8913_ = Integer.MIN_VALUE;
++    private int f_8914_ = Integer.MIN_VALUE;
++    private int f_8915_ = Integer.MIN_VALUE;
++    private int f_8916_ = Integer.MIN_VALUE;
++    private float f_8917_ = -1.0E8F;
++    private int f_8918_ = -99999999;
++    private boolean f_8919_ = true;
++    public int f_8920_ = -99999999;
++    public int f_8921_ = 60;
++    private ChatVisiblity f_8922_ = ChatVisiblity.FULL;
++    private boolean f_8923_ = true;
++    private long f_8925_ = Util.m_137550_();
++    @Nullable
++    private Entity f_8926_;
++    private boolean f_8927_;
++    private boolean f_8928_;
++    private final ServerRecipeBook f_8929_ = new ServerRecipeBook();
++    @Nullable
++    private Vec3 f_8930_;
++    private int f_8931_;
++    private boolean f_8932_;
++    @Nullable
++    private Vec3 f_184125_;
++    @Nullable
++    private Vec3 f_8933_;
++    @Nullable
++    private Vec3 f_184126_;
++    private SectionPos f_8934_ = SectionPos.m_123173_(0, 0, 0);
++    private ResourceKey<Level> f_8935_ = Level.f_46428_;
++    @Nullable
++    private BlockPos f_8936_;
++    private boolean f_8937_;
++    private float f_8938_;
++    private final TextFilter f_8939_;
++    private boolean f_143378_;
++    private boolean f_184127_ = true;
++
++    // CraftBukkit start
++    public String displayName;
++    public Component listName;
++    public org.bukkit.Location compassTarget;
++    public int newExp = 0;
++    public int newLevel = 0;
++    public int newTotalExp = 0;
++    public boolean keepLevel = false;
++    public double maxHealthCache;
++    public boolean joining = true;
++    public boolean sentListPacket = false;
++    public Integer clientViewDistance;
++    public String kickLeaveMessage = null; // SPIGOT-3034: Forward leave message to PlayerQuitEvent
++    // CraftBukkit end
++
++    private final ContainerSynchronizer f_143379_ = new ContainerSynchronizer() {
++        public void m_142589_(AbstractContainerMenu p_143448_, NonNullList<ItemStack> p_143449_, ItemStack p_143450_, int[] p_143451_) {
++            ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetContentPacket(p_143448_.f_38840_, p_143448_.m_182425_(), p_143449_, p_143450_));
++
++            for (int i = 0; i < p_143451_.length; ++i) {
++                this.m_143454_(p_143448_, i, p_143451_[i]);
++            }
++
++        }
++
++        public void m_142074_(AbstractContainerMenu p_143441_, int p_143442_, ItemStack p_143443_) {
++            ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(p_143441_.f_38840_, p_143441_.m_182425_(), p_143442_, p_143443_));
++        }
++
++        public void m_142529_(AbstractContainerMenu p_143445_, ItemStack p_143446_) {
++            ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetSlotPacket(-1, p_143445_.m_182425_(), -1, p_143446_));
++        }
++
++        public void m_142145_(AbstractContainerMenu p_143437_, int p_143438_, int p_143439_) {
++            this.m_143454_(p_143437_, p_143438_, p_143439_);
++        }
++
++        private void m_143454_(AbstractContainerMenu p_143455_, int p_143456_, int p_143457_) {
++            ServerPlayer.this.f_8906_.m_141995_(new ClientboundContainerSetDataPacket(p_143455_.f_38840_, p_143456_, p_143457_));
++        }
++    };
++    private final ContainerListener f_143380_ = new ContainerListener() {
++        public void m_7934_(AbstractContainerMenu p_143466_, int p_143467_, ItemStack p_143468_) {
++            Slot slot = p_143466_.m_38853_(p_143467_);
++            if (!(slot instanceof ResultSlot)) {
++                if (slot.f_40218_ == ServerPlayer.this.m_150109_()) {
++                    CriteriaTriggers.f_10571_.m_43149_(ServerPlayer.this, ServerPlayer.this.m_150109_(), p_143468_);
++                }
++
++            }
++        }
++
++        public void m_142153_(AbstractContainerMenu p_143462_, int p_143463_, int p_143464_) {
++        }
++    };
++    public int f_8940_;
++    public int f_8943_;
++    public boolean f_8944_;
++
++    public ServerPlayer(MinecraftServer p_143384_, ServerLevel p_143385_, GameProfile p_143386_) {
++        super(p_143385_, p_143385_.m_8900_(), p_143385_.m_8901_(), p_143386_);
++        this.f_8939_ = p_143384_.m_7950_(this);
++        this.f_8941_ = p_143384_.m_177933_(this);
++        this.f_8924_ = p_143384_;
++        this.f_8910_ = p_143384_.m_6846_().getPlayerStats(this);
++        this.f_8909_ = p_143384_.m_6846_().m_11296_(this);
++        this.f_19793_ = 1.0F;
++        this.m_9201_(p_143385_);
++        this.displayName = this.m_6302_();
++        this.bukkitPickUpLoot = true;
++        this.maxHealthCache = this.m_21233_();
++    }
++
++    @Override
++    public CraftPlayer getBukkitEntity() {
++        return (CraftPlayer) super.getBukkitEntity();
++    }
++
++    // Yes, this doesn't match Vanilla, but it's the best we can do for now.
++    // If this is an issue, PRs are welcome
++    public final BlockPos getSpawnPoint(ServerLevel worldserver) {
++        BlockPos blockposition = worldserver.m_8900_();
++        if (worldserver.m_6042_().m_63935_() && worldserver.f_8549_.m_5464_() != GameType.ADVENTURE) {
++            int i = Math.max(0, this.f_8924_.m_129803_(worldserver));
++            int j = Mth.m_14107_(worldserver.m_6857_().m_61941_((double) blockposition.m_123341_(), (double) blockposition.m_123343_()));
++            if (j < i) {
++                i = j;
++            }
++            if (j <= 1) {
++                i = 1;
++            }
++            long k = (long) (i * 2 + 1);
++            long l = k * k;
++            int i1 = l > 2147483647L ? Integer.MAX_VALUE : (int) l;
++            int j1 = this.m_9237_(i1);
++            int k1 = (new Random()).nextInt(i1);
++            for (int l1 = 0; l1 < i1; ++l1) {
++                int i2 = (k1 + j1 * l1) % i1;
++                int j2 = i2 % (i * 2 + 1);
++                int k2 = i2 / (i * 2 + 1);
++                BlockPos blockposition1 = PlayerRespawnLogic.m_183928_(worldserver, blockposition.m_123341_() + j2 - i, blockposition.m_123343_() + k2 - i);
++                if (blockposition1 != null) {
++                    return blockposition1;
++                }
++            }
++        }
++        return blockposition;
++    }
++    // CraftBukkit end
++
++    private void m_9201_(ServerLevel p_9202_) {
++        BlockPos blockpos = p_9202_.m_8900_();
++        if (p_9202_.m_6042_().m_63935_() && p_9202_.f_8549_.m_5464_() != GameType.ADVENTURE) { // CraftBukkit
++            int i = Math.max(0, this.f_8924_.m_129803_(p_9202_));
++            int j = Mth.m_14107_(p_9202_.m_6857_().m_61941_((double) blockpos.m_123341_(), (double) blockpos.m_123343_()));
++            if (j < i) {
++                i = j;
++            }
++
++            if (j <= 1) {
++                i = 1;
++            }
++
++            long k = (long) (i * 2 + 1);
++            long l = k * k;
++            int i1 = l > 2147483647L ? Integer.MAX_VALUE : (int) l;
++            int j1 = this.m_9237_(i1);
++            int k1 = (new Random()).nextInt(i1);
++
++            for (int l1 = 0; l1 < i1; ++l1) {
++                int i2 = (k1 + j1 * l1) % i1;
++                int j2 = i2 % (i * 2 + 1);
++                int k2 = i2 / (i * 2 + 1);
++                BlockPos blockpos1 = PlayerRespawnLogic.m_183928_(p_9202_, blockpos.m_123341_() + j2 - i, blockpos.m_123343_() + k2 - i);
++                if (blockpos1 != null) {
++                    this.m_20035_(blockpos1, 0.0F, 0.0F);
++                    if (p_9202_.m_45786_(this)) {
++                        break;
++                    }
++                }
++            }
++        } else {
++            this.m_20035_(blockpos, 0.0F, 0.0F);
++
++            while (!p_9202_.m_45786_(this) && this.m_20186_() < (double) (p_9202_.m_151558_() - 1)) {
++                this.m_6034_(this.m_20185_(), this.m_20186_() + 1.0D, this.m_20189_());
++            }
++        }
++
++    }
++
++    private int m_9237_(int p_9238_) {
++        return p_9238_ <= 16 ? p_9238_ - 1 : 17;
++    }
++
++    public void m_7378_(CompoundTag p_9131_) {
++        super.m_7378_(p_9131_);
++        if (p_9131_.m_128425_("enteredNetherPosition", 10)) {
++            CompoundTag compoundtag = p_9131_.m_128469_("enteredNetherPosition");
++            this.f_8933_ = new Vec3(compoundtag.m_128459_("x"), compoundtag.m_128459_("y"), compoundtag.m_128459_("z"));
++        }
++
++        this.f_8928_ = p_9131_.m_128471_("seenCredits");
++        if (p_9131_.m_128425_("recipeBook", 10)) {
++            this.f_8929_.m_12794_(p_9131_.m_128469_("recipeBook"), this.f_8924_.m_129894_());
++        }
++
++        this.getBukkitEntity().readExtraData(p_9131_); // CraftBukkit
++
++        if (this.m_5803_()) {
++            this.m_5796_();
++        }
++
++        // CraftBukkit start
++        String spawnWorld = p_9131_.m_128461_("SpawnWorld");
++        CraftWorld oldWorld = (CraftWorld) Bukkit.getWorld(spawnWorld);
++        if (oldWorld != null) {
++            this.f_8935_ = oldWorld.getHandle().m_46472_();
++        }
++        // CraftBukkit end
++
++        if (p_9131_.m_128425_("SpawnX", 99) && p_9131_.m_128425_("SpawnY", 99) && p_9131_.m_128425_("SpawnZ", 99)) {
++            this.f_8936_ = new BlockPos(p_9131_.m_128451_("SpawnX"), p_9131_.m_128451_("SpawnY"), p_9131_.m_128451_("SpawnZ"));
++            this.f_8937_ = p_9131_.m_128471_("SpawnForced");
++            this.f_8938_ = p_9131_.m_128457_("SpawnAngle");
++            if (p_9131_.m_128441_("SpawnDimension")) {
++                this.f_8935_ = Level.f_46427_.parse(NbtOps.f_128958_, p_9131_.m_128423_("SpawnDimension")).resultOrPartial(f_8907_::error).orElse(Level.f_46428_);
++            }
++        }
++
++    }
++
++    public void m_7380_(CompoundTag p_9197_) {
++        super.m_7380_(p_9197_);
++        this.m_143430_(p_9197_);
++        p_9197_.m_128379_("seenCredits", this.f_8928_);
++        if (this.f_8933_ != null) {
++            CompoundTag compoundtag = new CompoundTag();
++            compoundtag.m_128347_("x", this.f_8933_.f_82479_);
++            compoundtag.m_128347_("y", this.f_8933_.f_82480_);
++            compoundtag.m_128347_("z", this.f_8933_.f_82481_);
++            p_9197_.m_128365_("enteredNetherPosition", compoundtag);
++        }
++
++        Entity entity1 = this.m_20201_();
++        Entity entity = this.m_20202_();
++        // CraftBukkit start - handle non-persistent vehicles
++        boolean persistVehicle = true;
++        if (entity1 != null) {
++            Entity vehicle;
++            for (vehicle = entity1; vehicle != null; vehicle = vehicle.m_20202_()) {
++                if (!vehicle.persist) {
++                    persistVehicle = false;
++                    break;
++                }
++            }
++        }
++        if (persistVehicle && entity1 != null && entity != null && entity != this && entity.m_146898_()) {
++            // CraftBukkit end
++            CompoundTag compoundtag1 = new CompoundTag();
++            CompoundTag compoundtag2 = new CompoundTag();
++            entity1.m_20223_(compoundtag2);
++            compoundtag1.m_128362_("Attach", entity.m_142081_());
++            compoundtag1.m_128365_("Entity", compoundtag2);
++            p_9197_.m_128365_("RootVehicle", compoundtag1);
++        }
++
++        p_9197_.m_128365_("recipeBook", this.f_8929_.m_12805_());
++        p_9197_.m_128359_("Dimension", this.f_19853_.m_46472_().m_135782_().toString());
++        if (this.f_8936_ != null) {
++            p_9197_.m_128405_("SpawnX", this.f_8936_.m_123341_());
++            p_9197_.m_128405_("SpawnY", this.f_8936_.m_123342_());
++            p_9197_.m_128405_("SpawnZ", this.f_8936_.m_123343_());
++            p_9197_.m_128379_("SpawnForced", this.f_8937_);
++            p_9197_.m_128350_("SpawnAngle", this.f_8938_);
++            ResourceLocation.f_135803_.encodeStart(NbtOps.f_128958_, this.f_8935_.m_135782_()).resultOrPartial(f_8907_::error).ifPresent((p_9134_) -> {
++                p_9197_.m_128365_("SpawnDimension", p_9134_);
++            });
++        }
++        this.getBukkitEntity().setExtraData(p_9197_); // CraftBukkit
++    }
++
++    // CraftBukkit start - World fallback code, either respawn location or global spawn
++    public void spawnIn(Level world) {
++        this.f_19853_ = world;
++        if (world == null) {
++            this.m_146912_();
++            Vec3 position = null;
++            if (this.f_8935_ != null) {
++                world = this.m_183503_().getCraftServer().getHandle().m_7873_().m_129880_(this.f_8935_);
++                if (world != null && this.m_8961_() != null) {
++                    position = Player.m_36130_((ServerLevel) world, this.m_8961_(), this.m_8962_(), false, false).orElse(null);
++                }
++            }
++            if (world == null || position == null) {
++                world = ((CraftWorld) Bukkit.getServer().getWorlds().get(0)).getHandle();
++                position = Vec3.m_82512_(((ServerLevel) world).m_8900_());
++            }
++            this.f_19853_ = world;
++            this.m_6034_(position.m_7096_(), position.m_7098_(), position.m_7094_());
++        }
++        this.f_8941_.m_9260_((ServerLevel) world);
++    }
++    // CraftBukkit end
++
++    public void m_8985_(int p_8986_) {
++        float f = (float) this.m_36323_();
++        float f1 = (f - 1.0F) / f;
++        this.f_36080_ = Mth.m_14036_((float) p_8986_ / f, 0.0F, f1);
++        this.f_8920_ = -1;
++    }
++
++    public void m_9174_(int p_9175_) {
++        this.f_36078_ = p_9175_;
++        this.f_8920_ = -1;
++    }
++
++    public void m_6749_(int p_9200_) {
++        super.m_6749_(p_9200_);
++        this.f_8920_ = -1;
++    }
++
++    public void m_7408_(ItemStack p_9079_, int p_9080_) {
++        super.m_7408_(p_9079_, p_9080_);
++        this.f_8920_ = -1;
++    }
++
++    public void m_143399_(AbstractContainerMenu p_143400_) {
++        p_143400_.m_38893_(this.f_143380_);
++        p_143400_.m_150416_(this.f_143379_);
++    }
++
++    public void m_143429_() {
++        this.m_143399_(this.f_36095_);
++    }
++
++    public void m_8108_() {
++        super.m_8108_();
++        this.f_8906_.m_141995_(new ClientboundPlayerCombatEnterPacket());
++    }
++
++    public void m_8098_() {
++        super.m_8098_();
++        this.f_8906_.m_141995_(new ClientboundPlayerCombatEndPacket(this.m_21231_()));
++    }
++
++    protected void m_6763_(BlockState p_9103_) {
++        CriteriaTriggers.f_10570_.m_31269_(this, p_9103_);
++    }
++
++    protected ItemCooldowns m_7478_() {
++        return new ServerItemCooldowns(this);
++    }
++
++    public void m_8119_() {
++        // CraftBukkit start
++        if (this.joining) {
++            this.joining = false;
++        }
++        // CraftBukkit end
++        this.f_8941_.m_7712_();
++        --this.f_8921_;
++        if (this.f_19802_ > 0) {
++            --this.f_19802_;
++        }
++
++        this.f_36096_.m_38946_();
++        if (!this.f_19853_.f_46443_ && !this.f_36096_.m_6875_(this)) {
++            this.m_6915_();
++            this.f_36096_ = this.f_36095_;
++        }
++
++        Entity entity = this.m_8954_();
++        if (entity != this) {
++            if (entity.m_6084_()) {
++                this.m_19890_(entity.m_20185_(), entity.m_20186_(), entity.m_20189_(), entity.m_146908_(), entity.m_146909_());
++                this.m_183503_().m_7726_().m_8385_(this);
++                if (this.m_36342_()) {
++                    this.m_9213_(this);
++                }
++            } else {
++                this.m_9213_(this);
++            }
++        }
++
++        CriteriaTriggers.f_10589_.m_70641_(this);
++        if (this.f_8930_ != null) {
++            CriteriaTriggers.f_10587_.m_49116_(this, this.f_8930_, this.f_19797_ - this.f_8931_);
++        }
++
++        this.m_184139_();
++        this.m_184140_();
++        this.f_8909_.m_135992_(this);
++    }
++
++    public void m_9240_() {
++        try {
++            if (!this.m_5833_() || !this.m_146899_()) {
++                super.m_8119_();
++            }
++
++            for (int i = 0; i < this.m_150109_().m_6643_(); ++i) {
++                ItemStack itemstack = this.m_150109_().m_8020_(i);
++                if (itemstack.m_41720_().m_7807_()) {
++                    Packet<?> packet = ((ComplexItem) itemstack.m_41720_()).m_7233_(itemstack, this.f_19853_, this);
++                    if (packet != null) {
++                        this.f_8906_.m_141995_(packet);
++                    }
++                }
++            }
++
++            if (this.m_21223_() != this.f_8917_ || this.f_8918_ != this.f_36097_.m_38702_() || this.f_36097_.m_38722_() == 0.0F != this.f_8919_) {
++                this.f_8906_.m_141995_(new ClientboundSetHealthPacket(this.getBukkitEntity().getScaledHealth(), this.f_36097_.m_38702_(), this.f_36097_.m_38722_())); // CraftBukkit
++                this.f_8917_ = this.m_21223_();
++                this.f_8918_ = this.f_36097_.m_38702_();
++                this.f_8919_ = this.f_36097_.m_38722_() == 0.0F;
++            }
++
++            if (this.m_21223_() + this.m_6103_() != this.f_8911_) {
++                this.f_8911_ = this.m_21223_() + this.m_6103_();
++                this.m_9104_(ObjectiveCriteria.f_83593_, Mth.m_14167_(this.f_8911_));
++            }
++
++            if (this.f_36097_.m_38702_() != this.f_8912_) {
++                this.f_8912_ = this.f_36097_.m_38702_();
++                this.m_9104_(ObjectiveCriteria.f_83594_, Mth.m_14167_((float) this.f_8912_));
++            }
++
++            if (this.m_20146_() != this.f_8913_) {
++                this.f_8913_ = this.m_20146_();
++                this.m_9104_(ObjectiveCriteria.f_83595_, Mth.m_14167_((float) this.f_8913_));
++            }
++
++            if (this.m_21230_() != this.f_8914_) {
++                this.f_8914_ = this.m_21230_();
++                this.m_9104_(ObjectiveCriteria.f_83596_, Mth.m_14167_((float) this.f_8914_));
++            }
++
++            if (this.f_36079_ != this.f_8916_) {
++                this.f_8916_ = this.f_36079_;
++                this.m_9104_(ObjectiveCriteria.f_83597_, Mth.m_14167_((float) this.f_8916_));
++            }
++
++            // CraftBukkit start - Force max health updates
++            if (this.maxHealthCache != this.m_21233_()) {
++                this.getBukkitEntity().updateScaledHealth();
++            }
++            // CraftBukkit end
++
++            if (this.f_36078_ != this.f_8915_) {
++                this.f_8915_ = this.f_36078_;
++                this.m_9104_(ObjectiveCriteria.f_83598_, Mth.m_14167_((float) this.f_8915_));
++            }
++
++            if (this.f_36079_ != this.f_8920_) {
++                this.f_8920_ = this.f_36079_;
++                this.f_8906_.m_141995_(new ClientboundSetExperiencePacket(this.f_36080_, this.f_36079_, this.f_36078_));
++            }
++
++            if (this.f_19797_ % 20 == 0) {
++                CriteriaTriggers.f_10582_.m_53645_(this);
++            }
++
++            // CraftBukkit start - initialize oldLevel, fire PlayerLevelChangeEvent, and tick client-sided world border
++            if (this.oldLevel == -1) {
++                this.oldLevel = this.f_36078_;
++            }
++            if (this.oldLevel != this.f_36078_) {
++                CraftEventFactory.callPlayerLevelChangeEvent(this.getBukkitEntity(), this.oldLevel, this.f_36078_);
++                this.oldLevel = this.f_36078_;
++            }
++            if (this.getBukkitEntity().hasClientWorldBorder()) {
++                ((CraftWorldBorder) this.getBukkitEntity().getWorldBorder()).getHandle().m_61969_();
++            }
++            // CraftBukkit end
++        } catch (Throwable throwable) {
++            CrashReport crashreport = CrashReport.m_127521_(throwable, "Ticking player");
++            CrashReportCategory crashreportcategory = crashreport.m_127514_("Player being ticked");
++            this.m_7976_(crashreportcategory);
++            throw new ReportedException(crashreport);
++        }
++    }
++
++    public void m_183634_() {
++        if (this.m_21223_() > 0.0F && this.f_184125_ != null) {
++            CriteriaTriggers.f_184759_.m_186165_(this, this.f_184125_);
++        }
++
++        this.f_184125_ = null;
++        super.m_183634_();
++    }
++
++    public void m_184139_() {
++        if (this.f_19789_ > 0.0F && this.f_184125_ == null) {
++            this.f_184125_ = this.m_20182_();
++        }
++
++    }
++
++    public void m_184140_() {
++        if (this.m_20202_() != null && this.m_20202_().m_20077_()) {
++            if (this.f_184126_ == null) {
++                this.f_184126_ = this.m_20182_();
++            } else {
++                CriteriaTriggers.f_184760_.m_186165_(this, this.f_184126_);
++            }
++        }
++
++        if (this.f_184126_ != null && (this.m_20202_() == null || !this.m_20202_().m_20077_())) {
++            this.f_184126_ = null;
++        }
++
++    }
++
++    private void m_9104_(ObjectiveCriteria p_9105_, int p_9106_) {
++        // CraftBukkit - Use our scores instead
++        this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9105_, this.m_6302_(), (p_9178_) -> {
++            p_9178_.m_83402_(p_9106_);
++        });
++    }
++
++    public void m_6667_(DamageSource p_9035_) {
++        if (net.minecraftforge.common.ForgeHooks.onLivingDeath(this, p_9035_)) return;
++        boolean flag = this.f_19853_.m_46469_().m_46207_(GameRules.f_46142_);
++        // CraftBukkit start - fire PlayerDeathEvent
++        if (this.m_146910_()) {
++            return;
++        }
++        boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || this.m_5833_();
++        this.m_6668_(p_9035_);
++
++        List<org.bukkit.inventory.ItemStack> playerDrops = this.drops;
++        this.drops.clear(); // SPIGOT-5188: make sure to clear
++        Component defaultMessage = this.m_21231_().m_19293_();
++        String deathmessage = defaultMessage.getString();
++        this.keepLevel = keepInventory; // SPIGOT-2222: pre-set keepLevel
++        org.bukkit.event.entity.PlayerDeathEvent event = CraftEventFactory.callPlayerDeathEvent(this, playerDrops, deathmessage, keepInventory);
++
++        // SPIGOT-943 - only call if they have an inventory open
++        if (this.f_36096_ != this.f_36095_) {
++            this.m_6915_();
++        }
++
++        String deathMessage = event.getDeathMessage();
++
++        if (deathMessage != null && deathMessage.length() > 0 && flag) { // TODO: allow plugins to override?
++            Component component;
++            if (deathMessage.equals(deathmessage)) {
++                component = this.m_21231_().m_19293_();
++            } else {
++                component = CraftChatMessage.fromStringOrNull(deathMessage);
++            }
++            this.f_8906_.m_9831_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), component), (p_9142_) -> {
++                if (!p_9142_.isSuccess()) {
++                    int i = 256;
++                    String s = component.m_130668_(256);
++                    Component component1 = new TranslatableComponent("death.attack.message_too_long", (new TextComponent(s)).m_130940_(ChatFormatting.YELLOW));
++                    Component component2 = (new TranslatableComponent("death.attack.even_more_magic", this.m_5446_())).m_130938_((p_143420_) -> {
++                        return p_143420_.m_131144_(new HoverEvent(HoverEvent.Action.f_130831_, component1));
++                    });
++                    this.f_8906_.m_141995_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), component2));
++                }
++
++            });
++            Team team = this.m_5647_();
++            if (team != null && team.m_7468_() != Team.Visibility.ALWAYS) {
++                if (team.m_7468_() == Team.Visibility.HIDE_FOR_OTHER_TEAMS) {
++                    this.f_8924_.m_6846_().m_11249_(this, component);
++                } else if (team.m_7468_() == Team.Visibility.HIDE_FOR_OWN_TEAM) {
++                    this.f_8924_.m_6846_().m_11278_(this, component);
++                }
++            } else {
++                this.f_8924_.m_6846_().m_11264_(component, ChatType.SYSTEM, Util.f_137441_);
++            }
++        } else {
++            this.f_8906_.m_141995_(new ClientboundPlayerCombatKillPacket(this.m_21231_(), TextComponent.f_131282_));
++        }
++
++        this.m_36328_();
++        if (this.f_19853_.m_46469_().m_46207_(GameRules.f_46126_)) {
++            this.m_9215_();
++        }
++
++        // SPIGOT-5478 must be called manually now
++        this.m_21226_();
++        // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
++        if (!event.getKeepInventory()) {
++            this.m_150109_().m_6211_();
++        }
++        this.m_9213_(this); // Remove spectated target
++        // CraftBukkit end
++
++        // CraftBukkit - Get our scores instead
++        this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83590_, this.m_6302_(), Score::m_83392_);
++        LivingEntity livingentity = this.m_21232_();
++        if (livingentity != null) {
++            this.m_36246_(Stats.f_12987_.m_12902_(livingentity.m_6095_()));
++            livingentity.m_5993_(this, this.f_20897_, p_9035_);
++            this.m_21268_(livingentity);
++        }
++
++        this.f_19853_.m_7605_(this, (byte) 3);
++        this.m_36220_(Stats.f_12935_);
++        this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12991_));
++        this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12992_));
++        this.m_20095_();
++        this.m_146917_(0);
++        this.m_146868_(false);
++        this.m_21231_().m_19296_();
++    }
++
++    private void m_9215_() {
++        AABB aabb = (new AABB(this.m_142538_())).m_82377_(32.0D, 10.0D, 32.0D);
++        this.f_19853_.m_6443_(Mob.class, aabb, EntitySelector.f_20408_).stream().filter((p_9188_) -> {
++            return p_9188_ instanceof NeutralMob;
++        }).forEach((p_9057_) -> {
++            ((NeutralMob) p_9057_).m_21676_(this);
++        });
++    }
++
++    public void m_5993_(Entity p_9050_, int p_9051_, DamageSource p_9052_) {
++        if (p_9050_ != this) {
++            super.m_5993_(p_9050_, p_9051_, p_9052_);
++            this.m_36401_(p_9051_);
++            String s = this.m_6302_();
++            String s1 = p_9050_.m_6302_();
++            this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83592_, s, Score::m_83392_);
++            if (p_9050_ instanceof Player) {
++                this.m_36220_(Stats.f_12938_);
++                this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83591_, s, Score::m_83392_);
++            } else {
++                this.m_36220_(Stats.f_12936_);
++            }
++
++            this.m_9124_(s, s1, ObjectiveCriteria.f_83599_);
++            this.m_9124_(s1, s, ObjectiveCriteria.f_83600_);
++            CriteriaTriggers.f_10568_.m_48104_(this, p_9050_, p_9052_);
++        }
++    }
++
++    private void m_9124_(String p_9125_, String p_9126_, ObjectiveCriteria[] p_9127_) {
++        PlayerTeam playerteam = this.m_36329_().m_83500_(p_9126_);
++        if (playerteam != null) {
++            int i = playerteam.m_7414_().m_126656_();
++            if (i >= 0 && i < p_9127_.length) {
++                this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9127_[i], p_9125_, Score::m_83392_);
++            }
++        }
++
++    }
++
++    public boolean m_6469_(DamageSource p_9037_, float p_9038_) {
++        if (this.m_6673_(p_9037_)) {
+             return false;
+-         } else {
+-            if (p_9037_ instanceof EntityDamageSource) {
+-               Entity entity = p_9037_.m_7639_();
+-               if (entity instanceof Player && !this.m_7099_((Player)entity)) {
+-                  return false;
+-               }
+-
+-               if (entity instanceof AbstractArrow) {
+-                  AbstractArrow abstractarrow = (AbstractArrow)entity;
+-                  Entity entity1 = abstractarrow.m_37282_();
+-                  if (entity1 instanceof Player && !this.m_7099_((Player)entity1)) {
+-                     return false;
+-                  }
+-               }
+-            }
+-
+-            return super.m_6469_(p_9037_, p_9038_);
+-         }
+-      }
+-   }
+-
+-   public boolean m_7099_(Player p_9064_) {
+-      return !this.m_9216_() ? false : super.m_7099_(p_9064_);
+-   }
+-
+-   private boolean m_9216_() {
 -      return this.f_8924_.m_129799_();
-+      return this.f_19853_.pvpMode;
-    }
- 
-    @Nullable
-@@ -686,10 +_,29 @@
- 
-    @Nullable
-    public Entity m_5489_(ServerLevel p_9180_) {
+-   }
+-
+-   @Nullable
+-   protected PortalInfo m_7937_(ServerLevel p_8998_) {
+-      PortalInfo portalinfo = super.m_7937_(p_8998_);
+-      if (portalinfo != null && this.f_19853_.m_46472_() == Level.f_46428_ && p_8998_.m_46472_() == Level.f_46430_) {
+-         Vec3 vec3 = portalinfo.f_77676_.m_82520_(0.0D, -1.0D, 0.0D);
+-         return new PortalInfo(vec3, Vec3.f_82478_, 90.0F, 0.0F);
+-      } else {
+-         return portalinfo;
+-      }
+-   }
+-
+-   @Nullable
+-   public Entity m_5489_(ServerLevel p_9180_) {
 -      this.f_8927_ = true;
-+      // CraftBukkit start
-+      return changeDimension(p_9180_,  p_9180_.m_8871_(), PlayerTeleportEvent.TeleportCause.UNKNOWN);
-+   }
-+   @Nullable
-+   public Entity changeDimension(ServerLevel p_9180_, net.minecraftforge.common.util.ITeleporter teleporter) {
-+      return changeDimension(p_9180_, teleporter, PlayerTeleportEvent.TeleportCause.UNKNOWN);
-+   }
-+
-+   @Nullable
-+   public Entity changeDimension(ServerLevel p_9180_, PlayerTeleportEvent.TeleportCause cause) {
-+      return changeDimension(p_9180_,  p_9180_.m_8871_(), cause);
-+   }
-+
-+   @Nullable
-+   public Entity changeDimension(ServerLevel p_9180_, net.minecraftforge.common.util.ITeleporter teleporter, PlayerTeleportEvent.TeleportCause cause) {
-+      // CraftBukkit end
-+      if (!net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, p_9180_.m_46472_())) return null;
-+      if (this.m_5803_()) return this; // CraftBukkit - SPIGOT-3154
-+      // this.isChangingDimension = true; // CraftBukkit - Moved down and into PlayerList#changeDimension
-       ServerLevel serverlevel = this.m_183503_();
-       ResourceKey<Level> resourcekey = serverlevel.m_46472_();
+-      ServerLevel serverlevel = this.m_183503_();
+-      ResourceKey<Level> resourcekey = serverlevel.m_46472_();
 -      if (resourcekey == Level.f_46430_ && p_9180_.m_46472_() == Level.f_46428_) {
-+      if (resourcekey == Level.f_46430_ && p_9180_.m_46472_() == Level.f_46428_ && teleporter.isVanilla()) { //Forge: Fix non-vanilla teleporters triggering end credits
-+         this.f_8927_ = true;
-          this.m_19877_();
-          this.m_183503_().m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
-          if (!this.f_8944_) {
-@@ -706,24 +_,42 @@
-          PlayerList playerlist = this.f_8924_.m_6846_();
-          playerlist.m_11289_(this);
-          serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
+-         this.m_19877_();
+-         this.m_183503_().m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
+-         if (!this.f_8944_) {
+-            this.f_8944_ = true;
+-            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132157_, this.f_8928_ ? 0.0F : 1.0F));
+-            this.f_8928_ = true;
+-         }
+-
+-         return this;
+-      } else {
+-         LevelData leveldata = p_9180_.m_6106_();
+-         this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9180_.m_204156_(), p_9180_.m_46472_(), BiomeManager.m_47877_(p_9180_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9180_.m_46659_(), p_9180_.m_8584_(), true));
+-         this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
+-         PlayerList playerlist = this.f_8924_.m_6846_();
+-         playerlist.m_11289_(this);
+-         serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
 -         this.m_146912_();
 -         PortalInfo portalinfo = this.m_7937_(p_9180_);
-+         this.revive();
-+         PortalInfo portalinfo = teleporter.getPortalInfo(this, p_9180_, this::m_7937_);
-          if (portalinfo != null) {
-+            Entity e = teleporter.placeEntity(this, serverlevel, p_9180_, this.m_146908_(), spawnPortal -> {//Forge: Start vanilla logic
-             serverlevel.m_46473_().m_6180_("moving");
-             if (resourcekey == Level.f_46428_ && p_9180_.m_46472_() == Level.f_46429_) {
-                this.f_8933_ = this.m_20182_();
+-         if (portalinfo != null) {
+-            serverlevel.m_46473_().m_6180_("moving");
+-            if (resourcekey == Level.f_46428_ && p_9180_.m_46472_() == Level.f_46429_) {
+-               this.f_8933_ = this.m_20182_();
 -            } else if (p_9180_.m_46472_() == Level.f_46430_) {
 -               this.m_9006_(p_9180_, new BlockPos(portalinfo.f_77676_));
-+           } else if (spawnPortal && p_9180_.m_46472_() == Level.f_46430_ && portalinfo.portalEvent != null && portalinfo.portalEvent.getCanCreatePortal()) {
-+              this.m_9006_(p_9180_, new BlockPos(portalinfo.f_77676_));
-+           }
-+
-+            Location enter = this.getBukkitEntity().getLocation();
-+            Location exit = (serverlevel == null) ? null : new Location(p_9180_.getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
-+            PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, cause);
-+            Bukkit.getServer().getPluginManager().callEvent(tpEvent);
-+            if (tpEvent.isCancelled() || tpEvent.getTo() == null) {
-+               return null;
-             }
-+            exit = tpEvent.getTo();
-+            p_9180_.setWorld(p_9180_, (((CraftWorld) exit.getWorld()).getHandle()));
-+            // CraftBukkit end
- 
-             serverlevel.m_46473_().m_7238_();
-             serverlevel.m_46473_().m_6180_("placing");
-             this.m_143425_(p_9180_);
-             p_9180_.m_8817_(this);
+-            }
+-
+-            serverlevel.m_46473_().m_7238_();
+-            serverlevel.m_46473_().m_6180_("placing");
+-            this.m_143425_(p_9180_);
+-            p_9180_.m_8817_(this);
 -            this.m_19915_(portalinfo.f_77678_, portalinfo.f_77679_);
 -            this.m_6027_(portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_);
-+            //this.setRot(portalinfo.yRot, portalinfo.xRot);
-+            //this.moveTo(portalinfo.pos.x, portalinfo.pos.y, portalinfo.pos.z);
-+            this.f_8906_.teleport(exit);
-+            this.f_8906_.m_9953_();
-             serverlevel.m_46473_().m_7238_();
-             this.m_9209_(serverlevel);
-+            return this;//forge: this is part of the ITeleporter patch
-+            });//Forge: End vanilla logic
-+
-+            if (e != this) throw new java.lang.IllegalArgumentException(String.format(java.util.Locale.ENGLISH, "Teleporter %s returned not the player entity but instead %s, expected PlayerEntity %s", teleporter, e, this));
-             this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
-             playerlist.m_11229_(this, p_9180_);
-             playerlist.m_11292_(this);
-@@ -732,10 +_,16 @@
-                this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), mobeffectinstance));
-             }
- 
-+            if (teleporter.playTeleportSound(this, serverlevel, p_9180_))
-             this.f_8906_.m_141995_(new ClientboundLevelEventPacket(1032, BlockPos.f_121853_, 0, false));
-             this.f_8920_ = -1;
-             this.f_8917_ = -1.0F;
-             this.f_8918_ = -1;
-+            net.minecraftforge.event.ForgeEventFactory.firePlayerChangedDimensionEvent(this, resourcekey, p_9180_.m_46472_());
-+            // CraftBukkit start
-+            PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), serverlevel.getWorld());
-+            this.f_19853_.getCraftServer().getPluginManager().callEvent(changeEvent);
-+            // CraftBukkit end
-          }
- 
-          return this;
-@@ -771,15 +_,25 @@
-       }
-    }
- 
+-            serverlevel.m_46473_().m_7238_();
+-            this.m_9209_(serverlevel);
+-            this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
+-            playerlist.m_11229_(this, p_9180_);
+-            playerlist.m_11292_(this);
+-
+-            for(MobEffectInstance mobeffectinstance : this.m_21220_()) {
+-               this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), mobeffectinstance));
+-            }
+-
+-            this.f_8906_.m_141995_(new ClientboundLevelEventPacket(1032, BlockPos.f_121853_, 0, false));
+-            this.f_8920_ = -1;
+-            this.f_8917_ = -1.0F;
+-            this.f_8918_ = -1;
+-         }
+-
+-         return this;
+-      }
+-   }
+-
+-   private void m_9006_(ServerLevel p_9007_, BlockPos p_9008_) {
+-      BlockPos.MutableBlockPos blockpos$mutableblockpos = p_9008_.m_122032_();
+-
+-      for(int i = -2; i <= 2; ++i) {
+-         for(int j = -2; j <= 2; ++j) {
+-            for(int k = -1; k < 3; ++k) {
+-               BlockState blockstate = k == -1 ? Blocks.f_50080_.m_49966_() : Blocks.f_50016_.m_49966_();
+-               p_9007_.m_46597_(blockpos$mutableblockpos.m_122190_(p_9008_).m_122184_(j, k, i), blockstate);
+-            }
+-         }
+-      }
+-
+-   }
+-
+-   protected Optional<BlockUtil.FoundRectangle> m_183318_(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_) {
+-      Optional<BlockUtil.FoundRectangle> optional = super.m_183318_(p_184131_, p_184132_, p_184133_, p_184134_);
+-      if (optional.isPresent()) {
+-         return optional;
+-      } else {
+-         Direction.Axis direction$axis = this.f_19853_.m_8055_(this.f_19819_).m_61145_(NetherPortalBlock.f_54904_).orElse(Direction.Axis.X);
+-         Optional<BlockUtil.FoundRectangle> optional1 = p_184131_.m_8871_().m_77666_(p_184132_, direction$axis);
+-         if (!optional1.isPresent()) {
+-            f_8907_.error("Unable to create a portal, likely target out of worldborder");
+-         }
+-
+-         return optional1;
+-      }
+-   }
+-
 -   private void m_9209_(ServerLevel p_9210_) {
-+   public void m_9209_ ( ServerLevel p_9210_ ) {
-       ResourceKey<Level> resourcekey = p_9210_.m_46472_();
-       ResourceKey<Level> resourcekey1 = this.f_19853_.m_46472_();
+-      ResourceKey<Level> resourcekey = p_9210_.m_46472_();
+-      ResourceKey<Level> resourcekey1 = this.f_19853_.m_46472_();
 -      CriteriaTriggers.f_10588_.m_19757_(this, resourcekey, resourcekey1);
 -      if (resourcekey == Level.f_46429_ && resourcekey1 == Level.f_46428_ && this.f_8933_ != null) {
-+
-+      // CraftBukkit start
-+      ResourceKey<Level> maindimensionkey = CraftDimensionUtil.getMainDimensionKey(p_9210_);
-+      ResourceKey<Level> maindimensionkey1 = CraftDimensionUtil.getMainDimensionKey(this.f_19853_);
-+
-+      CriteriaTriggers.f_10588_.m_19757_(this, maindimensionkey, maindimensionkey1);
-+      if (maindimensionkey != resourcekey || maindimensionkey1 != resourcekey1) {
-+         CriteriaTriggers.f_10588_.m_19757_(this, resourcekey, resourcekey1);
-+      }
-+
-+      if (maindimensionkey == Level.f_46429_ && maindimensionkey1 == Level.f_46428_ && this.f_8933_ != null) {
-+         // CraftBukkit end
-          CriteriaTriggers.f_10552_.m_186165_(this, this.f_8933_);
-       }
- 
+-         CriteriaTriggers.f_10552_.m_186165_(this, this.f_8933_);
+-      }
+-
 -      if (resourcekey1 != Level.f_46429_) {
-+      if (maindimensionkey1 != Level.f_46429_) {
-          this.f_8933_ = null;
-       }
- 
-@@ -797,19 +_,22 @@
-       super.m_7938_(p_9047_, p_9048_);
-       this.f_36096_.m_38946_();
-    }
+-         this.f_8933_ = null;
+-      }
+-
+-   }
+-
+-   public boolean m_6459_(ServerPlayer p_9014_) {
+-      if (p_9014_.m_5833_()) {
+-         return this.m_8954_() == this;
+-      } else {
+-         return this.m_5833_() ? false : super.m_6459_(p_9014_);
+-      }
+-   }
+-
+-   public void m_7938_(Entity p_9047_, int p_9048_) {
+-      super.m_7938_(p_9047_, p_9048_);
+-      this.f_36096_.m_38946_();
+-   }
 -
 -   public Either<Player.BedSleepingProblem, Unit> m_7720_(BlockPos p_9115_) {
 -      Direction direction = this.f_19853_.m_8055_(p_9115_).m_61143_(HorizontalDirectionalBlock.f_54117_);
-+      // CraftBukkit start - moved bed result checks from below into separate method
-+      private Either<Player.BedSleepingProblem, Unit> getBedResult(BlockPos p_9115_, Direction direction) {
-+      java.util.Optional<BlockPos> optAt = java.util.Optional.of(p_9115_);
-+      Player.BedSleepingProblem ret = net.minecraftforge.event.ForgeEventFactory.onPlayerSleepInBed(this, optAt);
-+      if (ret != null) return Either.left(ret);
-+      Direction direction1 = this.f_19853_.m_8055_(p_9115_).m_61143_(HorizontalDirectionalBlock.f_54117_);
-       if (!this.m_5803_() && this.m_6084_()) {
+-      if (!this.m_5803_() && this.m_6084_()) {
 -         if (!this.f_19853_.m_6042_().m_63956_()) {
-+         if (!this.f_19853_.m_6042_().m_63956_() || !this.f_19853_.m_6042_().m_63961_()) {
-             return Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_HERE);
+-            return Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_HERE);
 -         } else if (!this.m_9116_(p_9115_, direction)) {
-+         } else if (!this.m_9116_(p_9115_, direction1)) {
-             return Either.left(Player.BedSleepingProblem.TOO_FAR_AWAY);
+-            return Either.left(Player.BedSleepingProblem.TOO_FAR_AWAY);
 -         } else if (this.m_9191_(p_9115_, direction)) {
-+         } else if (this.m_9191_(p_9115_, direction1)) {
-             return Either.left(Player.BedSleepingProblem.OBSTRUCTED);
-          } else {
-             this.m_9158_(this.f_19853_.m_46472_(), p_9115_, this.m_146908_(), false, true);
+-            return Either.left(Player.BedSleepingProblem.OBSTRUCTED);
+-         } else {
+-            this.m_9158_(this.f_19853_.m_46472_(), p_9115_, this.m_146908_(), false, true);
 -            if (this.f_19853_.m_46461_()) {
-+            if (!net.minecraftforge.event.ForgeEventFactory.fireSleepingTimeCheck(this, optAt)) {
-                return Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
-             } else {
-                if (!this.m_7500_()) {
-@@ -824,21 +_,48 @@
-                   }
-                }
- 
+-               return Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
+-            } else {
+-               if (!this.m_7500_()) {
+-                  double d0 = 8.0D;
+-                  double d1 = 5.0D;
+-                  Vec3 vec3 = Vec3.m_82539_(p_9115_);
+-                  List<Monster> list = this.f_19853_.m_6443_(Monster.class, new AABB(vec3.m_7096_() - 8.0D, vec3.m_7098_() - 5.0D, vec3.m_7094_() - 8.0D, vec3.m_7096_() + 8.0D, vec3.m_7098_() + 5.0D, vec3.m_7094_() + 8.0D), (p_9062_) -> {
+-                     return p_9062_.m_6935_(this);
+-                  });
+-                  if (!list.isEmpty()) {
+-                     return Either.left(Player.BedSleepingProblem.NOT_SAFE);
+-                  }
+-               }
+-
 -               Either<Player.BedSleepingProblem, Unit> either = super.m_7720_(p_9115_).ifRight((p_9029_) -> {
 -                  this.m_36220_(Stats.f_12969_);
 -                  CriteriaTriggers.f_10583_.m_53645_(this);
@@ -568,542 +1426,1945 @@
 -
 -               ((ServerLevel)this.f_19853_).m_8878_();
 -               return either;
-+               return Either.right(Unit.INSTANCE);
-             }
-          }
-       } else {
-          return Either.left(Player.BedSleepingProblem.OTHER_PROBLEM);
-       }
-+      }
+-            }
+-         }
+-      } else {
+-         return Either.left(Player.BedSleepingProblem.OTHER_PROBLEM);
+-      }
+-   }
+-
+-   public void m_5802_(BlockPos p_9190_) {
+-      this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12992_));
+-      super.m_5802_(p_9190_);
+-   }
+-
+-   private boolean m_9116_(BlockPos p_9117_, Direction p_9118_) {
+-      return this.m_9222_(p_9117_) || this.m_9222_(p_9117_.m_142300_(p_9118_.m_122424_()));
+-   }
+-
+-   private boolean m_9222_(BlockPos p_9223_) {
+-      Vec3 vec3 = Vec3.m_82539_(p_9223_);
+-      return Math.abs(this.m_20185_() - vec3.m_7096_()) <= 3.0D && Math.abs(this.m_20186_() - vec3.m_7098_()) <= 2.0D && Math.abs(this.m_20189_() - vec3.m_7094_()) <= 3.0D;
+-   }
+-
+-   private boolean m_9191_(BlockPos p_9192_, Direction p_9193_) {
+-      BlockPos blockpos = p_9192_.m_7494_();
+-      return !this.m_36350_(blockpos) || !this.m_36350_(blockpos.m_142300_(p_9193_.m_122424_()));
+-   }
+-
+-   public void m_6145_(boolean p_9165_, boolean p_9166_) {
+-      if (this.m_5803_()) {
+-         this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(this, 2));
+-      }
+-
+-      super.m_6145_(p_9165_, p_9166_);
+-      if (this.f_8906_ != null) {
+-         this.f_8906_.m_9774_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
+-      }
+-
+-   }
+-
+-   public boolean m_7998_(Entity p_9054_, boolean p_9055_) {
+-      Entity entity = this.m_20202_();
+-      if (!super.m_7998_(p_9054_, p_9055_)) {
+-         return false;
+-      } else {
+-         Entity entity1 = this.m_20202_();
+-         if (entity1 != entity && this.f_8906_ != null) {
++        } else {
++            boolean flag = this.f_8924_.m_6982_() && this.m_9216_() && "fall".equals(p_9037_.f_19326_);
++            if (!flag && this.f_8921_ > 0 && p_9037_ != DamageSource.f_19317_) {
++                return false;
++            } else {
++                if (p_9037_ instanceof EntityDamageSource) {
++                    Entity entity = p_9037_.m_7639_();
++                    if (entity instanceof Player && !this.m_7099_((Player) entity)) {
++                        return false;
++                    }
 +
-+      @Override
-+      public Either<Player.BedSleepingProblem, Unit> m_7720_(BlockPos p_9115_) {
-+         return startSleepInBed(p_9115_, false);
-+      }
++                    if (entity instanceof AbstractArrow) {
++                        AbstractArrow abstractarrow = (AbstractArrow) entity;
++                        Entity entity1 = abstractarrow.m_37282_();
++                        if (entity1 instanceof Player && !this.m_7099_((Player) entity1)) {
++                            return false;
++                        }
++                    }
++                }
 +
-+   @Override
-+   public Either<Player.BedSleepingProblem, Unit> startSleepInBed(BlockPos blockposition, boolean force) {
-+      Direction enumdirection = (Direction) this.f_19853_.m_8055_(blockposition).m_61143_(HorizontalDirectionalBlock.f_54117_);
-+      Either<Player.BedSleepingProblem, Unit> bedResult = this.getBedResult(blockposition, enumdirection);
++                return super.m_6469_(p_9037_, p_9038_);
++            }
++        }
++    }
 +
-+      if (bedResult.left().orElse(null) == Player.BedSleepingProblem.OTHER_PROBLEM) {
-+         return bedResult; // return immediately if the result is not bypassable by plugins
-+      }
++    public boolean m_7099_(Player p_9064_) {
++        return !this.m_9216_() ? false : super.m_7099_(p_9064_);
++    }
 +
-+      if (force) {
-+         bedResult = Either.right(Unit.INSTANCE);
-+      }
++    private boolean m_9216_() {
++        return this.f_19853_.pvpMode;
++    }
 +
-+      bedResult = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callPlayerBedEnterEvent(this, blockposition, bedResult);
-+      if (bedResult.left().isPresent()) {
-+         return bedResult;
-+      }
++    @Nullable
++    protected PortalInfo m_7937_(ServerLevel p_8998_) {
++        PortalInfo portalinfo = super.m_7937_(p_8998_);
++        p_8998_ = portalinfo == null ? p_8998_ : portalinfo.world; // CraftBukkit
++        if (portalinfo != null && this.f_19853_.m_46472_() == Level.f_46428_ && p_8998_.m_46472_() == Level.f_46430_) {
++            Vec3 vec3 = portalinfo.f_77676_.m_82520_(0.0D, -1.0D, 0.0D);
++            return new PortalInfo(vec3, Vec3.f_82478_, 90.0F, 0.0F).putCB(p_8998_, portalinfo.portalEventInfo); // CraftBukkit
++        } else {
++            return portalinfo;
++        }
++    }
 +
-+      Either<Player.BedSleepingProblem, Unit> either = super.startSleepInBed(blockposition, force).ifRight((unit) -> {
-+         this.m_36220_(Stats.f_12969_);
-+         CriteriaTriggers.f_10583_.m_53645_(this);
-+      });
-+      if (!this.m_183503_().m_143333_()) {
-+         this.m_5661_(new TranslatableComponent("sleep.not_possible"), true);
-+      }
++    @Nullable
++    public Entity m_5489_(ServerLevel p_9180_) {
++        // CraftBukkit start
++        return this.changeDimension(p_9180_, PlayerTeleportEvent.TeleportCause.UNKNOWN);
++    }
 +
-+      ((ServerLevel)this.f_19853_).m_8878_();
-+      return either;
++    @Nullable
++    public Entity changeDimension(ServerLevel p_9180_, PlayerTeleportEvent.TeleportCause cause) {
++        CatServerCaptures.getCatServerCaptures().captureChangeDimCause(cause);
++        return this.changeDimension(p_9180_, p_9180_.m_8871_());
++    }
 +
-    }
- 
-    public void m_5802_(BlockPos p_9190_) {
-@@ -847,6 +_,7 @@
-    }
- 
-    private boolean m_9116_(BlockPos p_9117_, Direction p_9118_) {
-+      if (p_9118_ == null) return false;
-       return this.m_9222_(p_9117_) || this.m_9222_(p_9117_.m_142300_(p_9118_.m_122424_()));
-    }
- 
-@@ -861,6 +_,24 @@
-    }
- 
-    public void m_6145_(boolean p_9165_, boolean p_9166_) {
-+      if (!this.m_5803_()) return; // CraftBukkit - Can't leave bed if not in one!
-+      // CraftBukkit start - fire PlayerBedLeaveEvent
-+      CraftPlayer player = this.getBukkitEntity();
-+      BlockPos bedPosition = this.m_21257_().orElse(null);
++    @Nullable
++    public Entity changeDimension(ServerLevel p_9180_, net.minecraftforge.common.util.ITeleporter teleporter) {
++        if (this.m_5803_()) return this; // CraftBukkit - SPIGOT-3154
++        if (!net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, p_9180_.m_46472_())) return null;
++        ServerLevel serverlevel = this.m_183503_();
++        ResourceKey<Level> resourcekey = serverlevel.m_46472_();
++        if (resourcekey == Level.f_46430_ && p_9180_.m_46472_() == Level.f_46428_ && teleporter.isVanilla()) { //Forge: Fix non-vanilla teleporters triggering end credits
++            this.f_8927_ = true; // CraftBukkit - Moved down from above
++            this.m_19877_();
++            this.m_183503_().m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
++            if (!this.f_8944_) {
++                this.f_8944_ = true;
++                this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132157_, this.f_8928_ ? 0.0F : 1.0F));
++                this.f_8928_ = true;
++            }
++            return this;
++        } else {
++            PortalInfo portalinfo = teleporter.getPortalInfo(this, p_9180_, this::m_7937_);
++            if (portalinfo != null) {
++                if (portalinfo.world != null) {
++                    p_9180_ = portalinfo.world;
++                }
++                ServerLevel[] exitLevel = new ServerLevel[]{p_9180_}; // CatServer
++                LevelData leveldata = p_9180_.m_6106_();
++                this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9180_.m_204156_(), p_9180_.m_46472_(), BiomeManager.m_47877_(p_9180_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9180_.m_46659_(), p_9180_.m_8584_(), true));
++                this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
++                PlayerList playerlist = this.f_8924_.m_6846_();
++                playerlist.m_11289_(this);
++                serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
++                this.revive();
++                Entity e = teleporter.placeEntity(this, serverlevel, exitLevel[0], this.m_146908_(), spawnPortal -> {//Forge: Start vanilla logic
++                    serverlevel.m_46473_().m_6180_("moving");
++                    if (exitLevel[0] != null) {
++                        if (resourcekey == Level.f_46428_ && exitLevel[0].m_46472_() == Level.f_46429_) {
++                            this.f_8933_ = this.m_20182_();
++                        } else if (spawnPortal && exitLevel[0].m_46472_() == Level.f_46430_) {
++                            this.m_9006_(exitLevel[0], new BlockPos(portalinfo.f_77676_));
++                        }
++                    }
++                    Location enter = this.getBukkitEntity().getLocation();
++                    Location exit = (exitLevel[0] == null) ? null : new Location(exitLevel[0].getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
++                    var cause = CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause() == null ? PlayerTeleportEvent.TeleportCause.UNKNOWN : CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause();
++                    PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, cause);
++                    Bukkit.getServer().getPluginManager().callEvent(tpEvent);
++                    if (tpEvent.isCancelled() || tpEvent.getTo() == null) {
++                        return null;
++                    }
++                    exit = tpEvent.getTo();
++                    // CraftBukkit end
++                    serverlevel.m_46473_().m_7238_();
++                    serverlevel.m_46473_().m_6180_("placing");
 +
-+      org.bukkit.block.Block bed;
-+      if (bedPosition != null) {
-+         bed = this.f_19853_.getWorld().getBlockAt(bedPosition.m_123341_(), bedPosition.m_123342_(), bedPosition.m_123343_());
-+      } else {
-+         bed = this.f_19853_.getWorld().getBlockAt(player.getLocation());
-+      }
++                    this.f_8927_ = true;
++                    ServerLevel newLevel = ((CraftWorld) exit.getWorld()).getHandle();
++                    if (newLevel != exitLevel[0]) {
++                        exitLevel[0] = newLevel;
++                        LevelData newLevelData = exitLevel[0].m_6106_();
++                        this.f_8906_.m_141995_(new ClientboundRespawnPacket(exitLevel[0].m_204156_(), exitLevel[0].m_46472_(), BiomeManager.m_47877_(exitLevel[0].m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), exitLevel[0].m_46659_(), exitLevel[0].m_8584_(), true));
++                        this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(newLevelData.m_5472_(), newLevelData.m_5474_()));
++                    }
++                    this.m_143425_(exitLevel[0]);
++                    exitLevel[0].m_8817_(this);
++                    this.f_8906_.teleport(exit);
++                    this.f_8906_.m_9953_();
++                    serverlevel.m_46473_().m_7238_();
++                    this.m_9209_(exitLevel[0]);
++                    return this;//forge: this is part of the ITeleporter patch
++                });//Forge: End vanilla logic
++                if (e == null) {
++                    serverlevel.m_143334_(this);
++                    return this;
++                } else if (e != this) {
++                    throw new java.lang.IllegalArgumentException(String.format(java.util.Locale.ENGLISH, "Teleporter %s returned not the player entity but instead %s, expected PlayerEntity %s", teleporter, e, this));
++                }
++                this.f_8941_.m_9260_(exitLevel[0]);
++                this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
++                playerlist.m_11229_(this, exitLevel[0]);
++                playerlist.m_11292_(this);
 +
-+      PlayerBedLeaveEvent event = new PlayerBedLeaveEvent(player, bed, true);
-+      this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
-+      if (event.isCancelled()) {
-+         return;
-+      }
-+      // CraftBukkit end
-       if (this.m_5803_()) {
-          this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(this, 2));
-       }
-@@ -935,16 +_,44 @@
-       this.f_8940_ = this.f_8940_ % 100 + 1;
-    }
- 
-+   public int nextContainerCounterInt() {
-+      this.f_8940_ = this.f_8940_ % 100 + 1;
-+      return f_8940_; // CraftBukkit
-+   }
++                for (MobEffectInstance mobeffectinstance : this.m_21220_()) {
++                    this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), mobeffectinstance));
++                }
 +
-    public OptionalInt m_5893_(@Nullable MenuProvider p_9033_) {
-       if (p_9033_ == null) {
-          return OptionalInt.empty();
-       } else {
++                if (teleporter.playTeleportSound(this, serverlevel, exitLevel[0]))
++                    this.f_8906_.m_141995_(new ClientboundLevelEventPacket(1032, BlockPos.f_121853_, 0, false));
++                this.f_8920_ = -1;
++                this.f_8917_ = -1.0F;
++                this.f_8918_ = -1;
++                net.minecraftforge.event.ForgeEventFactory.firePlayerChangedDimensionEvent(this, resourcekey, exitLevel[0].m_46472_());
++                // CraftBukkit start
++                PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), serverlevel.getWorld());
++                this.f_19853_.getCraftServer().getPluginManager().callEvent(changeEvent);
++                // CraftBukkit end
++            }
++
++            return this;
++        }
++    }
++
++    // CraftBukkit start
++    @Override
++    protected CraftPortalEvent callPortalEvent(Entity entity, ServerLevel exitWorldServer, BlockPos exitPosition, PlayerTeleportEvent.TeleportCause cause, int searchRadius, int creationRadius) {
++        Location enter = this.getBukkitEntity().getLocation();
++        Location exit = new Location(exitWorldServer.getWorld(), exitPosition.m_123341_(), exitPosition.m_123342_(), exitPosition.m_123343_(), m_146908_(), m_146909_());
++        PlayerPortalEvent event = new PlayerPortalEvent(this.getBukkitEntity(), enter, exit, cause, searchRadius, true, creationRadius);
++        Bukkit.getServer().getPluginManager().callEvent(event);
++        if (event.isCancelled() || event.getTo() == null || event.getTo().getWorld() == null) {
++            return null;
++        }
++        return new CraftPortalEvent(event);
++    }
++    // CraftBukkit end
++
++    private void m_9006_(ServerLevel p_9007_, BlockPos p_9008_) {
++        BlockPos.MutableBlockPos blockpos$mutableblockpos = p_9008_.m_122032_();
++
++        for (int i = -2; i <= 2; ++i) {
++            for (int j = -2; j <= 2; ++j) {
++                for (int k = -1; k < 3; ++k) {
++                    BlockState blockstate = k == -1 ? Blocks.f_50080_.m_49966_() : Blocks.f_50016_.m_49966_();
++                    p_9007_.m_46597_(blockpos$mutableblockpos.m_122190_(p_9008_).m_122184_(j, k, i), blockstate);
++                }
++            }
++        }
++
++    }
++
++    protected Optional<BlockUtil.FoundRectangle> getExitPortal(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
++        CatServerCaptures.getCatServerCaptures().capturePortalSearchRadius(searchRadius);
++        CatServerCaptures.getCatServerCaptures().captureCanCreatePortal(canCreatePortal);
++        CatServerCaptures.getCatServerCaptures().capturePortalRadius(createRadius);
++        return this.m_183318_(p_184131_, p_184132_, p_184133_, p_184134_);
++    }
++
++    protected Optional<BlockUtil.FoundRectangle> m_183318_(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_) {
++        var searchRadius = CatServerCaptures.getCatServerCaptures().getCapturePortalSearchRadius();
++        var canCreatePortal = CatServerCaptures.getCatServerCaptures().getCaptureCanCreatePortal();
++        var createRadius = CatServerCaptures.getCatServerCaptures().getCapturePortalRadius();
++        Optional<BlockUtil.FoundRectangle> optional = super.getExitPortal(p_184131_, p_184132_, p_184133_, p_184134_, searchRadius, canCreatePortal, createRadius); // CraftBukkit
++        if (optional.isPresent() || !canCreatePortal) { // CraftBukkit
++            return optional;
++        } else {
++            Direction.Axis direction$axis = this.f_19853_.m_8055_(this.f_19819_).m_61145_(NetherPortalBlock.f_54904_).orElse(Direction.Axis.X);
++            Optional<BlockUtil.FoundRectangle> optional1 = p_184131_.m_8871_().createPortal(p_184132_, direction$axis, this, createRadius); // CraftBukkit
++            if (!optional1.isPresent()) {
++                // LOGGER.error("Unable to create a portal, likely target out of worldborder"); // CraftBukkit
++            }
++
++            return optional1;
++        }
++    }
++
++    public void m_9209_(ServerLevel p_9210_) {
++        ResourceKey<Level> resourcekey = p_9210_.m_46472_();
++        ResourceKey<Level> resourcekey1 = this.f_19853_.m_46472_();
++
++        // CraftBukkit start
++        ResourceKey<Level> maindimensionkey = CraftDimensionUtil.getMainDimensionKey(p_9210_);
++        ResourceKey<Level> maindimensionkey1 = CraftDimensionUtil.getMainDimensionKey(this.f_19853_);
++
++        CriteriaTriggers.f_10588_.m_19757_(this, maindimensionkey, maindimensionkey1);
++        if (maindimensionkey != resourcekey || maindimensionkey1 != resourcekey1) {
++            CriteriaTriggers.f_10588_.m_19757_(this, resourcekey, resourcekey1);
++        }
++
++        if (maindimensionkey == Level.f_46429_ && maindimensionkey1 == Level.f_46428_ && this.f_8933_ != null) {
++            // CraftBukkit end
++            CriteriaTriggers.f_10552_.m_186165_(this, this.f_8933_);
++        }
++
++        if (maindimensionkey1 != Level.f_46429_) { // CraftBukkit
++            this.f_8933_ = null;
++        }
++    }
++
++    public boolean m_6459_(ServerPlayer p_9014_) {
++        if (p_9014_.m_5833_()) {
++            return this.m_8954_() == this;
++        } else {
++            return this.m_5833_() ? false : super.m_6459_(p_9014_);
++        }
++    }
++
++    public void m_7938_(Entity p_9047_, int p_9048_) {
++        super.m_7938_(p_9047_, p_9048_);
++        this.f_36096_.m_38946_();
++    }
++
++    public Either<Player.BedSleepingProblem, Unit> m_7720_(BlockPos p_9115_) {
++        Direction enumdirection = this.f_19853_.m_8055_(p_9115_).m_61143_(HorizontalDirectionalBlock.f_54117_);
++        Either<Player.BedSleepingProblem, Unit> bedResult = null;
++
++        java.util.Optional<BlockPos> optAt = java.util.Optional.of(p_9115_);
++        Player.BedSleepingProblem ret = net.minecraftforge.event.ForgeEventFactory.onPlayerSleepInBed(this, optAt);
++        if (ret != null)
++            bedResult = Either.left(ret);
++        if (!this.m_5803_() && this.m_6084_()) {
++            if (!this.f_19853_.m_6042_().m_63956_()) {
++                bedResult = Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_HERE);
++            } else if (!this.m_9116_(p_9115_, enumdirection)) {
++                bedResult = Either.left(Player.BedSleepingProblem.TOO_FAR_AWAY);
++            } else if (this.m_9191_(p_9115_, enumdirection)) {
++                bedResult = Either.left(Player.BedSleepingProblem.OBSTRUCTED);
++            } else {
++                this.m_9158_(this.f_19853_.m_46472_(), p_9115_, this.m_146908_(), false, true);
++                if (!net.minecraftforge.event.ForgeEventFactory.fireSleepingTimeCheck(this, optAt)) {
++                    bedResult = Either.left(Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
++                } else {
++                    if (!this.m_7500_()) {
++                        double d0 = 8.0D;
++                        double d1 = 5.0D;
++                        Vec3 vec3 = Vec3.m_82539_(p_9115_);
++                        List<Monster> list = this.f_19853_.m_6443_(Monster.class, new AABB(vec3.m_7096_() - 8.0D, vec3.m_7098_() - 5.0D, vec3.m_7094_() - 8.0D, vec3.m_7096_() + 8.0D, vec3.m_7098_() + 5.0D, vec3.m_7094_() + 8.0D), (p_9062_) -> {
++                            return p_9062_.m_6935_(this);
++                        });
++                        if (!list.isEmpty()) {
++                            bedResult = Either.left(Player.BedSleepingProblem.NOT_SAFE);
++                        }
++                    }
++
++                    if (bedResult == null)
++                        bedResult = Either.right(Unit.INSTANCE);
++                }
++            }
++        } else {
++            bedResult = Either.left(Player.BedSleepingProblem.OTHER_PROBLEM);
++        }
++
++        if (bedResult.left().orElse(null) == Player.BedSleepingProblem.OTHER_PROBLEM) {
++            return bedResult; // return immediately if the result is not bypassable by plugins
++        }
++
++        boolean force = CatServerCaptures.getCatServerCaptures().getCaptureIsForceSleep(); // CatServer
++        if (force) {
++            bedResult = Either.right(Unit.INSTANCE);
++        }
++
++        bedResult = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callPlayerBedEnterEvent(this, p_9115_, bedResult);
++        if (bedResult.left().isPresent()) {
++            return bedResult;
++        }
++
++
++        Either<Player.BedSleepingProblem, Unit> either = super.m_7720_(p_9115_).ifRight((unit) -> {
++            this.m_36220_(Stats.f_12969_);
++            CriteriaTriggers.f_10583_.m_53645_(this);
++        });
++        if (!this.m_183503_().m_143333_()) {
++            this.m_5661_(new TranslatableComponent("sleep.not_possible"), true);
++        }
++
++        ((ServerLevel) this.f_19853_).m_8878_();
++        return either;
++    }
++
++    public void m_5802_(BlockPos p_9190_) {
++        this.m_7166_(Stats.f_12988_.m_12902_(Stats.f_12992_));
++        super.m_5802_(p_9190_);
++    }
++
++    private boolean m_9116_(BlockPos p_9117_, Direction p_9118_) {
++        if (p_9118_ == null) return false;
++        return this.m_9222_(p_9117_) || this.m_9222_(p_9117_.m_142300_(p_9118_.m_122424_()));
++    }
++
++    private boolean m_9222_(BlockPos p_9223_) {
++        Vec3 vec3 = Vec3.m_82539_(p_9223_);
++        return Math.abs(this.m_20185_() - vec3.m_7096_()) <= 3.0D && Math.abs(this.m_20186_() - vec3.m_7098_()) <= 2.0D && Math.abs(this.m_20189_() - vec3.m_7094_()) <= 3.0D;
++    }
++
++    private boolean m_9191_(BlockPos p_9192_, Direction p_9193_) {
++        BlockPos blockpos = p_9192_.m_7494_();
++        return !this.m_36350_(blockpos) || !this.m_36350_(blockpos.m_142300_(p_9193_.m_122424_()));
++    }
++
++    public void m_6145_(boolean p_9165_, boolean p_9166_) {
++        if (!this.m_5803_()) return; // CraftBukkit - Can't leave bed if not in one!
++        // CraftBukkit start - fire PlayerBedLeaveEvent
++        CraftPlayer player = this.getBukkitEntity();
++        BlockPos bedPosition = this.m_21257_().orElse(null);
++        org.bukkit.block.Block bed;
++        if (bedPosition != null) {
++            bed = this.f_19853_.getWorld().getBlockAt(bedPosition.m_123341_(), bedPosition.m_123342_(), bedPosition.m_123343_());
++        } else {
++            bed = this.f_19853_.getWorld().getBlockAt(player.getLocation());
++        }
++        PlayerBedLeaveEvent event = new PlayerBedLeaveEvent(player, bed, true);
++        this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            return;
++        }
++        // CraftBukkit end
++        if (this.m_5803_()) {
++            this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(this, 2));
++        }
++
++        super.m_6145_(p_9165_, p_9166_);
++        if (this.f_8906_ != null) {
+             this.f_8906_.m_9774_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
+-         }
+-
+-         return true;
+-      }
+-   }
+-
+-   public void m_8127_() {
+-      Entity entity = this.m_20202_();
+-      super.m_8127_();
+-      Entity entity1 = this.m_20202_();
+-      if (entity1 != entity && this.f_8906_ != null) {
+-         this.f_8906_.m_143611_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
+-      }
+-
+-   }
+-
+-   public void m_142098_(double p_143389_, double p_143390_, double p_143391_) {
+-      this.m_6038_();
+-      if (this.f_8906_ != null) {
+-         this.f_8906_.m_143611_(p_143389_, p_143390_, p_143391_, this.m_146908_(), this.m_146909_());
+-      }
+-
+-   }
+-
+-   public boolean m_6673_(DamageSource p_9182_) {
+-      return super.m_6673_(p_9182_) || this.m_8958_() || this.m_150110_().f_35934_ && p_9182_ == DamageSource.f_19320_;
+-   }
+-
+-   protected void m_7840_(double p_8976_, boolean p_8977_, BlockState p_8978_, BlockPos p_8979_) {
+-   }
+-
+-   protected void m_5806_(BlockPos p_9206_) {
+-      if (!this.m_5833_()) {
+-         super.m_5806_(p_9206_);
+-      }
+-
+-   }
+-
+-   public void m_8972_(double p_8973_, boolean p_8974_) {
+-      if (!this.m_146899_()) {
+-         BlockPos blockpos = this.m_20097_();
+-         super.m_7840_(p_8973_, p_8974_, this.f_19853_.m_8055_(blockpos), blockpos);
+-      }
+-   }
+-
+-   public void m_7739_(SignBlockEntity p_9101_) {
+-      p_9101_.m_155713_(this.m_142081_());
+-      this.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(this.f_19853_, p_9101_.m_58899_()));
+-      this.f_8906_.m_141995_(new ClientboundOpenSignEditorPacket(p_9101_.m_58899_()));
+-   }
+-
+-   public void m_9217_() {
+-      this.f_8940_ = this.f_8940_ % 100 + 1;
+-   }
+-
+-   public OptionalInt m_5893_(@Nullable MenuProvider p_9033_) {
+-      if (p_9033_ == null) {
+-         return OptionalInt.empty();
+-      } else {
 -         if (this.f_36096_ != this.f_36095_) {
 -            this.m_6915_();
-+         // CraftBukkit start - SPIGOT-6552: Handle inventory closing in CraftEventFactory#callInventoryOpenEvent(...)
-+            /*
-+         if (this.containerMenu != this.inventoryMenu) {
-+            this.closeContainer();
-          }
+-         }
 -
-+            */
-+         // CraftBukkit end
-          this.m_9217_();
-          AbstractContainerMenu abstractcontainermenu = p_9033_.m_7208_(this.f_8940_, this.m_150109_(), this);
+-         this.m_9217_();
+-         AbstractContainerMenu abstractcontainermenu = p_9033_.m_7208_(this.f_8940_, this.m_150109_(), this);
+-         if (abstractcontainermenu == null) {
+-            if (this.m_5833_()) {
+-               this.m_5661_((new TranslatableComponent("container.spectatorCantOpen")).m_130940_(ChatFormatting.RED), true);
++        }
 +
-+         // CraftBukkit start - Inventory open hook
-+         if (abstractcontainermenu != null) {
-+            abstractcontainermenu.setTitle(p_9033_.m_5446_());
++    }
 +
-+            boolean cancelled = false;
-+            abstractcontainermenu = CraftEventFactory.callInventoryOpenEvent(this, abstractcontainermenu, cancelled);
-+            if (abstractcontainermenu == null && !cancelled) { // Let pre-cancelled events fall through
-+               // SPIGOT-5263 - close chest if cancelled
-+               if (p_9033_ instanceof Container) {
-+                  ((Container) p_9033_).m_5785_(this);
-+               } else if (p_9033_ instanceof ChestBlock.DoubleInventory) {
-+                  // SPIGOT-5355 - double chests too :(
-+                  ((ChestBlock.DoubleInventory) p_9033_).inventorylargechest.m_5785_(this);
-+               }
-+               return OptionalInt.empty();
-+            }
-+         }
-+         // CraftBukkit end
-+
-          if (abstractcontainermenu == null) {
-             if (this.m_5833_()) {
-                this.m_5661_((new TranslatableComponent("container.spectatorCantOpen")).m_130940_(ChatFormatting.RED), true);
-@@ -952,9 +_,10 @@
++    public boolean m_7998_(Entity p_9054_, boolean p_9055_) {
++        Entity entity = this.m_20202_();
++        if (!super.m_7998_(p_9054_, p_9055_)) {
++            return false;
++        } else {
++            Entity entity1 = this.m_20202_();
++            if (entity1 != entity && this.f_8906_ != null) {
++                this.f_8906_.m_9774_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
+             }
  
++            return true;
++        }
++    }
++
++    public void m_8127_() {
++        Entity entity = this.m_20202_();
++        super.m_8127_();
++        Entity entity1 = this.m_20202_();
++        if (entity1 != entity && this.f_8906_ != null) {
++            this.f_8906_.m_143611_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
++        }
++
++    }
++
++    public void m_142098_(double p_143389_, double p_143390_, double p_143391_) {
++        this.m_6038_();
++        if (this.f_8906_ != null) {
++            this.f_8906_.m_143611_(p_143389_, p_143390_, p_143391_, this.m_146908_(), this.m_146909_());
++        }
++
++    }
++
++    public boolean m_6673_(DamageSource p_9182_) {
++        return super.m_6673_(p_9182_) || this.m_8958_() || this.m_150110_().f_35934_ && p_9182_ == DamageSource.f_19320_;
++    }
++
++    protected void m_7840_(double p_8976_, boolean p_8977_, BlockState p_8978_, BlockPos p_8979_) {
++    }
++
++    protected void m_5806_(BlockPos p_9206_) {
++        if (!this.m_5833_()) {
++            super.m_5806_(p_9206_);
++        }
++
++    }
++
++    public void m_8972_(double p_8973_, boolean p_8974_) {
++        if (!this.m_146899_()) {
++            BlockPos blockpos = this.m_20097_();
++            super.m_7840_(p_8973_, p_8974_, this.f_19853_.m_8055_(blockpos), blockpos);
++        }
++    }
++
++    public void m_7739_(SignBlockEntity p_9101_) {
++        p_9101_.m_155713_(this.m_142081_());
++        this.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(this.f_19853_, p_9101_.m_58899_()));
++        this.f_8906_.m_141995_(new ClientboundOpenSignEditorPacket(p_9101_.m_58899_()));
++    }
++
++    public int cBNextContainerCounter() {
++        this.f_8940_ = this.f_8940_ % 100 + 1;
++        return f_8940_;
++    }
++
++    public void m_9217_() {
++        this.f_8940_ = this.f_8940_ % 100 + 1;
++    }
++
++    public OptionalInt m_5893_(@Nullable MenuProvider p_9033_) {
++        if (p_9033_ == null) {
              return OptionalInt.empty();
-          } else {
+-         } else {
 -            this.f_8906_.m_141995_(new ClientboundOpenScreenPacket(abstractcontainermenu.f_38840_, abstractcontainermenu.m_6772_(), p_9033_.m_5446_()));
 -            this.m_143399_(abstractcontainermenu);
-             this.f_36096_ = abstractcontainermenu;
-+            this.f_8906_.m_141995_(new ClientboundOpenScreenPacket(abstractcontainermenu.f_38840_, abstractcontainermenu.m_6772_(), abstractcontainermenu.getTitle()));
-+            this.m_143399_(abstractcontainermenu);
-+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.f_36096_));
-             return OptionalInt.of(this.f_8940_);
-          }
-       }
-@@ -965,14 +_,25 @@
-    }
- 
-    public void m_6658_(AbstractHorse p_9059_, Container p_9060_) {
+-            this.f_36096_ = abstractcontainermenu;
+-            return OptionalInt.of(this.f_8940_);
+-         }
+-      }
+-   }
+-
+-   public void m_7662_(int p_8988_, MerchantOffers p_8989_, int p_8990_, int p_8991_, boolean p_8992_, boolean p_8993_) {
+-      this.f_8906_.m_141995_(new ClientboundMerchantOffersPacket(p_8988_, p_8989_, p_8990_, p_8991_, p_8992_, p_8993_));
+-   }
+-
+-   public void m_6658_(AbstractHorse p_9059_, Container p_9060_) {
 -      if (this.f_36096_ != this.f_36095_) {
 -         this.m_6915_();
 -      }
 -
-+      // CraftBukkit start - Inventory open hook
-       this.m_9217_();
-+      AbstractContainerMenu container = new HorseInventoryMenu(this.f_8940_, this.m_150109_(), p_9060_, p_9059_);
-+      container.setTitle(p_9059_.m_5446_());
-+      container = CraftEventFactory.callInventoryOpenEvent(this, container);
-+
-+      if (container == null) {
-+         p_9060_.m_5785_(this);
-+         return;
-+      }
-+      // CraftBukkit end
-+      if (this.f_36096_ != this.f_36095_) {
-+         this.m_6915_();
-+      }
-+      // this.nextContainerCounter(); // CraftBukkit - moved up
-       this.f_8906_.m_141995_(new ClientboundHorseScreenOpenPacket(this.f_8940_, p_9060_.m_6643_(), p_9059_.m_142049_()));
+-      this.m_9217_();
+-      this.f_8906_.m_141995_(new ClientboundHorseScreenOpenPacket(this.f_8940_, p_9060_.m_6643_(), p_9059_.m_142049_()));
 -      this.f_36096_ = new HorseInventoryMenu(this.f_8940_, this.m_150109_(), p_9060_, p_9059_);
-+      this.f_36096_ = container; // CraftBukkit
-       this.m_143399_(this.f_36096_);
-+      net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.f_36096_));
-    }
- 
-    public void m_6986_(ItemStack p_9082_, InteractionHand p_9083_) {
-@@ -991,6 +_,7 @@
-    }
- 
-    public void m_6915_() {
-+      CraftEventFactory.handleInventoryCloseEvent(this); // CraftBukkit
-       this.f_8906_.m_141995_(new ClientboundContainerClosePacket(this.f_36096_.f_38840_));
-       this.m_9230_();
-    }
-@@ -998,6 +_,7 @@
-    public void m_9230_() {
-       this.f_36096_.m_6877_(this);
-       this.f_36095_.m_150414_(this.f_36096_);
-+      net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Close(this, this.f_36096_));
-       this.f_36096_ = this.f_36095_;
-    }
- 
-@@ -1019,14 +_,14 @@
- 
-    public void m_6278_(Stat<?> p_9026_, int p_9027_) {
-       this.f_8910_.m_13023_(this, p_9026_, p_9027_);
--      this.m_36329_().m_83427_(p_9026_, this.m_6302_(), (p_8996_) -> {
-+      this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9026_, this.m_6302_(), (p_8996_) -> { // CraftBukkit - Get our scores instead
-          p_8996_.m_83393_(p_9027_);
-       });
-    }
- 
-    public void m_7166_(Stat<?> p_9024_) {
-       this.f_8910_.m_6085_(this, p_9024_, 0);
--      this.m_36329_().m_83427_(p_9024_, this.m_6302_(), Score::m_83401_);
-+      this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9024_, this.m_6302_(), Score::m_83401_); // CraftBukkit - Get our scores instead
-    }
- 
-    public int m_7281_(Collection<Recipe<?>> p_9129_) {
-@@ -1067,7 +_,16 @@
- 
-    public void m_9233_() {
-       this.f_8917_ = -1.0E8F;
+-      this.m_143399_(this.f_36096_);
 -   }
-+      this.f_8920_ = -1; // CraftBukkit - Added to reset
-+   }
-+
-+   // CraftBukkit start - Support multi-line messages
-+   public void sendMessage(UUID uuid, Component[] ichatbasecomponent) {
-+      for (Component component : ichatbasecomponent) {
-+         this.m_6352_(component, (uuid == null) ? Util.f_137441_ : uuid);
-+      }
-+   }
-+   // CraftBukkit end
- 
-    public void m_5661_(Component p_9154_, boolean p_9155_) {
-       this.m_9146_(p_9154_, p_9155_ ? ChatType.GAME_INFO : ChatType.CHAT, Util.f_137441_);
-@@ -1118,11 +_,18 @@
-       this.f_8920_ = -1;
-       this.f_8917_ = -1.0F;
-       this.f_8918_ = -1;
+-
+-   public void m_6986_(ItemStack p_9082_, InteractionHand p_9083_) {
+-      if (p_9082_.m_150930_(Items.f_42615_)) {
+-         if (WrittenBookItem.m_43461_(p_9082_, this.m_20203_(), this)) {
+-            this.f_36096_.m_38946_();
+-         }
+-
+-         this.f_8906_.m_141995_(new ClientboundOpenBookPacket(p_9083_));
+-      }
+-
+-   }
+-
+-   public void m_7698_(CommandBlockEntity p_9099_) {
+-      this.f_8906_.m_141995_(ClientboundBlockEntityDataPacket.m_195642_(p_9099_, BlockEntity::m_187482_));
+-   }
+-
+-   public void m_6915_() {
+-      this.f_8906_.m_141995_(new ClientboundContainerClosePacket(this.f_36096_.f_38840_));
+-      this.m_9230_();
+-   }
+-
+-   public void m_9230_() {
+-      this.f_36096_.m_6877_(this);
+-      this.f_36095_.m_150414_(this.f_36096_);
+-      this.f_36096_ = this.f_36095_;
+-   }
+-
+-   public void m_8980_(float p_8981_, float p_8982_, boolean p_8983_, boolean p_8984_) {
+-      if (this.m_20159_()) {
+-         if (p_8981_ >= -1.0F && p_8981_ <= 1.0F) {
+-            this.f_20900_ = p_8981_;
+-         }
+-
+-         if (p_8982_ >= -1.0F && p_8982_ <= 1.0F) {
+-            this.f_20902_ = p_8982_;
+-         }
+-
+-         this.f_20899_ = p_8983_;
+-         this.m_20260_(p_8984_);
+-      }
+-
+-   }
+-
+-   public void m_6278_(Stat<?> p_9026_, int p_9027_) {
+-      this.f_8910_.m_13023_(this, p_9026_, p_9027_);
+-      this.m_36329_().m_83427_(p_9026_, this.m_6302_(), (p_8996_) -> {
+-         p_8996_.m_83393_(p_9027_);
+-      });
+-   }
+-
+-   public void m_7166_(Stat<?> p_9024_) {
+-      this.f_8910_.m_6085_(this, p_9024_, 0);
+-      this.m_36329_().m_83427_(p_9024_, this.m_6302_(), Score::m_83401_);
+-   }
+-
+-   public int m_7281_(Collection<Recipe<?>> p_9129_) {
+-      return this.f_8929_.m_12791_(p_9129_, this);
+-   }
+-
+-   public void m_7902_(ResourceLocation[] p_9168_) {
+-      List<Recipe<?>> list = Lists.newArrayList();
+-
+-      for(ResourceLocation resourcelocation : p_9168_) {
+-         this.f_8924_.m_129894_().m_44043_(resourcelocation).ifPresent(list::add);
+-      }
+-
+-      this.m_7281_(list);
+-   }
+-
+-   public int m_7279_(Collection<Recipe<?>> p_9195_) {
+-      return this.f_8929_.m_12806_(p_9195_, this);
+-   }
+-
+-   public void m_6756_(int p_9208_) {
+-      super.m_6756_(p_9208_);
+-      this.f_8920_ = -1;
+-   }
+-
+-   public void m_9231_() {
+-      this.f_8932_ = true;
+-      this.m_20153_();
+-      if (this.m_5803_()) {
+-         this.m_6145_(true, false);
+-      }
+-
+-   }
+-
+-   public boolean m_9232_() {
+-      return this.f_8932_;
+-   }
+-
+-   public void m_9233_() {
+-      this.f_8917_ = -1.0E8F;
+-   }
+-
+-   public void m_5661_(Component p_9154_, boolean p_9155_) {
+-      this.m_9146_(p_9154_, p_9155_ ? ChatType.GAME_INFO : ChatType.CHAT, Util.f_137441_);
+-   }
+-
+-   protected void m_8095_() {
+-      if (!this.f_20935_.m_41619_() && this.m_6117_()) {
+-         this.f_8906_.m_141995_(new ClientboundEntityEventPacket(this, (byte)9));
+-         super.m_8095_();
+-      }
+-
+-   }
+-
+-   public void m_7618_(EntityAnchorArgument.Anchor p_9112_, Vec3 p_9113_) {
+-      super.m_7618_(p_9112_, p_9113_);
+-      this.f_8906_.m_141995_(new ClientboundPlayerLookAtPacket(p_9112_, p_9113_.f_82479_, p_9113_.f_82480_, p_9113_.f_82481_));
+-   }
+-
+-   public void m_9107_(EntityAnchorArgument.Anchor p_9108_, Entity p_9109_, EntityAnchorArgument.Anchor p_9110_) {
+-      Vec3 vec3 = p_9110_.m_90377_(p_9109_);
+-      super.m_7618_(p_9108_, vec3);
+-      this.f_8906_.m_141995_(new ClientboundPlayerLookAtPacket(p_9108_, p_9109_, p_9110_));
+-   }
+-
+-   public void m_9015_(ServerPlayer p_9016_, boolean p_9017_) {
+-      this.f_143378_ = p_9016_.f_143378_;
+-      this.f_8941_.m_9273_(p_9016_.f_8941_.m_9290_(), p_9016_.f_8941_.m_9293_());
+-      if (p_9017_) {
+-         this.m_150109_().m_36006_(p_9016_.m_150109_());
+-         this.m_21153_(p_9016_.m_21223_());
+-         this.f_36097_ = p_9016_.f_36097_;
+-         this.f_36078_ = p_9016_.f_36078_;
+-         this.f_36079_ = p_9016_.f_36079_;
+-         this.f_36080_ = p_9016_.f_36080_;
+-         this.m_36397_(p_9016_.m_36344_());
+-         this.f_19819_ = p_9016_.f_19819_;
+-      } else if (this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || p_9016_.m_5833_()) {
+-         this.m_150109_().m_36006_(p_9016_.m_150109_());
+-         this.f_36078_ = p_9016_.f_36078_;
+-         this.f_36079_ = p_9016_.f_36079_;
+-         this.f_36080_ = p_9016_.f_36080_;
+-         this.m_36397_(p_9016_.m_36344_());
+-      }
+-
+-      this.f_36081_ = p_9016_.f_36081_;
+-      this.f_36094_ = p_9016_.f_36094_;
+-      this.m_20088_().m_135381_(f_36089_, p_9016_.m_20088_().m_135370_(f_36089_));
+-      this.f_8920_ = -1;
+-      this.f_8917_ = -1.0F;
+-      this.f_8918_ = -1;
 -      this.f_8929_.m_12685_(p_9016_.f_8929_);
-+      //his.recipeBook.copyOverData(p_9016_.recipeBook); // CraftBukkit
-       this.f_8928_ = p_9016_.f_8928_;
-       this.f_8933_ = p_9016_.f_8933_;
-       this.m_36362_(p_9016_.m_36331_());
-       this.m_36364_(p_9016_.m_36332_());
-+
-+      //Copy over a section of the Entity Data from the old player.
-+      //Allows mods to specify data that persists after players respawn.
-+      CompoundTag old = p_9016_.getPersistentData();
-+      if (old.m_128441_(PERSISTED_NBT_TAG))
-+          getPersistentData().m_128365_(PERSISTED_NBT_TAG, old.m_128423_(PERSISTED_NBT_TAG));
-+      net.minecraftforge.event.ForgeEventFactory.onPlayerClone(this, p_9016_, !p_9017_);
-    }
- 
-    protected void m_142540_(MobEffectInstance p_143393_, @Nullable Entity p_143394_) {
-@@ -1181,6 +_,8 @@
-    }
- 
-    public boolean m_143403_(GameType p_143404_) {
-+      p_143404_ = net.minecraftforge.common.ForgeHooks.onChangeGameType(this, this.f_8941_.m_9290_(), p_143404_);
-+      if (p_143404_ == null) return false;
-       if (!this.f_8941_.m_143473_(p_143404_)) {
-          return false;
-       } else {
-@@ -1231,12 +_,25 @@
-    }
- 
-    public void m_9156_(ServerboundClientInformationPacket p_9157_) {
-+      // CraftBukkit start
-+      if (m_5737_() != p_9157_.f_133868_()) {
-+         PlayerChangedMainHandEvent event = new PlayerChangedMainHandEvent(getBukkitEntity(), m_5737_() == HumanoidArm.LEFT ? MainHand.LEFT : MainHand.RIGHT);
-+         this.f_8924_.server.getPluginManager().callEvent(event);
-+      }
-+      if (!this.locale.equals(p_9157_.f_133863_())) {
-+         PlayerLocaleChangeEvent event = new PlayerLocaleChangeEvent(getBukkitEntity(), p_9157_.f_133863_());
-+         this.f_8924_.server.getPluginManager().callEvent(event);
-+      }
-+      this.locale = p_9157_.f_133863_();
-+      this.clientViewDistance = p_9157_.f_133864_();
-+      // CraftBukkit end
-       this.f_8922_ = p_9157_.f_133865_();
-       this.f_8923_ = p_9157_.f_133866_();
-       this.f_143378_ = p_9157_.f_179550_();
-       this.f_184127_ = p_9157_.f_195812_();
-       this.m_20088_().m_135381_(f_36089_, (byte)p_9157_.f_133867_());
-       this.m_20088_().m_135381_(f_36090_, (byte)(p_9157_.f_133868_() == HumanoidArm.LEFT ? 0 : 1));
-+      this.language = p_9157_.f_133863_();
-    }
- 
-    public boolean m_143432_() {
-@@ -1296,9 +_,10 @@
-    public void m_9213_(@Nullable Entity p_9214_) {
-       Entity entity = this.m_8954_();
-       this.f_8926_ = (Entity)(p_9214_ == null ? this : p_9214_);
-+      while (this.f_8926_ instanceof net.minecraftforge.entity.PartEntity<?> partEntity) this.f_8926_ = partEntity.getParent(); // FORGE: fix MC-46486
-       if (entity != this.f_8926_) {
-          this.f_8906_.m_141995_(new ClientboundSetCameraPacket(this.f_8926_));
+-      this.f_8928_ = p_9016_.f_8928_;
+-      this.f_8933_ = p_9016_.f_8933_;
+-      this.m_36362_(p_9016_.m_36331_());
+-      this.m_36364_(p_9016_.m_36332_());
+-   }
+-
+-   protected void m_142540_(MobEffectInstance p_143393_, @Nullable Entity p_143394_) {
+-      super.m_142540_(p_143393_, p_143394_);
+-      this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), p_143393_));
+-      if (p_143393_.m_19544_() == MobEffects.f_19620_) {
+-         this.f_8931_ = this.f_19797_;
+-         this.f_8930_ = this.m_20182_();
+-      }
+-
+-      CriteriaTriggers.f_10550_.m_149262_(this, p_143394_);
+-   }
+-
+-   protected void m_141973_(MobEffectInstance p_143396_, boolean p_143397_, @Nullable Entity p_143398_) {
+-      super.m_141973_(p_143396_, p_143397_, p_143398_);
+-      this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), p_143396_));
+-      CriteriaTriggers.f_10550_.m_149262_(this, p_143398_);
+-   }
+-
+-   protected void m_7285_(MobEffectInstance p_9184_) {
+-      super.m_7285_(p_9184_);
+-      this.f_8906_.m_141995_(new ClientboundRemoveMobEffectPacket(this.m_142049_(), p_9184_.m_19544_()));
+-      if (p_9184_.m_19544_() == MobEffects.f_19620_) {
+-         this.f_8930_ = null;
+-      }
+-
+-      CriteriaTriggers.f_10550_.m_149262_(this, (Entity)null);
+-   }
+-
+-   public void m_6021_(double p_8969_, double p_8970_, double p_8971_) {
+-      this.f_8906_.m_9774_(p_8969_, p_8970_, p_8971_, this.m_146908_(), this.m_146909_());
+-   }
+-
+-   public void m_6027_(double p_9171_, double p_9172_, double p_9173_) {
+-      this.m_6021_(p_9171_, p_9172_, p_9173_);
+-      this.f_8906_.m_9953_();
+-   }
+-
+-   public void m_5704_(Entity p_9045_) {
+-      this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(p_9045_, 4));
+-   }
+-
+-   public void m_5700_(Entity p_9186_) {
+-      this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(p_9186_, 5));
+-   }
+-
+-   public void m_6885_() {
+-      if (this.f_8906_ != null) {
+-         this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
+-         this.m_8034_();
+-      }
+-   }
+-
+-   public ServerLevel m_183503_() {
+-      return (ServerLevel)this.f_19853_;
+-   }
+-
+-   public boolean m_143403_(GameType p_143404_) {
+-      if (!this.f_8941_.m_143473_(p_143404_)) {
+-         return false;
+-      } else {
+-         this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132156_, (float)p_143404_.m_46392_()));
+-         if (p_143404_ == GameType.SPECTATOR) {
+-            this.m_36328_();
+-            this.m_8127_();
+-         } else {
+-            this.m_9213_(this);
+-         }
+-
+-         this.m_6885_();
+-         this.m_21210_();
+-         return true;
+-      }
+-   }
+-
+-   public boolean m_5833_() {
+-      return this.f_8941_.m_9290_() == GameType.SPECTATOR;
+-   }
+-
+-   public boolean m_7500_() {
+-      return this.f_8941_.m_9290_() == GameType.CREATIVE;
+-   }
+-
+-   public void m_6352_(Component p_9144_, UUID p_9145_) {
+-      this.m_9146_(p_9144_, ChatType.SYSTEM, p_9145_);
+-   }
+-
+-   public void m_9146_(Component p_9147_, ChatType p_9148_, UUID p_9149_) {
+-      if (this.m_143416_(p_9148_)) {
+-         this.f_8906_.m_9831_(new ClientboundChatPacket(p_9147_, p_9148_, p_9149_), (p_9139_) -> {
+-            if (!p_9139_.isSuccess() && (p_9148_ == ChatType.GAME_INFO || p_9148_ == ChatType.SYSTEM) && this.m_143416_(ChatType.SYSTEM)) {
+-               int i = 256;
+-               String s = p_9147_.m_130668_(256);
+-               Component component = (new TextComponent(s)).m_130940_(ChatFormatting.YELLOW);
+-               this.f_8906_.m_141995_(new ClientboundChatPacket((new TranslatableComponent("multiplayer.message_not_delivered", component)).m_130940_(ChatFormatting.RED), ChatType.SYSTEM, p_9149_));
+-            }
+-
+-         });
+-      }
+-   }
+-
+-   public String m_9239_() {
+-      String s = this.f_8906_.f_9742_.m_129523_().toString();
+-      s = s.substring(s.indexOf("/") + 1);
+-      return s.substring(0, s.indexOf(":"));
+-   }
+-
+-   public void m_9156_(ServerboundClientInformationPacket p_9157_) {
+-      this.f_8922_ = p_9157_.f_133865_();
+-      this.f_8923_ = p_9157_.f_133866_();
+-      this.f_143378_ = p_9157_.f_179550_();
+-      this.f_184127_ = p_9157_.f_195812_();
+-      this.m_20088_().m_135381_(f_36089_, (byte)p_9157_.f_133867_());
+-      this.m_20088_().m_135381_(f_36090_, (byte)(p_9157_.f_133868_() == HumanoidArm.LEFT ? 0 : 1));
+-   }
+-
+-   public boolean m_143432_() {
+-      return this.f_8923_;
+-   }
+-
+-   public ChatVisiblity m_9241_() {
+-      return this.f_8922_;
+-   }
+-
+-   private boolean m_143416_(ChatType p_143417_) {
+-      switch(this.f_8922_) {
+-      case HIDDEN:
+-         return p_143417_ == ChatType.GAME_INFO;
+-      case SYSTEM:
+-         return p_143417_ == ChatType.SYSTEM || p_143417_ == ChatType.GAME_INFO;
+-      case FULL:
+-      default:
+-         return true;
+-      }
+-   }
+-
+-   public void m_143408_(String p_143409_, String p_143410_, boolean p_143411_, @Nullable Component p_143412_) {
+-      this.f_8906_.m_141995_(new ClientboundResourcePackPacket(p_143409_, p_143410_, p_143411_, p_143412_));
+-   }
+-
+-   protected int m_8088_() {
+-      return this.f_8924_.m_129944_(this.m_36316_());
+-   }
+-
+-   public void m_9243_() {
+-      this.f_8925_ = Util.m_137550_();
+-   }
+-
+-   public ServerStatsCounter m_8951_() {
+-      return this.f_8910_;
+-   }
+-
+-   public ServerRecipeBook m_8952_() {
+-      return this.f_8929_;
+-   }
+-
+-   protected void m_8034_() {
+-      if (this.m_5833_()) {
+-         this.m_21218_();
+-         this.m_6842_(true);
+-      } else {
+-         super.m_8034_();
+-      }
+-
+-   }
+-
+-   public Entity m_8954_() {
+-      return (Entity)(this.f_8926_ == null ? this : this.f_8926_);
+-   }
+-
+-   public void m_9213_(@Nullable Entity p_9214_) {
+-      Entity entity = this.m_8954_();
+-      this.f_8926_ = (Entity)(p_9214_ == null ? this : p_9214_);
+-      if (entity != this.f_8926_) {
+-         this.f_8906_.m_141995_(new ClientboundSetCameraPacket(this.f_8926_));
 -         this.m_6021_(this.f_8926_.m_20185_(), this.f_8926_.m_20186_(), this.f_8926_.m_20189_());
-+         this.f_8906_.teleport(this.f_8926_.m_20185_(), this.f_8926_.m_20186_(), this.f_8926_.m_20189_(), this.m_146908_(), this.m_146909_(), PlayerTeleportEvent.TeleportCause.SPECTATE); // CraftBukkit
-       }
- 
-    }
-@@ -1325,7 +_,15 @@
- 
-    @Nullable
-    public Component m_8957_() {
+-      }
+-
+-   }
+-
+-   protected void m_8021_() {
+-      if (!this.f_8927_) {
+-         super.m_8021_();
+-      }
+-
+-   }
+-
+-   public void m_5706_(Entity p_9220_) {
+-      if (this.f_8941_.m_9290_() == GameType.SPECTATOR) {
+-         this.m_9213_(p_9220_);
+-      } else {
+-         super.m_5706_(p_9220_);
+-      }
+-
+-   }
+-
+-   public long m_8956_() {
+-      return this.f_8925_;
+-   }
+-
+-   @Nullable
+-   public Component m_8957_() {
 -      return null;
-+      if (!this.hasTabListName) {
-+         this.tabListDisplayName = net.minecraftforge.event.ForgeEventFactory.getPlayerTabListDisplayName(this);
-+         this.hasTabListName = true;
-+      }
-+      return this.tabListDisplayName;
-+   }
-+
-+   public void setTabListDisplayName(Component tabListDisplayName) {
-+      this.tabListDisplayName = tabListDisplayName;
-    }
- 
-    public void m_6674_(InteractionHand p_9031_) {
-@@ -1346,25 +_,32 @@
-    }
- 
-    public void m_8999_(ServerLevel p_9000_, double p_9001_, double p_9002_, double p_9003_, float p_9004_, float p_9005_) {
-+      this.teleportTo(p_9000_, p_9001_, p_9002_, p_9003_, p_9004_, p_9005_, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.UNKNOWN);
-+   }
-+
-+   public void teleportTo(ServerLevel p_9000_, double p_9001_, double p_9002_, double p_9003_, float p_9004_, float p_9005_, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause cause) {
-+      // CraftBukkit end
-       this.m_9213_(this);
-       this.m_8127_();
-       if (p_9000_ == this.f_19853_) {
+-   }
+-
+-   public void m_6674_(InteractionHand p_9031_) {
+-      super.m_6674_(p_9031_);
+-      this.m_36334_();
+-   }
+-
+-   public boolean m_8958_() {
+-      return this.f_8927_;
+-   }
+-
+-   public void m_8959_() {
+-      this.f_8927_ = false;
+-   }
+-
+-   public PlayerAdvancements m_8960_() {
+-      return this.f_8909_;
+-   }
+-
+-   public void m_8999_(ServerLevel p_9000_, double p_9001_, double p_9002_, double p_9003_, float p_9004_, float p_9005_) {
+-      this.m_9213_(this);
+-      this.m_8127_();
+-      if (p_9000_ == this.f_19853_) {
 -         this.f_8906_.m_9774_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
 -      } else {
-+         this.f_8906_.teleport(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_, cause);
-+      } else if (net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, p_9000_.m_46472_())) {
-          ServerLevel serverlevel = this.m_183503_();
-          LevelData leveldata = p_9000_.m_6106_();
-          this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9000_.m_204156_(), p_9000_.m_46472_(), BiomeManager.m_47877_(p_9000_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9000_.m_46659_(), p_9000_.m_8584_(), true));
-          this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
-          this.f_8924_.m_6846_().m_11289_(this);
-          serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
+-         ServerLevel serverlevel = this.m_183503_();
+-         LevelData leveldata = p_9000_.m_6106_();
+-         this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9000_.m_204156_(), p_9000_.m_46472_(), BiomeManager.m_47877_(p_9000_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9000_.m_46659_(), p_9000_.m_8584_(), true));
+-         this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
+-         this.f_8924_.m_6846_().m_11289_(this);
+-         serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
 -         this.m_146912_();
-+         this.revive();
-          this.m_7678_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
-          this.m_143425_(p_9000_);
-          p_9000_.m_8622_(this);
-          this.m_9209_(serverlevel);
+-         this.m_7678_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
+-         this.m_143425_(p_9000_);
+-         p_9000_.m_8622_(this);
+-         this.m_9209_(serverlevel);
 -         this.f_8906_.m_9774_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
-+         this.f_8906_.teleport(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_, cause);
-+         this.f_8941_.m_9260_(p_9000_);
-          this.f_8924_.m_6846_().m_11229_(this, p_9000_);
-          this.f_8924_.m_6846_().m_11292_(this);
-+         net.minecraftforge.event.ForgeEventFactory.firePlayerChangedDimensionEvent(this, serverlevel.m_46472_(), p_9000_.m_46472_());
-       }
- 
-    }
-@@ -1387,6 +_,7 @@
-    }
- 
-    public void m_9158_(ResourceKey<Level> p_9159_, @Nullable BlockPos p_9160_, float p_9161_, boolean p_9162_, boolean p_9163_) {
-+      if (net.minecraftforge.event.ForgeEventFactory.onPlayerSpawnSet(this, p_9160_ == null ? Level.f_46428_ : p_9159_, p_9160_, p_9162_)) return;
-       if (p_9160_ != null) {
-          boolean flag = p_9160_.equals(this.f_8936_) && p_9159_.equals(this.f_8935_);
-          if (p_9163_ && !flag) {
-@@ -1438,6 +_,8 @@
-       if (itementity == null) {
-          return null;
-       } else {
-+         if (captureDrops() != null) captureDrops().add(itementity);
-+         else
-          this.f_19853_.m_7967_(itementity);
-          ItemStack itemstack = itementity.m_32055_();
-          if (p_9087_) {
-@@ -1452,6 +_,29 @@
-       }
-    }
- 
-+   private String language = "en_us";
-+   /**
-+    * Returns the language last reported by the player as their local language.
-+    * Defaults to en_us if the value is unknown.
-+    */
-+   public String getLanguage() {
-+      return this.language;
-+   }
-+
-+   // We need this as tablistDisplayname may be null even if the the event was fired.
-+   private boolean hasTabListName = false;
-+   private Component tabListDisplayName = null;
-+   /**
-+    * Force the name displayed in the tab list to refresh, by firing {@link net.minecraftforge.event.entity.player.PlayerEvent.TabListNameFormat}.
-+    */
-+   public void refreshTabListName() {
-+      Component oldName = this.tabListDisplayName;
-+      this.tabListDisplayName = net.minecraftforge.event.ForgeEventFactory.getPlayerTabListDisplayName(this);
-+      if (!java.util.Objects.equals(oldName, this.tabListDisplayName)) {
-+         this.m_20194_().m_6846_().m_11268_(new net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket(net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket.Action.UPDATE_DISPLAY_NAME, this));
-+      }
-+   }
-+
-    public TextFilter m_8967_() {
-       return this.f_8939_;
-    }
-@@ -1511,14 +_,148 @@
- 
-    public boolean m_182294_(boolean p_182295_) {
-       Inventory inventory = this.m_150109_();
-+      ItemStack selected = inventory.m_36056_();
-+      if (selected.m_41619_() || !selected.onDroppedByPlayer(this)) return false;
-       ItemStack itemstack = inventory.m_182403_(p_182295_);
-       this.f_36096_.m_182417_(inventory, inventory.f_35977_).ifPresent((p_182293_) -> {
-          this.f_36096_.m_150404_(p_182293_, inventory.m_36056_());
-       });
+-         this.f_8924_.m_6846_().m_11229_(this, p_9000_);
+-         this.f_8924_.m_6846_().m_11292_(this);
+-      }
+-
+-   }
+-
+-   @Nullable
+-   public BlockPos m_8961_() {
+-      return this.f_8936_;
+-   }
+-
+-   public float m_8962_() {
+-      return this.f_8938_;
+-   }
+-
+-   public ResourceKey<Level> m_8963_() {
+-      return this.f_8935_;
+-   }
+-
+-   public boolean m_8964_() {
+-      return this.f_8937_;
+-   }
+-
+-   public void m_9158_(ResourceKey<Level> p_9159_, @Nullable BlockPos p_9160_, float p_9161_, boolean p_9162_, boolean p_9163_) {
+-      if (p_9160_ != null) {
+-         boolean flag = p_9160_.equals(this.f_8936_) && p_9159_.equals(this.f_8935_);
+-         if (p_9163_ && !flag) {
+-            this.m_6352_(new TranslatableComponent("block.minecraft.set_spawn"), Util.f_137441_);
+-         }
+-
+-         this.f_8936_ = p_9160_;
+-         this.f_8935_ = p_9159_;
+-         this.f_8938_ = p_9161_;
+-         this.f_8937_ = p_9162_;
+-      } else {
+-         this.f_8936_ = null;
+-         this.f_8935_ = Level.f_46428_;
+-         this.f_8938_ = 0.0F;
+-         this.f_8937_ = false;
+-      }
+-
+-   }
+-
+-   public void m_184135_(ChunkPos p_184136_, Packet<?> p_184137_) {
+-      this.f_8906_.m_141995_(p_184137_);
+-   }
+-
+-   public void m_9088_(ChunkPos p_9089_) {
+-      if (this.m_6084_()) {
+-         this.f_8906_.m_141995_(new ClientboundForgetLevelChunkPacket(p_9089_.f_45578_, p_9089_.f_45579_));
+-      }
+-
+-   }
+-
+-   public SectionPos m_8965_() {
+-      return this.f_8934_;
+-   }
+-
+-   public void m_9119_(SectionPos p_9120_) {
+-      this.f_8934_ = p_9120_;
+-   }
+-
+-   public void m_6330_(SoundEvent p_9019_, SoundSource p_9020_, float p_9021_, float p_9022_) {
+-      this.f_8906_.m_141995_(new ClientboundSoundPacket(p_9019_, p_9020_, this.m_20185_(), this.m_20186_(), this.m_20189_(), p_9021_, p_9022_));
+-   }
+-
+-   public Packet<?> m_5654_() {
+-      return new ClientboundAddPlayerPacket(this);
+-   }
+-
+-   public ItemEntity m_7197_(ItemStack p_9085_, boolean p_9086_, boolean p_9087_) {
+-      ItemEntity itementity = super.m_7197_(p_9085_, p_9086_, p_9087_);
+-      if (itementity == null) {
+-         return null;
+-      } else {
+-         this.f_19853_.m_7967_(itementity);
+-         ItemStack itemstack = itementity.m_32055_();
+-         if (p_9087_) {
+-            if (!itemstack.m_41619_()) {
+-               this.m_6278_(Stats.f_12985_.m_12902_(itemstack.m_41720_()), p_9085_.m_41613_());
+-            }
+-
+-            this.m_36220_(Stats.f_12927_);
+-         }
+-
+-         return itementity;
+-      }
+-   }
+-
+-   public TextFilter m_8967_() {
+-      return this.f_8939_;
+-   }
+-
+-   public void m_143425_(ServerLevel p_143426_) {
+-      this.f_19853_ = p_143426_;
+-      this.f_8941_.m_9260_(p_143426_);
+-   }
+-
+-   @Nullable
+-   private static GameType m_143413_(@Nullable CompoundTag p_143414_, String p_143415_) {
+-      return p_143414_ != null && p_143414_.m_128425_(p_143415_, 99) ? GameType.m_46393_(p_143414_.m_128451_(p_143415_)) : null;
+-   }
+-
+-   private GameType m_143423_(@Nullable GameType p_143424_) {
+-      GameType gametype = this.f_8924_.m_142359_();
+-      if (gametype != null) {
+-         return gametype;
+-      } else {
+-         return p_143424_ != null ? p_143424_ : this.f_8924_.m_130008_();
+-      }
+-   }
+-
+-   public void m_143427_(@Nullable CompoundTag p_143428_) {
+-      this.f_8941_.m_9273_(this.m_143423_(m_143413_(p_143428_, "playerGameType")), m_143413_(p_143428_, "previousPlayerGameType"));
+-   }
+-
+-   private void m_143430_(CompoundTag p_143431_) {
+-      p_143431_.m_128405_("playerGameType", this.f_8941_.m_9290_().m_46392_());
+-      GameType gametype = this.f_8941_.m_9293_();
+-      if (gametype != null) {
+-         p_143431_.m_128405_("previousPlayerGameType", gametype.m_46392_());
+-      }
+-
+-   }
+-
+-   public boolean m_143387_() {
+-      return this.f_143378_;
+-   }
+-
+-   public boolean m_143421_(ServerPlayer p_143422_) {
+-      if (p_143422_ == this) {
+-         return false;
+-      } else {
+-         return this.f_143378_ || p_143422_.f_143378_;
+-      }
+-   }
+-
+-   public boolean m_142265_(Level p_143406_, BlockPos p_143407_) {
+-      return super.m_142265_(p_143406_, p_143407_) && p_143406_.m_7966_(this, p_143407_);
+-   }
+-
+-   protected void m_142106_(ItemStack p_143402_) {
+-      CriteriaTriggers.f_145090_.m_163865_(this, p_143402_);
+-      super.m_142106_(p_143402_);
+-   }
+-
+-   public boolean m_182294_(boolean p_182295_) {
+-      Inventory inventory = this.m_150109_();
+-      ItemStack itemstack = inventory.m_182403_(p_182295_);
+-      this.f_36096_.m_182417_(inventory, inventory.f_35977_).ifPresent((p_182293_) -> {
+-         this.f_36096_.m_150404_(p_182293_, inventory.m_36056_());
+-      });
 -      return this.m_7197_(itemstack, false, true) != null;
-+      return net.minecraftforge.common.ForgeHooks.onPlayerTossEvent(this, itemstack, true) != null;
-    }
- 
-    public boolean m_184128_() {
-       return this.f_184127_;
-    }
+-   }
+-
+-   public boolean m_184128_() {
+-      return this.f_184127_;
+-   }
++        } else {
++            // CraftBukkit start - SPIGOT-6552: Handle inventory closing in CraftEventFactory#callInventoryOpenEvent(...)
++            /*
++            if (this.containerMenu != this.inventoryMenu) {
++                this.closeContainer();
++            }
++             */
++            this.m_9217_();
++            AbstractContainerMenu abstractcontainermenu = p_9033_.m_7208_(this.f_8940_, this.m_150109_(), this);
++            // CraftBukkit start - Inventory open hook
++            if (abstractcontainermenu != null) {
++                abstractcontainermenu.setTitle(p_9033_.m_5446_());
++                boolean cancelled = false;
++                abstractcontainermenu = CraftEventFactory.callInventoryOpenEvent(this, abstractcontainermenu, cancelled);
++                if (abstractcontainermenu == null && !cancelled) { // Let pre-cancelled events fall through
++                    // SPIGOT-5263 - close chest if cancelled
++                    if (p_9033_ instanceof Container) {
++                        ((Container) p_9033_).m_5785_(this);
++                    } else if (p_9033_ instanceof ChestBlock.DoubleInventory) {
++                        // SPIGOT-5355 - double chests too :(
++                        ((ChestBlock.DoubleInventory) p_9033_).inventorylargechest.m_5785_(this);
++                    }
++                    return OptionalInt.empty();
++                }
++            }
++            // CraftBukkit end
++            if (abstractcontainermenu == null) {
++                if (this.m_5833_()) {
++                    this.m_5661_((new TranslatableComponent("container.spectatorCantOpen")).m_130940_(ChatFormatting.RED), true);
++                }
 +
-+   // CraftBukkit start - Add per-player time and weather.
-+   public long timeOffset = 0;
-+   public boolean relativeTime = true;
++                return OptionalInt.empty();
++            } else {
++                this.f_36096_ = abstractcontainermenu;
++                this.f_8906_.m_141995_(new ClientboundOpenScreenPacket(abstractcontainermenu.f_38840_, abstractcontainermenu.m_6772_(), abstractcontainermenu.getTitle()));
++                this.m_143399_(abstractcontainermenu);
++                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.f_36096_));
++                return OptionalInt.of(this.f_8940_);
++            }
++        }
++    }
 +
-+   public long getPlayerTime() {
-+      if (this.relativeTime) {
-+         // Adds timeOffset to the current server time.
-+         return this.f_19853_.m_46468_() + this.timeOffset;
-+      } else {
-+         // Adds timeOffset to the beginning of this day.
-+         return this.f_19853_.m_46468_() - (this.f_19853_.m_46468_() % 24000) + this.timeOffset;
-+      }
-+   }
++    public void m_7662_(int p_8988_, MerchantOffers p_8989_, int p_8990_, int p_8991_, boolean p_8992_, boolean p_8993_) {
++        this.f_8906_.m_141995_(new ClientboundMerchantOffersPacket(p_8988_, p_8989_, p_8990_, p_8991_, p_8992_, p_8993_));
++    }
 +
-+   public WeatherType weather = null;
++    public void m_6658_(AbstractHorse p_9059_, Container p_9060_) {
++        // CraftBukkit start - Inventory open hook
++        this.m_9217_();
++        AbstractContainerMenu container = new HorseInventoryMenu(this.f_8940_, this.m_150109_(), p_9060_, p_9059_);
++        container.setTitle(p_9059_.m_5446_());
++        container = CraftEventFactory.callInventoryOpenEvent(this, container);
++        if (container == null) {
++            p_9060_.m_5785_(this);
++            return;
++        }
++        // CraftBukkit end
++        if (this.f_36096_ != this.f_36095_) {
++            this.m_6915_();
++        }
 +
-+   public WeatherType getPlayerWeather() {
-+      return this.weather;
-+   }
++        // this.nextContainerCounter(); // CraftBukkit - moved up
++        this.f_8906_.m_141995_(new ClientboundHorseScreenOpenPacket(this.f_8940_, p_9060_.m_6643_(), p_9059_.m_142049_()));
++        // this.containerMenu = new HorseInventoryMenu(this.containerCounter, this.getInventory(), p_9060_, p_9059_);
++        this.f_36096_ = container; // CraftBukkit
++        this.m_143399_(this.f_36096_);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Open(this, this.f_36096_));
++    }
 +
-+   public void setPlayerWeather(WeatherType type, boolean plugin) {
-+      if (!plugin && this.weather != null) {
-+         return;
-+      }
++    public void m_6986_(ItemStack p_9082_, InteractionHand p_9083_) {
++        if (p_9082_.m_150930_(Items.f_42615_)) {
++            if (WrittenBookItem.m_43461_(p_9082_, this.m_20203_(), this)) {
++                this.f_36096_.m_38946_();
++            }
 +
-+      if (plugin) {
-+         this.weather = type;
-+      }
++            this.f_8906_.m_141995_(new ClientboundOpenBookPacket(p_9083_));
++        }
 +
-+      if (type == WeatherType.DOWNFALL) {
-+         this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132155_, 0));
-+      } else {
-+         this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132154_, 0));
-+      }
-+   }
++    }
 +
-+   public void resetPlayerWeather() {
-+      this.weather = null;
-+      this.setPlayerWeather(this.f_19853_.m_6106_().m_6533_() ? WeatherType.DOWNFALL : WeatherType.CLEAR, false);
-+   }
++    public void m_7698_(CommandBlockEntity p_9099_) {
++        this.f_8906_.m_141995_(ClientboundBlockEntityDataPacket.m_195642_(p_9099_, BlockEntity::m_187482_));
++    }
 +
-+   private float pluginRainPosition;
-+   private float pluginRainPositionPrevious;
++    public void m_6915_() {
++        CraftEventFactory.handleInventoryCloseEvent(this); // CraftBukkit
++        this.f_8906_.m_141995_(new ClientboundContainerClosePacket(this.f_36096_.f_38840_));
++        this.m_9230_();
++    }
 +
-+   public void updateWeather(float oldRain, float newRain, float oldThunder, float newThunder) {
-+      if (this.weather == null) {
-+         // Vanilla
-+         if (oldRain != newRain) {
-+            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, newRain));
-+         }
-+      } else {
-+         // Plugin
-+         if (pluginRainPositionPrevious != pluginRainPosition) {
-+            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, pluginRainPosition));
-+         }
-+      }
++    public void m_9230_() {
++        this.f_36096_.m_6877_(this);
++        this.f_36095_.m_150414_(this.f_36096_);
++        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerContainerEvent.Close(this, this.f_36096_));
++        this.f_36096_ = this.f_36095_;
++    }
 +
-+      if (oldThunder != newThunder) {
-+         if (weather == WeatherType.DOWNFALL || weather == null) {
-+            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, newThunder));
-+         } else {
-+            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, 0));
-+         }
-+      }
-+   }
++    public void m_8980_(float p_8981_, float p_8982_, boolean p_8983_, boolean p_8984_) {
++        if (this.m_20159_()) {
++            if (p_8981_ >= -1.0F && p_8981_ <= 1.0F) {
++                this.f_20900_ = p_8981_;
++            }
 +
-+   public void tickWeather() {
-+      if (this.weather == null) return;
++            if (p_8982_ >= -1.0F && p_8982_ <= 1.0F) {
++                this.f_20902_ = p_8982_;
++            }
 +
-+      pluginRainPositionPrevious = pluginRainPosition;
-+      if (weather == WeatherType.DOWNFALL) {
-+         pluginRainPosition += 0.01;
-+      } else {
-+         pluginRainPosition -= 0.01;
-+      }
++            this.f_20899_ = p_8983_;
++            this.m_20260_(p_8984_);
++        }
 +
-+      pluginRainPosition = Mth.m_14036_(pluginRainPosition, 0.0F, 1.0F);
-+   }
++    }
 +
-+   // SPIGOT-1903, MC-98153
-+   public void forceSetPositionRotation(double x, double y, double z, float yaw, float pitch) {
-+      this.m_7678_(x, y, z, yaw, pitch);
-+      this.f_8906_.m_9953_();
-+   }
++    public void m_6278_(Stat<?> p_9026_, int p_9027_) {
++        this.f_8910_.m_13023_(this, p_9026_, p_9027_);
++        this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9026_, this.m_6302_(), (p_8996_) -> {
++            p_8996_.m_83393_(p_9027_);
++        });
++    }
 +
-+   @Override
-+   public boolean m_6107_() {
-+      return super.m_6107_() || !getBukkitEntity().isOnline();
-+   }
++    public void m_7166_(Stat<?> p_9024_) {
++        this.f_8910_.m_6085_(this, p_9024_, 0);
++        this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(p_9024_, this.m_6302_(), Score::m_83401_);
++    }
 +
-+   @Override
-+   public Scoreboard m_36329_() {
-+      return getBukkitEntity().getScoreboard().getHandle();
-+   }
++    public int m_7281_(Collection<Recipe<?>> p_9129_) {
++        return this.f_8929_.m_12791_(p_9129_, this);
++    }
 +
-+   public void reset() {
-+      float exp = 0;
-+      boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_);
++    public void m_7902_(ResourceLocation[] p_9168_) {
++        List<Recipe<?>> list = Lists.newArrayList();
 +
-+      if (this.keepLevel) { // CraftBukkit - SPIGOT-6687: Only use keepLevel (was pre-set with RULE_KEEPINVENTORY value in PlayerDeathEvent)
-+         exp = this.f_36080_;
-+         this.newTotalExp = this.f_36079_;
-+         this.newLevel = this.f_36078_;
-+      }
++        for (ResourceLocation resourcelocation : p_9168_) {
++            this.f_8924_.m_129894_().m_44043_(resourcelocation).ifPresent(list::add);
++        }
 +
-+      this.m_21153_(this.m_21233_());
-+      this.m_5810_(); // CraftBukkit - SPIGOT-6682: Clear active item on reset
-+      this.f_19831_ = 0;
-+      this.f_19789_ = 0;
-+      this.f_36097_ = new FoodData(this);
-+      this.f_36078_ = this.newLevel;
-+      this.f_36079_ = this.newTotalExp;
-+      this.f_36080_ = 0;
-+      this.f_20919_ = 0;
-+      this.setArrowCount(0, true); // CraftBukkit - ArrowBodyCountChangeEvent
-+      this.removeAllEffects(org.bukkit.event.entity.EntityPotionEffectEvent.Cause.DEATH);
-+      this.f_20948_ = true;
-+      this.f_36096_ = this.f_36095_;
-+      this.f_20888_ = null;
-+      this.f_20949_ = null;
-+      this.f_20944_ = new CombatTracker(this);
-+      this.f_8920_ = -1;
-+      if (this.keepLevel) { // CraftBukkit - SPIGOT-6687: Only use keepLevel (was pre-set with RULE_KEEPINVENTORY value in PlayerDeathEvent)
-+         this.f_36080_ = exp;
-+      } else {
-+         this.m_6756_(this.newExp);
-+      }
-+      this.keepLevel = false;
-+      this.m_20334_(0, 0, 0); // CraftBukkit - SPIGOT-6948: Reset velocity on death
-+   }
-+   // CraftBukkit end
++        this.m_7281_(list);
++    }
++
++    public int m_7279_(Collection<Recipe<?>> p_9195_) {
++        return this.f_8929_.m_12806_(p_9195_, this);
++    }
++
++    public void m_6756_(int p_9208_) {
++        super.m_6756_(p_9208_);
++        this.f_8920_ = -1;
++    }
++
++    public void m_9231_() {
++        this.f_8932_ = true;
++        this.m_20153_();
++        if (this.m_5803_()) {
++            this.m_6145_(true, false);
++        }
++
++    }
++
++    public boolean m_9232_() {
++        return this.f_8932_;
++    }
++
++    public void m_9233_() {
++        this.f_8917_ = -1.0E8F;
++        this.f_8920_ = -1; // CraftBukkit - Added to reset
++    }
++
++    // CraftBukkit start - Support multi-line messages
++    public void sendMessage(UUID uuid, Component[] ichatbasecomponent) {
++        for (Component component : ichatbasecomponent) {
++            this.m_6352_(component, (uuid == null) ? Util.f_137441_ : uuid);
++        }
++    }
++    // CraftBukkit end
++
++    public void m_5661_(Component p_9154_, boolean p_9155_) {
++        this.m_9146_(p_9154_, p_9155_ ? ChatType.GAME_INFO : ChatType.CHAT, Util.f_137441_);
++    }
++
++    protected void m_8095_() {
++        if (!this.f_20935_.m_41619_() && this.m_6117_()) {
++            this.f_8906_.m_141995_(new ClientboundEntityEventPacket(this, (byte) 9));
++            super.m_8095_();
++        }
++
++    }
++
++    public void m_7618_(EntityAnchorArgument.Anchor p_9112_, Vec3 p_9113_) {
++        super.m_7618_(p_9112_, p_9113_);
++        this.f_8906_.m_141995_(new ClientboundPlayerLookAtPacket(p_9112_, p_9113_.f_82479_, p_9113_.f_82480_, p_9113_.f_82481_));
++    }
++
++    public void m_9107_(EntityAnchorArgument.Anchor p_9108_, Entity p_9109_, EntityAnchorArgument.Anchor p_9110_) {
++        Vec3 vec3 = p_9110_.m_90377_(p_9109_);
++        super.m_7618_(p_9108_, vec3);
++        this.f_8906_.m_141995_(new ClientboundPlayerLookAtPacket(p_9108_, p_9109_, p_9110_));
++    }
++
++    public void m_9015_(ServerPlayer p_9016_, boolean p_9017_) {
++        this.f_143378_ = p_9016_.f_143378_;
++        this.f_8941_.m_9273_(p_9016_.f_8941_.m_9290_(), p_9016_.f_8941_.m_9293_());
++        if (p_9017_) {
++            this.m_150109_().m_36006_(p_9016_.m_150109_());
++            this.m_21153_(p_9016_.m_21223_());
++            this.f_36097_ = p_9016_.f_36097_;
++            this.f_36078_ = p_9016_.f_36078_;
++            this.f_36079_ = p_9016_.f_36079_;
++            this.f_36080_ = p_9016_.f_36080_;
++            this.m_36397_(p_9016_.m_36344_());
++            this.f_19819_ = p_9016_.f_19819_;
++        } else if (this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || p_9016_.m_5833_()) {
++            this.m_150109_().m_36006_(p_9016_.m_150109_());
++            this.f_36078_ = p_9016_.f_36078_;
++            this.f_36079_ = p_9016_.f_36079_;
++            this.f_36080_ = p_9016_.f_36080_;
++            this.m_36397_(p_9016_.m_36344_());
++        }
++
++        this.f_36081_ = p_9016_.f_36081_;
++        this.f_36094_ = p_9016_.f_36094_;
++        this.m_20088_().m_135381_(f_36089_, p_9016_.m_20088_().m_135370_(f_36089_));
++        this.f_8920_ = -1;
++        this.f_8917_ = -1.0F;
++        this.f_8918_ = -1;
++        // this.recipeBook.copyOverData(p_9016_.recipeBook);
++        this.f_8928_ = p_9016_.f_8928_;
++        this.f_8933_ = p_9016_.f_8933_;
++        this.m_36362_(p_9016_.m_36331_());
++        this.m_36364_(p_9016_.m_36332_());
++
++        //Copy over a section of the Entity Data from the old player.
++        //Allows mods to specify data that persists after players respawn.
++        CompoundTag old = p_9016_.getPersistentData();
++        if (old.m_128441_(PERSISTED_NBT_TAG))
++            getPersistentData().m_128365_(PERSISTED_NBT_TAG, old.m_128423_(PERSISTED_NBT_TAG));
++        net.minecraftforge.event.ForgeEventFactory.onPlayerClone(this, p_9016_, !p_9017_);
++    }
++
++    protected void m_142540_(MobEffectInstance p_143393_, @Nullable Entity p_143394_) {
++        super.m_142540_(p_143393_, p_143394_);
++        this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), p_143393_));
++        if (p_143393_.m_19544_() == MobEffects.f_19620_) {
++            this.f_8931_ = this.f_19797_;
++            this.f_8930_ = this.m_20182_();
++        }
++
++        CriteriaTriggers.f_10550_.m_149262_(this, p_143394_);
++    }
++
++    protected void m_141973_(MobEffectInstance p_143396_, boolean p_143397_, @Nullable Entity p_143398_) {
++        super.m_141973_(p_143396_, p_143397_, p_143398_);
++        this.f_8906_.m_141995_(new ClientboundUpdateMobEffectPacket(this.m_142049_(), p_143396_));
++        CriteriaTriggers.f_10550_.m_149262_(this, p_143398_);
++    }
++
++    protected void m_7285_(MobEffectInstance p_9184_) {
++        super.m_7285_(p_9184_);
++        this.f_8906_.m_141995_(new ClientboundRemoveMobEffectPacket(this.m_142049_(), p_9184_.m_19544_()));
++        if (p_9184_.m_19544_() == MobEffects.f_19620_) {
++            this.f_8930_ = null;
++        }
++
++        CriteriaTriggers.f_10550_.m_149262_(this, (Entity) null);
++    }
++
++    public void m_6021_(double p_8969_, double p_8970_, double p_8971_) {
++        this.f_8906_.m_9774_(p_8969_, p_8970_, p_8971_, this.m_146908_(), this.m_146909_());
++    }
++
++    public void m_6027_(double p_9171_, double p_9172_, double p_9173_) {
++        this.m_6021_(p_9171_, p_9172_, p_9173_);
++        this.f_8906_.m_9953_();
++    }
++
++    public void m_5704_(Entity p_9045_) {
++        this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(p_9045_, 4));
++    }
++
++    public void m_5700_(Entity p_9186_) {
++        this.m_183503_().m_7726_().m_8394_(this, new ClientboundAnimatePacket(p_9186_, 5));
++    }
++
++    public void m_6885_() {
++        if (this.f_8906_ != null) {
++            this.f_8906_.m_141995_(new ClientboundPlayerAbilitiesPacket(this.m_150110_()));
++            this.m_8034_();
++        }
++    }
++
++    public ServerLevel m_183503_() {
++        return (ServerLevel) this.f_19853_;
++    }
++
++    public boolean m_143403_(GameType p_143404_) {
++        p_143404_ = net.minecraftforge.common.ForgeHooks.onChangeGameType(this, this.f_8941_.m_9290_(), p_143404_);
++        if (p_143404_ == null) return false;
++        if (!this.f_8941_.m_143473_(p_143404_)) {
++            return false;
++        } else {
++            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132156_, (float) p_143404_.m_46392_()));
++            if (p_143404_ == GameType.SPECTATOR) {
++                this.m_36328_();
++                this.m_8127_();
++            } else {
++                this.m_9213_(this);
++            }
++
++            this.m_6885_();
++            this.m_21210_();
++            return true;
++        }
++    }
++
++    public boolean m_5833_() {
++        return this.f_8941_.m_9290_() == GameType.SPECTATOR;
++    }
++
++    public boolean m_7500_() {
++        return this.f_8941_.m_9290_() == GameType.CREATIVE;
++    }
++
++    public void m_6352_(Component p_9144_, UUID p_9145_) {
++        this.m_9146_(p_9144_, ChatType.SYSTEM, p_9145_);
++    }
++
++    public void m_9146_(Component p_9147_, ChatType p_9148_, UUID p_9149_) {
++        if (this.m_143416_(p_9148_)) {
++            this.f_8906_.m_9831_(new ClientboundChatPacket(p_9147_, p_9148_, p_9149_), (p_9139_) -> {
++                if (!p_9139_.isSuccess() && (p_9148_ == ChatType.GAME_INFO || p_9148_ == ChatType.SYSTEM) && this.m_143416_(ChatType.SYSTEM)) {
++                    int i = 256;
++                    String s = p_9147_.m_130668_(256);
++                    Component component = (new TextComponent(s)).m_130940_(ChatFormatting.YELLOW);
++                    this.f_8906_.m_141995_(new ClientboundChatPacket((new TranslatableComponent("multiplayer.message_not_delivered", component)).m_130940_(ChatFormatting.RED), ChatType.SYSTEM, p_9149_));
++                }
++
++            });
++        }
++    }
++
++    public String m_9239_() {
++        String s = this.f_8906_.f_9742_.m_129523_().toString();
++        s = s.substring(s.indexOf("/") + 1);
++        return s.substring(0, s.indexOf(":"));
++    }
++
++    public String locale = "en_us"; // CraftBukkit - add, lowercase
++
++    public void m_9156_(ServerboundClientInformationPacket p_9157_) {
++        // CraftBukkit start
++        if (m_5737_() != p_9157_.f_133868_()) {
++            PlayerChangedMainHandEvent event = new PlayerChangedMainHandEvent(getBukkitEntity(), m_5737_() == HumanoidArm.LEFT ? MainHand.LEFT : MainHand.RIGHT);
++            this.f_8924_.server.getPluginManager().callEvent(event);
++        }
++        if (!this.locale.equals(p_9157_.f_133863_())) {
++            PlayerLocaleChangeEvent event = new PlayerLocaleChangeEvent(getBukkitEntity(), p_9157_.f_133863_());
++            this.f_8924_.server.getPluginManager().callEvent(event);
++        }
++        this.locale = p_9157_.f_133863_();
++        this.clientViewDistance = p_9157_.f_133864_();
++        // CraftBukkit end
++        this.f_8922_ = p_9157_.f_133865_();
++        this.f_8923_ = p_9157_.f_133866_();
++        this.f_143378_ = p_9157_.f_179550_();
++        this.f_184127_ = p_9157_.f_195812_();
++        this.m_20088_().m_135381_(f_36089_, (byte) p_9157_.f_133867_());
++        this.m_20088_().m_135381_(f_36090_, (byte) (p_9157_.f_133868_() == HumanoidArm.LEFT ? 0 : 1));
++        this.language = p_9157_.f_133863_();
++    }
++
++    public boolean m_143432_() {
++        return this.f_8923_;
++    }
++
++    public ChatVisiblity m_9241_() {
++        return this.f_8922_;
++    }
++
++    private boolean m_143416_(ChatType p_143417_) {
++        switch (this.f_8922_) {
++            case HIDDEN:
++                return p_143417_ == ChatType.GAME_INFO;
++            case SYSTEM:
++                return p_143417_ == ChatType.SYSTEM || p_143417_ == ChatType.GAME_INFO;
++            case FULL:
++            default:
++                return true;
++        }
++    }
++
++    public void m_143408_(String p_143409_, String p_143410_, boolean p_143411_, @Nullable Component p_143412_) {
++        this.f_8906_.m_141995_(new ClientboundResourcePackPacket(p_143409_, p_143410_, p_143411_, p_143412_));
++    }
++
++    protected int m_8088_() {
++        return this.f_8924_.m_129944_(this.m_36316_());
++    }
++
++    public void m_9243_() {
++        this.f_8925_ = Util.m_137550_();
++    }
++
++    public ServerStatsCounter m_8951_() {
++        return this.f_8910_;
++    }
++
++    public ServerRecipeBook m_8952_() {
++        return this.f_8929_;
++    }
++
++    protected void m_8034_() {
++        if (this.m_5833_()) {
++            this.m_21218_();
++            this.m_6842_(true);
++        } else {
++            super.m_8034_();
++        }
++
++    }
++
++    public Entity m_8954_() {
++        return (Entity) (this.f_8926_ == null ? this : this.f_8926_);
++    }
++
++    public void m_9213_(@Nullable Entity p_9214_) {
++        Entity entity = this.m_8954_();
++        this.f_8926_ = (Entity) (p_9214_ == null ? this : p_9214_);
++        while (this.f_8926_ instanceof net.minecraftforge.entity.PartEntity<?> partEntity)
++            this.f_8926_ = partEntity.getParent(); // FORGE: fix MC-46486
++        if (entity != this.f_8926_) {
++            this.f_8906_.m_141995_(new ClientboundSetCameraPacket(this.f_8926_));
++            this.f_8906_.teleport(this.f_8926_.m_20185_(), this.f_8926_.m_20186_(), this.f_8926_.m_20189_(), this.m_146908_(), this.m_146909_(), PlayerTeleportEvent.TeleportCause.SPECTATE); // CraftBukkit
++        }
++
++    }
++
++    protected void m_8021_() {
++        if (!this.f_8927_) {
++            super.m_8021_();
++        }
++
++    }
++
++    public void m_5706_(Entity p_9220_) {
++        if (this.f_8941_.m_9290_() == GameType.SPECTATOR) {
++            this.m_9213_(p_9220_);
++        } else {
++            super.m_5706_(p_9220_);
++        }
++
++    }
++
++    public long m_8956_() {
++        return this.f_8925_;
++    }
++
++    @Nullable
++    public Component m_8957_() {
++        if (!this.hasTabListName) {
++            this.tabListDisplayName = net.minecraftforge.event.ForgeEventFactory.getPlayerTabListDisplayName(this);
++            this.hasTabListName = true;
++        } else {
++            this.tabListDisplayName = listName;
++        }
++        return this.tabListDisplayName;
++    }
++
++    public void m_6674_(InteractionHand p_9031_) {
++        super.m_6674_(p_9031_);
++        this.m_36334_();
++    }
++
++    public boolean m_8958_() {
++        return this.f_8927_;
++    }
++
++    public void m_8959_() {
++        this.f_8927_ = false;
++    }
++
++    public PlayerAdvancements m_8960_() {
++        return this.f_8909_;
++    }
++
++    // CraftBukkit start
++    public void m_8999_(ServerLevel p_9000_, double p_9001_, double p_9002_, double p_9003_, float p_9004_, float p_9005_) {
++        this.teleportTo(p_9000_, p_9001_, p_9002_, p_9003_, p_9004_, p_9005_, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.UNKNOWN);
++    }
++
++    public void teleportTo(ServerLevel p_9000_, double p_9001_, double p_9002_, double p_9003_, float p_9004_, float p_9005_, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause cause) {
++        // CraftBukkit end
++        this.m_9213_(this);
++        this.m_8127_();
++        if (p_9000_ == this.f_19853_) {
++            this.f_8906_.m_9774_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
++        } else if (net.minecraftforge.common.ForgeHooks.onTravelToDimension(this, p_9000_.m_46472_())) {
++            ServerLevel serverlevel = this.m_183503_();
++            LevelData leveldata = p_9000_.m_6106_();
++            this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9000_.m_204156_(), p_9000_.m_46472_(), BiomeManager.m_47877_(p_9000_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9000_.m_46659_(), p_9000_.m_8584_(), true));
++            this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
++            this.f_8924_.m_6846_().m_11289_(this);
++            serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
++            this.revive();
++            this.m_7678_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
++            this.m_143425_(p_9000_);
++            p_9000_.m_8622_(this);
++            this.m_9209_(serverlevel);
++            this.f_8906_.m_9774_(p_9001_, p_9002_, p_9003_, p_9004_, p_9005_);
++            this.f_8941_.m_9260_(p_9000_);
++            this.f_8924_.m_6846_().m_11229_(this, p_9000_);
++            this.f_8924_.m_6846_().m_11292_(this);
++            net.minecraftforge.event.ForgeEventFactory.firePlayerChangedDimensionEvent(this, serverlevel.m_46472_(), p_9000_.m_46472_());
++            this.getBukkitEntity().teleport(new Location(p_9000_.getWorld(), p_9001_, p_9002_, p_9003_, p_9004_, p_9005_), cause);
++        }
++        // CraftBukkit end
++    }
++
++    @Nullable
++    public BlockPos m_8961_() {
++        return this.f_8936_;
++    }
++
++    public float m_8962_() {
++        return this.f_8938_;
++    }
++
++    public ResourceKey<Level> m_8963_() {
++        return this.f_8935_;
++    }
++
++    public boolean m_8964_() {
++        return this.f_8937_;
++    }
++
++    public void m_9158_(ResourceKey<Level> p_9159_, @Nullable BlockPos p_9160_, float p_9161_, boolean p_9162_, boolean p_9163_) {
++        if (net.minecraftforge.event.ForgeEventFactory.onPlayerSpawnSet(this, p_9160_ == null ? Level.f_46428_ : p_9159_, p_9160_, p_9162_))
++            return;
++        if (p_9160_ != null) {
++            boolean flag = p_9160_.equals(this.f_8936_) && p_9159_.equals(this.f_8935_);
++            if (p_9163_ && !flag) {
++                this.m_6352_(new TranslatableComponent("block.minecraft.set_spawn"), Util.f_137441_);
++            }
++
++            this.f_8936_ = p_9160_;
++            this.f_8935_ = p_9159_;
++            this.f_8938_ = p_9161_;
++            this.f_8937_ = p_9162_;
++        } else {
++            this.f_8936_ = null;
++            this.f_8935_ = Level.f_46428_;
++            this.f_8938_ = 0.0F;
++            this.f_8937_ = false;
++        }
++
++    }
++
++    public void m_184135_(ChunkPos p_184136_, Packet<?> p_184137_) {
++        this.f_8906_.m_141995_(p_184137_);
++    }
++
++    public void m_9088_(ChunkPos p_9089_) {
++        if (this.m_6084_()) {
++            this.f_8906_.m_141995_(new ClientboundForgetLevelChunkPacket(p_9089_.f_45578_, p_9089_.f_45579_));
++        }
++
++    }
++
++    public SectionPos m_8965_() {
++        return this.f_8934_;
++    }
++
++    public void m_9119_(SectionPos p_9120_) {
++        this.f_8934_ = p_9120_;
++    }
++
++    public void m_6330_(SoundEvent p_9019_, SoundSource p_9020_, float p_9021_, float p_9022_) {
++        this.f_8906_.m_141995_(new ClientboundSoundPacket(p_9019_, p_9020_, this.m_20185_(), this.m_20186_(), this.m_20189_(), p_9021_, p_9022_));
++    }
++
++    public Packet<?> m_5654_() {
++        return new ClientboundAddPlayerPacket(this);
++    }
++
++    public ItemEntity m_7197_(ItemStack p_9085_, boolean p_9086_, boolean p_9087_) {
++        ItemEntity itementity = super.m_7197_(p_9085_, p_9086_, p_9087_);
++        if (itementity == null) {
++            return null;
++        } else {
++            if (captureDrops() != null) captureDrops().add(itementity);
++            else
++                this.f_19853_.m_7967_(itementity);
++            ItemStack itemstack = itementity.m_32055_();
++            if (p_9087_) {
++                if (!itemstack.m_41619_()) {
++                    this.m_6278_(Stats.f_12985_.m_12902_(itemstack.m_41720_()), p_9085_.m_41613_());
++                }
++
++                this.m_36220_(Stats.f_12927_);
++            }
++
++            return itementity;
++        }
++    }
++
++    private String language = "en_us";
++
++    /**
++     * Returns the language last reported by the player as their local language.
++     * Defaults to en_us if the value is unknown.
++     */
++    public String getLanguage() {
++        return this.language;
++    }
++
++    // We need this as tablistDisplayname may be null even if the the event was fired.
++    private boolean hasTabListName = false;
++    private Component tabListDisplayName = null;
++
++    /**
++     * Force the name displayed in the tab list to refresh, by firing {@link net.minecraftforge.event.entity.player.PlayerEvent.TabListNameFormat}.
++     */
++    public void refreshTabListName() {
++        Component oldName = this.tabListDisplayName;
++        this.tabListDisplayName = net.minecraftforge.event.ForgeEventFactory.getPlayerTabListDisplayName(this);
++        if (!java.util.Objects.equals(oldName, this.tabListDisplayName)) {
++            this.m_20194_().m_6846_().m_11268_(new net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket(net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket.Action.UPDATE_DISPLAY_NAME, this));
++        }
++    }
++
++    public TextFilter m_8967_() {
++        return this.f_8939_;
++    }
++
++    public void m_143425_(ServerLevel p_143426_) {
++        this.f_19853_ = p_143426_;
++        this.f_8941_.m_9260_(p_143426_);
++    }
++
++    @Nullable
++    private static GameType m_143413_(@Nullable CompoundTag p_143414_, String p_143415_) {
++        return p_143414_ != null && p_143414_.m_128425_(p_143415_, 99) ? GameType.m_46393_(p_143414_.m_128451_(p_143415_)) : null;
++    }
++
++    private GameType m_143423_(@Nullable GameType p_143424_) {
++        GameType gametype = this.f_8924_.m_142359_();
++        if (gametype != null) {
++            return gametype;
++        } else {
++            return p_143424_ != null ? p_143424_ : this.f_8924_.m_130008_();
++        }
++    }
++
++    public void m_143427_(@Nullable CompoundTag p_143428_) {
++        this.f_8941_.m_9273_(this.m_143423_(m_143413_(p_143428_, "playerGameType")), m_143413_(p_143428_, "previousPlayerGameType"));
++    }
++
++    private void m_143430_(CompoundTag p_143431_) {
++        p_143431_.m_128405_("playerGameType", this.f_8941_.m_9290_().m_46392_());
++        GameType gametype = this.f_8941_.m_9293_();
++        if (gametype != null) {
++            p_143431_.m_128405_("previousPlayerGameType", gametype.m_46392_());
++        }
++
++    }
++
++    public boolean m_143387_() {
++        return this.f_143378_;
++    }
++
++    public boolean m_143421_(ServerPlayer p_143422_) {
++        if (p_143422_ == this) {
++            return false;
++        } else {
++            return this.f_143378_ || p_143422_.f_143378_;
++        }
++    }
++
++    public boolean m_142265_(Level p_143406_, BlockPos p_143407_) {
++        return super.m_142265_(p_143406_, p_143407_) && p_143406_.m_7966_(this, p_143407_);
++    }
++
++    protected void m_142106_(ItemStack p_143402_) {
++        CriteriaTriggers.f_145090_.m_163865_(this, p_143402_);
++        super.m_142106_(p_143402_);
++    }
++
++    public boolean m_182294_(boolean p_182295_) {
++        Inventory inventory = this.m_150109_();
++        ItemStack selected = inventory.m_36056_();
++        if (selected.m_41619_() || !selected.onDroppedByPlayer(this)) return false;
++        ItemStack itemstack = inventory.m_182403_(p_182295_);
++        this.f_36096_.m_182417_(inventory, inventory.f_35977_).ifPresent((p_182293_) -> {
++            this.f_36096_.m_150404_(p_182293_, inventory.m_36056_());
++        });
++        return net.minecraftforge.common.ForgeHooks.onPlayerTossEvent(this, itemstack, true) != null;
++    }
++
++    public boolean m_184128_() {
++        return this.f_184127_;
++    }
++
++    // CraftBukkit start - Add per-player time and weather.
++    public long timeOffset = 0;
++    public boolean relativeTime = true;
++
++    public long getPlayerTime() {
++        if (this.relativeTime) {
++            // Adds timeOffset to the current server time.
++            return this.f_19853_.m_46468_() + this.timeOffset;
++        } else {
++            // Adds timeOffset to the beginning of this day.
++            return this.f_19853_.m_46468_() - (this.f_19853_.m_46468_() % 24000) + this.timeOffset;
++        }
++    }
++
++    public WeatherType weather = null;
++
++    public WeatherType getPlayerWeather() {
++        return this.weather;
++    }
++
++    public void setPlayerWeather(WeatherType type, boolean plugin) {
++        if (!plugin && this.weather != null) {
++            return;
++        }
++        if (plugin) {
++            this.weather = type;
++        }
++        if (type == WeatherType.DOWNFALL) {
++            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132155_, 0));
++        } else {
++            this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132154_, 0));
++        }
++    }
++
++    private float pluginRainPosition;
++    private float pluginRainPositionPrevious;
++
++    public void updateWeather(float oldRain, float newRain, float oldThunder, float newThunder) {
++        if (this.weather == null) {
++            // Vanilla
++            if (oldRain != newRain) {
++                this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, newRain));
++            }
++        } else {
++            // Plugin
++            if (pluginRainPositionPrevious != pluginRainPosition) {
++                this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132160_, pluginRainPosition));
++            }
++        }
++        if (oldThunder != newThunder) {
++            if (weather == WeatherType.DOWNFALL || weather == null) {
++                this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, newThunder));
++            } else {
++                this.f_8906_.m_141995_(new ClientboundGameEventPacket(ClientboundGameEventPacket.f_132161_, 0));
++            }
++        }
++    }
++
++    public void tickWeather() {
++        if (this.weather == null) return;
++        pluginRainPositionPrevious = pluginRainPosition;
++        if (weather == WeatherType.DOWNFALL) {
++            pluginRainPosition += 0.01;
++        } else {
++            pluginRainPosition -= 0.01;
++        }
++        pluginRainPosition = Mth.m_14036_(pluginRainPosition, 0.0F, 1.0F);
++    }
++
++    public void resetPlayerWeather() {
++        this.weather = null;
++        this.setPlayerWeather(this.f_19853_.m_6106_().m_6533_() ? WeatherType.DOWNFALL : WeatherType.CLEAR, false);
++    }
++
++    @Override
++    public String toString() {
++        return super.toString() + "(" + this.m_6302_() + " at " + this.m_20185_() + "," + this.m_20186_() + "," + this.m_20189_() + ")";
++    }
++
++    // SPIGOT-1903, MC-98153
++    public void forceSetPositionRotation(double x, double y, double z, float yaw, float pitch) {
++        this.m_7678_(x, y, z, yaw, pitch);
++        this.f_8906_.m_9953_();
++    }
++
++    @Override
++    public boolean m_6107_() {
++        return super.m_6107_() || !getBukkitEntity().isOnline();
++    }
++
++    @Override
++    public Scoreboard m_36329_() {
++        return getBukkitEntity().getScoreboard().getHandle();
++    }
++
++    public void reset() {
++        float exp = 0;
++        boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_);
++        if (this.keepLevel) { // CraftBukkit - SPIGOT-6687: Only use keepLevel (was pre-set with RULE_KEEPINVENTORY value in PlayerDeathEvent)
++            exp = this.f_36080_;
++            this.newTotalExp = this.f_36079_;
++            this.newLevel = this.f_36078_;
++        }
++        this.m_21153_(this.m_21233_());
++        this.m_5810_(); // CraftBukkit - SPIGOT-6682: Clear active item on reset
++        this.f_19831_ = 0;
++        this.f_19789_ = 0;
++        this.f_36097_ = new FoodData(this);
++        this.f_36078_ = this.newLevel;
++        this.f_36079_ = this.newTotalExp;
++        this.f_36080_ = 0;
++        this.f_20919_ = 0;
++        this.setArrowCount(0, true); // CraftBukkit - ArrowBodyCountChangeEvent
++        this.removeAllEffects(org.bukkit.event.entity.EntityPotionEffectEvent.Cause.DEATH);
++        this.f_20948_ = true;
++        this.f_36096_ = this.f_36095_;
++        this.f_20888_ = null;
++        this.f_20949_ = null;
++        this.f_20944_ = new CombatTracker(this);
++        this.f_8920_ = -1;
++        if (this.keepLevel) { // CraftBukkit - SPIGOT-6687: Only use keepLevel (was pre-set with RULE_KEEPINVENTORY value in PlayerDeathEvent)
++            this.f_36080_ = exp;
++        } else {
++            this.m_6756_(this.newExp);
++        }
++        this.keepLevel = false;
++        this.m_20334_(0, 0, 0); // CraftBukkit - SPIGOT-6948: Reset velocity on death
++    }
  }

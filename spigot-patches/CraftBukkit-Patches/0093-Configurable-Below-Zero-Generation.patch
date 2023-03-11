@@ -1,0 +1,41 @@
+From b44c69f79f7b0ded43f5eb31339c8d7f5783cf96 Mon Sep 17 00:00:00 2001
+From: DerFrZocker <derrieple@gmail.com>
+Date: Sun, 28 Nov 2021 12:09:29 +1100
+Subject: [PATCH] Configurable Below Zero Generation
+
+
+diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/IChunkLoader.java b/src/main/java/net/minecraft/world/level/chunk/storage/IChunkLoader.java
+index b5eb33275..1e3c7fc4b 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/storage/IChunkLoader.java
++++ b/src/main/java/net/minecraft/world/level/chunk/storage/IChunkLoader.java
+@@ -92,12 +92,27 @@ public class IChunkLoader implements AutoCloseable {
+             }
+         }
+ 
++        // Spigot start - SPIGOT-6806: Quick and dirty way to prevent below zero generation in old chunks, by setting the status to heightmap instead of empty
++        boolean stopBelowZero = false;
++        boolean belowZeroGenerationInExistingChunks = (generatoraccess != null) ? ((WorldServer) generatoraccess).spigotConfig.belowZeroGenerationInExistingChunks : org.spigotmc.SpigotConfig.belowZeroGenerationInExistingChunks;
++
++        if (i <= 2730 && !belowZeroGenerationInExistingChunks) {
++            stopBelowZero = ChunkStatus.FULL.getName().equals(nbttagcompound.getCompound("Level").getString("Status"));
++        }
++        // Spigot end
++
+         injectDatafixingContext(nbttagcompound, resourcekey, optional);
+         nbttagcompound = GameProfileSerializer.update(this.fixerUpper, DataFixTypes.CHUNK, nbttagcompound, Math.max(1493, i));
+         if (i < SharedConstants.getCurrentVersion().getWorldVersion()) {
+             nbttagcompound.putInt("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
+         }
+ 
++        // Spigot start
++        if (stopBelowZero) {
++            nbttagcompound.putString("Status", ChunkStatus.HEIGHTMAPS.getName());
++        }
++        // Spigot end
++
+         nbttagcompound.remove("__context");
+         return nbttagcompound;
+     }
+-- 
+2.25.1
+

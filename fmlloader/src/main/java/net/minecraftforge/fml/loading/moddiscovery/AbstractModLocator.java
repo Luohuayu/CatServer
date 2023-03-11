@@ -24,8 +24,9 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.jar.Manifest;
 
-public abstract class AbstractModLocator implements IModLocator {
-    private static final Logger LOGGER = LogManager.getLogger();
+public abstract class AbstractModLocator implements IModLocator
+{
+    private static final   Logger LOGGER    = LogManager.getLogger();
     protected static final String MODS_TOML = "META-INF/mods.toml";
     protected static final String MANIFEST = "META-INF/MANIFEST.MF";
 
@@ -78,7 +79,6 @@ public abstract class AbstractModLocator implements IModLocator {
     public boolean isValid(final IModFile modFile) {
         return true;
     }
-
 
     protected String getDefaultJarModType() {
         return null;

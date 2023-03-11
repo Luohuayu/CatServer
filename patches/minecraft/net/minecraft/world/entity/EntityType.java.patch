@@ -1,7 +1,17 @@
 --- a/net/minecraft/world/entity/EntityType.java
 +++ b/net/minecraft/world/entity/EntityType.java
-@@ -148,7 +_,7 @@
+@@ -1,5 +_,6 @@
+ package net.minecraft.world.entity;
+ 
++import catserver.server.CatServerCaptures;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.logging.LogUtils;
+ import java.util.List;
+@@ -146,14 +_,15 @@
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.shapes.Shapes;
  import net.minecraft.world.phys.shapes.VoxelShape;
++import org.bukkit.event.entity.CreatureSpawnEvent;
  import org.slf4j.Logger;
  
 -public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T> {
@@ -9,6 +19,12 @@
     private static final Logger f_20534_ = LogUtils.getLogger();
     public static final String f_147037_ = "EntityTag";
     private final Holder.Reference<EntityType<?>> f_204038_ = Registry.f_122826_.m_203693_(this);
+    private static final float f_147038_ = 1.3964844F;
+-   public static final EntityType<AreaEffectCloud> f_20476_ = m_20634_("area_effect_cloud", EntityType.Builder.<AreaEffectCloud>m_20704_(AreaEffectCloud::new, MobCategory.MISC).m_20719_().m_20699_(6.0F, 0.5F).m_20702_(10).m_20717_(Integer.MAX_VALUE));
++   public static final EntityType<AreaEffectCloud> f_20476_ = m_20634_("area_effect_cloud", EntityType.Builder.<AreaEffectCloud>m_20704_(AreaEffectCloud::new, MobCategory.MISC).m_20719_().m_20699_(6.0F, 0.5F).m_20702_(10).m_20717_(10)); // CraftBukkit - SPIGOT-3729: track area effect clouds
+    public static final EntityType<ArmorStand> f_20529_ = m_20634_("armor_stand", EntityType.Builder.<ArmorStand>m_20704_(ArmorStand::new, MobCategory.MISC).m_20699_(0.5F, 1.975F).m_20702_(10));
+    public static final EntityType<Arrow> f_20548_ = m_20634_("arrow", EntityType.Builder.<Arrow>m_20704_(Arrow::new, MobCategory.MISC).m_20699_(0.5F, 0.5F).m_20702_(4).m_20717_(20));
+    public static final EntityType<Axolotl> f_147039_ = m_20634_("axolotl", EntityType.Builder.<Axolotl>m_20704_(Axolotl::new, MobCategory.AXOLOTLS).m_20699_(0.75F, 0.42F).m_20702_(10));
 @@ -283,6 +_,11 @@
     private ResourceLocation f_20546_;
     private final EntityDimensions f_20547_;
@@ -42,13 +58,44 @@
     }
  
     @Nullable
-@@ -317,6 +_,7 @@
+@@ -314,10 +_,19 @@
+    }
+ 
+    @Nullable
++   public T spawn(ServerLevel p_20601_, @Nullable CompoundTag p_20602_, @Nullable Component p_20603_, @Nullable Player p_20604_, BlockPos p_20605_, MobSpawnType p_20606_, boolean p_20607_, boolean p_20608_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason spawnReason) {
++      CatServerCaptures.getCatServerCaptures().captureSpawnReason(spawnReason);
++      return this.m_20600_(p_20601_, p_20602_, p_20603_, p_20604_, p_20605_, p_20606_, p_20607_, p_20608_);
++   }
++
++   @Nullable
     public T m_20600_(ServerLevel p_20601_, @Nullable CompoundTag p_20602_, @Nullable Component p_20603_, @Nullable Player p_20604_, BlockPos p_20605_, MobSpawnType p_20606_, boolean p_20607_, boolean p_20608_) {
        T t = this.m_20655_(p_20601_, p_20602_, p_20603_, p_20604_, p_20605_, p_20606_, p_20607_, p_20608_);
        if (t != null) {
+-         p_20601_.m_47205_(t);
 +         if (t instanceof net.minecraft.world.entity.Mob && net.minecraftforge.event.ForgeEventFactory.doSpecialSpawn((net.minecraft.world.entity.Mob) t, p_20601_, p_20605_.m_123341_(), p_20605_.m_123342_(), p_20605_.m_123343_(), null, p_20606_)) return null;
-          p_20601_.m_47205_(t);
++         var spawnReason = CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason() == null ? CreatureSpawnEvent.SpawnReason.SPAWNER_EGG : CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++         p_20601_.addFreshEntityWithPassengers(t, spawnReason);
++         return !t.m_146910_() ? t : null; // Don't return an entity when CreatureSpawnEvent is canceled
        }
+ 
+       return t;
+@@ -350,7 +_,7 @@
+             t.m_6593_(p_20658_);
+          }
+ 
+-         m_20620_(p_20656_, p_20659_, t, p_20657_);
++         try { m_20620_(p_20656_, p_20659_, t, p_20657_); } catch (Throwable throwable) { f_20534_.warn("Error loading spawn egg NBT", throwable); } // CraftBukkit - SPIGOT-5665
+          return t;
+       }
+    }
+@@ -458,7 +_,7 @@
+       }), (p_185990_) -> {
+          p_185990_.m_20258_(p_20643_);
+       }, () -> {
+-         f_20534_.warn("Skipping Entity with id {}", (Object)p_20643_.m_128461_("id"));
++         f_20534_.debug("Skipping Entity with id {}", (Object)p_20643_.m_128461_("id")); // CatServer - warn -> debug
+       });
+    }
  
 @@ -544,14 +_,23 @@
     }

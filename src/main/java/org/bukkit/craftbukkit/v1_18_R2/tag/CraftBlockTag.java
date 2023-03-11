@@ -1,8 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.tag;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+import net.minecraft.core.Registry;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import org.bukkit.Material;
@@ -10,7 +10,7 @@ import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 
 public class CraftBlockTag extends CraftTag<Block, Material> {
 
-    public CraftBlockTag(net.minecraft.core.Registry<Block> registry, TagKey<Block> tag) {
+    public CraftBlockTag(Registry<Block> registry, TagKey<Block> tag) {
         super(registry, tag);
     }
 
@@ -28,6 +28,6 @@ public class CraftBlockTag extends CraftTag<Block, Material> {
 
     @Override
     public Set<Material> getValues() {
-        return  getHandle().stream().map((block) -> CraftMagicNumbers.getMaterial(block.value())).collect(Collectors.toUnmodifiableSet());
+        return getHandle().stream().map((block) -> CraftMagicNumbers.getMaterial(block.value())).collect(Collectors.toUnmodifiableSet());
     }
 }

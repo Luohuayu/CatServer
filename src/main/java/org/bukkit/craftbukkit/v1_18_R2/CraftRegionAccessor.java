@@ -1,24 +1,31 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
 import com.google.common.base.Preconditions;
-
-import com.google.common.base.Predicate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.data.worldgen.features.TreeFeatures;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.entity.projectile.AbstractHurtingProjectile;
-import net.minecraft.world.entity.projectile.EyeOfEnder;
-import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.vehicle.*;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChorusFlowerBlock;
+import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.phys.AABB;
@@ -186,7 +193,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
 
     @Override
     public Biome getBiome(int x, int y, int z) {
-        return CraftBlock.biomeBaseToBiome(getHandle().registryAccess().registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY), getHandle().getNoiseBiome(x >> 2, y >> 2, z >> 2));
+        return CraftBlock.biomeBaseToBiome(getHandle().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), getHandle().getNoiseBiome(x >> 2, y >> 2, z >> 2));
     }
 
     @Override
@@ -197,7 +204,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
     @Override
     public void setBiome(int x, int y, int z, Biome biome) {
         Preconditions.checkArgument(biome != Biome.CUSTOM, "Cannot set the biome to %s", biome);
-        Holder<net.minecraft.world.level.biome.Biome> biomeBase = CraftBlock.biomeToBiomeBase(getHandle().registryAccess().registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY), biome);
+        Holder<net.minecraft.world.level.biome.Biome> biomeBase = CraftBlock.biomeToBiomeBase(getHandle().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), biome);
         setBiome(x, y, z, biomeBase);
     }
 
@@ -244,7 +251,6 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
 
     @Override
     public void setBlockData(int x, int y, int z, BlockData blockData) {
-        CraftBlock.at(getHandle(), new BlockPos(x, y, z)).setTypeAndData(((CraftBlockData) blockData).getState(), true);
         WorldGenLevel world = getHandle();
         BlockPos pos = new BlockPos(x, y, z);
         net.minecraft.world.level.block.state.BlockState old = getHandle().getBlockState(pos);
@@ -276,6 +282,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
         });
     }
 
+    @Override
     public boolean generateTree(Location location, Random random, TreeType treeType, Predicate<BlockState> predicate) {
         BlockPos pos = new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         BlockStateListPopulator populator = new BlockStateListPopulator(getHandle());
@@ -357,7 +364,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
                 break;
         }
 
-        return ((ConfiguredFeature<?, ?>)gen.value()).place(access, chunkGenerator, random, pos);
+        return ((ConfiguredFeature<?, ?>) gen.value()).place(access, chunkGenerator, random, pos);
     }
 
     @Override
@@ -535,11 +542,11 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
             if (Snowball.class.isAssignableFrom(clazz)) {
                 entity = new net.minecraft.world.entity.projectile.Snowball(world, x, y, z);
             } else if (Egg.class.isAssignableFrom(clazz)) {
-                entity = new net.minecraft.world.entity.projectile.ThrownEgg(world, x, y, z);
+                entity = new ThrownEgg(world, x, y, z);
             } else if (AbstractArrow.class.isAssignableFrom(clazz)) {
                 if (TippedArrow.class.isAssignableFrom(clazz)) {
                     entity = net.minecraft.world.entity.EntityType.ARROW.create(world);
-                    ((net.minecraft.world.entity.projectile.Arrow) entity).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
+                    ((Arrow) entity).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
                 } else if (SpectralArrow.class.isAssignableFrom(clazz)) {
                     entity = net.minecraft.world.entity.EntityType.SPECTRAL_ARROW.create(world);
                 } else if (Trident.class.isAssignableFrom(clazz)) {
@@ -822,15 +829,15 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
                 final BlockPos pos = new BlockPos(x, y, z);
                 for (BlockFace dir : faces) {
                     net.minecraft.world.level.block.state.BlockState nmsBlock = getHandle().getBlockState(pos.relative(CraftBlock.blockFaceToNotch(dir)));
-                    if (nmsBlock.getMaterial().isSolid() || net.minecraft.world.level.block.DiodeBlock.isDiode(nmsBlock)) {
+                    if (nmsBlock.getMaterial().isSolid() || DiodeBlock.isDiode(nmsBlock)) {
                         boolean taken = false;
                         AABB bb = (ItemFrame.class.isAssignableFrom(clazz))
                                 ? net.minecraft.world.entity.decoration.ItemFrame.calculateBoundingBox(null, pos, CraftBlock.blockFaceToNotch(dir).getOpposite(), width, height)
-                                : net.minecraft.world.entity.decoration.HangingEntity.calculateBoundingBox(null, pos, CraftBlock.blockFaceToNotch(dir).getOpposite(), width, height);
+                                : HangingEntity.calculateBoundingBox(null, pos, CraftBlock.blockFaceToNotch(dir).getOpposite(), width, height);
                         List<net.minecraft.world.entity.Entity> list = (List<net.minecraft.world.entity.Entity>) getHandle().getEntities(null, bb);
                         for (Iterator<net.minecraft.world.entity.Entity> it = list.iterator(); !taken && it.hasNext(); ) {
                             net.minecraft.world.entity.Entity e = it.next();
-                            if (e instanceof net.minecraft.world.entity.decoration.HangingEntity) {
+                            if (e instanceof HangingEntity) {
                                 taken = true; // Hanging entities do not like hanging entities which intersect them.
                             }
                         }
@@ -867,7 +874,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
                 }
             }
         } else if (TNTPrimed.class.isAssignableFrom(clazz)) {
-            entity = new net.minecraft.world.entity.item.PrimedTnt(world, x, y, z, null);
+            entity = new PrimedTnt(world, x, y, z, null);
         } else if (ExperienceOrb.class.isAssignableFrom(clazz)) {
             entity = new net.minecraft.world.entity.ExperienceOrb(world, x, y, z, 0);
         } else if (LightningStrike.class.isAssignableFrom(clazz)) {

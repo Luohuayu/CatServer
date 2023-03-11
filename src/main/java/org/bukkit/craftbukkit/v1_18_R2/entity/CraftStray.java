@@ -1,8 +1,9 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Skeleton.SkeletonType;
+import org.bukkit.entity.Skeleton;
 import org.bukkit.entity.Stray;
 
 public class CraftStray extends CraftAbstractSkeleton implements Stray {
@@ -22,7 +23,7 @@ public class CraftStray extends CraftAbstractSkeleton implements Stray {
     }
 
     @Override
-    public SkeletonType getSkeletonType() {
-        return SkeletonType.STRAY;
+    public Skeleton.SkeletonType getSkeletonType() {
+        return Skeleton.SkeletonType.STRAY;
     }
 }

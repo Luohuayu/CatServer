@@ -1,6 +1,5 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
-import catserver.server.BukkitInjector;
 import catserver.server.remapper.ReflectionTransformer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -78,6 +77,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.PlayerDataStorage;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.phys.Vec3;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.*;
 import org.bukkit.Warning.WarningState;
@@ -209,25 +209,20 @@ public final class CraftServer implements Server {
     public CraftServer(DedicatedServer console, PlayerList playerList) {
         this.console = console;
         this.playerList = (DedicatedPlayerList) playerList;
-        this.playerView = Collections.unmodifiableList(Lists.transform(playerList.players, new Function<ServerPlayer, CraftPlayer>() {
-            @Override
-            public CraftPlayer apply(ServerPlayer player) {
-                return player.getBukkitEntity();
-            }
-        }));
+        this.playerView = Collections.unmodifiableList(Lists.transform(playerList.players, (Function<ServerPlayer, CraftPlayer>) player -> player.getBukkitEntity()));
         this.serverVersion = "1.18.2";
         this.structureManager = new CraftStructureManager(console.getStructureManager());
+
         this.scoreboardManager = new CraftScoreboardManager(console, new ServerScoreboard(console));
         Bukkit.setServer(this);
+
         // Register all the Enchantments and PotionTypes now so we can stop new registration immediately after
         Enchantments.SHARPNESS.getClass();
-        BukkitInjector.injectEnchantments(); // CatServer - Enchantment can only be done by the server implementation
-        org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
+        // org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations(); // CatServer - move to BukkitInjector
 
         Potion.setPotionBrewer(new CraftPotionBrewer());
         MobEffects.BLINDNESS.getClass();
-        BukkitInjector.injectMobEffects(); // CatServer - MobEffect can only be done by the server implementation
-        PotionEffectType.stopAcceptingRegistrations();
+        // PotionEffectType.stopAcceptingRegistrations(); // CatServer - move to BukkitInjector
         // Ugly hack :(
 
         if (!Main.useConsole) {
@@ -354,11 +349,8 @@ public final class CraftServer implements Server {
         }
 
         if (type == PluginLoadOrder.POSTWORLD) {
-            // Spigot start - Allow vanilla commands to be forced to be the main command
-            setVanillaCommands(true);
             commandMap.setFallbackCommands();
-            setVanillaCommands(false);
-            // Spigot end
+            setVanillaCommands();
             commandMap.registerServerAliases();
             DefaultPermissions.registerCorePermissions();
             CraftDefaultPermissions.registerCorePermissions();
@@ -372,21 +364,12 @@ public final class CraftServer implements Server {
         pluginManager.disablePlugins();
     }
 
-    private void setVanillaCommands(boolean first) { // Spigot
+    private void setVanillaCommands() {
         Commands dispatcher = console.vanillaCommandDispatcher;
 
         // Build a list of all Vanilla commands and create wrappers
         for (CommandNode<CommandSourceStack> cmd : dispatcher.getDispatcher().getRoot().getChildren()) {
-            // Spigot start
-            VanillaCommandWrapper wrapper = new VanillaCommandWrapper(dispatcher, cmd);
-            if (org.spigotmc.SpigotConfig.replaceCommands.contains(wrapper.getName())) {
-                if (first) {
-                    commandMap.register("minecraft", wrapper);
-                }
-            } else if (!first) {
-                commandMap.register("minecraft", wrapper);
-            }
-            // Spigot end
+            commandMap.register("minecraft", new VanillaCommandWrapper(dispatcher, cmd));
         }
     }
 
@@ -640,13 +623,7 @@ public final class CraftServer implements Server {
 
     @Override
     public long getConnectionThrottle() {
-        // Spigot Start - Automatically set connection throttle for bungee configurations
-        if (org.spigotmc.SpigotConfig.bungee) {
-            return -1;
-        } else {
-            return this.configuration.getInt("settings.connection-throttle");
-        }
-        // Spigot End
+        return this.configuration.getInt("settings.connection-throttle");
     }
 
     @Override
@@ -741,7 +718,6 @@ public final class CraftServer implements Server {
     public boolean dispatchCommand(CommandSender sender, String commandLine) {
         Validate.notNull(sender, "Sender cannot be null");
         Validate.notNull(commandLine, "CommandLine cannot be null");
-        org.spigotmc.AsyncCatcher.catchOp("command dispatch"); // Spigot
 
         if (commandMap.dispatch(sender, commandLine)) {
             return true;
@@ -787,10 +763,10 @@ public final class CraftServer implements Server {
             logger.log(Level.WARNING, "Failed to load banned-players.json, " + ex.getMessage());
         }
 
-        org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
         for (ServerLevel world : console.getAllLevels()) {
             world.getServer().getWorldData().setDifficulty(config.difficulty);
             world.setSpawnSettings(config.spawnMonsters, config.spawnAnimals);
+
             for (SpawnCategory spawnCategory : SpawnCategory.values()) {
                 if (CraftSpawnCategory.isValidForLimits(spawnCategory)) {
                     long ticksPerCategorySpawn = this.getTicksPerSpawns(spawnCategory);
@@ -943,6 +919,8 @@ public final class CraftServer implements Server {
             throw new IllegalArgumentException("File exists with the name '" + name + "' and isn't a folder");
         }
 
+        if ("DIM1".equalsIgnoreCase(name) || "DIM-1".equalsIgnoreCase(name)) throw new IllegalArgumentException("Dynamic loading is not supported: " + name); // CatServer
+
         if (generator == null) {
             generator = getGenerator(name);
         }
@@ -966,10 +944,23 @@ public final class CraftServer implements Server {
                 throw new IllegalArgumentException("Illegal dimension");
         }
 
-        LevelStorageSource.LevelStorageAccess worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name,
-                actualDimension);
-
-        if (worldSession == null) return null;
+        // CatServer start
+        LevelStorageSource.LevelStorageAccess worldSession = console.storageSource;
+        try {
+            worldSession = LevelStorageSource.createDefault(getWorldContainer().toPath()).createAccess(name, actualDimension);
+            for (String s : new String[]{ "region", "data", "entities", "poi" }) {
+                File saveDir = new File(worldSession.getWorldDir().toFile(), "dimensions/minecraft/" + name + "/" + s);
+                if (!saveDir.exists()) {
+                    File importDir = new File(worldSession.levelPath.toFile(), s);
+                    if (importDir.exists()) {
+                        logger.info(String.format("[Import Fixer] Copying %s to %s", importDir.getAbsolutePath(), saveDir.getAbsolutePath()));
+                        FileUtils.copyDirectory(importDir, saveDir);
+                    }
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
 
         boolean hardcore = creator.hardcore();
 
@@ -1031,14 +1022,17 @@ public final class CraftServer implements Server {
             worldKey = ResourceKey.create(net.minecraft.core.Registry.DIMENSION_REGISTRY, new ResourceLocation(name.toLowerCase(java.util.Locale.ENGLISH)));
         }
 
+        // CatServer start
         ServerLevel internal;
         try {
-            catserver.server.utils.BukkitWorldSetter.get().setWorld(generator, creator.environment());
-            internal = (ServerLevel) new ServerLevel(console, console.executor, worldSession, worlddata, worldKey, holder, getServer().progressListenerFactory.create(11),
-                    chunkgenerator, worlddata.worldGenSettings().isDebug(), j, creator.environment() == Environment.NORMAL ? list : ImmutableList.of(), true);
+            catserver.server.utils.BukkitWorldHelper.get().setWorld(generator, creator.environment(), biomeProvider);
+            internal = new ServerLevel(console, console.executor, worldSession, worlddata, worldKey, holder, getServer().progressListenerFactory.create(11),
+                    chunkgenerator, worlddata.worldGenSettings().isDebug(), j, creator.environment() == Environment.NORMAL ? list : ImmutableList.of(), true, creator.environment(), generator, biomeProvider);
+            internal.isBukkitWorld = true;
         } finally {
-            catserver.server.utils.BukkitWorldSetter.get().reset();
+            catserver.server.utils.BukkitWorldHelper.get().reset();
         }
+        // CatServer end
 
         if (!(worlds.containsKey(name.toLowerCase(java.util.Locale.ENGLISH)))) {
             return null;
@@ -1051,8 +1045,6 @@ public final class CraftServer implements Server {
 
         getServer().prepareLevels(internal.getChunkSource().chunkMap.progressListener, internal);
         internal.entityManager.tick(); // SPIGOT-6526: Load pending entities so they are available to the API
-
-        pluginManager.callEvent(new WorldLoadEvent(internal.getWorld()));
         return internal.getWorld();
     }
 
@@ -1535,13 +1527,8 @@ public final class CraftServer implements Server {
 
         OfflinePlayer result = getPlayerExact(name);
         if (result == null) {
-            // Spigot Start
-            GameProfile profile = null;
-            // Only fetch an online UUID in online mode
-            if (getOnlineMode() || org.spigotmc.SpigotConfig.bungee) {
-                profile = console.getProfileCache().get(name).orElse(null);
-            }
-            // Spigot end
+            // This is potentially blocking :(
+            GameProfile profile = console.getProfileCache().get(name).orElse(null);
             if (profile == null) {
                 // Make an OfflinePlayer using an offline mode UUID since the name has no profile
                 result = getOfflinePlayer(new GameProfile(UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(Charsets.UTF_8)), name));
@@ -1715,7 +1702,7 @@ public final class CraftServer implements Server {
 
     @Override
     public File getWorldContainer() {
-        return this.getServer().storageSource.getDimensionPath(net.minecraft.world.level.Level.OVERWORLD).getParent().toFile();
+        return this.getServer().storageSource.levelPath.toFile().getAbsoluteFile();
     }
 
     @Override
@@ -1842,9 +1829,8 @@ public final class CraftServer implements Server {
     }
 
     @Override
-    @Deprecated
     public boolean isPrimaryThread() {
-        return Thread.currentThread().equals(console.serverThread) || console.hasStopped() || !org.spigotmc.AsyncCatcher.enabled; // All bets are off if we have shut down (e.g. due to watchdog)
+        return Thread.currentThread().equals(console.serverThread) || console.hasStopped(); // All bets are off if we have shut down (e.g. due to watchdog)
     }
 
     @Override
@@ -1877,11 +1863,6 @@ public final class CraftServer implements Server {
     }
 
     public List<String> tabCompleteCommand(Player player, String message, ServerLevel world, Vec3 pos) {
-        // Spigot Start
-        if ((org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains(" ")) {
-            return ImmutableList.of();
-        }
-        // Spigot End
         List<String> completions = null;
         try {
             if (message.startsWith("/")) {

@@ -10,8 +10,8 @@ import java.util.Optional;
 
 public class CraftCreatureSpawner extends CraftBlockEntityState<SpawnerBlockEntity> implements CreatureSpawner {
 
-    public CraftCreatureSpawner(World world, SpawnerBlockEntity te) {
-        super(world, te);
+    public CraftCreatureSpawner(World world, SpawnerBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

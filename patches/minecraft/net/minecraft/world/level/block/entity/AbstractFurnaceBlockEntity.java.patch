@@ -1,6 +1,15 @@
 --- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
-@@ -42,6 +_,15 @@
+@@ -6,6 +_,8 @@
+ import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
+ import java.util.List;
+ import java.util.Map;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.AtomicReference;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+@@ -42,6 +_,16 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec3;
@@ -11,16 +20,23 @@
 +import org.bukkit.event.block.BlockExpEvent;
 +import org.bukkit.event.inventory.FurnaceBurnEvent;
 +import org.bukkit.event.inventory.FurnaceExtractEvent;
++import org.bukkit.event.inventory.FurnaceSmeltEvent;
 +import org.bukkit.event.inventory.FurnaceStartSmeltEvent;
 +import org.bukkit.inventory.CookingRecipe;
  
  public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, RecipeHolder, StackedContentsCompatible {
     protected static final int f_154980_ = 0;
-@@ -62,6 +_,7 @@
+@@ -58,10 +_,10 @@
+    public static final int f_154988_ = 200;
+    public static final int f_154989_ = 2;
+    protected NonNullList<ItemStack> f_58310_ = NonNullList.m_122780_(3, ItemStack.f_41583_);
+-   int f_58316_;
++   public int f_58316_;
     int f_58317_;
-    public int f_58318_;
-    public int f_58319_;
-+
+-   int f_58318_;
+-   int f_58319_;
++   public int f_58318_;
++   public int f_58319_;
     protected final ContainerData f_58311_ = new ContainerData() {
        public int m_6413_(int p_58431_) {
           switch(p_58431_) {
@@ -58,7 +74,7 @@
        ContainerHelper.m_18973_(p_187452_, this.f_58310_);
        CompoundTag compoundtag = new CompoundTag();
        this.f_58320_.forEach((p_187449_, p_187450_) -> {
-@@ -240,30 +_,57 @@
+@@ -240,30 +_,49 @@
  
        ItemStack itemstack = p_155017_.f_58310_.get(1);
        if (p_155017_.m_58425_() || !itemstack.m_41619_() && !p_155017_.f_58310_.get(0).m_41619_()) {
@@ -66,18 +82,15 @@
 +         Recipe<?> recipe = p_155014_.m_7465_().m_44015_((RecipeType<AbstractCookingRecipe>)p_155017_.f_58312_, p_155017_, p_155014_).orElse(null);
           int i = p_155017_.m_6893_();
 -         if (!p_155017_.m_58425_() && m_155005_(recipe, p_155017_.f_58310_, i)) {
+-            p_155017_.f_58316_ = p_155017_.m_7743_(itemstack);
 +         if (!p_155017_.m_58425_() && p_155017_.m_155005_(recipe, p_155017_.f_58310_, i)) {
-             p_155017_.f_58316_ = p_155017_.m_7743_(itemstack);
 +            // CraftBukkit start
 +            CraftItemStack fuel = CraftItemStack.asCraftMirror(itemstack);
-+
-+            FurnaceBurnEvent furnaceBurnEvent = new FurnaceBurnEvent( CraftBlock.at(p_155014_, p_155015_), fuel, p_155017_.m_7743_(itemstack));
++            FurnaceBurnEvent furnaceBurnEvent = new FurnaceBurnEvent(CraftBlock.at(p_155014_, p_155015_), fuel, p_155017_.m_7743_(itemstack));
 +            p_155014_.getCraftServer().getPluginManager().callEvent(furnaceBurnEvent);
-+
 +            if (furnaceBurnEvent.isCancelled()) {
 +               return;
 +            }
-+
 +            p_155017_.f_58316_ = furnaceBurnEvent.getBurnTime();
              p_155017_.f_58317_ = p_155017_.f_58316_;
 -            if (p_155017_.m_58425_()) {
@@ -101,25 +114,21 @@
  
 -         if (p_155017_.m_58425_() && m_155005_(recipe, p_155017_.f_58310_, i)) {
 +         if (p_155017_.m_58425_() && p_155017_.m_155005_(recipe, p_155017_.f_58310_, i)) {
-+
 +            // CraftBukkit start
-+            if (p_155017_ != null && p_155017_.f_58318_ == 0) {
++            if (recipe != null && p_155017_.f_58318_ == 0) {
 +               CraftItemStack source = CraftItemStack.asCraftMirror(p_155017_.f_58310_.get(0));
-+               CookingRecipe<?> brecipe = (CookingRecipe<?>) recipe.toBukkitRecipe();
-+
-+               FurnaceStartSmeltEvent event = new FurnaceStartSmeltEvent(CraftBlock.at(p_155014_, p_155015_), source, brecipe);
++               CookingRecipe<?> cbRecipe = (CookingRecipe<?>) recipe.toBukkitRecipe();
++               FurnaceStartSmeltEvent event = new FurnaceStartSmeltEvent(CraftBlock.at(p_155014_, p_155015_), source, cbRecipe);
 +               p_155014_.getCraftServer().getPluginManager().callEvent(event);
-+
 +               p_155017_.f_58319_ = event.getTotalCookTime();
 +            }
 +            // CraftBukkit end
-+
              ++p_155017_.f_58318_;
              if (p_155017_.f_58318_ == p_155017_.f_58319_) {
                 p_155017_.f_58318_ = 0;
                 p_155017_.f_58319_ = m_155009_(p_155014_, p_155017_.f_58312_, p_155017_);
 -               if (m_155026_(recipe, p_155017_.f_58310_, i)) {
-+               if (p_155017_.m_155026_(recipe, p_155017_.f_58310_, i)) {
++               if (p_155017_.burn(p_155017_.f_58857_, p_155017_.f_58858_, recipe, p_155017_.f_58310_, i)) { // CraftBukkit
                    p_155017_.m_6029_(recipe);
                 }
  
@@ -148,27 +157,74 @@
              }
           }
        } else {
-@@ -310,15 +_,15 @@
+@@ -310,16 +_,51 @@
        }
     }
  
 -   private static boolean m_155026_(@Nullable Recipe<?> p_155027_, NonNullList<ItemStack> p_155028_, int p_155029_) {
 -      if (p_155027_ != null && m_155005_(p_155027_, p_155028_, p_155029_)) {
++   // CatServer start
++   private static AtomicReference<Level> catserver$burnLevel = new AtomicReference<>();
++   private static AtomicReference<BlockPos> catserver$burnPos = new AtomicReference<>(BlockPos.f_121853_);
++   private boolean burn(Level level, BlockPos pos, @Nullable Recipe<?> p_155027_, NonNullList<ItemStack> p_155028_, int p_155029_) { // CraftBukkit
++      AbstractFurnaceBlockEntity.catserver$burnLevel.set(level);
++      AbstractFurnaceBlockEntity.catserver$burnPos.set(pos);
++      return m_155026_(p_155027_, p_155028_, p_155029_);
++   }
++
 +   private boolean m_155026_(@Nullable Recipe<?> p_155027_, NonNullList<ItemStack> p_155028_, int p_155029_) {
 +      if (p_155027_ != null && this.m_155005_(p_155027_, p_155028_, p_155029_)) {
           ItemStack itemstack = p_155028_.get(0);
 -         ItemStack itemstack1 = p_155027_.m_8043_();
 +         ItemStack itemstack1 = ((Recipe<WorldlyContainer>) p_155027_).m_5874_(this);
           ItemStack itemstack2 = p_155028_.get(2);
-          if (itemstack2.m_41619_()) {
-             p_155028_.set(2, itemstack1.m_41777_());
-          } else if (itemstack2.m_150930_(itemstack1.m_41720_())) {
+-         if (itemstack2.m_41619_()) {
+-            p_155028_.set(2, itemstack1.m_41777_());
+-         } else if (itemstack2.m_150930_(itemstack1.m_41720_())) {
 -            itemstack2.m_41769_(1);
-+            itemstack2.m_41769_(itemstack1.m_41613_());
-          }
+-         }
++
++         // CraftBukkit start - fire FurnaceSmeltEvent
++         var burnLevel = AbstractFurnaceBlockEntity.catserver$burnLevel.getAndSet(null);
++         var burnPos = AbstractFurnaceBlockEntity.catserver$burnPos.getAndSet(BlockPos.f_121853_);
++         CraftItemStack source = CraftItemStack.asCraftMirror(itemstack);
++         org.bukkit.inventory.ItemStack result = CraftItemStack.asBukkitCopy(itemstack1);
++         FurnaceSmeltEvent furnaceSmeltEvent = new FurnaceSmeltEvent(CraftBlock.at(burnLevel, burnPos), source, result);
++         burnLevel.getCraftServer().getPluginManager().callEvent(furnaceSmeltEvent);
++         if (furnaceSmeltEvent.isCancelled()) {
++            return false;
++         }
++         result = furnaceSmeltEvent.getResult();
++         itemstack1 = CraftItemStack.asNMSCopy(result);
++         if (!itemstack1.m_41619_()) {
++            if (itemstack2.m_41619_()) {
++               p_155028_.set(2, itemstack1.m_41777_());
++            } else if (CraftItemStack.asCraftMirror(itemstack2).isSimilar(result)) {
++               itemstack2.m_41769_(itemstack1.m_41613_());
++            } else {
++               return false;
++            }
++         }
++
++         /*
++         if (itemstack2.isEmpty()) {
++            p_155028_.set(2, itemstack1.copy());
++         } else if (itemstack2.is(itemstack1.getItem())) {
++            itemstack2.grow(itemstack1.getCount());
++         }
++          */
++         // CraftBukkit end
  
           if (itemstack.m_150930_(Blocks.f_50057_.m_5456_()) && !p_155028_.get(1).m_41619_() && p_155028_.get(1).m_150930_(Items.f_42446_)) {
-@@ -337,7 +_,7 @@
+             p_155028_.set(1, new ItemStack(Items.f_42447_));
+@@ -331,13 +_,14 @@
+          return false;
+       }
+    }
++   // CatServer end
+ 
+    protected int m_7743_(ItemStack p_58343_) {
+       if (p_58343_.m_41619_()) {
           return 0;
        } else {
           Item item = p_58343_.m_41720_();
@@ -195,58 +251,97 @@
        }
     }
  
-@@ -456,26 +_,49 @@
+@@ -450,34 +_,88 @@
+    public void m_8015_(Player p_58396_) {
+    }
+ 
++   // CatServer start
++   private AtomicReference<ItemStack> catserver$awardItemStack = new AtomicReference<>();
++   private AtomicInteger catserver$awardAmount = new AtomicInteger(0);
++   public void awardUsedRecipesAndPopExperience(ServerPlayer p_155004_, ItemStack itemstack, int amount) { // CraftBukkit
++      this.catserver$awardItemStack.set(itemstack);
++      this.catserver$awardAmount.set(amount);
++      this.m_155003_(p_155004_);
++   }
++
+    public void m_155003_(ServerPlayer p_155004_) {
+-      List<Recipe<?>> list = this.m_154995_(p_155004_.m_183503_(), p_155004_.m_20182_());
++      var itemstack = this.catserver$awardItemStack.getAndSet(null);
++      var amount = this.catserver$awardAmount.getAndSet(0);
++      List<Recipe<?>> list = this.getRecipesToAwardAndPopExperience(p_155004_.m_183503_(), p_155004_.m_20182_(), this.f_58858_, p_155004_, itemstack, amount); // CraftBukkit
+       p_155004_.m_7281_(list);
        this.f_58320_.clear();
     }
  
-+   public void awardUsedRecipesAndPopExperience(ServerPlayer p_155004_, ItemStack itemstack, int amount) {
-+      List<Recipe<?>> list = this.getRecipesToAwardAndPopExperience(p_155004_.m_183503_(), p_155004_.m_20182_(), this.f_58858_, p_155004_, itemstack, amount); // CraftBukkit
-+      p_155004_.m_7281_(list);
-+      this.f_58320_.clear();
++   private AtomicReference<BlockPos> catserver$popExpPos = new AtomicReference<>(BlockPos.f_121853_);
++   private AtomicReference<ServerPlayer> catserver$popExpPlayer = new AtomicReference<>();
++   private AtomicReference<ItemStack> catserver$popExpItemStack = new AtomicReference<>();
++   private AtomicInteger catserver$popExpAmount = new AtomicInteger(0);
++   public List<Recipe<?>> getRecipesToAwardAndPopExperience(ServerLevel p_154996_, Vec3 p_154997_, BlockPos pos, ServerPlayer player, ItemStack itemstack, int amount) {
++      this.catserver$popExpPos.set(pos);
++      this.catserver$popExpPlayer.set(player);
++      this.catserver$popExpItemStack.set(itemstack);
++      this.catserver$popExpAmount.set(amount);
++      return this.m_154995_(p_154996_, p_154997_);
 +   }
 +
     public List<Recipe<?>> m_154995_(ServerLevel p_154996_, Vec3 p_154997_) {
-+      // CraftBukkit start
-+      return this.getRecipesToAwardAndPopExperience(p_154996_, p_154997_, this.f_58858_, null, null, 0);
-+   }
-+
-+   public List<Recipe<?>> getRecipesToAwardAndPopExperience(ServerLevel p_154996_, Vec3 p_154997_, BlockPos blockposition, ServerPlayer entityplayer, ItemStack itemstack, int amount) {
-+      // CraftBukkit end
        List<Recipe<?>> list = Lists.newArrayList();
++      var blockPos = this.catserver$popExpPos.getAndSet(BlockPos.f_121853_);
++      var player = this.catserver$popExpPlayer.getAndSet(null);
++      var itemstack = this.catserver$popExpItemStack.getAndSet(null);
++      var amount = this.catserver$popExpAmount.getAndSet(0);
  
        for(Entry<ResourceLocation> entry : this.f_58320_.object2IntEntrySet()) {
           p_154996_.m_7465_().m_44043_(entry.getKey()).ifPresent((p_155023_) -> {
              list.add(p_155023_);
 -            m_154998_(p_154996_, p_154997_, entry.getIntValue(), ((AbstractCookingRecipe)p_155023_).m_43750_());
-+            createExperience(p_154996_, p_154997_, entry.getIntValue(), ((AbstractCookingRecipe) p_155023_).m_43750_(), blockposition, entityplayer, itemstack, amount); // CraftBukkit
++            createExperience(p_154996_, p_154997_, entry.getIntValue(), ((AbstractCookingRecipe)p_155023_).m_43750_(), blockPos, player, itemstack, amount); // CraftBukkit
           });
        }
  
        return list;
     }
  
--   private static void m_154998_(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_) {
-+   private static void createExperience(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_, BlockPos blockposition, Player entityhuman, ItemStack itemstack, int amount) { // CraftBukkit
++   private static AtomicReference<BlockPos> catserver$newExpPos = new AtomicReference<>(BlockPos.f_121853_);
++   private static AtomicReference<Player> catserver$newExpPlayer = new AtomicReference<>();
++   private static AtomicReference<ItemStack> catserver$newExpItemStack = new AtomicReference<>();
++   private static AtomicInteger catserver$newExpAmount = new AtomicInteger();
++   private static void createExperience(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_, BlockPos pos, Player player, ItemStack item, int amount) {
++      AbstractFurnaceBlockEntity.catserver$newExpPos.set(pos);
++      AbstractFurnaceBlockEntity.catserver$newExpPlayer.set(player);
++      AbstractFurnaceBlockEntity.catserver$newExpItemStack.set(item);
++      AbstractFurnaceBlockEntity.catserver$newExpAmount.set(amount);
++      AbstractFurnaceBlockEntity.m_154998_(p_154999_, p_155000_, p_155001_, p_155002_);
++   }
++
+    private static void m_154998_(ServerLevel p_154999_, Vec3 p_155000_, int p_155001_, float p_155002_) {
        int i = Mth.m_14143_((float)p_155001_ * p_155002_);
        float f = Mth.m_14187_((float)p_155001_ * p_155002_);
        if (f != 0.0F && Math.random() < (double)f) {
           ++i;
        }
- 
 +      // CraftBukkit start - fire FurnaceExtractEvent / BlockExpEvent
 +      BlockExpEvent event;
++      var amount = AbstractFurnaceBlockEntity.catserver$newExpAmount.getAndSet(0);
++      var entityhuman = AbstractFurnaceBlockEntity.catserver$newExpPlayer.getAndSet(null);
++      var blockposition = AbstractFurnaceBlockEntity.catserver$newExpPos.getAndSet(BlockPos.f_121853_);
++      var itemstack = AbstractFurnaceBlockEntity.catserver$newExpItemStack.getAndSet(null);
 +      if (amount != 0) {
-+         event = new FurnaceExtractEvent(( org.bukkit.entity.Player ) entityhuman.getBukkitEntity(), CraftBlock.at(p_154999_, blockposition), org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers.getMaterial(itemstack.m_41720_()), amount, i);
++         event = new FurnaceExtractEvent((org.bukkit.entity.Player) entityhuman.getBukkitEntity(), CraftBlock.at(p_154999_, blockposition), org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers.getMaterial(itemstack.m_41720_()), amount, i);
 +      } else {
 +         event = new BlockExpEvent(CraftBlock.at(p_154999_, blockposition), i);
 +      }
 +      p_154999_.getCraftServer().getPluginManager().callEvent(event);
 +      i = event.getExpToDrop();
 +      // CraftBukkit end
-+
+ 
        ExperienceOrb.m_147082_(p_154999_, p_155000_, i);
     }
++   // CatServer end
  
+    public void m_5809_(StackedContents p_58342_) {
+       for(ItemStack itemstack : this.f_58310_) {
 @@ -485,4 +_,67 @@
        }
  
@@ -311,7 +406,7 @@
 +   }
 +
 +   public Object2IntOpenHashMap<ResourceLocation> getRecipesUsed() {
-+      return this.f_58320_; // PAIL private -> public
++      return this.f_58320_;
 +   }
 +   // CraftBukkit end
  }

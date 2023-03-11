@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.block;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.level.block.AbstractBannerBlock;
@@ -18,7 +19,7 @@ public class CraftBanner extends CraftBlockEntityState<BannerBlockEntity> implem
     private DyeColor base;
     private List<Pattern> patterns;
 
-    public CraftBanner(World world, final BannerBlockEntity tileEntity) {
+    public CraftBanner(World world, BannerBlockEntity tileEntity) {
         super(world, tileEntity);
     }
 

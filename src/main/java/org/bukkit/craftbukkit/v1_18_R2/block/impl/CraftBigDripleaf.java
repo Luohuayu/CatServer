@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftBigDripleaf extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.BigDripleaf, org.bukkit.block.data.type.Dripleaf, org.bukkit.block.data.Directional, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftBigDripleaf extends CraftBlockData implements org.bukkit.block.data.type.BigDripleaf, org.bukkit.block.data.type.Dripleaf, org.bukkit.block.data.Directional, org.bukkit.block.data.Waterlogged {
 
     public CraftBigDripleaf() {
         super();
@@ -13,7 +15,7 @@ public final class CraftBigDripleaf extends org.bukkit.craftbukkit.v1_18_R2.bloc
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftBigDripleaf
+    // org.bukkit.craftbukkit.block.data.type.CraftBigDripleaf
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> TILT = getEnum(net.minecraft.world.level.block.BigDripleafBlock.class, "tilt");
 
@@ -27,7 +29,7 @@ public final class CraftBigDripleaf extends org.bukkit.craftbukkit.v1_18_R2.bloc
         set(TILT, tilt);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.BigDripleafBlock.class, "facing");
 
@@ -46,7 +48,7 @@ public final class CraftBigDripleaf extends org.bukkit.craftbukkit.v1_18_R2.bloc
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.BigDripleafBlock.class, "waterlogged");
 

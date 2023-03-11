@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
 import java.util.List;
+import net.minecraft.world.entity.npc.Villager;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventory;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMerchant;
@@ -18,7 +19,7 @@ public class CraftAbstractVillager extends CraftAgeable implements AbstractVilla
 
     @Override
     public net.minecraft.world.entity.npc.AbstractVillager getHandle() {
-        return (net.minecraft.world.entity.npc.AbstractVillager) entity;
+        return (Villager) entity;
     }
 
     @Override

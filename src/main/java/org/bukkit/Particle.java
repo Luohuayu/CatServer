@@ -37,7 +37,7 @@ public enum Particle {
     LAVA,
     CLOUD,
     /**
-     * Uses {@link DustOptions} as DataType
+     * Uses {@link Particle.DustOptions} as DataType
      */
     REDSTONE(DustOptions.class),
     SNOWBALL,

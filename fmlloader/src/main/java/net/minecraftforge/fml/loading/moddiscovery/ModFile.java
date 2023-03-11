@@ -53,9 +53,9 @@ public class ModFile implements IModFile {
     private Throwable scanError;
     private final SecureJar jar;
     private final Type modFileType;
-    private final Manifest manifest;
+    private final Manifest     manifest;
     private final IModLocator locator;
-    private IModFileInfo modFileInfo;
+    private       IModFileInfo modFileInfo;
     private ModFileScanData fileModFileScanData;
     private CompletableFuture<ModFileScanData> futureScanResult;
     private List<CoreModFile> coreMods;

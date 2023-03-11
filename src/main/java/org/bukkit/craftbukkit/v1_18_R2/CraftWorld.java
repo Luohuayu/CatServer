@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
@@ -37,10 +39,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.SortedArraySet;
 import net.minecraft.util.Unit;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LightningBolt;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.ChunkPos;
@@ -122,8 +122,6 @@ import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Consumer;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class CraftWorld extends CraftRegionAccessor implements World {
     public static final int CUSTOM_DIMENSION_OFFSET = 10;
@@ -142,11 +140,10 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     private static final Random rand = new Random();
 
-    public CraftWorld(ServerLevel world, ChunkGenerator gen, BiomeProvider biomeProvider,  Environment env) {
+    public CraftWorld(ServerLevel world, ChunkGenerator gen, BiomeProvider biomeProvider, Environment env) {
         this.world = world;
         this.generator = gen;
         this.biomeProvider = biomeProvider;
-
         environment = env;
     }
 
@@ -249,7 +246,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public boolean unloadChunkRequest(int x, int z) {
-        org.spigotmc.AsyncCatcher.catchOp("chunk unload"); // Spigot
         if (isChunkLoaded(x, z)) {
             world.getChunkSource().removeRegionTicket(TicketType.PLUGIN, new ChunkPos(x, z), 1, Unit.INSTANCE);
         }
@@ -258,7 +254,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     }
 
     private boolean unloadChunk0(int x, int z, boolean save) {
-        org.spigotmc.AsyncCatcher.catchOp("chunk unload"); // Spigot
         if (!isChunkLoaded(x, z)) {
             return true;
         }
@@ -273,26 +268,21 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public boolean regenerateChunk(int x, int z) {
-        org.spigotmc.AsyncCatcher.catchOp("chunk regenerate"); // Spigot
         throw new UnsupportedOperationException("Not supported in this Minecraft version! Unless you can fix it, this is not a bug :)");
         /*
         if (!unloadChunk0(x, z, false)) {
             return false;
         }
-
         final long chunkKey = ChunkCoordIntPair.pair(x, z);
         world.getChunkSource().unloadQueue.remove(chunkKey);
-
         net.minecraft.server.Chunk chunk = world.getChunkSource().generateChunk(x, z);
         PlayerChunk playerChunk = world.getPlayerChunkMap().getChunk(x, z);
         if (playerChunk != null) {
             playerChunk.chunk = chunk;
         }
-
         if (chunk != null) {
             refreshChunk(x, z);
         }
-
         return chunk != null;
         */
     }
@@ -325,7 +315,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public boolean loadChunk(int x, int z, boolean generate) {
-        org.spigotmc.AsyncCatcher.catchOp("chunk load"); // Spigot
         ChunkAccess chunk = world.getChunkSource().getChunk(x, z, generate ? ChunkStatus.FULL : ChunkStatus.EMPTY, true);
 
         // If generate = false, but the chunk already exists, we will get this back.
@@ -525,7 +514,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     @Override
     public LightningStrike strikeLightning(Location loc) {
         net.minecraft.world.entity.LightningBolt lightning = net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(world);
-        lightning.teleportToWithTicket(loc.getX(), loc.getY(), loc.getZ());
+        lightning.moveTo(loc.getX(), loc.getY(), loc.getZ());
         world.strikeLightning(lightning, LightningStrikeEvent.Cause.CUSTOM);
         return (LightningStrike) lightning.getBukkitEntity();
     }
@@ -549,8 +538,8 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         world.captureTreeGeneration = true;
         world.captureBlockStates = true;
         boolean grownTree = generateTree(loc, type);
-        world.captureTreeGeneration = false;
         world.captureBlockStates = false;
+        world.captureTreeGeneration = false;
         if (grownTree) { // Copy block data to delegate
             for (BlockState blockstate : world.capturedBlockStates.values()) {
                 BlockPos position = ((CraftBlockState) blockstate).getPosition();
@@ -629,7 +618,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public long getGameTime() {
-        return world.levelData.getGameTime();
+        return world.worldDataServer.getGameTime(); // CatServer
     }
 
     @Override
@@ -748,7 +737,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public void setBiome(int x, int z, Biome bio) {
-        for (int y =  getMinHeight(); y < getMaxHeight(); y++) {
+        for (int y = getMinHeight(); y < getMaxHeight(); y++) {
             setBiome(x, y, z, bio);
         }
     }
@@ -826,7 +815,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public Collection<Entity> getNearbyEntities(BoundingBox boundingBox, Predicate<Entity> filter) {
-        org.spigotmc.AsyncCatcher.catchOp("getNearbyEntities"); // Spigot
         Validate.notNull(boundingBox, "Bounding box is null!");
 
         AABB bb = new AABB(boundingBox.getMinX(), boundingBox.getMinY(), boundingBox.getMinZ(), boundingBox.getMaxX(), boundingBox.getMaxY(), boundingBox.getMaxZ());
@@ -981,7 +969,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public void save() {
-        org.spigotmc.AsyncCatcher.catchOp("world save"); // Spigot
         this.server.checkSaveState();
         boolean oldSave = world.noSave;
 
@@ -1003,7 +990,13 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public void setDifficulty(Difficulty difficulty) {
+        // CatServer start
+        if (this.getHandle().convertable != this.getHandle().getServer().storageSource) {
+            this.getHandle().worldDataServer.setDifficulty(net.minecraft.world.Difficulty.byId(difficulty.getValue()));
+            return;
+        }
         this.getHandle().getServer().getWorldData().setDifficulty(net.minecraft.world.Difficulty.byId(difficulty.getValue()));
+        // CatServer end
     }
 
     @Override
@@ -1160,33 +1153,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
         FallingBlockEntity entity = FallingBlockEntity.fall(world, new BlockPos(location.getX(), location.getY(), location.getZ()), ((CraftBlockData) data).getState(), SpawnReason.CUSTOM);
         return (FallingBlock) entity.getBukkitEntity();
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends Entity> T addEntity(net.minecraft.world.entity.Entity entity, SpawnReason reason) throws IllegalArgumentException {
-        return addEntity(entity, reason, null);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends Entity> T addEntity(net.minecraft.world.entity.Entity entity, SpawnReason reason, Consumer<T> function) throws IllegalArgumentException {
-        Preconditions.checkArgument(entity != null, "Cannot spawn null entity");
-
-        if (entity instanceof Mob) {
-            ((Mob) entity).finalizeSpawn(getHandle(), getHandle().getCurrentDifficultyAt(entity.blockPosition()), MobSpawnType.COMMAND, (SpawnGroupData) null, null);
-        }
-
-        if (function != null) {
-            function.accept((T) entity.getBukkitEntity());
-        }
-
-        world.addEntity(entity, reason);
-        return (T) entity.getBukkitEntity();
-    }
-
-    public <T extends Entity> T spawn(Location location, Class<T> clazz, Consumer<T> function, SpawnReason reason) throws IllegalArgumentException {
-        net.minecraft.world.entity.Entity entity = createEntity(location, clazz);
-
-        return addEntity(entity, reason, function);
     }
 
     @Override
@@ -1591,7 +1557,8 @@ public class CraftWorld extends CraftRegionAccessor implements World {
 
     @Override
     public void playSound(Entity entity, Sound sound, org.bukkit.SoundCategory category, float volume, float pitch) {
-        if (!(entity instanceof CraftEntity craftEntity) || entity.getWorld() != this || sound == null || category == null) return;
+        if (!(entity instanceof CraftEntity craftEntity) || entity.getWorld() != this || sound == null || category == null)
+            return;
 
         ClientboundSoundEntityPacket packet = new ClientboundSoundEntityPacket(CraftSound.getSoundEffect(sound), net.minecraft.sounds.SoundSource.valueOf(category.name()), craftEntity.getHandle(), volume, pitch);
         ChunkMap.TrackedEntity entityTracker = getHandle().getChunkSource().chunkMap.entityMap.get(entity.getEntityId());
@@ -1601,6 +1568,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     }
 
     private static Map<String, GameRules.Key<?>> gamerules;
+
     public static synchronized Map<String, GameRules.Key<?>> getGameRulesNMS() {
         if (gamerules != null) {
             return gamerules;
@@ -1618,6 +1586,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
     }
 
     private static Map<String, GameRules.Type<?>> gameruleDefinitions;
+
     public static synchronized Map<String, GameRules.Type<?>> getGameRuleDefinitions() {
         if (gameruleDefinitions != null) {
             return gameruleDefinitions;
@@ -1787,7 +1756,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         if (data != null && !particle.getDataType().isInstance(data)) {
             throw new IllegalArgumentException("data should be " + particle.getDataType() + " got " + data.getClass());
         }
-        // FoxServer TODO
+        // CatServer TODO
         getHandle().sendParticles(
                 CraftParticle.toNMS(particle, data), // Particle
                 x, y, z, // Position
@@ -1804,44 +1773,6 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         BlockPos nearest = getHandle().findNearestMapFeature(TagKey.create(net.minecraft.core.Registry.CONFIGURED_STRUCTURE_FEATURE_REGISTRY, CraftNamespacedKey.toMinecraft(structureType.getKey())), originPos, radius, findUnexplored);
         return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
     }
-
-    @Override
-    public int getViewDistance() {
-        return world.spigotConfig.viewDistance;
-    }
-
-    @Override
-    public int getSimulationDistance() {
-        return world.spigotConfig.simulationDistance;
-    }
-
-    // Spigot start
-    private final Spigot spigot = new Spigot() {
-
-        @Override
-        public LightningStrike strikeLightning(Location loc, boolean isSilent) {
-            LightningBolt lightning = net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(world);
-            lightning.moveTo(loc.getX(), loc.getY(), loc.getZ());
-            lightning.isSilent = isSilent;
-            world.strikeLightning(lightning);
-            return (LightningStrike) lightning.getBukkitEntity();
-        }
-
-        @Override
-        public LightningStrike strikeLightningEffect(Location loc, boolean isSilent) {
-            LightningBolt lightning = net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(world);
-            lightning.moveTo(loc.getX(), loc.getY(), loc.getZ());
-            lightning.visualOnly = true;
-            lightning.isSilent = isSilent;
-            return (LightningStrike) lightning.getBukkitEntity();
-        }
-
-    };
-
-    public Spigot spigot() {
-        return spigot;
-    }
-    // Spigot end
 
     @Override
     public Raid locateNearestRaid(Location location, int radius) {
@@ -1887,9 +1818,41 @@ public class CraftWorld extends CraftRegionAccessor implements World {
         }
     }
 
+    // Spigot start
+    @Override
+    public int getViewDistance() {
+        return world.spigotConfig.viewDistance;
+    }
 
     @Override
-    public boolean generateTree(@NotNull Location location, @NotNull Random random, @NotNull TreeType type, @Nullable Predicate<BlockState> statePredicate) {
-        return false;
+    public int getSimulationDistance() {
+        return world.spigotConfig.simulationDistance;
     }
+    // Spigot end
+
+    // Spigot start
+    private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
+        @Override
+        public LightningStrike strikeLightning(Location loc, boolean isSilent) {
+            LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(world);
+            lightning.moveTo(loc.getX(), loc.getY(), loc.getZ());
+            lightning.isSilent = isSilent;
+            world.strikeLightning(lightning);
+            return (LightningStrike) lightning.getBukkitEntity();
+        }
+
+        @Override
+        public LightningStrike strikeLightningEffect(Location loc, boolean isSilent) {
+            LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(world);
+            lightning.moveTo(loc.getX(), loc.getY(), loc.getZ());
+            lightning.visualOnly = true;
+            lightning.isSilent = isSilent;
+            return (LightningStrike) lightning.getBukkitEntity();
+        }
+    };
+
+    public org.bukkit.World.Spigot spigot() {
+        return spigot;
+    }
+    // Spigot end
 }

@@ -6,11 +6,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.entity.EntityEvent;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Called when an entity attempts to ride another entity.
- */
 public class EntityMountEvent extends EntityEvent implements Cancellable {
-
     private static final HandlerList handlers = new HandlerList();
     private boolean cancelled;
     private final Entity mount;

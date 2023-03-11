@@ -5,21 +5,27 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import jline.Terminal;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
 
 public class ColouredConsoleSender extends CraftConsoleCommandSender {
+    private final Terminal terminal;
     private final Map<ChatColor, String> replacements = new EnumMap<ChatColor, String>(ChatColor.class);
     private final ChatColor[] colors = ChatColor.values();
+    private final boolean jansiPassthrough;
     private static final char ANSI_ESC_CHAR = '\u001B';
     private static final String RGB_STRING = String.valueOf(ANSI_ESC_CHAR) + "[38;2;%d;%d;%dm";
     private static final Pattern RBG_TRANSLATE = Pattern.compile(String.valueOf(ChatColor.COLOR_CHAR) + "x(" + String.valueOf(ChatColor.COLOR_CHAR) + "[A-F0-9]){6}", Pattern.CASE_INSENSITIVE);
 
     protected ColouredConsoleSender() {
         super();
+        this.terminal = ((CraftServer) getServer()).getReader().getTerminal();
+        this.jansiPassthrough = Boolean.getBoolean("jansi.passthrough");
 
         replacements.put(ChatColor.BLACK, Ansi.ansi().a(Attribute.RESET).fg(Ansi.Color.BLACK).boldOff().toString());
         replacements.put(ChatColor.DARK_BLUE, Ansi.ansi().a(Attribute.RESET).fg(Ansi.Color.BLUE).boldOff().toString());
@@ -48,16 +54,20 @@ public class ColouredConsoleSender extends CraftConsoleCommandSender {
     @Override
     public void sendMessage(String message) {
         // support jansi passthrough VM option when jansi doesn't detect an ANSI supported terminal
-        if (!conversationTracker.isConversingModaly()) {
-            String result = convertRGBColors(message);
-            for (ChatColor color : colors) {
-                if (replacements.containsKey(color)) {
-                    result = result.replaceAll("(?i)" + color.toString(), replacements.get(color));
-                } else {
-                    result = result.replaceAll("(?i)" + color.toString(), "");
+        if (jansiPassthrough || terminal.isAnsiSupported()) {
+            if (!conversationTracker.isConversingModaly()) {
+                String result = convertRGBColors(message);
+                for (ChatColor color : colors) {
+                    if (replacements.containsKey(color)) {
+                        result = result.replaceAll("(?i)" + color.toString(), replacements.get(color));
+                    } else {
+                        result = result.replaceAll("(?i)" + color.toString(), "");
+                    }
                 }
+                System.out.println(result + Ansi.ansi().reset().toString());
             }
-            System.out.println(result + Ansi.ansi().reset().toString());
+        } else {
+            super.sendMessage(message);
         }
     }
 

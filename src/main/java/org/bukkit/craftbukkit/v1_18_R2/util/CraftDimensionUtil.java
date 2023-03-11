@@ -2,6 +2,7 @@ package org.bukkit.craftbukkit.v1_18_R2.util;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.LevelStem;
 
 public class CraftDimensionUtil {
 
@@ -9,12 +10,12 @@ public class CraftDimensionUtil {
     }
 
     public static ResourceKey<Level> getMainDimensionKey(Level world) {
-        ResourceKey<Level> typeKey = world.dimension();
-        if (typeKey == Level.OVERWORLD) {
+        ResourceKey<LevelStem> typeKey = world.getTypeKey();
+        if (typeKey == LevelStem.OVERWORLD) {
             return Level.OVERWORLD;
-        } else if (typeKey == Level.NETHER) {
+        } else if (typeKey == LevelStem.NETHER) {
             return Level.NETHER;
-        } else if (typeKey == Level.END) {
+        } else if (typeKey == LevelStem.END) {
             return Level.END;
         }
 

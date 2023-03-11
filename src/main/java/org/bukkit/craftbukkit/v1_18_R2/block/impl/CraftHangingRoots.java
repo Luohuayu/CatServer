@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftHangingRoots extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftHangingRoots extends CraftBlockData implements org.bukkit.block.data.Waterlogged {
 
     public CraftHangingRoots() {
         super();
@@ -13,7 +15,7 @@ public final class CraftHangingRoots extends org.bukkit.craftbukkit.v1_18_R2.blo
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.HangingRootsBlock.class, "waterlogged");
 

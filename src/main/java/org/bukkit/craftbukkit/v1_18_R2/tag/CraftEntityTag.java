@@ -1,10 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.tag;
 
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import org.bukkit.Registry;

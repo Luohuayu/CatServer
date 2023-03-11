@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import static org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemFactory.*;
 import com.google.common.collect.ImmutableMap.Builder;
 import java.util.Map;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import org.bukkit.Color;

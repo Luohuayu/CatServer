@@ -1,6 +1,12 @@
 --- a/net/minecraft/world/item/BucketItem.java
 +++ b/net/minecraft/world/item/BucketItem.java
-@@ -5,6 +_,8 @@
+@@ -1,10 +_,14 @@
+ package net.minecraft.world.item;
+ 
+ import javax.annotation.Nullable;
++
++import catserver.server.CatServerCaptures;
+ import net.minecraft.advancements.CriteriaTriggers;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.core.particles.ParticleTypes;
@@ -20,8 +26,7 @@
 +import org.bukkit.event.player.PlayerBucketFillEvent;
  
  public class BucketItem extends Item implements DispensibleContainerItem {
--   private final Fluid f_40687_;
-+   public final Fluid f_40687_;
+    private final Fluid f_40687_;
  
 +   // Forge: Use the other constructor that takes a Supplier
 +   @Deprecated
@@ -48,23 +53,20 @@
        if (blockhitresult.m_6662_() == HitResult.Type.MISS) {
           return InteractionResultHolder.m_19098_(itemstack);
        } else if (blockhitresult.m_6662_() != HitResult.Type.BLOCK) {
-@@ -53,14 +_,27 @@
+@@ -53,14 +_,24 @@
                 BlockState blockstate1 = p_40703_.m_8055_(blockpos);
                 if (blockstate1.m_60734_() instanceof BucketPickup) {
                    BucketPickup bucketpickup = (BucketPickup)blockstate1.m_60734_();
-+
 +                  // CraftBukkit start
-+                  ItemStack dummyFluid = bucketpickup.m_142598_( DummyGeneratorAccess.INSTANCE, blockpos, blockstate1);
++                  ItemStack dummyFluid = bucketpickup.m_142598_(DummyGeneratorAccess.INSTANCE, blockpos, blockstate1);
 +                  if (dummyFluid.m_41619_()) return InteractionResultHolder.m_19100_(itemstack); // Don't fire event if the bucket won't be filled.
-+                  PlayerBucketFillEvent event = CraftEventFactory.callPlayerBucketFillEvent(( ServerLevel ) p_40703_, p_40704_, blockpos, blockpos, blockhitresult.m_82434_(), itemstack, dummyFluid.m_41720_());
-+
++                  PlayerBucketFillEvent event = CraftEventFactory.callPlayerBucketFillEvent((ServerLevel) p_40703_, p_40704_, blockpos, blockpos, blockhitresult.m_82434_(), itemstack, dummyFluid.m_41720_());
 +                  if (event.isCancelled()) {
 +                     ((ServerPlayer) p_40704_).f_8906_.m_141995_(new ClientboundBlockUpdatePacket(p_40703_, blockpos)); // SPIGOT-5163 (see PlayerInteractManager)
 +                     ((ServerPlayer) p_40704_).getBukkitEntity().updateInventory(); // SPIGOT-4541
 +                     return InteractionResultHolder.m_19100_(itemstack);
 +                  }
 +                  // CraftBukkit end
-+
                    ItemStack itemstack1 = bucketpickup.m_142598_(p_40703_, blockpos, blockstate1);
                    if (!itemstack1.m_41619_()) {
                       p_40704_.m_36246_(Stats.f_12982_.m_12902_(this));
@@ -85,31 +87,34 @@
 -               BlockPos blockpos2 = blockstate.m_60734_() instanceof LiquidBlockContainer && this.f_40687_ == Fluids.f_76193_ ? blockpos : blockpos1;
 -               if (this.m_142073_(p_40704_, p_40703_, blockpos2, blockhitresult)) {
 +               BlockPos blockpos2 = canBlockContainFluid(p_40703_, blockpos, blockstate) ? blockpos : blockpos1;
-+               if (this.emptyContents(p_40704_, p_40703_, blockpos2, blockhitresult, blockhitresult.m_82434_(), blockpos, itemstack)) { // CraftBukkit)) {
++               if (this.emptyContents(p_40704_, p_40703_, blockpos2, blockhitresult, blockhitresult.m_82434_(), blockpos, itemstack)) { // CraftBukkit
                    this.m_142131_(p_40704_, p_40703_, itemstack, blockpos2);
                    if (p_40704_ instanceof ServerPlayer) {
                       CriteriaTriggers.f_10591_.m_59469_((ServerPlayer)p_40704_, blockpos2, itemstack);
-@@ -97,8 +_,12 @@
- 
+@@ -98,6 +_,13 @@
     public void m_142131_(@Nullable Player p_150711_, Level p_150712_, ItemStack p_150713_, BlockPos p_150714_) {
     }
--
-    public boolean m_142073_(@Nullable Player p_150716_, Level p_150717_, BlockPos p_150718_, @Nullable BlockHitResult p_150719_) {
-+           return emptyContents(p_150716_, p_150717_, p_150718_, p_150719_, null, null, null);
-+}
+ 
++   public boolean emptyContents(Player p_150716_, Level p_150717_, BlockPos p_150718_, @Nullable BlockHitResult p_150719_, Direction direction, BlockPos clicked, ItemStack itemstack) {
++      CatServerCaptures.getCatServerCaptures().captureDirection(direction);
++      CatServerCaptures.getCatServerCaptures().captureBlockPos(clicked);
++      CatServerCaptures.getCatServerCaptures().captureItemStack(itemstack);
++      return this.m_142073_(p_150716_, p_150717_, p_150718_, p_150719_);
++   }
 +
-+   public boolean emptyContents(@Nullable Player p_150716_, Level p_150717_, BlockPos p_150718_, @Nullable BlockHitResult p_150719_, Direction enumdirection, BlockPos clicked, ItemStack itemstack) {
-+      // CraftBukkit end
+    public boolean m_142073_(@Nullable Player p_150716_, Level p_150717_, BlockPos p_150718_, @Nullable BlockHitResult p_150719_) {
        if (!(this.f_40687_ instanceof FlowingFluid)) {
           return false;
-       } else {
-@@ -107,8 +_,18 @@
+@@ -107,8 +_,21 @@
           Material material = blockstate.m_60767_();
           boolean flag = blockstate.m_60722_(this.f_40687_);
           boolean flag1 = blockstate.m_60795_() || flag || block instanceof LiquidBlockContainer && ((LiquidBlockContainer)block).m_6044_(p_150717_, p_150718_, blockstate, this.f_40687_);
 +         // CraftBukkit start
++         var clicked = CatServerCaptures.getCatServerCaptures().getCaptureBlockPos() == null ? BlockPos.f_121853_ : CatServerCaptures.getCatServerCaptures().getCaptureBlockPos();
++         var enumdirection = CatServerCaptures.getCatServerCaptures().getCaptureDirection() == null ? Direction.UP : CatServerCaptures.getCatServerCaptures().getCaptureDirection();
++         var itemstack = CatServerCaptures.getCatServerCaptures().getCaptureItemStack() == null ? ItemStack.f_41583_ : CatServerCaptures.getCatServerCaptures().getCaptureItemStack();
 +         if (flag1 && p_150716_ != null) {
-+            PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent((ServerLevel ) p_150717_, p_150716_, p_150718_, clicked, enumdirection, itemstack);
++            PlayerBucketEmptyEvent event = CraftEventFactory.callPlayerBucketEmptyEvent((ServerLevel) p_150717_, p_150716_, p_150718_, clicked, enumdirection, itemstack);
 +            if (event.isCancelled()) {
 +               ((ServerPlayer) p_150716_).f_8906_.m_141995_(new ClientboundBlockUpdatePacket(p_150717_, p_150718_)); // SPIGOT-4238: needed when looking through entity
 +               ((ServerPlayer) p_150716_).getBukkitEntity().updateInventory(); // SPIGOT-4541
@@ -132,7 +137,7 @@
              ((LiquidBlockContainer)block).m_7361_(p_150717_, p_150718_, blockstate, ((FlowingFluid)this.f_40687_).m_76068_(false));
              this.m_7718_(p_150716_, p_150717_, p_150718_);
              return true;
-@@ -140,8 +_,25 @@
+@@ -140,8 +_,29 @@
     }
  
     protected void m_7718_(@Nullable Player p_40696_, LevelAccessor p_40697_, BlockPos p_40698_) {
@@ -157,5 +162,9 @@
 +   private boolean canBlockContainFluid(Level worldIn, BlockPos posIn, BlockState blockstate)
 +   {
 +      return blockstate.m_60734_() instanceof LiquidBlockContainer && ((LiquidBlockContainer)blockstate.m_60734_()).m_6044_(worldIn, posIn, blockstate, this.f_40687_);
++   }
++
++   public Fluid getContent() {
++      return f_40687_;
     }
  }

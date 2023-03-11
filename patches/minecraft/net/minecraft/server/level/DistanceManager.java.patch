@@ -1,5 +1,14 @@
 --- a/net/minecraft/server/level/DistanceManager.java
 +++ b/net/minecraft/server/level/DistanceManager.java
+@@ -45,7 +_,7 @@
+    private static final int f_183899_ = 32;
+    private static final int f_183900_ = 33;
+    final Long2ObjectMap<ObjectSet<ServerPlayer>> f_140760_ = new Long2ObjectOpenHashMap<>();
+-   final Long2ObjectOpenHashMap<SortedArraySet<Ticket<?>>> f_140761_ = new Long2ObjectOpenHashMap<>();
++   public final Long2ObjectOpenHashMap<SortedArraySet<Ticket<?>>> f_140761_ = new Long2ObjectOpenHashMap<>();
+    private final DistanceManager.ChunkTicketTracker f_140762_ = new DistanceManager.ChunkTicketTracker();
+    private final DistanceManager.FixedPlayerDistanceChunkTracker f_140763_ = new DistanceManager.FixedPlayerDistanceChunkTracker(8);
+    private final TickingTracker f_183901_ = new TickingTracker();
 @@ -59,6 +_,8 @@
     private long f_140771_;
     private int f_183902_ = 10;
@@ -9,13 +18,39 @@
     protected DistanceManager(Executor p_140774_, Executor p_140775_) {
        ProcessorHandle<Runnable> processorhandle = ProcessorHandle.m_18714_("player ticket throttler", p_140775_::execute);
        ChunkTaskPriorityQueueSorter chunktaskpriorityqueuesorter = new ChunkTaskPriorityQueueSorter(ImmutableList.of(processorhandle), p_140774_, 4);
+@@ -119,10 +_,22 @@
+       }
+ 
+       if (!this.f_140765_.isEmpty()) {
+-         this.f_140765_.forEach((p_183908_) -> {
++         // CraftBukkit start
++         // Iterate pending chunk updates with protection against concurrent modification exceptions
++         java.util.Iterator<ChunkHolder> iter = this.f_140765_.iterator();
++         int expectedSize = this.f_140765_.size();
++         do {
++            ChunkHolder p_183908_ = iter.next();
++            iter.remove();
++            expectedSize--;
+             p_183908_.m_143003_(p_140806_, this.f_140770_);
+-         });
+-         this.f_140765_.clear();
++            // Reset iterator if set was modified using add()
++            if (this.f_140765_.size() != expectedSize) {
++               expectedSize = this.f_140765_.size();
++               iter = this.f_140765_.iterator();
++            }
++         } while (iter.hasNext());
++         // CraftBukkit end
+          return true;
+       } else {
+          if (!this.f_140769_.isEmpty()) {
 @@ -164,6 +_,25 @@
           this.f_140762_.m_140715_(p_140785_, p_140786_.m_9433_(), true);
        }
  
 +      if (p_140786_.isForceTicks()) {
-+          SortedArraySet<Ticket<?>> tickets = forcedTickets.computeIfAbsent(p_140785_, e -> SortedArraySet.m_14246_(4));
-+          tickets.m_14253_(ticket);
++         SortedArraySet<Ticket<?>> tickets = forcedTickets.computeIfAbsent(p_140785_, e -> SortedArraySet.m_14246_(4));
++         tickets.m_14253_(ticket);
 +      }
 +   }
 +
@@ -35,16 +70,16 @@
     }
  
     void m_140818_(long p_140819_, Ticket<?> p_140820_) {
-@@ -176,31 +_,88 @@
+@@ -176,31 +_,108 @@
        }
  
        this.f_140762_.m_140715_(p_140819_, m_140797_(sortedarrayset), false);
 +
 +      if (p_140820_.isForceTicks()) {
-+          SortedArraySet<Ticket<?>> tickets = forcedTickets.get(p_140819_);
-+          if (tickets != null) {
-+              tickets.remove(p_140820_);
-+          }
++         SortedArraySet<Ticket<?>> tickets = forcedTickets.get(p_140819_);
++         if (tickets != null) {
++            tickets.remove(p_140820_);
++         }
 +      }
 +   }
 +
@@ -90,6 +125,26 @@
 +      // CraftBukkit end
 +   }
 +
++   // CraftBukkit start
++   public <T> void removeAllTicketsFor(TicketType<T> ticketType, int ticketLevel, T ticketIdentifier) {
++      Ticket<T> target = new Ticket<>(ticketType, ticketLevel, ticketIdentifier);
++
++      for (java.util.Iterator<Entry<SortedArraySet<Ticket<?>>>> iterator = this.f_140761_.long2ObjectEntrySet().fastIterator(); iterator.hasNext();) {
++         Entry<SortedArraySet<Ticket<?>>> entry = iterator.next();
++         SortedArraySet<Ticket<?>> tickets = entry.getValue();
++         if (tickets.remove(target)) {
++            // copied from removeTicket
++            this.f_140762_.m_140715_(entry.getLongKey(), m_140797_(tickets), false);
++
++            // can't use entry after it's removed
++            if (tickets.isEmpty()) {
++               iterator.remove();
++            }
++         }
++      }
++   }
++   // CraftBukkit end
++
     public <T> void m_140840_(TicketType<T> p_140841_, ChunkPos p_140842_, int p_140843_, T p_140844_) {
 -      Ticket<T> ticket = new Ticket<>(p_140841_, 33 - p_140843_, p_140844_);
 +      addRegionTicket(p_140841_, p_140842_, p_140843_, p_140844_, false);
@@ -131,37 +186,18 @@
     }
  
 +   public boolean shouldForceTicks(long chunkPos) {
-+       SortedArraySet<Ticket<?>> tickets = forcedTickets.get(chunkPos);
-+       return tickets != null && !tickets.isEmpty();
++      SortedArraySet<Ticket<?>> tickets = forcedTickets.get(chunkPos);
++      return tickets != null && !tickets.isEmpty();
 +   }
 +
     private void m_143207_(String p_143208_) {
        try {
           FileOutputStream fileoutputstream = new FileOutputStream(new File(p_143208_));
-@@ -322,6 +_,26 @@
-       return this.f_183901_;
-    }
+@@ -548,7 +_,6 @@
+          }
  
-+   // CraftBukkit start
-+   public <T> void removeAllTicketsFor(TicketType<T> ticketType, int ticketLevel, T ticketIdentifier) {
-+      Ticket<T> target = new Ticket<>(ticketType, ticketLevel, ticketIdentifier);
-+
-+      for (java.util.Iterator<Entry<SortedArraySet<Ticket<?>>>> iterator = this.f_140761_.long2ObjectEntrySet().fastIterator(); iterator.hasNext();) {
-+         Entry<SortedArraySet<Ticket<?>>> entry = iterator.next();
-+         SortedArraySet<Ticket<?>> tickets = entry.getValue();
-+         if (tickets.remove(target)) {
-+            // copied from removeTicket
-+            this.f_140762_.m_140715_(entry.getLongKey(), m_140797_(tickets), false);
-+
-+            // can't use entry after it's removed
-+            if (tickets.isEmpty()) {
-+               iterator.remove();
-+            }
-+         }
-+      }
-+   }
-+   // CraftBukkit end
-+   
-    public void m_201910_() {
-       ImmutableSet<TicketType<?>> immutableset = ImmutableSet.of(TicketType.f_9449_, TicketType.f_9448_, TicketType.f_9446_);
-       ObjectIterator<Entry<SortedArraySet<Ticket<?>>>> objectiterator = this.f_140761_.long2ObjectEntrySet().fastIterator();
+       }
+-
+       private boolean m_140932_(int p_140933_) {
+          return p_140933_ <= this.f_140905_ - 2;
+       }

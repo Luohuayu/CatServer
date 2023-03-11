@@ -1,0 +1,156 @@
+From 4cd2791bec1c2045dc5c74ebce364c5c74838c76 Mon Sep 17 00:00:00 2001
+From: Spottedleaf <Spottedleaf@users.noreply.github.com>
+Date: Tue, 9 Jul 2019 02:18:54 -0700
+Subject: [PATCH] Remove DataWatcher Locking
+
+The lock in DataWatcher is used to prevent concurrent modifications,
+however any modifications to this map only occur on initialization of
+an Entity in its constructor.
+
+Every other access is through a readlock, which allows the threads to
+pass if there is no thread holding the writelock.
+
+Since the writelock is only obtained in the constructor of the Entity,
+the further readlocks are actually useless.
+
+This patch also changes the entries map to be fastutil
+int2objectopenhashmap for performance.
+
+diff --git a/src/main/java/net/minecraft/network/syncher/DataWatcher.java b/src/main/java/net/minecraft/network/syncher/DataWatcher.java
+index b7e7fd98a..879300777 100644
+--- a/src/main/java/net/minecraft/network/syncher/DataWatcher.java
++++ b/src/main/java/net/minecraft/network/syncher/DataWatcher.java
+@@ -32,7 +32,7 @@ public class DataWatcher {
+     private static final int MAX_ID_VALUE = 254;
+     private final Entity entity;
+     private final Int2ObjectMap<DataWatcher.Item<?>> itemsById = new Int2ObjectOpenHashMap();
+-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
++    // private final ReadWriteLock lock = new ReentrantReadWriteLock(); // Spigot - not required
+     private boolean isEmpty = true;
+     private boolean isDirty;
+ 
+@@ -80,7 +80,9 @@ public class DataWatcher {
+         }
+     }
+ 
++    public boolean registrationLocked; // Spigot
+     public <T> void define(DataWatcherObject<T> datawatcherobject, T t0) {
++        if (this.registrationLocked) throw new IllegalStateException("Registering datawatcher object after entity initialization"); // Spigot
+         int i = datawatcherobject.getId();
+ 
+         if (i > 254) {
+@@ -99,13 +101,15 @@ public class DataWatcher {
+     private <T> void createDataItem(DataWatcherObject<T> datawatcherobject, T t0) {
+         DataWatcher.Item<T> datawatcher_item = new DataWatcher.Item<>(datawatcherobject, t0);
+ 
+-        this.lock.writeLock().lock();
++        // this.lock.writeLock().lock(); // Spigot - not required
+         this.itemsById.put(datawatcherobject.getId(), datawatcher_item);
+         this.isEmpty = false;
+-        this.lock.writeLock().unlock();
++        // this.lock.writeLock().unlock(); // Spigot - not required
+     }
+ 
+     private <T> DataWatcher.Item<T> getItem(DataWatcherObject<T> datawatcherobject) {
++        // Spigot start
++        /*
+         this.lock.readLock().lock();
+ 
+         DataWatcher.Item datawatcher_item;
+@@ -123,6 +127,9 @@ public class DataWatcher {
+         }
+ 
+         return datawatcher_item;
++        */
++        return (DataWatcher.Item) this.itemsById.get(datawatcherobject.getId());
++        // Spigot end
+     }
+ 
+     public <T> T get(DataWatcherObject<T> datawatcherobject) {
+@@ -171,7 +178,7 @@ public class DataWatcher {
+         List<DataWatcher.Item<?>> list = null;
+ 
+         if (this.isDirty) {
+-            this.lock.readLock().lock();
++            // this.lock.readLock().lock(); // Spigot - not required
+             ObjectIterator objectiterator = this.itemsById.values().iterator();
+ 
+             while (objectiterator.hasNext()) {
+@@ -187,7 +194,7 @@ public class DataWatcher {
+                 }
+             }
+ 
+-            this.lock.readLock().unlock();
++            // this.lock.readLock().unlock(); // Spigot - not required
+         }
+ 
+         this.isDirty = false;
+@@ -198,7 +205,7 @@ public class DataWatcher {
+     public List<DataWatcher.Item<?>> getAll() {
+         List<DataWatcher.Item<?>> list = null;
+ 
+-        this.lock.readLock().lock();
++        // this.lock.readLock().lock(); // Spigot - not required
+ 
+         DataWatcher.Item datawatcher_item;
+ 
+@@ -209,7 +216,7 @@ public class DataWatcher {
+             }
+         }
+ 
+-        this.lock.readLock().unlock();
++        // this.lock.readLock().unlock(); // Spigot - not required
+         return list;
+     }
+ 
+@@ -255,7 +262,7 @@ public class DataWatcher {
+     }
+ 
+     public void assignValues(List<DataWatcher.Item<?>> list) {
+-        this.lock.writeLock().lock();
++        // this.lock.writeLock().lock(); // Spigot - not required
+ 
+         try {
+             Iterator iterator = list.iterator();
+@@ -270,7 +277,7 @@ public class DataWatcher {
+                 }
+             }
+         } finally {
+-            this.lock.writeLock().unlock();
++            // this.lock.writeLock().unlock(); // Spigot - not required
+         }
+ 
+         this.isDirty = true;
+@@ -290,7 +297,7 @@ public class DataWatcher {
+ 
+     public void clearDirty() {
+         this.isDirty = false;
+-        this.lock.readLock().lock();
++        // this.lock.readLock().lock(); // Spigot - not required
+         ObjectIterator objectiterator = this.itemsById.values().iterator();
+ 
+         while (objectiterator.hasNext()) {
+@@ -299,7 +306,7 @@ public class DataWatcher {
+             datawatcher_item.setDirty(false);
+         }
+ 
+-        this.lock.readLock().unlock();
++        // this.lock.readLock().unlock(); // Spigot - not required
+     }
+ 
+     public static class Item<T> {
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index d05e439b6..a05b4c937 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -356,6 +356,7 @@ public abstract class Entity implements INamableTileEntity, EntityAccess, IComma
+         this.entityData.define(Entity.DATA_POSE, EntityPose.STANDING);
+         this.entityData.define(Entity.DATA_TICKS_FROZEN, 0);
+         this.defineSynchedData();
++        this.getEntityData().registrationLocked = true; // Spigot
+         this.setPos(0.0D, 0.0D, 0.0D);
+         this.eyeHeight = this.getEyeHeight(EntityPose.STANDING, this.dimensions);
+     }
+-- 
+2.25.1
+

@@ -60,7 +60,7 @@ public class CraftItem extends CraftEntity implements Item {
     public void setTicksLived(int value) {
         super.setTicksLived(value);
 
-        // Second field for net.minecraft.world.entity.item.ItemEntity (don't set if lifetime is unlimited)
+        // Second field for EntityItem (don't set if lifetime is unlimited)
         if (!isUnlimitedLifetime()) {
             item.age = value;
         }

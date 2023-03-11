@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import org.apache.commons.lang3.Validate;
@@ -14,13 +15,10 @@ import org.bukkit.FireworkEffect;
 import org.bukkit.FireworkEffect.Type;
 import org.bukkit.Material;
 import org.bukkit.configuration.serialization.DelegateDeserialization;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.ItemMetaKey.Specific;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.ItemMetaKey.Specific.To;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.SerializableMeta;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 import org.bukkit.inventory.meta.FireworkMeta;
 
-@DelegateDeserialization(SerializableMeta.class)
+@DelegateDeserialization(CraftMetaItem.SerializableMeta.class)
 class CraftMetaFirework extends CraftMetaItem implements FireworkMeta {
     /*
        "Fireworks", "Explosion", "Explosions", "Flight", "Type", "Trail", "Flicker", "Colors", "FadeColors";
@@ -37,19 +35,19 @@ class CraftMetaFirework extends CraftMetaItem implements FireworkMeta {
         ---- IntArray: FadeColors
      */
 
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey FIREWORKS = new ItemMetaKey("Fireworks");
     static final ItemMetaKey FLIGHT = new ItemMetaKey("Flight", "power");
     static final ItemMetaKey EXPLOSIONS = new ItemMetaKey("Explosions", "firework-effects");
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey EXPLOSION_COLORS = new ItemMetaKey("Colors");
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey EXPLOSION_TYPE = new ItemMetaKey("Type");
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey EXPLOSION_TRAIL = new ItemMetaKey("Trail");
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey EXPLOSION_FLICKER = new ItemMetaKey("Flicker");
-    @Specific(To.NBT)
+    @ItemMetaKey.Specific(ItemMetaKey.Specific.To.NBT)
     static final ItemMetaKey EXPLOSION_FADE = new ItemMetaKey("FadeColors");
 
     private List<FireworkEffect> effects;

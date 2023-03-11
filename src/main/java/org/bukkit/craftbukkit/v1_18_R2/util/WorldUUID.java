@@ -36,6 +36,7 @@ public final class WorldUUID {
                 }
             }
         }
+        if (!baseDir.exists()) baseDir.mkdirs(); // CatServer - Prevent FileNotFoundException from being thrown on first load
         UUID uuid = UUID.randomUUID();
         DataOutputStream dos = null;
         try {

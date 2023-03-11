@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftFenceGate extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Gate, org.bukkit.block.data.Directional, org.bukkit.block.data.Openable, org.bukkit.block.data.Powerable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftFenceGate extends CraftBlockData implements org.bukkit.block.data.type.Gate, org.bukkit.block.data.Directional, org.bukkit.block.data.Openable, org.bukkit.block.data.Powerable {
 
     public CraftFenceGate() {
         super();
@@ -13,7 +15,7 @@ public final class CraftFenceGate extends org.bukkit.craftbukkit.v1_18_R2.block.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftGate
+    // org.bukkit.craftbukkit.block.data.type.CraftGate
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty IN_WALL = getBoolean(net.minecraft.world.level.block.FenceGateBlock.class, "in_wall");
 
@@ -27,7 +29,7 @@ public final class CraftFenceGate extends org.bukkit.craftbukkit.v1_18_R2.block.
         set(IN_WALL, inWall);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.FenceGateBlock.class, "facing");
 
@@ -46,7 +48,7 @@ public final class CraftFenceGate extends org.bukkit.craftbukkit.v1_18_R2.block.
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftOpenable
+    // org.bukkit.craftbukkit.block.data.CraftOpenable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = getBoolean(net.minecraft.world.level.block.FenceGateBlock.class, "open");
 
@@ -60,7 +62,7 @@ public final class CraftFenceGate extends org.bukkit.craftbukkit.v1_18_R2.block.
         set(OPEN, open);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.FenceGateBlock.class, "powered");
 

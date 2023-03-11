@@ -19,7 +19,6 @@ public interface Advancement extends Keyed {
     @NotNull
     Collection<String> getCriteria();
 
-
     /**
      * Returns the display information for this advancement.
      *

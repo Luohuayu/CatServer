@@ -30,7 +30,7 @@ public abstract class CraftContainer<T extends BaseContainerBlockEntity> extends
     @Override
     public String getCustomName() {
         T container = this.getSnapshot();
-        return container.name != null ? CraftChatMessage.fromComponent(container.getCustomName()) : null;
+        return container.getName() != null ? CraftChatMessage.fromComponent(container.getCustomName()) : null;
     }
 
     @Override
@@ -42,7 +42,7 @@ public abstract class CraftContainer<T extends BaseContainerBlockEntity> extends
     public void applyTo(T container) {
         super.applyTo(container);
 
-        if (this.getSnapshot().name == null) {
+        if (this.getSnapshot().getName() == null) {
             container.setCustomName(null);
         }
     }

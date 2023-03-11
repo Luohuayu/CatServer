@@ -16,7 +16,7 @@ public interface TabCompleter {
      *     command inside of a command block, this will be the player, not
      *     the command block.
      * @param command Command which was executed
-     * @param alias label Alias of the command which was used
+     * @param label Alias of the command which was used
      * @param args The arguments passed to the command, including final
      *     partial argument to be completed
      * @return A List of possible completions for the final argument, or null

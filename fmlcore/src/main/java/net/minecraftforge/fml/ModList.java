@@ -72,7 +72,7 @@ public class ModList
     }
 
     private String fileToLine(IModFile mf) {
-        return String.format(Locale.ENGLISH,"%-50.50s|%-30.30s|%-30.30s|%-20.20s|%-10.10s|Manifest: %s", mf.getFileName(),
+        return String.format(Locale.ENGLISH, "%-50.50s|%-30.30s|%-30.30s|%-20.20s|%-10.10s|Manifest: %s", mf.getFileName(),
                 mf.getModInfos().get(0).getDisplayName(),
                 mf.getModInfos().get(0).getModId(),
                 mf.getModInfos().get(0).getVersion(),

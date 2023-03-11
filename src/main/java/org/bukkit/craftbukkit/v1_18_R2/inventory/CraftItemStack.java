@@ -1,13 +1,15 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
-import catserver.server.inventory.CatForgeItemCap;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import static org.bukkit.craftbukkit.v1_18_R2.inventory.CraftMetaItem.*;
+
+import catserver.server.inventory.CatForgeItemCap;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -39,7 +41,7 @@ public final class CraftItemStack extends ItemStack {
             return net.minecraft.world.item.ItemStack.EMPTY;
         }
 
-        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, original.getAmount(), original.hasForgeItemCap() ? original.getForgeItemCap().getItemCap() : null);
+        net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, original.getAmount(), original.hasForgeItemCap() ? original.getForgeItemCap().getItemCap() : null); // CatServer
         if (original.hasItemMeta()) {
             setItemMeta(stack, original.getItemMeta());
         }
@@ -63,7 +65,7 @@ public final class CraftItemStack extends ItemStack {
         if (hasItemMeta(original)) {
             stack.setItemMeta(getItemMeta(original));
         }
-        CatForgeItemCap.setItemCap(original, stack);
+        CatForgeItemCap.setItemCap(original, stack); // CatServer
         return stack;
     }
 
@@ -94,7 +96,7 @@ public final class CraftItemStack extends ItemStack {
      */
     private CraftItemStack(net.minecraft.world.item.ItemStack item) {
         this.handle = item;
-        CatForgeItemCap.setItemCap(item, this);
+        CatForgeItemCap.setItemCap(item, this); // CatServer
     }
 
     private CraftItemStack(ItemStack item) {

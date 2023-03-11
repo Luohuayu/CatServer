@@ -8,7 +8,11 @@ package net.minecraftforge.network.simple;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.*;
+import net.minecraftforge.network.HandshakeHandler;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.NetworkHooks;
+import net.minecraftforge.network.NetworkInstance;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
@@ -132,7 +136,9 @@ public class IndexedMessageCodec
 
     void consume(FriendlyByteBuf payload, int payloadIndex, Supplier<NetworkEvent.Context> context) {
         if (payload == null) {
-            if (!HandshakeHandler.packetNeedsResponse(context.get().getNetworkManager(), payloadIndex)) {
+            LOGGER.error(SIMPLENET, "Received empty payload on channel {}", Optional.ofNullable(networkInstance).map(NetworkInstance::getChannelName).map(Objects::toString).orElse("MISSING CHANNEL"));
+            if (!HandshakeHandler.packetNeedsResponse(context.get().getNetworkManager(), payloadIndex))
+            {
                 context.get().setPacketHandled(true); //don't disconnect if the corresponding S2C packet that was not recognized on the client doesn't require a proper response
             }
             return;

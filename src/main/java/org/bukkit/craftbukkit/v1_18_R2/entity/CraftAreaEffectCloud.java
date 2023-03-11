@@ -51,7 +51,7 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
 
     @Override
     public int getWaitTime() {
-        return getHandle().waitTime;
+        return getHandle().getWaitTime();
     }
 
     @Override
@@ -71,12 +71,12 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
 
     @Override
     public int getDurationOnUse() {
-        return getHandle().durationOnUse;
+        return getHandle().getDurationOnUse();
     }
 
     @Override
     public void setDurationOnUse(int duration) {
-        getHandle().durationOnUse = duration;
+        getHandle().setDurationOnUse(duration);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
 
     @Override
     public float getRadiusOnUse() {
-        return getHandle().radiusOnUse;
+        return getHandle().getRadiusOnUse();
     }
 
     @Override
@@ -101,7 +101,7 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
 
     @Override
     public float getRadiusPerTick() {
-        return getHandle().radiusPerTick;
+        return getHandle().getRadiusPerTick();
     }
 
     @Override

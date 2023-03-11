@@ -1,12 +1,13 @@
 package org.bukkit;
 
 import com.google.common.collect.Maps;
-import java.util.Map;
-import java.util.regex.Pattern;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * All supported color values for chat
@@ -233,6 +234,11 @@ public enum ChatColor {
         }
     };
 
+    @NotNull
+    public net.md_5.bungee.api.ChatColor asBungee() {
+        return net.md_5.bungee.api.ChatColor.RESET;
+    }
+
     /**
      * The special character which prefixes all chat colour codes. Use this if
      * you need to dynamically convert colour codes from your custom format.
@@ -257,11 +263,6 @@ public enum ChatColor {
         this.isFormat = isFormat;
         this.toString = new String(new char[] {COLOR_CHAR, code});
     }
-
-    @NotNull
-    public net.md_5.bungee.api.ChatColor asBungee() {
-        return net.md_5.bungee.api.ChatColor.RESET;
-    };
 
     /**
      * Gets the char value associated with this color
@@ -301,7 +302,7 @@ public enum ChatColor {
      *
      * @param code Code to check
      * @return Associative {@link org.bukkit.ChatColor} with the given code,
-     *     or null if it doesn't exist
+     * or null if it doesn't exist
      */
     @Nullable
     public static ChatColor getByChar(char code) {
@@ -313,7 +314,7 @@ public enum ChatColor {
      *
      * @param code Code to check
      * @return Associative {@link org.bukkit.ChatColor} with the given code,
-     *     or null if it doesn't exist
+     * or null if it doesn't exist
      */
     @Nullable
     public static ChatColor getByChar(@NotNull String code) {
@@ -345,7 +346,7 @@ public enum ChatColor {
      * character. The alternate color code character will only be replaced if
      * it is immediately followed by 0-9, A-F, a-f, K-O, k-o, R or r.
      *
-     * @param altColorChar The alternate color code character to replace. Ex: {@literal &}
+     * @param altColorChar    The alternate color code character to replace. Ex: {@literal &}
      * @param textToTranslate Text containing the alternate color code character.
      * @return Text containing the ChatColor.COLOR_CODE color code character.
      */

@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftRedstoneWire extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.RedstoneWire, org.bukkit.block.data.AnaloguePowerable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftRedstoneWire extends CraftBlockData implements org.bukkit.block.data.type.RedstoneWire, org.bukkit.block.data.AnaloguePowerable {
 
     public CraftRedstoneWire() {
         super();
@@ -13,7 +15,7 @@ public final class CraftRedstoneWire extends org.bukkit.craftbukkit.v1_18_R2.blo
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftRedstoneWire
+    // org.bukkit.craftbukkit.block.data.type.CraftRedstoneWire
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> NORTH = getEnum(net.minecraft.world.level.block.RedStoneWireBlock.class, "north");
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> EAST = getEnum(net.minecraft.world.level.block.RedStoneWireBlock.class, "east");
@@ -61,7 +63,7 @@ public final class CraftRedstoneWire extends org.bukkit.craftbukkit.v1_18_R2.blo
         return com.google.common.collect.ImmutableSet.of(org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.WEST);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftAnaloguePowerable
+    // org.bukkit.craftbukkit.block.data.CraftAnaloguePowerable
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty POWER = getInteger(net.minecraft.world.level.block.RedStoneWireBlock.class, "power");
 

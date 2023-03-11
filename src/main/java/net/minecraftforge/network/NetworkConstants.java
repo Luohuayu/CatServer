@@ -8,6 +8,8 @@ package net.minecraftforge.network;
 import io.netty.util.AttributeKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.IExtensionPoint.DisplayTest;
+import net.minecraftforge.network.ConnectionData.ModMismatchData;
+import net.minecraftforge.network.HandshakeMessages.S2CModList;
 import net.minecraftforge.network.event.EventNetworkChannel;
 import net.minecraftforge.network.simple.SimpleChannel;
 import org.apache.logging.log4j.Marker;
@@ -21,7 +23,7 @@ public class NetworkConstants
 {
     public static final String FMLNETMARKER = "FML";
     /**
-     * Netversion 3: {@link HandshakeMessages.S2CModList} packet may include a list of non-vanilla synced datapack registry ids.
+     * Netversion 3: {@link S2CModList} packet may include a list of non-vanilla synced datapack registry ids.
      */
     public static final int FMLNETVERSION = 3;
     public static final String NETVERSION = FMLNETMARKER + FMLNETVERSION;
@@ -32,7 +34,7 @@ public class NetworkConstants
     static final AttributeKey<HandshakeHandler> FML_HANDSHAKE_HANDLER = AttributeKey.valueOf("fml:handshake");
     static final AttributeKey<MCRegisterPacketHandler.ChannelList> FML_MC_REGISTRY = AttributeKey.valueOf("minecraft:netregistry");
     static final AttributeKey<ConnectionData> FML_CONNECTION_DATA = AttributeKey.valueOf("fml:conndata");
-    static final AttributeKey<ConnectionData.ModMismatchData> FML_MOD_MISMATCH_DATA = AttributeKey.valueOf("fml:mismatchdata");
+    static final AttributeKey<ModMismatchData> FML_MOD_MISMATCH_DATA = AttributeKey.valueOf("fml:mismatchdata");
     static final ResourceLocation FML_HANDSHAKE_RESOURCE = new ResourceLocation("fml:handshake");
     static final ResourceLocation FML_PLAY_RESOURCE = new ResourceLocation("fml:play");
     static final ResourceLocation MC_REGISTER_RESOURCE = new ResourceLocation("minecraft:register");

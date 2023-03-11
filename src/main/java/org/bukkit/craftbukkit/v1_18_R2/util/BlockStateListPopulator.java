@@ -1,15 +1,22 @@
 package org.bukkit.craftbukkit.v1_18_R2.util;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
-import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockEntityState;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockState;
@@ -17,27 +24,27 @@ import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockState;
 public class BlockStateListPopulator extends DummyGeneratorAccess {
     private final LevelAccessor world;
     private final Map<BlockPos, net.minecraft.world.level.block.state.BlockState> dataMap = new HashMap<>();
-    private final Map<BlockPos, net.minecraft.world.level.block.entity.BlockEntity> entityMap = new HashMap<>();
-    private final LinkedHashMap<net.minecraft.core.BlockPos, CraftBlockState> list;
+    private final Map<BlockPos, BlockEntity> entityMap = new HashMap<>();
+    private final LinkedHashMap<BlockPos, CraftBlockState> list;
 
     public BlockStateListPopulator(LevelAccessor world) {
         this(world, new LinkedHashMap<>());
     }
 
-    private BlockStateListPopulator(LevelAccessor world, LinkedHashMap<net.minecraft.core.BlockPos, CraftBlockState> list) {
+    private BlockStateListPopulator(LevelAccessor world, LinkedHashMap<BlockPos, CraftBlockState> list) {
         this.world = world;
         this.list = list;
     }
 
     @Override
-    public net.minecraft.world.level.block.state.BlockState getBlockState(net.minecraft.core.BlockPos bp) {
-        net.minecraft.world.level.block.state.BlockState blockData = dataMap.get(bp);
+    public BlockState getBlockState(BlockPos bp) {
+        BlockState blockData = dataMap.get(bp);
         return (blockData != null) ? blockData : world.getBlockState(bp);
     }
 
     @Override
-    public FluidState getFluidState(net.minecraft.core.BlockPos bp) {
-        net.minecraft.world.level.block.state.BlockState blockData = dataMap.get(bp);
+    public FluidState getFluidState(BlockPos bp) {
+        BlockState blockData = dataMap.get(bp);
         return (blockData != null) ? blockData.getFluidState() : world.getFluidState(bp);
     }
 
@@ -52,10 +59,11 @@ public class BlockStateListPopulator extends DummyGeneratorAccess {
     }
 
     @Override
-    public boolean setBlock(net.minecraft.core.BlockPos position, net.minecraft.world.level.block.state.BlockState data, int flag) {
+    public boolean setBlock(BlockPos position, BlockState data, int flag) {
         position = position.immutable();
         // remove first to keep insertion order
         list.remove(position);
+
         dataMap.put(position, data);
         if (data.hasBlockEntity()) {
             entityMap.put(position, ((EntityBlock) data.getBlock()).newBlockEntity(position, data));
@@ -86,12 +94,12 @@ public class BlockStateListPopulator extends DummyGeneratorAccess {
     }
 
     public void updateList() {
-        for (BlockState state : list.values()) {
+        for (org.bukkit.block.BlockState state : list.values()) {
             state.update(true);
         }
     }
 
-    public Set<net.minecraft.core.BlockPos> getBlocks() {
+    public Set<BlockPos> getBlocks() {
         return list.keySet();
     }
 
@@ -115,7 +123,7 @@ public class BlockStateListPopulator extends DummyGeneratorAccess {
     }
 
     @Override
-    public boolean isStateAtPosition(BlockPos blockposition, Predicate<net.minecraft.world.level.block.state.BlockState> predicate) {
+    public boolean isStateAtPosition(BlockPos blockposition, Predicate<BlockState> predicate) {
         return predicate.test(getBlockState(blockposition));
     }
 

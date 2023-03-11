@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftCobbleWall extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Wall, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftCobbleWall extends CraftBlockData implements org.bukkit.block.data.type.Wall, org.bukkit.block.data.Waterlogged {
 
     public CraftCobbleWall() {
         super();
@@ -13,7 +15,7 @@ public final class CraftCobbleWall extends org.bukkit.craftbukkit.v1_18_R2.block
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftWall
+    // org.bukkit.craftbukkit.block.data.type.CraftWall
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty UP = getBoolean(net.minecraft.world.level.block.WallBlock.class, "up");
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?>[] HEIGHTS = new net.minecraft.world.level.block.state.properties.EnumProperty[]{
@@ -40,7 +42,7 @@ public final class CraftCobbleWall extends org.bukkit.craftbukkit.v1_18_R2.block
         set(HEIGHTS[face.ordinal()], height);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.WallBlock.class, "waterlogged");
 

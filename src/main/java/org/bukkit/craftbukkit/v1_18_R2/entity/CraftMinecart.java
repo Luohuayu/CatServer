@@ -1,25 +1,19 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+import net.minecraft.world.entity.vehicle.AbstractMinecart;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Minecart;
 import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
 
-public class CraftMinecart extends CraftVehicle implements Minecart {
-    public CraftMinecart(CraftServer server, net.minecraft.world.entity.vehicle.AbstractMinecart entity) {
+public abstract class CraftMinecart extends CraftVehicle implements Minecart {
+    public CraftMinecart(CraftServer server, AbstractMinecart entity) {
         super(server, entity);
-    }
-
-    @Override
-    public @NotNull EntityType getType() {
-        return EntityType.MINECART;
     }
 
     @Override
@@ -75,8 +69,8 @@ public class CraftMinecart extends CraftVehicle implements Minecart {
     }
 
     @Override
-    public net.minecraft.world.entity.vehicle.AbstractMinecart getHandle() {
-        return (net.minecraft.world.entity.vehicle.AbstractMinecart) entity;
+    public AbstractMinecart getHandle() {
+        return (AbstractMinecart) entity;
     }
 
     @Override

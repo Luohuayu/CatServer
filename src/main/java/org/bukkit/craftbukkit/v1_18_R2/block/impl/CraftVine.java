@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftVine extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.MultipleFacing {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftVine extends CraftBlockData implements org.bukkit.block.data.MultipleFacing {
 
     public CraftVine() {
         super();
@@ -13,7 +15,7 @@ public final class CraftVine extends org.bukkit.craftbukkit.v1_18_R2.block.data.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftMultipleFacing
+    // org.bukkit.craftbukkit.block.data.CraftMultipleFacing
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty[] FACES = new net.minecraft.world.level.block.state.properties.BooleanProperty[]{
         getBoolean(net.minecraft.world.level.block.VineBlock.class, "north", true), getBoolean(net.minecraft.world.level.block.VineBlock.class, "east", true), getBoolean(net.minecraft.world.level.block.VineBlock.class, "south", true), getBoolean(net.minecraft.world.level.block.VineBlock.class, "west", true), getBoolean(net.minecraft.world.level.block.VineBlock.class, "up", true), getBoolean(net.minecraft.world.level.block.VineBlock.class, "down", true)

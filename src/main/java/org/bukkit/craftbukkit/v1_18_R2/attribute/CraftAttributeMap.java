@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.attribute;
 
 import com.google.common.base.Preconditions;
+import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attributable;
 import org.bukkit.attribute.Attribute;
@@ -9,9 +10,9 @@ import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
 
 public class CraftAttributeMap implements Attributable {
 
-    private final net.minecraft.world.entity.ai.attributes.AttributeMap handle;
+    private final AttributeMap handle;
 
-    public CraftAttributeMap(net.minecraft.world.entity.ai.attributes.AttributeMap handle) {
+    public CraftAttributeMap(AttributeMap handle) {
         this.handle = handle;
     }
 

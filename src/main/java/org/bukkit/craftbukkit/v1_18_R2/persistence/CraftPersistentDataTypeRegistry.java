@@ -6,19 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.ByteTag;
-import net.minecraft.nbt.ByteArrayTag;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.FloatTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.IntArrayTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongTag;
-import net.minecraft.nbt.LongArrayTag;
-import net.minecraft.nbt.ShortTag;
-import net.minecraft.nbt.StringTag;
+
+import net.minecraft.nbt.*;
 import org.bukkit.persistence.PersistentDataContainer;
 
 /**
@@ -57,7 +46,7 @@ public final class CraftPersistentDataTypeRegistry {
          */
         T extract(Tag base) {
             if (!nbtBaseType.isInstance(base)) {
-                throw new IllegalArgumentException(String.format("The provided Tag was of the type %s. Expected type %s", base.getClass().getSimpleName(), nbtBaseType.getSimpleName()));
+                throw new IllegalArgumentException(String.format("The provided NBTBase was of the type %s. Expected type %s", base.getClass().getSimpleName(), nbtBaseType.getSimpleName()));
             }
             return this.extractor.apply(nbtBaseType.cast(base));
         }

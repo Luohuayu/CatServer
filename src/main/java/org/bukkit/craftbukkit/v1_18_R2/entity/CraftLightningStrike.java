@@ -1,11 +1,12 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+import net.minecraft.world.entity.LightningBolt;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LightningStrike;
 
 public class CraftLightningStrike extends CraftEntity implements LightningStrike {
-    public CraftLightningStrike(final CraftServer server, final net.minecraft.world.entity.LightningBolt entity) {
+    public CraftLightningStrike(final CraftServer server, final LightningBolt entity) {
         super(server, entity);
     }
 
@@ -15,8 +16,8 @@ public class CraftLightningStrike extends CraftEntity implements LightningStrike
     }
 
     @Override
-    public net.minecraft.world.entity.LightningBolt getHandle() {
-        return (net.minecraft.world.entity.LightningBolt) entity;
+    public LightningBolt getHandle() {
+        return (LightningBolt) entity;
     }
 
     @Override
@@ -31,12 +32,10 @@ public class CraftLightningStrike extends CraftEntity implements LightningStrike
 
     // Spigot start
     private final LightningStrike.Spigot spigot = new LightningStrike.Spigot() {
-
         @Override
         public boolean isSilent() {
             return getHandle().isSilent;
         }
-
     };
 
     @Override

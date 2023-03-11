@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftCaveVinesPlant extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.CaveVinesPlant {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftCaveVinesPlant extends CraftBlockData implements org.bukkit.block.data.type.CaveVinesPlant {
 
     public CraftCaveVinesPlant() {
         super();
@@ -13,7 +15,7 @@ public final class CraftCaveVinesPlant extends org.bukkit.craftbukkit.v1_18_R2.b
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftCaveVinesPlant
+    // org.bukkit.craftbukkit.block.data.type.CraftCaveVinesPlant
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty BERRIES = getBoolean(net.minecraft.world.level.block.CaveVinesPlantBlock.class, "berries");
 

@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftLightningRod extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.LightningRod, org.bukkit.block.data.Directional, org.bukkit.block.data.Powerable, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftLightningRod extends CraftBlockData implements org.bukkit.block.data.type.LightningRod, org.bukkit.block.data.Directional, org.bukkit.block.data.Powerable, org.bukkit.block.data.Waterlogged {
 
     public CraftLightningRod() {
         super();
@@ -13,7 +15,7 @@ public final class CraftLightningRod extends org.bukkit.craftbukkit.v1_18_R2.blo
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.LightningRodBlock.class, "facing");
 
@@ -32,7 +34,7 @@ public final class CraftLightningRod extends org.bukkit.craftbukkit.v1_18_R2.blo
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.LightningRodBlock.class, "powered");
 
@@ -46,7 +48,7 @@ public final class CraftLightningRod extends org.bukkit.craftbukkit.v1_18_R2.blo
         set(POWERED, powered);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.LightningRodBlock.class, "waterlogged");
 

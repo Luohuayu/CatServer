@@ -58,7 +58,7 @@ public final class PluginClassLoader extends URLClassLoader {
     private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
-    private IPatcher patcher;
+    private IPatcher patcher; // CatServer
 
     static {
         ClassLoader.registerAsParallelCapable();

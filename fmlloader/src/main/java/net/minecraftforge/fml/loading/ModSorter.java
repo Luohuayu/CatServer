@@ -8,9 +8,7 @@ package net.minecraftforge.fml.loading;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import cpw.mods.jarhandling.SecureJar;
-import java.util.jar.Manifest;
 import net.minecraftforge.fml.loading.moddiscovery.MinecraftLocator;
-import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.minecraftforge.fml.loading.EarlyLoadingException.ExceptionData;
 import net.minecraftforge.fml.loading.moddiscovery.ModFile;
@@ -18,7 +16,6 @@ import net.minecraftforge.fml.loading.moddiscovery.ModFileInfo;
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo;
 import net.minecraftforge.fml.loading.toposort.CyclePresentException;
 import net.minecraftforge.fml.loading.toposort.TopologicalSort;
-import net.minecraftforge.forgespi.locating.IModFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
@@ -27,6 +24,7 @@ import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -149,12 +147,13 @@ public class ModSorter
         modIdNameLookup = uniqueModListData.modFilesByFirstId().entrySet().stream()
                 .filter(e -> !e.getValue().get(0).getModInfos().isEmpty())
                 .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue().get(0).getModInfos().get(0)
-                ));
+                    Map.Entry::getKey,
+                    e -> e.getValue().get(0).getModInfos().get(0)
+                  ));
     }
 
-    private void detectSystemMods(final Map<String, List<ModFile>> modFilesByFirstId) {
+    private void detectSystemMods(final Map<String, List<ModFile>> modFilesByFirstId)
+    {
         // Capture system mods (ex. MC, Forge) here, so we can keep them for later
         final Set<String> systemMods = new HashSet<>();
         // The minecraft mod is always a system mod

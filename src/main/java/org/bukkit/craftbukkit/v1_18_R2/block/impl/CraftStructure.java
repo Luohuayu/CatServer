@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftStructure extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.StructureBlock {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftStructure extends CraftBlockData implements org.bukkit.block.data.type.StructureBlock {
 
     public CraftStructure() {
         super();
@@ -13,7 +15,7 @@ public final class CraftStructure extends org.bukkit.craftbukkit.v1_18_R2.block.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftStructureBlock
+    // org.bukkit.craftbukkit.block.data.type.CraftStructureBlock
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> MODE = getEnum(net.minecraft.world.level.block.StructureBlock.class, "mode");
 

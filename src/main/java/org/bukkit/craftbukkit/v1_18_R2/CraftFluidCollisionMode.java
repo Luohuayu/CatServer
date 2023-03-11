@@ -1,22 +1,22 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
-import net.minecraft.world.level.ClipContext.Fluid;
+import net.minecraft.world.level.ClipContext;
 import org.bukkit.FluidCollisionMode;
 
 public final class CraftFluidCollisionMode {
 
     private CraftFluidCollisionMode() {}
 
-    public static Fluid toNMS(FluidCollisionMode fluidCollisionMode) {
+    public static ClipContext.Fluid toNMS(FluidCollisionMode fluidCollisionMode) {
         if (fluidCollisionMode == null) return null;
 
         switch (fluidCollisionMode) {
             case ALWAYS:
-                return Fluid.ANY;
+                return ClipContext.Fluid.ANY;
             case SOURCE_ONLY:
-                return Fluid.SOURCE_ONLY;
+                return ClipContext.Fluid.SOURCE_ONLY;
             case NEVER:
-                return Fluid.NONE;
+                return ClipContext.Fluid.NONE;
             default:
                 return null;
         }

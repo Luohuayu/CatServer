@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftTorchWall extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Directional {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftTorchWall extends CraftBlockData implements org.bukkit.block.data.Directional {
 
     public CraftTorchWall() {
         super();
@@ -13,7 +15,7 @@ public final class CraftTorchWall extends org.bukkit.craftbukkit.v1_18_R2.block.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.WallTorchBlock.class, "facing");
 

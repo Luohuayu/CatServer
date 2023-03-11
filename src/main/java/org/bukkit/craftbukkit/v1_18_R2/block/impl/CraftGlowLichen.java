@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftGlowLichen extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.GlowLichen, org.bukkit.block.data.MultipleFacing, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftGlowLichen extends CraftBlockData implements org.bukkit.block.data.type.GlowLichen, org.bukkit.block.data.MultipleFacing, org.bukkit.block.data.Waterlogged {
 
     public CraftGlowLichen() {
         super();
@@ -13,7 +15,7 @@ public final class CraftGlowLichen extends org.bukkit.craftbukkit.v1_18_R2.block
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftMultipleFacing
+    // org.bukkit.craftbukkit.block.data.CraftMultipleFacing
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty[] FACES = new net.minecraft.world.level.block.state.properties.BooleanProperty[]{
         getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "north", true), getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "east", true), getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "south", true), getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "west", true), getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "up", true), getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "down", true)
@@ -63,7 +65,7 @@ public final class CraftGlowLichen extends org.bukkit.craftbukkit.v1_18_R2.block
         return faces.build();
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.GlowLichenBlock.class, "waterlogged");
 

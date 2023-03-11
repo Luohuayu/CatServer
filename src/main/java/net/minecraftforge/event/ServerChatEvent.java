@@ -7,12 +7,14 @@ package net.minecraftforge.event;
 
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import net.minecraft.server.level.ServerPlayer;
+
+import javax.annotation.Nullable;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Cancelable;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * ServerChatEvent is fired whenever a C01PacketChatMessage is processed. <br>

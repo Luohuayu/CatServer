@@ -4,67 +4,31 @@
  package net.minecraft.server;
  
 +import catserver.server.BukkitInjector;
-+import catserver.server.CatServer;
++import catserver.server.utils.MinecraftServerHelper;
  import com.google.common.base.Splitter;
  import com.google.common.collect.ImmutableList;
  import com.google.common.collect.Lists;
-@@ -10,52 +_,11 @@
+@@ -10,7 +_,10 @@
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.logging.LogUtils;
 +import com.mojang.serialization.DynamicOps;
++import com.mojang.serialization.Lifecycle;
  import it.unimi.dsi.fastutil.longs.LongIterator;
--import java.awt.image.BufferedImage;
--import java.io.ByteArrayOutputStream;
--import java.io.File;
--import java.io.IOException;
--import java.io.UnsupportedEncodingException;
--import java.io.Writer;
--import java.lang.management.ManagementFactory;
--import java.lang.management.ThreadInfo;
--import java.lang.management.ThreadMXBean;
--import java.net.Proxy;
--import java.net.URLEncoder;
--import java.nio.charset.StandardCharsets;
--import java.nio.file.Files;
--import java.nio.file.Path;
--import java.security.KeyPair;
--import java.text.SimpleDateFormat;
--import java.util.Arrays;
--import java.util.Base64;
--import java.util.Collection;
--import java.util.Collections;
--import java.util.Comparator;
--import java.util.Date;
--import java.util.Iterator;
--import java.util.List;
--import java.util.Map;
--import java.util.Objects;
--import java.util.Optional;
--import java.util.Random;
--import java.util.Set;
--import java.util.UUID;
--import java.util.Map.Entry;
--import java.util.concurrent.CompletableFuture;
--import java.util.concurrent.Executor;
--import java.util.concurrent.RejectedExecutionException;
--import java.util.concurrent.atomic.AtomicReference;
--import java.util.function.BooleanSupplier;
--import java.util.function.Consumer;
--import java.util.function.Function;
--import javax.annotation.Nullable;
--import javax.imageio.ImageIO;
--import net.minecraft.CrashReport;
--import net.minecraft.ReportedException;
--import net.minecraft.SharedConstants;
--import net.minecraft.SystemReport;
--import net.minecraft.Util;
++
+ import java.awt.image.BufferedImage;
+ import java.io.ByteArrayOutputStream;
+ import java.io.File;
+@@ -51,6 +_,9 @@
+ import java.util.function.Function;
+ import javax.annotation.Nullable;
+ import javax.imageio.ImageIO;
++
 +import jline.console.ConsoleReader;
 +import joptsimple.OptionSet;
-+import net.minecraft.*;
- import net.minecraft.commands.CommandSource;
- import net.minecraft.commands.CommandSourceStack;
- import net.minecraft.commands.Commands;
+ import net.minecraft.CrashReport;
+ import net.minecraft.ReportedException;
+ import net.minecraft.SharedConstants;
 @@ -65,6 +_,7 @@
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.data.worldgen.features.MiscOverworldFeatures;
@@ -73,60 +37,7 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -75,13 +_,7 @@
- import net.minecraft.resources.ResourceKey;
- import net.minecraft.resources.ResourceLocation;
- import net.minecraft.server.bossevents.CustomBossEvents;
--import net.minecraft.server.level.DemoMode;
--import net.minecraft.server.level.PlayerRespawnLogic;
--import net.minecraft.server.level.ServerChunkCache;
--import net.minecraft.server.level.ServerLevel;
--import net.minecraft.server.level.ServerPlayer;
--import net.minecraft.server.level.ServerPlayerGameMode;
--import net.minecraft.server.level.TicketType;
-+import net.minecraft.server.level.*;
- import net.minecraft.server.level.progress.ChunkProgressListener;
- import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
- import net.minecraft.server.network.ServerConnectionListener;
-@@ -96,19 +_,8 @@
- import net.minecraft.server.players.PlayerList;
- import net.minecraft.server.players.ServerOpListEntry;
- import net.minecraft.server.players.UserWhiteList;
--import net.minecraft.util.Crypt;
--import net.minecraft.util.CryptException;
--import net.minecraft.util.FrameTimer;
--import net.minecraft.util.ModCheck;
--import net.minecraft.util.Mth;
--import net.minecraft.util.NativeModuleLister;
--import net.minecraft.util.ProgressListener;
--import net.minecraft.util.Unit;
--import net.minecraft.util.profiling.EmptyProfileResults;
--import net.minecraft.util.profiling.ProfileResults;
--import net.minecraft.util.profiling.ProfilerFiller;
--import net.minecraft.util.profiling.ResultField;
--import net.minecraft.util.profiling.SingleTickProfiler;
-+import net.minecraft.util.*;
-+import net.minecraft.util.profiling.*;
- import net.minecraft.util.profiling.jfr.JvmProfiler;
- import net.minecraft.util.profiling.jfr.callback.ProfiledDuration;
- import net.minecraft.util.profiling.metrics.profiling.ActiveMetricsRecorder;
-@@ -124,14 +_,7 @@
- import net.minecraft.world.entity.npc.WanderingTraderSpawner;
- import net.minecraft.world.entity.player.Player;
- import net.minecraft.world.item.crafting.RecipeManager;
--import net.minecraft.world.level.ChunkPos;
--import net.minecraft.world.level.CustomSpawner;
--import net.minecraft.world.level.DataPackConfig;
--import net.minecraft.world.level.ForcedChunksSavedData;
--import net.minecraft.world.level.GameRules;
--import net.minecraft.world.level.GameType;
--import net.minecraft.world.level.Level;
--import net.minecraft.world.level.LevelSettings;
-+import net.minecraft.world.level.*;
- import net.minecraft.world.level.biome.BiomeManager;
- import net.minecraft.world.level.border.BorderChangeListener;
- import net.minecraft.world.level.border.WorldBorder;
-@@ -144,1693 +_,2043 @@
+@@ -144,1693 +_,2033 @@
  import net.minecraft.world.level.levelgen.WorldGenSettings;
  import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
@@ -145,38 +56,16 @@
  import net.minecraft.world.level.storage.loot.PredicateManager;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
++import net.minecraftforge.common.MinecraftForge;
  import org.apache.commons.lang3.Validate;
 +import org.bukkit.Bukkit;
 +import org.bukkit.craftbukkit.Main;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-+import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
++import org.bukkit.craftbukkit.v1_18_R2.scoreboard.CraftScoreboardManager;
 +import org.bukkit.event.server.ServerLoadEvent;
++import org.bukkit.event.world.WorldInitEvent;
++import org.bukkit.event.world.WorldLoadEvent;
  import org.slf4j.Logger;
-+import org.spigotmc.SlackActivityAccountant;
-+
-+import javax.annotation.Nullable;
-+import javax.imageio.ImageIO;
-+import java.awt.image.BufferedImage;
-+import java.io.*;
-+import java.lang.management.ManagementFactory;
-+import java.lang.management.ThreadInfo;
-+import java.lang.management.ThreadMXBean;
-+import java.net.Proxy;
-+import java.net.URLEncoder;
-+import java.nio.charset.StandardCharsets;
-+import java.nio.file.Files;
-+import java.nio.file.Path;
-+import java.security.KeyPair;
-+import java.text.SimpleDateFormat;
-+import java.util.*;
-+import java.util.Map.Entry;
-+import java.util.concurrent.CompletableFuture;
-+import java.util.concurrent.Executor;
-+import java.util.concurrent.RejectedExecutionException;
-+import java.util.concurrent.atomic.AtomicReference;
-+import java.util.function.BooleanSupplier;
-+import java.util.function.Consumer;
-+import java.util.function.Function;
  
  public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements CommandSource, AutoCloseable {
 -   private static final Logger f_129750_ = LogUtils.getLogger();
@@ -200,8 +89,8 @@
 -   public static final LevelSettings f_129743_ = new LevelSettings("Demo World", GameType.SURVIVAL, false, Difficulty.NORMAL, false, new GameRules(), DataPackConfig.f_45842_);
 -   private static final long f_177871_ = 50L;
 -   public static final GameProfile f_195496_ = new GameProfile(Util.f_137441_, "Anonymous Player");
--   public final LevelStorageSource.LevelStorageAccess f_129744_;
--   public final PlayerDataStorage f_129745_;
+-   protected final LevelStorageSource.LevelStorageAccess f_129744_;
+-   protected final PlayerDataStorage f_129745_;
 -   private final List<Runnable> f_129752_ = Lists.newArrayList();
 -   private MetricsRecorder f_177872_ = InactiveMetricsRecorder.f_146153_;
 -   private ProfilerFiller f_129754_ = this.f_177872_.m_142610_();
@@ -221,8 +110,8 @@
 -   private final DataFixer f_129759_;
 -   private String f_129760_;
 -   private int f_129761_ = -1;
--   public final RegistryAccess.Frozen f_129746_;
--   public final Map<ResourceKey<Level>, ServerLevel> f_129762_ = Maps.newLinkedHashMap();
+-   private final RegistryAccess.Frozen f_129746_;
+-   private final Map<ResourceKey<Level>, ServerLevel> f_129762_ = Maps.newLinkedHashMap();
 -   private PlayerList f_129763_;
 -   private volatile boolean f_129764_ = true;
 -   private boolean f_129765_;
@@ -251,7 +140,7 @@
 -   @Nullable
 -   private final GameProfileCache f_129723_;
 -   private long f_129724_;
--   public final Thread f_129725_;
+-   private final Thread f_129725_;
 -   protected long f_129726_ = Util.m_137550_();
 -   private long f_129727_;
 -   private boolean f_129728_;
@@ -267,7 +156,7 @@
 -   private final Executor f_129738_;
 -   @Nullable
 -   private String f_129739_;
--   public MinecraftServer.ReloadableResources f_129740_;
+-   private MinecraftServer.ReloadableResources f_129740_;
 -   private final StructureManager f_129741_;
 -   protected final WorldData f_129749_;
 -   private volatile boolean f_195494_;
@@ -378,7 +267,7 @@
 -      if (!serverleveldata.m_6535_()) {
 -         try {
 -            m_177896_(serverlevel, serverleveldata, worldgensettings.m_64660_(), flag);
-+    private static final Logger f_129750_ = LogUtils.getLogger();
++    public static final Logger f_129750_ = LogUtils.getLogger();
 +    public static final String f_195495_ = "vanilla";
 +    private static final float f_177884_ = 0.8F;
 +    private static final int f_177885_ = 100;
@@ -413,11 +302,11 @@
 +    @Nullable
 +    private MinecraftServer.TimeProfiler f_177876_;
 +    private boolean f_177877_;
-+    private ServerConnectionListener f_129755_;
++    private final ServerConnectionListener f_129755_;
 +    public final ChunkProgressListenerFactory f_129756_;
 +    private final ServerStatus f_129757_ = new ServerStatus();
 +    private final Random f_129758_ = new Random();
-+    private final DataFixer f_129759_;
++    public final DataFixer f_129759_;
 +    private String f_129760_;
 +    private int f_129761_ = -1;
 +    public final RegistryAccess.Frozen f_129746_;
@@ -470,10 +359,9 @@
 +    private final StructureManager f_129741_;
 +    protected final WorldData f_129749_;
 +    private volatile boolean f_195494_;
-+
 +    // CraftBukkit start
-+    public final DataPackConfig datapackconfiguration;
-+    public final DynamicOps<Tag> registryreadops;
++    public DataPackConfig datapackconfiguration;
++    public DynamicOps<Tag> registryreadops;
 +    public org.bukkit.craftbukkit.v1_18_R2.CraftServer server;
 +    public OptionSet options;
 +    public org.bukkit.command.ConsoleCommandSender console;
@@ -488,10 +376,32 @@
 +    // Spigot start
 +    public static final int TPS = 20;
 +    public static final int TICK_TIME = 1000000000 / TPS;
-+    private static final int SAMPLE_INTERVAL = 20; // Paper
++    private static final int SAMPLE_INTERVAL = 100;
 +    public final double[] recentTps = new double[3];
-+    public final SlackActivityAccountant slackActivityAccountant = new SlackActivityAccountant();
 +    // Spigot end
++
++    // Spigot Start
++    private static double calcTps(double avg, double exp, double tps) {
++        return (avg * exp) + (tps * (1 - exp));
++    }
++    // Spigot End
++
++    @Deprecated
++    public static MinecraftServer getServer() {
++        return (Bukkit.getServer() instanceof CraftServer) ? ((CraftServer) Bukkit.getServer()).getServer() : null;
++    }
++
++    public boolean isDebugging() {
++        return false;
++    }
++
++    // CatServer start
++    public void prepareMinecraftServer(OptionSet options, DataPackConfig dpc, DynamicOps<Tag> dynamicOps) {
++        this.options = options;
++        this.datapackconfiguration = dpc;
++        this.registryreadops = dynamicOps;
++    }
++    // CatServer end
 +
 +    public static <S extends MinecraftServer> S m_129872_(Function<Thread, S> p_129873_) {
 +        AtomicReference<S> atomicreference = new AtomicReference<>();
@@ -511,8 +421,9 @@
 +        return s;
 +    }
 +
-+    public MinecraftServer(OptionSet options, DataPackConfig datapackconfiguration, DynamicOps<Tag> registryreadops, Thread p_206546_, LevelStorageSource.LevelStorageAccess p_206547_, PackRepository p_206548_, WorldStem p_206549_, Proxy p_206550_, DataFixer p_206551_, @Nullable MinecraftSessionService p_206552_, @Nullable GameProfileRepository p_206553_, @Nullable GameProfileCache p_206554_, ChunkProgressListenerFactory p_206555_) {
++    public MinecraftServer(Thread p_206546_, LevelStorageSource.LevelStorageAccess p_206547_, PackRepository p_206548_, WorldStem p_206549_, Proxy p_206550_, DataFixer p_206551_, @Nullable MinecraftSessionService p_206552_, @Nullable GameProfileRepository p_206553_, @Nullable GameProfileCache p_206554_, ChunkProgressListenerFactory p_206555_) {
 +        super("Server");
++        this.prepareMinecraftServer(MinecraftServerHelper.getInstance().getOptionSet(), MinecraftServerHelper.getInstance().getDataPackConfig(), MinecraftServerHelper.getInstance().getDynamicOps()); // CatServer - fire
 +        this.f_129746_ = p_206549_.f_206894_();
 +        this.f_129749_ = p_206549_.f_206895_();
 +        this.f_129747_ = p_206550_;
@@ -525,7 +436,7 @@
 +            p_206554_.m_143974_(this);
 +        }
 +
-+        //this.connection = new ServerConnectionListener(this); // Spigot
++        this.f_129755_ = new ServerConnectionListener(this);
 +        this.f_129756_ = p_206555_;
 +        this.f_129744_ = p_206547_;
 +        this.f_129745_ = p_206547_.m_78301_();
@@ -534,18 +445,13 @@
 +        this.f_129741_ = new StructureManager(p_206549_.f_206892_(), p_206547_, p_206551_);
 +        this.f_129725_ = p_206546_;
 +        this.f_129738_ = Util.m_183991_();
-+        // CraftBukkit start
-+        this.options = options;
-+        this.datapackconfiguration = datapackconfiguration;
-+        this.registryreadops = registryreadops;
-+        this.vanillaCommandDispatcher = p_206549_.f_206893_().f_206847_; // CraftBukkit
 +
++        this.vanillaCommandDispatcher = p_206549_.f_206893_().f_206847_; // CraftBukkit
 +        // Try to see if we're actually running in a terminal, disable jline if not
 +        if (System.console() == null && System.getProperty("jline.terminal") == null) {
 +            System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
 +            Main.useJline = false;
 +        }
-+
 +        try {
 +            reader = new ConsoleReader(System.in, System.out);
 +            reader.setExpandEvents(false); // Avoid parsing exceptions for uncommonly used event designators
@@ -561,6 +467,7 @@
 +                f_129750_.warn((String) null, ex);
 +            }
 +        }
++        Runtime.getRuntime().addShutdownHook(new org.bukkit.craftbukkit.v1_18_R2.util.ServerShutdownThread(this));
 +    }
 +    // CraftBukkit end
 +
@@ -599,6 +506,20 @@
 +    protected void m_7044_() {
 +    }
 +
++    private ServerLevel worldInit(ServerLevel serverLevel) {
++        var scoreManager = ((CraftServer) Bukkit.getServer()).scoreboardManager;
++        if (scoreManager == null) {
++            scoreManager = new CraftScoreboardManager(MinecraftServer.getServer(), serverLevel.m_6188_());
++            ((CraftServer) Bukkit.getServer()).scoreboardManager = scoreManager;
++        }
++        var generator = serverLevel.getWorld().getGenerator();
++        if (generator != null) {
++            serverLevel.getWorld().getPopulators().addAll(generator.getDefaultPopulators(serverLevel.getWorld()));
++        }
++        Bukkit.getPluginManager().callEvent(new WorldInitEvent(serverLevel.getWorld()));
++        return serverLevel;
++    }
++
 +    protected void m_129815_(ChunkProgressListener p_129816_) {
 +        ServerLevelData serverleveldata = this.f_129749_.m_5996_();
 +        WorldGenSettings worldgensettings = this.f_129749_.m_5961_();
@@ -619,8 +540,8 @@
 +        }
 +
 +        ServerLevel serverlevel = new ServerLevel(this, this.f_129738_, this.f_129744_, serverleveldata, Level.f_46428_, holder, p_129816_, chunkgenerator, flag, j, list, true);
-+        BukkitInjector.injectEnvironment(this.f_129749_.m_5961_().m_204655_());
-+        this.f_129762_.put(Level.f_46428_, serverlevel);
++        BukkitInjector.registerEnvironments(this.f_129749_.m_5961_().m_204655_()); // CatServer
++        this.f_129762_.put(Level.f_46428_, this.worldInit(serverlevel)); // CatServer
 +        DimensionDataStorage dimensiondatastorage = serverlevel.m_8895_();
 +        this.m_129841_(dimensiondatastorage);
 +        this.f_129732_ = new CommandStorage(dimensiondatastorage);
@@ -2129,16 +2050,140 @@
 +                ResourceKey<Level> resourcekey1 = ResourceKey.m_135785_(Registry.f_122819_, resourcekey.m_135782_());
 +                Holder<DimensionType> holder1 = entry.getValue().m_204521_();
 +                ChunkGenerator chunkgenerator1 = entry.getValue().m_63990_();
-+                DerivedLevelData derivedleveldata = new DerivedLevelData(this.f_129749_, serverleveldata);
++                // CatServer start
++                DerivedLevelData derivedleveldata = new DerivedLevelData(this.f_129749_, serverleveldata, DimensionType.m_196975_(resourcekey1, this.f_129744_.getWorldDir()).toFile().getName());
 +                ServerLevel serverlevel1 = new ServerLevel(this, this.f_129738_, this.f_129744_, derivedleveldata, resourcekey1, holder1, p_129816_, chunkgenerator1, flag, j, ImmutableList.of(), false);
++                serverlevel1.worldDataServer = new PrimaryLevelData(
++                        new LevelSettings(
++                                derivedleveldata.m_5462_(),
++                                derivedleveldata.m_5464_(),
++                                derivedleveldata.m_5466_(),
++                                derivedleveldata.m_5472_(),
++                                false,
++                                derivedleveldata.m_5470_(),
++                                this.datapackconfiguration),
++                        ((PrimaryLevelData) serverleveldata).m_5961_(), Lifecycle.stable());
++                // CatServer end
 +                worldborder.m_61929_(new BorderChangeListener.DelegateBorderChangeListener(serverlevel1.m_6857_()));
-+                this.f_129762_.put(resourcekey1, serverlevel1);
++                this.f_129762_.put(resourcekey1, this.worldInit(serverlevel1)); // CatServer
++                // CatServer start - Fix Multiverse-Core plugin
++                if (!"minecraft".equals(resourcekey.m_135782_().m_135827_()) ) {
++                    try {
++                        File bukkitWorldDir = new File(m_129783_().convertable.getWorldDir().toFile(), resourcekey.m_135782_().m_135815_());
++                        if (!bukkitWorldDir.exists()) {
++                            bukkitWorldDir.mkdir(); // Create empty dir to bypass Multiverse-Core check
++                        }
++                    } catch (Exception e) {
++                        System.out.println(e.toString());
++                    }
++                }
++                // CatServer end
 +                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(f_129762_.get(resourcekey)));
 +            }
 +        }
++
++        worldborder.m_61931_(serverleveldata.m_5813_());
++        // CraftBukkit start
 +        this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
 +        this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
-+        worldborder.m_61931_(serverleveldata.m_5813_());
++        this.f_129755_.acceptConnections();
++        // CraftBukkit end
++    }
++
++    // CatServer start - bukkit method
++    public void initWorld(ServerLevel serverWorld, ServerLevelData worldInfo, WorldData saveData, WorldGenSettings generatorSettings) {
++        boolean flag = generatorSettings.m_64668_();
++        var generator = serverWorld.getWorld().getGenerator();
++        if (generator != null) {
++            serverWorld.getWorld().getPopulators().addAll(generator.getDefaultPopulators(serverWorld.getWorld()));
++        }
++        WorldBorder worldborder = serverWorld.m_6857_();
++        worldborder.m_61931_(worldInfo.m_5813_());
++        if (!worldInfo.m_6535_()) {
++            try {
++                m_177896_(serverWorld, worldInfo, generatorSettings.m_64660_(), flag);
++                worldInfo.m_5555_(true);
++                if (flag) {
++                    this.m_129847_(this.f_129749_);
++                }
++            } catch (Throwable throwable) {
++                CrashReport crashreport = CrashReport.m_127521_(throwable, "Exception initializing level");
++                try {
++                    serverWorld.m_6026_(crashreport);
++                } catch (Throwable throwable2) {
++                    // empty catch block
++                }
++                throw new ReportedException(crashreport);
++            }
++            worldInfo.m_5555_(true);
++        }
++    }
++
++    public void prepareLevels(ChunkProgressListener listener, ServerLevel serverWorld) {
++        this.markWorldsDirty();
++        // CatServer start - Fix Multiverse-Core plugin
++        if (!serverWorld.isBukkitWorld) {
++            try {
++                File bukkitWorldDir = new File(m_129783_().convertable.getWorldDir().toFile(), f_129744_.m_78277_());
++                if (!bukkitWorldDir.exists()) {
++                    bukkitWorldDir.mkdir(); // Create empty dir to bypass Multiverse-Core check
++                }
++            } catch (Exception e) {
++                System.out.println(e.toString());
++            }
++        }
++        // CatServer end
++        Bukkit.getPluginManager().callEvent(new WorldInitEvent(serverWorld.getWorld()));
++        Bukkit.getPluginManager().callEvent(new WorldLoadEvent(serverWorld.getWorld()));
++        MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.WorldEvent.Load(serverWorld));
++        if (!serverWorld.getWorld().getKeepSpawnInMemory()) {
++            return;
++        }
++        this.forceTicks = true;
++        f_129750_.info("Preparing start region for dimension {}", serverWorld.m_46472_().m_135782_());
++        BlockPos blockpos = serverWorld.m_8900_();
++        listener.m_7647_(new ChunkPos(blockpos));
++        ServerChunkCache serverchunkprovider = serverWorld.m_7726_();
++        serverchunkprovider.m_7827_().m_9310_(500);
++        this.f_129726_ = Util.m_137550_();
++        serverchunkprovider.m_8387_(TicketType.f_9442_, new ChunkPos(blockpos), 11, Unit.INSTANCE);
++
++        while (serverchunkprovider.m_8427_() < 441) {
++            this.executeModerately();
++        }
++
++        this.executeModerately();
++
++        ForcedChunksSavedData forcedchunkssavedata = serverWorld.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
++        if (forcedchunkssavedata != null) {
++            LongIterator longiterator = forcedchunkssavedata.m_46116_().iterator();
++
++            while (longiterator.hasNext()) {
++                long i = longiterator.nextLong();
++                ChunkPos chunkpos = new ChunkPos(i);
++                serverWorld.m_7726_().m_6692_(chunkpos, true);
++            }
++            net.minecraftforge.common.world.ForgeChunkManager.reinstatePersistentChunks(serverWorld, forcedchunkssavedata);
++        }
++        this.executeModerately();
++        listener.m_7646_();
++        serverchunkprovider.m_7827_().m_9310_(5);
++        // this.updateMobSpawningFlags();
++        serverWorld.m_46703_(this.m_7004_(), this.m_6998_());
++        this.forceTicks = false;
++    }
++    // CatServer end
++
++    private void executeModerately() {
++        this.m_18699_();
++        this.drainQueuedTasks();
++        java.util.concurrent.locks.LockSupport.parkNanos("executing tasks", 1000L);
++    }
++
++    public void drainQueuedTasks() {
++        while (!processQueue.isEmpty()) {
++            processQueue.remove().run();
++        }
 +    }
 +
 +    private static void m_177896_(ServerLevel p_177897_, ServerLevelData p_177898_, boolean p_177899_, boolean p_177900_) {
@@ -2148,6 +2193,20 @@
 +            ChunkGenerator chunkgenerator = p_177897_.m_7726_().m_8481_();
 +            if (net.minecraftforge.event.ForgeEventFactory.onCreateWorldSpawn(p_177897_, p_177898_)) return;
 +            ChunkPos chunkpos = new ChunkPos(chunkgenerator.m_183403_().m_183230_());
++            // CraftBukkit start
++            if (p_177897_.generator != null) {
++                Random rand = new Random(p_177897_.m_7328_());
++                org.bukkit.Location spawn = p_177897_.generator.getFixedSpawnLocation(p_177897_.getWorld(), rand);
++                if (spawn != null) {
++                    if (spawn.getWorld() != p_177897_.getWorld()) {
++                        throw new IllegalStateException("Cannot set spawn point for " + p_177898_.m_5462_() + " to be in another world (" + spawn.getWorld().getName() + ")");
++                    } else {
++                        p_177898_.m_7250_(new BlockPos(spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ()), spawn.getYaw());
++                        return;
++                    }
++                }
++            }
++            // CraftBukkit end
 +            int i = chunkgenerator.m_142051_(p_177897_);
 +            if (i < p_177897_.m_141937_()) {
 +                BlockPos blockpos = chunkpos.m_45615_();
@@ -2201,6 +2260,7 @@
 +
 +    private void m_129940_(ChunkProgressListener p_129941_) {
 +        ServerLevel serverlevel = this.m_129783_();
++        this.forceTicks = true;
 +        f_129750_.info("Preparing start region for dimension {}", (Object) serverlevel.m_46472_().m_135782_());
 +        BlockPos blockpos = serverlevel.m_8900_();
 +        p_129941_.m_7647_(new ChunkPos(blockpos));
@@ -2210,32 +2270,33 @@
 +        serverchunkcache.m_8387_(TicketType.f_9442_, new ChunkPos(blockpos), 11, Unit.INSTANCE);
 +
 +        while (serverchunkcache.m_8427_() != 441) {
-+            this.f_129726_ = Util.m_137550_() + 10L;
-+            this.m_130012_();
++            this.executeModerately();
 +        }
 +
-+        this.f_129726_ = Util.m_137550_() + 10L;
-+        this.m_130012_();
++        this.executeModerately();
 +
 +        for (ServerLevel serverlevel1 : this.f_129762_.values()) {
-+            ForcedChunksSavedData forcedchunkssaveddata = serverlevel1.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
-+            if (forcedchunkssaveddata != null) {
-+                LongIterator longiterator = forcedchunkssaveddata.m_46116_().iterator();
++            if (serverlevel1.getWorld().getKeepSpawnInMemory()) {
++                ForcedChunksSavedData forcedchunkssaveddata = serverlevel1.m_8895_().m_164858_(ForcedChunksSavedData::m_151483_, "chunks");
++                if (forcedchunkssaveddata != null) {
++                    LongIterator longiterator = forcedchunkssaveddata.m_46116_().iterator();
 +
-+                while (longiterator.hasNext()) {
-+                    long i = longiterator.nextLong();
-+                    ChunkPos chunkpos = new ChunkPos(i);
-+                    serverlevel1.m_7726_().m_6692_(chunkpos, true);
++                    while (longiterator.hasNext()) {
++                        long i = longiterator.nextLong();
++                        ChunkPos chunkpos = new ChunkPos(i);
++                        serverlevel1.m_7726_().m_6692_(chunkpos, true);
++                    }
++                    net.minecraftforge.common.world.ForgeChunkManager.reinstatePersistentChunks(serverlevel1, forcedchunkssaveddata);
 +                }
-+                net.minecraftforge.common.world.ForgeChunkManager.reinstatePersistentChunks(serverlevel1, forcedchunkssaveddata);
 +            }
++            Bukkit.getPluginManager().callEvent(new WorldLoadEvent(serverlevel1.getWorld()));
 +        }
 +
-+        this.f_129726_ = Util.m_137550_() + 10L;
-+        this.m_130012_();
++        this.executeModerately();
 +        p_129941_.m_7646_();
 +        serverchunkcache.m_7827_().m_9310_(5);
 +        this.m_129962_();
++        this.forceTicks = false;
 +    }
 +
 +    protected void m_130007_() {
@@ -2283,20 +2344,13 @@
 +        serverleveldata.m_7831_(serverlevel2.m_6857_().m_61970_());
 +        this.f_129749_.m_5917_(this.m_129901_().m_136307_());
 +        this.f_129744_.m_78290_(this.m_206579_(), this.f_129749_, this.m_6846_().m_6960_());
-+
-+        // CatServer start - save level.data with all worlds
 +        if (p_129887_) {
 +            for (ServerLevel serverlevel1 : this.m_129785_()) {
-+                if (serverlevel1.convertable != this.f_129744_) {
-+                    serverlevel1.worldDataServer.m_7831_(serverlevel1.m_6857_().m_61970_());
-+                    serverlevel1.worldDataServer.m_5917_(this.m_129901_().m_136307_());
-+                    serverlevel1.convertable.m_78287_(this.m_206579_(), serverlevel1.worldDataServer);
-+                }
 +                f_129750_.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", (Object) serverlevel1.m_7726_().f_8325_.m_182285_());
 +            }
++
 +            f_129750_.info("ThreadedAnvilChunkStorage: All dimensions are saved");
 +        }
-+        // CatServer end
 +
 +        return flag;
 +    }
@@ -2337,6 +2391,11 @@
 +        }
 +        // CraftBukkit end
 +        f_129750_.info("Stopping server");
++        // CraftBukkit start
++        if (this.server != null) {
++            this.server.disablePlugins();
++        }
++        // CraftBukkit end
 +        if (this.m_129919_() != null) {
 +            this.m_129919_().m_9718_();
 +        }
@@ -2352,11 +2411,8 @@
 +            } // CraftBukkit - SPIGOT-625 - give server at least a chance to send packets
 +        }
 +
-+        if (this.server != null) {
-+            this.server.disablePlugins();
-+        }
-+
 +        f_129750_.info("Saving worlds");
++
 +        for (ServerLevel serverlevel : this.m_129785_()) {
 +            if (serverlevel != null) {
 +                serverlevel.f_8564_ = false;
@@ -2399,12 +2455,7 @@
 +        } catch (IOException ioexception) {
 +            f_129750_.error("Failed to unlock level {}", this.f_129744_.m_78277_(), ioexception);
 +        }
-+        // Spigot start
-+        if (org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) {
-+            f_129750_.info("Saving usercache.json");
-+            this.m_129927_().m_11006_();
-+        }
-+        // Spigot end
++
 +    }
 +
 +    public String m_130009_() {
@@ -2442,43 +2493,33 @@
 +
 +                // Spigot start
 +                Arrays.fill(recentTps, 20);
-+                long start = System.nanoTime(), curTime, tickSection = start; // Paper - Further improve server tick loop
-+                lastTick = start - TICK_TIME; // Paper
++                long curTime, tickSection = Util.m_137550_(), tickCount = 1;
 +                while (this.f_129764_) {
-+                    long i = ((curTime = System.nanoTime()) / (1000L * 1000L)) - this.f_129726_; // Paper
++                    long i = (curTime = Util.m_137550_()) - this.f_129726_;
 +                    if (i > 5000L && this.f_129726_ - this.f_129718_ >= 30000L) { // CraftBukkit
 +                        long j = i / 50L;
-+                        if (server.getWarnOnOverload()) // CraftBukkit
-+                            f_129750_.warn("Can't keep up! Is the server overloaded? Running {}ms or {} ticks behind", i, j);
++                        if (server.getWarnOnOverload()) {
++                            // LOGGER.warn("Can't keep up! Is the server overloaded? Running {}ms or {} ticks behind", i, j); // CatServer - disable overloaded warn
++                        }
 +                        this.f_129726_ += j * 50L;
 +                        this.f_129718_ = this.f_129726_;
 +                    }
++
++                    if (tickCount++ % SAMPLE_INTERVAL == 0) {
++                        double currentTps = 1E3 / (curTime - tickSection) * SAMPLE_INTERVAL;
++                        recentTps[0] = calcTps(recentTps[0], 0.92, currentTps); // 1/exp(5sec/1min)
++                        recentTps[1] = calcTps(recentTps[1], 0.9835, currentTps); // 1/exp(5sec/5min)
++                        recentTps[2] = calcTps(recentTps[2], 0.9945, currentTps); // 1/exp(5sec/15min)
++                        tickSection = curTime;
++                    }
++                    // Spigot end
 +
 +                    if (this.f_177877_) {
 +                        this.f_177877_ = false;
 +                        this.f_177876_ = new MinecraftServer.TimeProfiler(Util.m_137569_(), this.f_129766_);
 +                    }
 +
-+
-+                    if (++MinecraftServer.currentTick % MinecraftServer.SAMPLE_INTERVAL == 0) {
-+                        final long diff = curTime - tickSection;
-+                        java.math.BigDecimal currentTps = TPS_BASE.divide(new java.math.BigDecimal(diff), 30, java.math.RoundingMode.HALF_UP);
-+                        tps1.add(currentTps, diff);
-+                        tps5.add(currentTps, diff);
-+                        tps15.add(currentTps, diff);
-+                        // Backwards compat with bad plugins
-+                        this.recentTps[0] = tps1.getAverage();
-+                        this.recentTps[1] = tps5.getAverage();
-+                        this.recentTps[2] = tps15.getAverage();
-+                        // Paper end
-+                        tickSection = curTime;
-+                    }
-+                    // Spigot end
-+
 +                    MinecraftServer.currentTick = (int) (System.currentTimeMillis() / 50); // CraftBukkit
-+                    currentTick = (int) (System.currentTimeMillis() / 50); // CraftBukkit // Paper - don't overwrite current tick time
-+                    lastTick = curTime;
-+
 +                    this.f_129726_ += 50L;
 +                    this.m_177945_();
 +                    this.f_129754_.m_6180_("tick");
@@ -2500,19 +2541,7 @@
 +            }
 +        } catch (Throwable throwable1) {
 +            f_129750_.error("Encountered an unexpected exception", throwable1);
-+            f_129750_.error("Encountered an unexpected exception", throwable1);
-+            // Spigot Start
-+            if (throwable1.getCause() != null) {
-+                MinecraftServer.f_129750_.error("\tCause of unexpected exception was", throwable1.getCause());
-+            }
-+            // Spigot End
-+            CrashReport crashreport;
-+            if (throwable1 instanceof ReportedException) {
-+                crashreport = ((ReportedException) throwable1).m_134761_();
-+            } else {
-+                crashreport = new CrashReport("Exception in server tick loop", throwable1);
-+            }
-+
++            CrashReport crashreport = m_206568_(throwable1);
 +            this.m_177935_(crashreport.m_178626_());
 +            File file1 = new File(new File(this.m_6237_(), "crash-reports"), "crash-" + (new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss")).format(new Date()) + "-server.txt");
 +            if (crashreport.m_127512_(file1)) {
@@ -2535,8 +2564,6 @@
 +                }
 +
 +                net.minecraftforge.server.ServerLifecycleHooks.handleServerStopped(this);
-+
-+                org.spigotmc.WatchdogThread.doStop(); // Spigot
 +                // CraftBukkit start - Restore terminal to original settings
 +                try {
 +                    reader.getTerminal().restore();
@@ -2544,10 +2571,9 @@
 +                }
 +                // CraftBukkit end
 +                this.m_6988_();
++                Runtime.getRuntime().halt(0);
 +            }
-+
 +        }
-+
 +    }
 +
 +    private static CrashReport m_206568_(Throwable p_206569_) {
@@ -2578,12 +2604,6 @@
 +        return this.forceTicks || this.m_18767_() || Util.m_137550_() < (this.f_129728_ ? this.f_129727_ : this.f_129726_);
 +    }
 +
-+    private void executeModerately() {
-+        this.m_18699_();
-+        java.util.concurrent.locks.LockSupport.parkNanos("executing tasks", 1000L);
-+    }
-+
-+    // CraftBukkit end
 +    protected void m_130012_() {
 +        this.m_18699_();
 +        this.m_18701_(() -> {
@@ -2663,8 +2683,6 @@
 +    }
 +
 +    public void m_5705_(BooleanSupplier p_129871_) {
-+        this.slackActivityAccountant.tickStarted(); // Spigot
-+        SpigotTimings.serverTickTimer.startTiming(); // Spigot
 +        long i = Util.m_137569_();
 +        net.minecraftforge.event.ForgeEventFactory.onPreServerTick(p_129871_);
 +        ++this.f_129766_;
@@ -2692,13 +2710,11 @@
 +        }
 +
 +        if (autosavePeriod > 0 && this.f_129766_ % autosavePeriod == 0) { // CraftBukkit
-+            SpigotTimings.worldSaveTimer.startTiming(); // Spigot
 +            f_129750_.debug("Autosave started");
 +            this.f_129754_.m_6180_("save");
 +            this.m_195514_(true, false, false);
 +            this.f_129754_.m_7238_();
 +            f_129750_.debug("Autosave finished");
-+            SpigotTimings.worldSaveTimer.stopTiming(); // Spigot
 +        }
 +
 +        this.f_129754_.m_6180_("tallying");
@@ -2707,70 +2723,36 @@
 +        long i1 = Util.m_137569_();
 +        this.f_129735_.m_13755_(i1 - i);
 +        this.f_129754_.m_7238_();
-+        org.spigotmc.WatchdogThread.tick(); // Spigot
-+        SpigotTimings.serverTickTimer.stopTiming(); // Spigot
-+        org.spigotmc.CustomTimingsHandler.tick(); // Spigot
-+        this.slackActivityAccountant.tickEnded(l); // Spigot
 +        net.minecraftforge.event.ForgeEventFactory.onPostServerTick(p_129871_);
 +    }
 +
 +    public void m_5703_(BooleanSupplier p_129954_) {
-+        SpigotTimings.schedulerTimer.startTiming(); // Spigot
 +        this.server.getScheduler().mainThreadHeartbeat(this.f_129766_); // CraftBukkit
-+        SpigotTimings.schedulerTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6180_("commandFunctions");
-+        SpigotTimings.commandFunctionsTimer.startTiming(); // Spigot
 +        this.m_129890_().m_136128_();
-+        SpigotTimings.commandFunctionsTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6182_("levels");
-+
 +        // CraftBukkit start
 +        // Run tasks that are waiting on processing
-+        SpigotTimings.processQueueTimer.startTiming(); // Spigot
-+        while (!processQueue.isEmpty()) {
-+            processQueue.remove().run();
-+        }
-+        SpigotTimings.processQueueTimer.stopTiming(); // Spigot
-+
-+        SpigotTimings.timeUpdateTimer.startTiming(); // Spigot
-+        // Send time updates to everyone, it will get the right time from the world the player is in.
-+        if (this.f_129766_ % 20 == 0) {
-+            for (int i = 0; i < this.m_6846_().f_11196_.size(); ++i) {
-+                ServerPlayer entityplayer = (ServerPlayer) this.m_6846_().f_11196_.get(i);
-+                entityplayer.f_8906_.m_141995_(new ClientboundSetTimePacket(entityplayer.f_19853_.m_46467_(), entityplayer.getPlayerTime(), entityplayer.f_19853_.m_46469_().m_46207_(GameRules.f_46140_))); // Add support for per player time
-+            }
-+        }
-+        SpigotTimings.timeUpdateTimer.stopTiming(); // Spigot
++        this.drainQueuedTasks();
 +
 +        for (ServerLevel serverlevel : this.getWorldArray()) {
 +            long tickStart = Util.m_137569_();
 +            this.f_129754_.m_6521_(() -> {
 +                return serverlevel + " " + serverlevel.m_46472_().m_135782_();
 +            });
-+         /* Drop global time updates
-+         if (this.tickCount % 20 == 0) {
-+            this.profiler.push("timeSync");
-+            this.playerList.broadcastAll(new ClientboundSetTimePacket(serverlevel.getGameTime(), serverlevel.getDayTime(), serverlevel.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)), serverlevel.dimension());
-+            this.profiler.pop();
-+         }
-+         // CraftBukkit end */
++            if (this.f_129766_ % 20 == 0) {
++                this.f_129754_.m_6180_("timeSync");
++                this.f_129763_.m_11270_(new ClientboundSetTimePacket(serverlevel.m_46467_(), serverlevel.m_46468_(), serverlevel.m_46469_().m_46207_(GameRules.f_46140_)), serverlevel.m_46472_());
++                this.f_129754_.m_7238_();
++            }
 +
 +            this.f_129754_.m_6180_("tick");
 +            net.minecraftforge.event.ForgeEventFactory.onPreWorldTick(serverlevel, p_129954_);
 +
 +            try {
-+                serverlevel.timings.doTick.startTiming(); // Spigot
 +                serverlevel.m_8793_(p_129954_);
-+                serverlevel.timings.doTick.stopTiming(); // Spigot
 +            } catch (Throwable throwable) {
-+                // Spigot Start
-+                CrashReport crashreport;
-+                try {
-+                    crashreport = CrashReport.m_127521_(throwable, "Exception ticking world");
-+                } catch (Throwable t) {
-+                    throw new RuntimeException("Error generating crash report", t);
-+                }
-+                // Spigot End
++                CrashReport crashreport = CrashReport.m_127521_(throwable, "Exception ticking world");
 +                serverlevel.m_6026_(crashreport);
 +                throw new ReportedException(crashreport);
 +            }
@@ -2782,24 +2764,18 @@
 +        }
 +
 +        this.f_129754_.m_6182_("connection");
-+        SpigotTimings.connectionTimer.startTiming(); // Spigot
 +        this.m_129919_().m_9721_();
-+        SpigotTimings.connectionTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6182_("players");
-+        SpigotTimings.playerListTimer.startTiming(); // Spigot
 +        this.f_129763_.m_11288_();
-+        SpigotTimings.playerListTimer.stopTiming(); // Spigot
 +        if (net.minecraftforge.gametest.ForgeGameTestHooks.isGametestEnabled()) {
 +            GameTestTicker.f_177648_.m_127790_();
 +        }
 +
 +        this.f_129754_.m_6182_("server gui refresh");
 +
-+        SpigotTimings.tickablesTimer.startTiming(); // Spigot
 +        for (int i = 0; i < this.f_129752_.size(); ++i) {
 +            this.f_129752_.get(i).run();
 +        }
-+        SpigotTimings.tickablesTimer.stopTiming(); // Spigot
 +
 +        this.f_129754_.m_7238_();
 +    }
@@ -2859,7 +2835,7 @@
 +
 +    @DontObfuscate
 +    public String m_130001_() {
-+        return CatServer.NAME; // CatServer - CatServer > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
++        return net.minecraftforge.internal.BrandingControl.getServerBranding();
 +    }
 +
 +    public SystemReport m_177935_(SystemReport p_177936_) {
@@ -3074,7 +3050,7 @@
 +
 +    @Nullable
 +    public ServerConnectionListener m_129919_() {
-+        return this.f_129755_ == null ? this.f_129755_ = new ServerConnectionListener(this) : this.f_129755_; // Spigot
++        return this.f_129755_;
 +    }
 +
 +    public boolean m_129920_() {
@@ -3611,11 +3587,6 @@
 +        return super.m_18695_() || this.m_129918_(); // CraftBukkit - MC-142590
 +    }
 +
-+    public boolean isDebugging() {
-+        return false;
-+    }
-+    // CraftBukkit end
-+
 +    private void m_177945_() {
 +        if (this.f_177875_) {
 +            this.f_177872_ = ActiveMetricsRecorder.m_146132_(new ServerMetricsSamplersProvider(Util.f_137440_, this.m_6982_()), Util.f_137440_, Util.m_183992_(), new MetricsPersister("server"), this.f_177873_, (p_212927_) -> {
@@ -3730,12 +3701,6 @@
 +        }
 +    }
 +
-+    public void initWorld(ServerLevel internal, PrimaryLevelData worlddata, PrimaryLevelData worlddata1, WorldGenSettings worldGenSettings) {
-+    }
-+
-+    public void prepareLevels(ChunkProgressListener progressListener, ServerLevel internal) {
-+    }
-+
 +    public static record ReloadableResources(CloseableResourceManager f_206584_,
 +                                             ReloadableServerResources f_206585_) implements AutoCloseable {
 +        public void close() {
@@ -3784,68 +3749,4 @@
 +            };
 +        }
 +    }
-+
-+    @Deprecated
-+    public static MinecraftServer getServer() {
-+        return (Bukkit.getServer() instanceof CraftServer) ? ((CraftServer) Bukkit.getServer()).getServer() : null;
-+    }
-+
-+    // Spigot Start
-+    private static double calcTps(double avg, double exp, double tps) {
-+        return (avg * exp) + (tps * (1 - exp));
-+    }
-+    // Spigot End
-+
-+    // Paper start - Further improve server tick loop
-+    private static final long SEC_IN_NANO = 1000000000;
-+    private static final long MAX_CATCHUP_BUFFER = TICK_TIME * TPS * 60L;
-+    private long lastTick = 0;
-+    private long catchupTime = 0;
-+    public final RollingAverage tps1 = new RollingAverage(60);
-+    public final RollingAverage tps5 = new RollingAverage(60 * 5);
-+    public final RollingAverage tps15 = new RollingAverage(60 * 15);
-+
-+    public static class RollingAverage {
-+        private final int size;
-+        private long time;
-+        private java.math.BigDecimal total;
-+        private int index = 0;
-+        private final java.math.BigDecimal[] samples;
-+        private final long[] times;
-+
-+        RollingAverage(int size) {
-+            this.size = size;
-+            this.time = size * SEC_IN_NANO;
-+            this.total = dec(TPS).multiply(dec(SEC_IN_NANO)).multiply(dec(size));
-+            this.samples = new java.math.BigDecimal[size];
-+            this.times = new long[size];
-+            for (int i = 0; i < size; i++) {
-+                this.samples[i] = dec(TPS);
-+                this.times[i] = SEC_IN_NANO;
-+            }
-+        }
-+
-+        private static java.math.BigDecimal dec(long t) {
-+            return new java.math.BigDecimal(t);
-+        }
-+
-+        public void add(java.math.BigDecimal x, long t) {
-+            time -= times[index];
-+            total = total.subtract(samples[index].multiply(dec(times[index])));
-+            samples[index] = x;
-+            times[index] = t;
-+            time += t;
-+            total = total.add(x.multiply(dec(t)));
-+            if (++index == size) {
-+                index = 0;
-+            }
-+        }
-+
-+        public double getAverage() {
-+            return total.divide(dec(time), 30, java.math.RoundingMode.HALF_UP).doubleValue();
-+        }
-+    }
-+
-+    private static final java.math.BigDecimal TPS_BASE = new java.math.BigDecimal(1E9).multiply(new java.math.BigDecimal(SAMPLE_INTERVAL));
-+    // Paper End
  }

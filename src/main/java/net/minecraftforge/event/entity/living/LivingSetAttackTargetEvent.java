@@ -22,7 +22,8 @@ import net.minecraftforge.event.entity.living.LivingChangeTargetEvent.LivingTarg
  * <br>
  * This event is fired via the {@link ForgeHooks#onLivingSetAttackTarget(LivingEntity, LivingEntity)}.<br>
  * <br>
- * {@link #target} contains the newly targeted Entity.<br>
+ * {@link #getTarget} returns the newly targeted Entity.<br>
+ * {@link #getTargetType()} returns the target type that caused the change of targets.<br>
  * <br>
  * This event is not {@link net.minecraftforge.eventbus.api.Cancelable}.<br>
  * <br>
@@ -30,19 +31,20 @@ import net.minecraftforge.event.entity.living.LivingChangeTargetEvent.LivingTarg
  * <br>
  * This event is fired on the {@link MinecraftForge#EVENT_BUS}.
  **/
+// TODO: Remove in 1.20
+@Deprecated(since = "1.19.2", forRemoval = true)
 public class LivingSetAttackTargetEvent extends LivingEvent
 {
     private final ILivingTargetType targetType;
     private final LivingEntity originalTarget;
-
+    
     public LivingSetAttackTargetEvent(LivingEntity entity, LivingEntity target)
     {
         super(entity);
-        this.targetType = LivingTargetType.MOB_TARGET;
+        this.targetType = LivingTargetType.MOB_TARGET;        
         this.originalTarget = target;
     }
-
-
+    
     public LivingSetAttackTargetEvent(LivingEntity entity, LivingEntity target, ILivingTargetType targetType)
     {
         super(entity);
@@ -58,7 +60,7 @@ public class LivingSetAttackTargetEvent extends LivingEvent
     {
         return originalTarget;
     }
-
+    
     /**
      * {@return the target type of this event.}
      */

@@ -1,18 +1,17 @@
 package catserver.server.inventory;
 
-import java.util.List;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.bukkit.Location;
-
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockEntityState;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+
+import java.util.List;
 
 public class CatInventoryUtils {
     public static void onOpen(Container inventory, CraftHumanEntity who) {

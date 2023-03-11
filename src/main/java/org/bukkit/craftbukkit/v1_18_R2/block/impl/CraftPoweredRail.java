@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftPoweredRail extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.RedstoneRail, org.bukkit.block.data.Powerable, org.bukkit.block.data.Rail, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftPoweredRail extends CraftBlockData implements org.bukkit.block.data.type.RedstoneRail, org.bukkit.block.data.Powerable, org.bukkit.block.data.Rail, org.bukkit.block.data.Waterlogged {
 
     public CraftPoweredRail() {
         super();
@@ -13,7 +15,7 @@ public final class CraftPoweredRail extends org.bukkit.craftbukkit.v1_18_R2.bloc
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.PoweredRailBlock.class, "powered");
 
@@ -27,7 +29,7 @@ public final class CraftPoweredRail extends org.bukkit.craftbukkit.v1_18_R2.bloc
         set(POWERED, powered);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftRail
+    // org.bukkit.craftbukkit.block.data.CraftRail
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> SHAPE = getEnum(net.minecraft.world.level.block.PoweredRailBlock.class, "shape");
 
@@ -46,7 +48,7 @@ public final class CraftPoweredRail extends org.bukkit.craftbukkit.v1_18_R2.bloc
         return getValues(SHAPE, org.bukkit.block.data.Rail.Shape.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.PoweredRailBlock.class, "waterlogged");
 

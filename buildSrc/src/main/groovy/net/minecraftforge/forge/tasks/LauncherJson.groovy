@@ -25,7 +25,7 @@ abstract class LauncherJson extends DefaultTask {
         "Our efforts are supported by ads from the download page.",
         "If you MUST automate this, please consider supporting the project through https://www.patreon.com/LexManos/"
     ]
-    @Internal final id = "${project.rootProject.ext.MC_VERSION}-FoxServer"
+    @Internal final id = "${project.rootProject.ext.MC_VERSION}-CatServer"
 
     LauncherJson() {
         getOutput().convention(project.layout.buildDirectory.file('version.json'))

@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftWeatheringCopperStair extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Stairs, org.bukkit.block.data.Bisected, org.bukkit.block.data.Directional, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftWeatheringCopperStair extends CraftBlockData implements org.bukkit.block.data.type.Stairs, org.bukkit.block.data.Bisected, org.bukkit.block.data.Directional, org.bukkit.block.data.Waterlogged {
 
     public CraftWeatheringCopperStair() {
         super();
@@ -13,7 +15,7 @@ public final class CraftWeatheringCopperStair extends org.bukkit.craftbukkit.v1_
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftStairs
+    // org.bukkit.craftbukkit.block.data.type.CraftStairs
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> SHAPE = getEnum(net.minecraft.world.level.block.WeatheringCopperStairBlock.class, "shape");
 
@@ -27,7 +29,7 @@ public final class CraftWeatheringCopperStair extends org.bukkit.craftbukkit.v1_
         set(SHAPE, shape);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBisected
+    // org.bukkit.craftbukkit.block.data.CraftBisected
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> HALF = getEnum(net.minecraft.world.level.block.WeatheringCopperStairBlock.class, "half");
 
@@ -41,7 +43,7 @@ public final class CraftWeatheringCopperStair extends org.bukkit.craftbukkit.v1_
         set(HALF, half);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.WeatheringCopperStairBlock.class, "facing");
 
@@ -60,7 +62,7 @@ public final class CraftWeatheringCopperStair extends org.bukkit.craftbukkit.v1_
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.WeatheringCopperStairBlock.class, "waterlogged");
 

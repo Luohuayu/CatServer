@@ -199,25 +199,36 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
     @Nullable
     T get(@NotNull NamespacedKey key);
 
+    // https://github.com/IzzelAliz/Arclight/blob/1.18/arclight-common/src/main/java/io/izzel/arclight/common/mixin/bukkit/Registry_SimpleRegistryMixin.java
     static final class SimpleRegistry<T extends Enum<T> & Keyed> implements Registry<T> {
 
-        private final Map<NamespacedKey, T> map;
+        private Map<NamespacedKey, T> map;
+        private Runnable reloadCallback; // CatServer
 
         protected SimpleRegistry(@NotNull Class<T> type) {
             this(type, Predicates.<T>alwaysTrue());
         }
 
+        // CatServer start
         protected SimpleRegistry(@NotNull Class<T> type, @NotNull Predicate<T> predicate) {
-            ImmutableMap.Builder<NamespacedKey, T> builder = ImmutableMap.builder();
+            this.reloadCallback = () -> {
+                ImmutableMap.Builder<NamespacedKey, T> builder = ImmutableMap.builder();
 
-            for (T entry : type.getEnumConstants()) {
-                if (predicate.test(entry)) {
-                    builder.put(entry.getKey(), entry);
+                for (T entry : type.getEnumConstants()) {
+                    if (predicate.test(entry)) {
+                        builder.put(entry.getKey(), entry);
+                    }
                 }
-            }
 
-            map = builder.build();
+                map = builder.build();
+            };
+            this.reload();
         }
+
+        public void reload() {
+            this.reloadCallback.run();
+        }
+        // CatServer end
 
         @Nullable
         @Override

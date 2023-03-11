@@ -19,8 +19,8 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
 
     private static final int MAX_SIZE = 48;
 
-    public CraftStructureBlock(World world, StructureBlockEntity structure) {
-        super(world, structure);
+    public CraftStructureBlock(World world, StructureBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
 
     @Override
     public BlockVector getRelativePosition() {
-        return new BlockVector(getSnapshot().structurePos.getX(), getSnapshot().structurePos.getY(), getSnapshot().structurePos.getZ());
+        return new BlockVector(getSnapshot().getStructurePos().getX(), getSnapshot().getStructurePos().getY(), getSnapshot().getStructurePos().getZ());
     }
 
     @Override
@@ -61,12 +61,12 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
         Validate.isTrue(isBetween(vector.getBlockX(), -MAX_SIZE, MAX_SIZE), "Structure Size (X) must be between -" + MAX_SIZE + " and " + MAX_SIZE);
         Validate.isTrue(isBetween(vector.getBlockY(), -MAX_SIZE, MAX_SIZE), "Structure Size (Y) must be between -" + MAX_SIZE + " and " + MAX_SIZE);
         Validate.isTrue(isBetween(vector.getBlockZ(), -MAX_SIZE, MAX_SIZE), "Structure Size (Z) must be between -" + MAX_SIZE + " and " + MAX_SIZE);
-        getSnapshot().structurePos = new BlockPos(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ());
+        getSnapshot().setStructurePos(new BlockPos(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ()));
     }
 
     @Override
     public BlockVector getStructureSize() {
-        return new BlockVector(getSnapshot().structureSize.getX(), getSnapshot().structureSize.getY(), getSnapshot().structureSize.getZ());
+        return new BlockVector(getSnapshot().getStructureSize().getX(), getSnapshot().getStructureSize().getY(), getSnapshot().getStructureSize().getZ());
     }
 
     @Override
@@ -74,32 +74,32 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
         Validate.isTrue(isBetween(vector.getBlockX(), 0, MAX_SIZE), "Structure Size (X) must be between 0 and " + MAX_SIZE);
         Validate.isTrue(isBetween(vector.getBlockY(), 0, MAX_SIZE), "Structure Size (Y) must be between 0 and " + MAX_SIZE);
         Validate.isTrue(isBetween(vector.getBlockZ(), 0, MAX_SIZE), "Structure Size (Z) must be between 0 and " + MAX_SIZE);
-        getSnapshot().structureSize = new BlockPos(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ());
+        getSnapshot().setStructureSize(new BlockPos(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ()));
     }
 
     @Override
     public void setMirror(Mirror mirror) {
-        getSnapshot().mirror = net.minecraft.world.level.block.Mirror.valueOf(mirror.name());
+        getSnapshot().setMirror(net.minecraft.world.level.block.Mirror.valueOf(mirror.name()));
     }
 
     @Override
     public Mirror getMirror() {
-        return Mirror.valueOf(getSnapshot().mirror.name());
+        return Mirror.valueOf(getSnapshot().getMirror().name());
     }
 
     @Override
     public void setRotation(StructureRotation rotation) {
-        getSnapshot().rotation = Rotation.valueOf(rotation.name());
+        getSnapshot().setRotation(Rotation.valueOf(rotation.name()));
     }
 
     @Override
     public StructureRotation getRotation() {
-        return StructureRotation.valueOf(getSnapshot().rotation.name());
+        return StructureRotation.valueOf(getSnapshot().getRotation().name());
     }
 
     @Override
     public void setUsageMode(UsageMode mode) {
-        getSnapshot().mode = StructureMode.valueOf(mode.name());
+        getSnapshot().setMode(StructureMode.valueOf(mode.name()));
     }
 
     @Override
@@ -109,17 +109,17 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
 
     @Override
     public void setIgnoreEntities(boolean flag) {
-        getSnapshot().ignoreEntities = flag;
+        getSnapshot().setIgnoreEntities(flag);
     }
 
     @Override
     public boolean isIgnoreEntities() {
-        return getSnapshot().ignoreEntities;
+        return getSnapshot().isIgnoreEntities();
     }
 
     @Override
     public void setShowAir(boolean showAir) {
-        getSnapshot().showAir = showAir;
+        getSnapshot().setShowAir(showAir);
     }
 
     @Override
@@ -129,7 +129,7 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
 
     @Override
     public void setBoundingBoxVisible(boolean showBoundingBox) {
-        getSnapshot().showBoundingBox = showBoundingBox;
+        getSnapshot().setShowBoundingBox(showBoundingBox);
     }
 
     @Override
@@ -140,35 +140,35 @@ public class CraftStructureBlock extends CraftBlockEntityState<StructureBlockEnt
     @Override
     public void setIntegrity(float integrity) {
         Validate.isTrue(isBetween(integrity, 0.0f, 1.0f), "Integrity must be between 0.0f and 1.0f");
-        getSnapshot().integrity = integrity;
+        getSnapshot().setIntegrity(integrity);
     }
 
     @Override
     public float getIntegrity() {
-        return getSnapshot().integrity;
+        return getSnapshot().getIntegrity();
     }
 
     @Override
     public void setSeed(long seed) {
-        getSnapshot().seed = seed;
+        getSnapshot().setSeed(seed);
     }
 
     @Override
     public long getSeed() {
-        return getSnapshot().seed;
+        return getSnapshot().getSeed();
     }
 
     @Override
     public void setMetadata(String metadata) {
         Validate.notNull(metadata, "Structure metadata cannot be null");
         if (getUsageMode() == UsageMode.DATA) {
-            getSnapshot().metaData = metadata;
+            getSnapshot().setMetaData(metadata);
         }
     }
 
     @Override
     public String getMetadata() {
-        return getSnapshot().metaData;
+        return getSnapshot().getMetaData();
     }
 
     @Override

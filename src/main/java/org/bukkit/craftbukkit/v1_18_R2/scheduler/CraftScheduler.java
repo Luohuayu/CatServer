@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.IntUnaryOperator;
 import java.util.logging.Level;
+
 import org.apache.commons.lang3.Validate;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
@@ -58,7 +59,6 @@ public class CraftScheduler implements BukkitScheduler {
         }
         return previous + 1;
     };
-
     /**
      * Counter for IDs. Order doesn't matter, only uniqueness.
      */
@@ -412,9 +412,7 @@ public class CraftScheduler implements BukkitScheduler {
             if (task.isSync()) {
                 currentTask = task;
                 try {
-                    task.timings.startTiming(); // Spigot
                     task.run();
-                    task.timings.stopTiming(); // Spigot
                 } catch (final Throwable throwable) {
                     task.getOwner().getLogger().log(
                             Level.WARNING,

@@ -8,14 +8,17 @@ package net.minecraftforge.network;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.ModList;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 public class ConnectionData
 {
@@ -72,7 +75,6 @@ public class ConnectionData
     {
         return channels;
     }
-
 
     /**
      * A class for holding the mod mismatch data of a failed handshake.
@@ -132,7 +134,7 @@ public class ConnectionData
 
             if (mismatchedDataFromServer) //enhance with data from the server
             {
-                mismatchedModVersions = connectionData != null ? connectionData.getModData().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getRight())) : Map.of();
+                mismatchedModVersions = connectionData != null ? connectionData.getModData().entrySet().stream().collect(Collectors.toMap(Entry::getKey, e -> e.getValue().getRight())) : Map.of();
             }
             else //enhance with data from the client
             {
@@ -195,7 +197,7 @@ public class ConnectionData
         {
             Map<String, Pair<String, String>> serverModData = connectionData != null ? connectionData.getModData() : Map.of();
             Set<String> modIdFilter = mismatchedModsFilter.stream().map(ResourceLocation::getNamespace).collect(Collectors.toSet());
-            return serverModData.entrySet().stream().filter(e -> modIdFilter.contains(e.getKey())).collect(Collectors.toMap(e -> new ResourceLocation(e.getKey(), ""), Map.Entry::getValue));
+            return serverModData.entrySet().stream().filter(e -> modIdFilter.contains(e.getKey())).collect(Collectors.toMap(e -> new ResourceLocation(e.getKey(), ""), Entry::getValue));
         }
     }
 }

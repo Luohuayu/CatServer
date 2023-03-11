@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.players.UserWhiteListEntry;
 import net.minecraft.stats.ServerStatsCounter;
@@ -201,7 +202,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
     }
 
     private File getDataFile() {
-        return new File(storage.getPlayerDataFolder(), getUniqueId() + ".dat");
+        return new File(storage.getPlayerDir(), getUniqueId() + ".dat");
     }
 
     @Override

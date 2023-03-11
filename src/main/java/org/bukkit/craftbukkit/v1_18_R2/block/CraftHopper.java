@@ -8,8 +8,8 @@ import org.bukkit.inventory.Inventory;
 
 public class CraftHopper extends CraftLootable<HopperBlockEntity> implements Hopper {
 
-    public CraftHopper(World world, final HopperBlockEntity te) {
-        super(world, te);
+    public CraftHopper(World world, HopperBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

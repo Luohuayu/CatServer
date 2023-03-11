@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
-import net.minecraftforge.versions.forge.ForgeVersion;
 import org.bukkit.Warning.WarningState;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.block.data.BlockData;
@@ -89,7 +88,7 @@ public final class Bukkit {
         }
 
         Bukkit.server = server;
-        server.getLogger().info("This server is running " + getName() + " version " + getVersion() + " (Implementing API version " + getBukkitVersion() + ", Forge version " + ForgeVersion.getVersion() + ")");
+        server.getLogger().info("This server is running " + getName() + " version " + getVersion() + " (Implementing API version " + getBukkitVersion() + ")");
     }
 
     /**
@@ -353,8 +352,8 @@ public final class Bukkit {
     /**
      * Broadcast a message to all players.
      * <p>
-     * This is the same as calling {@link #broadcast(String,
-     * String)} to {@link Server#BROADCAST_CHANNEL_USERS}
+     * This is the same as calling {@link #broadcast(java.lang.String,
+     * java.lang.String)} to {@link Server#BROADCAST_CHANNEL_USERS}
      *
      * @param message the message
      * @return the number of players
@@ -728,7 +727,6 @@ public final class Bukkit {
         return server.createWorldBorder();
     }
 
-
     /**
      * Gets the map from the given item ID.
      *
@@ -765,8 +763,8 @@ public final class Bukkit {
      * @param structureType the type of structure to find
      * @return a newly created item stack
      *
-     * @see World#locateNearestStructure(Location,
-     *      StructureType, int, boolean)
+     * @see World#locateNearestStructure(org.bukkit.Location,
+     *      org.bukkit.StructureType, int, boolean)
      */
     @NotNull
     public static ItemStack createExplorerMap(@NotNull World world, @NotNull Location location, @NotNull StructureType structureType) {
@@ -788,8 +786,8 @@ public final class Bukkit {
      * @param findUnexplored whether to find unexplored structures
      * @return the newly created item stack
      *
-     * @see World#locateNearestStructure(Location,
-     *      StructureType, int, boolean)
+     * @see World#locateNearestStructure(org.bukkit.Location,
+     *      org.bukkit.StructureType, int, boolean)
      */
     @NotNull
     public static ItemStack createExplorerMap(@NotNull World world, @NotNull Location location, @NotNull StructureType structureType, int radius, boolean findUnexplored) {
@@ -1078,7 +1076,7 @@ public final class Bukkit {
      *
      * @param name the name the player to retrieve
      * @return an offline player
-     * @see #getOfflinePlayer(UUID)
+     * @see #getOfflinePlayer(java.util.UUID)
      * @deprecated Persistent storage of users should be by UUID as names are no longer
      *             unique past a single session.
      */
@@ -1598,7 +1596,7 @@ public final class Bukkit {
     /**
      * Create a ChunkData for use in a generator.
      *
-     * See {@link ChunkGenerator#generateChunkData(World, java.util.Random, int, int, ChunkGenerator.BiomeGrid)}
+     * See {@link ChunkGenerator#generateChunkData(org.bukkit.World, java.util.Random, int, int, org.bukkit.generator.ChunkGenerator.BiomeGrid)}
      *
      * @param world the world to create the ChunkData for
      * @return a new ChunkData for the world

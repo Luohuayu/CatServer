@@ -11,10 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.InventoryHolder;
-
-import java.util.List;
 
 public class RecipeWrapper implements Container {
 
@@ -91,23 +88,12 @@ public class RecipeWrapper implements Container {
     }
 
     @Override
-    public List<ItemStack> getContents() {
-        return null;
-    }
-
-    @Override
     public void onOpen(CraftHumanEntity who) {
-
     }
 
     @Override
     public void onClose(CraftHumanEntity who) {
 
-    }
-
-    @Override
-    public List<HumanEntity> getViewers() {
-        return null;
     }
 
     @Override

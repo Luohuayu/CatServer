@@ -8,9 +8,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.players.UserBanListEntry;
-import net.minecraft.server.players.UserBanList;
 import net.minecraft.server.players.StoredUserEntry;
+import net.minecraft.server.players.UserBanList;
+import net.minecraft.server.players.UserBanListEntry;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
@@ -67,7 +67,7 @@ public class CraftProfileBanList implements org.bukkit.BanList {
     public Set<org.bukkit.BanEntry> getBanEntries() {
         ImmutableSet.Builder<org.bukkit.BanEntry> builder = ImmutableSet.builder();
 
-        for (StoredUserEntry entry : list.getEntries()) {
+        for (StoredUserEntry entry : list.getValues()) {
             GameProfile profile = (GameProfile) entry.getUser();
             builder.add(new CraftProfileBanEntry(profile, (UserBanListEntry) entry, list));
         }
@@ -103,6 +103,7 @@ public class CraftProfileBanList implements org.bukkit.BanList {
         } catch (IllegalArgumentException ex) {
             //
         }
+
         return ((uuid != null) ? MinecraftServer.getServer().getProfileCache().get(uuid) : MinecraftServer.getServer().getProfileCache().get(target)).orElse(null);
     }
 }

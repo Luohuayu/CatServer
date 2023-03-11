@@ -3,12 +3,16 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import net.minecraft.nbt.Tag;
+
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Material;
+import org.bukkit.block.BlockState;
 import org.bukkit.configuration.serialization.DelegateDeserialization;
-import org.bukkit.craftbukkit.v1_18_R2.block.*;
+import org.bukkit.craftbukkit.v1_18_R2.block.CraftBanner;
+import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockEntityState;
+import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockStates;
 import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
 import org.bukkit.inventory.meta.BlockStateMeta;
 
@@ -208,7 +212,7 @@ public class CraftMetaBlockState extends CraftMetaItem implements BlockStateMeta
     }
 
     @Override
-    public org.bukkit.block.BlockState getBlockState() {
+    public BlockState getBlockState() {
         Material stateMaterial = (material != Material.SHIELD) ? material : shieldToBannerHack(blockEntityTag); // Only actually used for jigsaws
         if (blockEntityTag != null) {
             switch (material) {
@@ -240,12 +244,15 @@ public class CraftMetaBlockState extends CraftMetaItem implements BlockStateMeta
                     break;
             }
         }
+
         // This is expected to always return a CraftBlockEntityState for the passed material:
         return CraftBlockStates.getBlockState(stateMaterial, blockEntityTag);
     }
 
     @Override
-    public void setBlockState(org.bukkit.block.BlockState blockState) {
+    public void setBlockState(BlockState blockState) {
+        Validate.notNull(blockState, "blockState must not be null");
+
         Material stateMaterial = (material != Material.SHIELD) ? material : shieldToBannerHack(blockEntityTag);
         Class<?> blockStateType = CraftBlockStates.getBlockStateType(stateMaterial);
         Validate.isTrue(blockStateType == blockState.getClass() && blockState instanceof CraftBlockEntityState, "Invalid blockState for " + material);

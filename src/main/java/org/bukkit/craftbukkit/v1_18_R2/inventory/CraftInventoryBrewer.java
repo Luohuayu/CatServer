@@ -1,12 +1,11 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
-import net.minecraft.world.Container;
 import org.bukkit.block.BrewingStand;
 import org.bukkit.inventory.BrewerInventory;
 import org.bukkit.inventory.ItemStack;
 
 public class CraftInventoryBrewer extends CraftInventory implements BrewerInventory {
-    public CraftInventoryBrewer(Container inventory) {
+    public CraftInventoryBrewer(net.minecraft.world.Container inventory) {
         super(inventory);
     }
 

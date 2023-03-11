@@ -26,7 +26,7 @@ class CraftAsyncTask extends CraftTask {
     public void run() {
         final Thread thread = Thread.currentThread();
         synchronized (workers) {
-            if (getPeriod() == CraftTask.CANCEL) {
+            if (getPeriod() == CANCEL) {
                 // Never continue running after cancelled.
                 // Checking this with the lock is important!
                 return;
@@ -102,7 +102,7 @@ class CraftAsyncTask extends CraftTask {
     boolean cancel0() {
         synchronized (workers) {
             // Synchronizing here prevents race condition for a completing task
-            setPeriod(CraftTask.CANCEL);
+            setPeriod(CANCEL);
             if (workers.isEmpty()) {
                 runners.remove(getTaskId());
             }

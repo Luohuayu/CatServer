@@ -4,7 +4,7 @@
  import net.minecraft.nbt.NbtUtils;
  import net.minecraft.nbt.StringTag;
  import net.minecraft.nbt.Tag;
-+import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
++import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
  import net.minecraft.resources.RegistryOps;
  import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerLevel;
@@ -12,23 +12,42 @@
  import net.minecraft.util.datafix.DataFixTypes;
  import net.minecraft.world.Difficulty;
  import net.minecraft.world.level.DataPackConfig;
-@@ -36,6 +_,11 @@
+@@ -36,13 +_,16 @@
  import net.minecraft.world.level.levelgen.WorldGenSettings;
  import net.minecraft.world.level.timers.TimerCallbacks;
  import net.minecraft.world.level.timers.TimerQueue;
 +import org.bukkit.Bukkit;
-+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
-+import org.bukkit.entity.Player;
 +import org.bukkit.event.weather.ThunderChangeEvent;
 +import org.bukkit.event.weather.WeatherChangeEvent;
  import org.slf4j.Logger;
  
  public class PrimaryLevelData implements ServerLevelData, WorldData {
-@@ -76,6 +_,7 @@
+    private static final Logger f_78442_ = LogUtils.getLogger();
+    protected static final String f_202314_ = "Player";
+    protected static final String f_164940_ = "WorldGenSettings";
+-   private LevelSettings f_78443_;
++   public LevelSettings f_78443_;
+    private final WorldGenSettings f_78444_;
+    private final Lifecycle f_78445_;
+    private int f_78446_;
+@@ -76,6 +_,20 @@
     private final Set<String> f_78439_;
     private boolean f_78440_;
     private final TimerQueue<MinecraftServer> f_78441_;
 +   private boolean confirmedExperimentalWarning = false;
++   // CraftBukkit start - Add world and pdc
++   private ServerLevel world;
++   protected Tag pdc;
++
++   public void setWorld(ServerLevel world) {
++      if (this.world != null) {
++         return;
++      }
++      this.world = world;
++      world.getWorld().readBukkitValues(pdc);
++      pdc = null;
++   }
++   // CraftBukkit end
  
     private PrimaryLevelData(@Nullable DataFixer p_164942_, int p_164943_, @Nullable CompoundTag p_164944_, boolean p_164945_, int p_164946_, int p_164947_, int p_164948_, float p_164949_, long p_164950_, long p_164951_, int p_164952_, int p_164953_, int p_164954_, boolean p_164955_, int p_164956_, boolean p_164957_, boolean p_164958_, boolean p_164959_, WorldBorder.Settings p_164960_, int p_164961_, int p_164962_, @Nullable UUID p_164963_, Set<String> p_164964_, TimerQueue<MinecraftServer> p_164965_, @Nullable CompoundTag p_164966_, CompoundTag p_164967_, LevelSettings p_164968_, WorldGenSettings p_164969_, Lifecycle p_164970_) {
        this.f_78452_ = p_164942_;
@@ -52,30 +71,28 @@
     }
  
     public CompoundTag m_6626_(RegistryAccess p_78543_, @Nullable CompoundTag p_78544_) {
-@@ -190,7 +_,13 @@
-       if (this.f_78438_ != null) {
+@@ -191,6 +_,13 @@
           p_78547_.m_128362_("WanderingTraderId", this.f_78438_);
        }
-+	  
-+	  p_78547_.m_128359_("forgeLifecycle", net.minecraftforge.common.ForgeHooks.encodeLifecycle(this.f_78443_.getLifecycle()));
-+      p_78547_.m_128379_("confirmedExperimentalSettings", this.confirmedExperimentalWarning);
  
-+      if(Bukkit.getServer() != null){
-+         p_78547_.m_128359_("Bukkit.Version", Bukkit.getName() + "/" + Bukkit.getVersion() + "/" + Bukkit.getBukkitVersion()); // CraftBukkit
++      if (Bukkit.getServer() != null) {
++         p_78547_.m_128359_("Bukkit.Version",   "CatServer/1.18.2/1.18.2"); // CatServer - ignore NullPointerException
++         world.getWorld().storeBukkitValues(p_78547_); // CraftBukkit - add pdc
 +      }
++
++      p_78547_.m_128359_("forgeLifecycle", net.minecraftforge.common.ForgeHooks.encodeLifecycle(this.f_78443_.getLifecycle()));
++      p_78547_.m_128379_("confirmedExperimentalSettings", this.confirmedExperimentalWarning);
     }
  
     public int m_6789_() {
-@@ -288,6 +_,21 @@
+@@ -288,6 +_,19 @@
     }
  
     public void m_5557_(boolean p_78562_) {
-+
 +      // CraftBukkit start
 +      if (this.f_78460_ == p_78562_) {
 +         return;
 +      }
-+
 +      org.bukkit.World world = Bukkit.getWorld(m_5462_());
 +      if (world != null) {
 +         ThunderChangeEvent thunder = new ThunderChangeEvent(world, p_78562_);
@@ -88,7 +105,7 @@
        this.f_78460_ = p_78562_;
     }
  
-@@ -304,6 +_,20 @@
+@@ -304,6 +_,19 @@
     }
  
     public void m_5565_(boolean p_78576_) {
@@ -96,7 +113,6 @@
 +      if (this.f_78458_ == p_78576_) {
 +         return;
 +      }
-+
 +      org.bukkit.World world = Bukkit.getWorld(m_5462_());
 +      if (world != null) {
 +         WeatherChangeEvent weather = new WeatherChangeEvent(world, p_78576_);
@@ -109,30 +125,23 @@
        this.f_78458_ = p_78576_;
     }
  
-@@ -356,6 +_,12 @@
-    }
+@@ -357,6 +_,12 @@
  
     public void m_6166_(Difficulty p_78521_) {
+       this.f_78443_ = this.f_78443_.m_46918_(p_78521_);
 +      // CraftBukkit start
-+      ServerboundChangeDifficultyPacket packet = new ServerboundChangeDifficultyPacket(p_78521_);
-+      for (Player player : Bukkit.getOnlinePlayers()) {
-+         ((CraftPlayer)player).getHandle().f_8906_.m_141995_(packet);
++      ClientboundChangeDifficultyPacket packet = new ClientboundChangeDifficultyPacket(this.m_5472_(), this.m_5474_());
++      for (ServerPlayer player : world.m_6907_()) {
++         player.f_8906_.m_141995_(packet);
 +      }
 +      // CraftBukkit end
-       this.f_78443_ = this.f_78443_.m_46918_(p_78521_);
     }
  
-@@ -454,4 +_,20 @@
+    public boolean m_5474_() {
+@@ -453,5 +_,22 @@
+ 
     public LevelSettings m_5926_() {
        return this.f_78443_.m_46935_();
-    }
-+      //FORGE
-+   public boolean hasConfirmedExperimentalWarning() {
-+      return this.confirmedExperimentalWarning;
-+   }
-+   public PrimaryLevelData withConfirmedWarning(boolean confirmedWarning) { //Builder-like to not patch ctor
-+      this.confirmedExperimentalWarning = confirmedWarning;
-+      return this;
 +   }
 +
 +   // CraftBukkit start - Check if the name stored in NBT is the correct one
@@ -142,4 +151,13 @@
 +      }
 +   }
 +   // CraftBukkit end
++
++   //FORGE
++   public boolean hasConfirmedExperimentalWarning() {
++      return this.confirmedExperimentalWarning;
++   }
++   public PrimaryLevelData withConfirmedWarning(boolean confirmedWarning) { //Builder-like to not patch ctor
++      this.confirmedExperimentalWarning = confirmedWarning;
++      return this;
+    }
  }

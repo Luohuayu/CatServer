@@ -5,10 +5,11 @@
 
 package net.minecraftforge.event.world;
 
+import java.util.function.Supplier;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -24,10 +25,7 @@ import net.minecraft.util.random.WeightedRandomList;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.biome.MobSpawnSettings;
-import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.levelgen.RandomSource;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraftforge.common.ForgeInternalHandler;
 import net.minecraftforge.common.MinecraftForge;
@@ -129,7 +127,7 @@ public class WorldEvent extends Event
         }
     }
 
-    /**
+     /**
      * Fired when building a list of all possible entities that can spawn at the specified location.
      *
      * <p>If an entry is added to the list, it needs to be a globally unique instance.</p>

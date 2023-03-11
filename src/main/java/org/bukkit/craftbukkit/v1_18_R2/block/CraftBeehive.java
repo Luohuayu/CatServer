@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.block;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
@@ -14,8 +15,8 @@ import org.bukkit.entity.Bee;
 
 public class CraftBeehive extends CraftBlockEntityState<BeehiveBlockEntity> implements Beehive {
 
-    public CraftBeehive(World world, final BeehiveBlockEntity te) {
-        super(world, te);
+    public CraftBeehive(World world, BeehiveBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

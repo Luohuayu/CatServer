@@ -1,13 +1,15 @@
 --- a/net/minecraft/core/dispenser/ShearsDispenseItemBehavior.java
 +++ b/net/minecraft/core/dispenser/ShearsDispenseItemBehavior.java
-@@ -20,13 +_,40 @@
+@@ -20,13 +_,39 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.phys.AABB;
-+import org.bukkit.Bukkit;
++import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
 +import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
 +import org.bukkit.event.block.BlockDispenseEvent;
++
++import java.util.concurrent.atomic.AtomicReference;
  
  public class ShearsDispenseItemBehavior extends OptionalDispenseItemBehavior {
     protected ItemStack m_7498_(BlockSource p_123580_, ItemStack p_123581_) {
@@ -15,16 +17,13 @@
 +      // CraftBukkit start
 +      org.bukkit.block.Block bukkitBlock = level.getWorld().getBlockAt(p_123580_.m_7961_().m_123341_(), p_123580_.m_7961_().m_123342_(), p_123580_.m_7961_().m_123343_());
 +      CraftItemStack craftItem = CraftItemStack.asCraftMirror(p_123581_);
-+
 +      BlockDispenseEvent event = new BlockDispenseEvent(bukkitBlock, craftItem.clone(), new org.bukkit.util.Vector(0, 0, 0));
 +      if (!DispenserBlock.eventFired) {
-+         Bukkit.getPluginManager().callEvent(event);
++         level.getCraftServer().getPluginManager().callEvent(event);
 +      }
-+
 +      if (event.isCancelled()) {
 +         return p_123581_;
 +      }
-+
 +      if (!event.getItem().equals(craftItem)) {
 +         // Chain to handler for new item
 +         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
@@ -42,17 +41,27 @@
           if (this.m_123570_() && p_123581_.m_41629_(1, level.m_5822_(), (ServerPlayer)null)) {
              p_123581_.m_41764_(0);
           }
-@@ -53,11 +_,16 @@
+@@ -53,11 +_,27 @@
        return false;
     }
  
--   private static boolean m_123582_(ServerLevel p_123583_, BlockPos p_123584_) {
++   // CatServer start
++   private static AtomicReference<Block> catserver$shearBukkitBlock = new AtomicReference<>();
++   private static AtomicReference<CraftItemStack> catserver$shearCraftItem = new AtomicReference<>();
 +   private static boolean tryShearLivingEntity(ServerLevel p_123583_, BlockPos p_123584_, org.bukkit.block.Block bukkitBlock, CraftItemStack craftItem) { // CraftBukkit - add args
++      ShearsDispenseItemBehavior.catserver$shearBukkitBlock.set(bukkitBlock);
++      ShearsDispenseItemBehavior.catserver$shearCraftItem.set(craftItem);
++      return m_123582_(p_123583_, p_123584_);
++   }
++
+    private static boolean m_123582_(ServerLevel p_123583_, BlockPos p_123584_) {
        for(LivingEntity livingentity : p_123583_.m_6443_(LivingEntity.class, new AABB(p_123584_), EntitySelector.f_20408_)) {
           if (livingentity instanceof Shearable) {
              Shearable shearable = (Shearable)livingentity;
              if (shearable.m_6220_()) {
 +               // CraftBukkit start
++               var bukkitBlock = ShearsDispenseItemBehavior.catserver$shearBukkitBlock.getAndSet(null);
++               var craftItem = ShearsDispenseItemBehavior.catserver$shearCraftItem.getAndSet(null);
 +               if (CraftEventFactory.callBlockShearEntityEvent(livingentity, bukkitBlock, craftItem).isCancelled()) {
 +                  continue;
 +               }

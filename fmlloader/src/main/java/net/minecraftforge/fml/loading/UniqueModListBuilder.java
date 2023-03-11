@@ -60,8 +60,8 @@ public class UniqueModListBuilder
         final Map<String, List<ModFile>> versionedLibIds = uniqueLibListWithVersion.stream()
                 .map(UniqueModListBuilder::getModId)
                 .collect(Collectors.toMap(
-                        Function.identity(),
-                        libFilesWithVersionByModuleName::get
+                    Function.identity(),
+                    libFilesWithVersionByModuleName::get
                 ));
 
         // Its theoretically possible that some mod has somehow moved an id to a secondary place, thus causing a dupe.
@@ -73,8 +73,8 @@ public class UniqueModListBuilder
 
         if (!dupedMods.isEmpty()) {
             final List<EarlyLoadingException.ExceptionData> duplicateModErrors = dupedMods.stream()
-                    .map(dm -> new EarlyLoadingException.ExceptionData("fml.modloading.dupedmod", dm, Objects.toString(dm)))
-                    .toList();
+                                                                                   .map(dm -> new EarlyLoadingException.ExceptionData("fml.modloading.dupedmod", dm, Objects.toString(dm)))
+                                                                                   .toList();
             throw new EarlyLoadingException("Duplicate mods found", null,  duplicateModErrors);
         }
 
@@ -85,8 +85,8 @@ public class UniqueModListBuilder
 
         if (!dupedLibs.isEmpty()) {
             final List<EarlyLoadingException.ExceptionData> duplicateLibErrors = dupedLibs.stream()
-                    .map(dm -> new EarlyLoadingException.ExceptionData("fml.modloading.dupedlib.versioned", dm, Objects.toString(dm)))
-                    .toList();
+                .map(dm -> new EarlyLoadingException.ExceptionData("fml.modloading.dupedlib.versioned", dm, Objects.toString(dm)))
+                .toList();
             throw new EarlyLoadingException("Duplicate plugins or libraries found", null,  duplicateLibErrors);
         }
 

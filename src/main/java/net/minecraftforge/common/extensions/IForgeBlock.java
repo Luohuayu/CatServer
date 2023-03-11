@@ -24,6 +24,7 @@ import net.minecraft.world.entity.projectile.WitherSkull;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.MaterialColor;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
@@ -846,7 +847,6 @@ public interface IForgeBlock
      * @param newState The new state of the block at the given position
      */
     default void onBlockStateChange(LevelReader level, BlockPos pos, BlockState oldState, BlockState newState) { }
-
 
     /**
      * Returns the {@link MaterialColor} shown on the map.

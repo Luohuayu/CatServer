@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftRedstoneOre extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Lightable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftRedstoneOre extends CraftBlockData implements org.bukkit.block.data.Lightable {
 
     public CraftRedstoneOre() {
         super();
@@ -13,7 +15,7 @@ public final class CraftRedstoneOre extends org.bukkit.craftbukkit.v1_18_R2.bloc
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftLightable
+    // org.bukkit.craftbukkit.block.data.CraftLightable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty LIT = getBoolean(net.minecraft.world.level.block.RedStoneOreBlock.class, "lit");
 

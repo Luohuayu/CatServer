@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.entity;
 import com.google.common.base.Preconditions;
 import net.minecraft.core.Direction;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.level.block.Blocks;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Rotation;
@@ -20,7 +21,7 @@ public class CraftItemFrame extends CraftHanging implements ItemFrame {
 
     @Override
     public boolean setFacingDirection(BlockFace face, boolean force) {
-        net.minecraft.world.entity.decoration.HangingEntity hanging = getHandle();
+        HangingEntity hanging = getHandle();
         Direction oldDir = hanging.getDirection();
         Direction newDir = CraftBlock.blockFaceToNotch(face);
 
@@ -59,6 +60,7 @@ public class CraftItemFrame extends CraftHanging implements ItemFrame {
 
     @Override
     public void setItem(org.bukkit.inventory.ItemStack item, boolean playSound) {
+        // only updated redstone and play sound when it is not in generation
         getHandle().setItem(CraftItemStack.asNMSCopy(item), !getHandle().generation, !getHandle().generation && playSound);
     }
 

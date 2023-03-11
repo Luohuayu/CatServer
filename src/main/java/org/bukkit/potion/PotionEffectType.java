@@ -3,6 +3,8 @@ package org.bukkit.potion;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Color;
 import org.bukkit.Keyed;
@@ -225,7 +227,7 @@ public abstract class PotionEffectType implements Keyed {
     @NotNull
     @Override
     public NamespacedKey getKey() {
-        return key;
+       return key;
     }
 
     /**
@@ -276,8 +278,7 @@ public abstract class PotionEffectType implements Keyed {
         return "PotionEffectType[" + id + ", " + getName() + "]";
     }
 
-    // FoxServer - BukkitInjector use HashMap
-    private static final Map<Integer, PotionEffectType> byId = new HashMap<Integer, PotionEffectType>();
+    private static final PotionEffectType[] byId = new PotionEffectType[255];
     private static final Map<String, PotionEffectType> byName = new HashMap<String, PotionEffectType>();
     private static final Map<NamespacedKey, PotionEffectType> byKey = new HashMap<NamespacedKey, PotionEffectType>();
     // will break on updates.
@@ -305,8 +306,9 @@ public abstract class PotionEffectType implements Keyed {
     @Deprecated
     @Nullable
     public static PotionEffectType getById(int id) {
-        // FoxServer - BukkitInjector
-        return byId.get(id);
+        if (id >= byId.length || id < 0)
+            return null;
+        return byId[id];
     }
 
     /**
@@ -329,16 +331,14 @@ public abstract class PotionEffectType implements Keyed {
      * @param type PotionType to register
      */
     public static void registerPotionEffectType(@NotNull PotionEffectType type) {
-        // FoxServer - Use Map containsKey
-        if (byId.containsKey(type.id) || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH)) || byKey.containsKey(type.key)) {
+        if (byId[type.id] != null || byName.containsKey(type.getName().toLowerCase(java.util.Locale.ENGLISH)) || byKey.containsKey(type.key)) {
             throw new IllegalArgumentException("Cannot set already-set type");
         } else if (!acceptingNew) {
             throw new IllegalStateException(
                     "No longer accepting new potion effect types (can only be done by the server implementation)");
         }
 
-        // FoxServer - Use Map put
-        byId.put(type.id, type);
+        byId[type.id] = type;
         byName.put(type.getName().toLowerCase(java.util.Locale.ENGLISH), type);
         byKey.put(type.key, type);
     }
@@ -358,7 +358,6 @@ public abstract class PotionEffectType implements Keyed {
      */
     @NotNull
     public static PotionEffectType[] values() {
-        // FoxServer - don't init array size to max id. because the id maybe null in the range !!!
-        return byId.values().toArray(new PotionEffectType[0]);
+        return Arrays.stream(Arrays.copyOfRange(byId, 1, byId.length)).filter(Objects::nonNull).toArray(PotionEffectType[]::new);
     }
 }

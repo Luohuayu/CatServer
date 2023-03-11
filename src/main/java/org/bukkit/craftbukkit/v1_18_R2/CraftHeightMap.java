@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
+import net.minecraft.world.level.levelgen.Heightmap;
 import org.bukkit.HeightMap;
 
 public final class CraftHeightMap {
@@ -26,7 +27,7 @@ public final class CraftHeightMap {
         }
     }
 
-    public static HeightMap fromNMS(net.minecraft.world.level.levelgen.Heightmap.Types nmsHeightMapType) {
+    public static HeightMap fromNMS(Heightmap.Types nmsHeightMapType) {
         switch (nmsHeightMapType) {
             case WORLD_SURFACE_WG:
                 return HeightMap.WORLD_SURFACE_WG;

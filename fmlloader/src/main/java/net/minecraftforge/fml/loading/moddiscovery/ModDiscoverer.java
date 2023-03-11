@@ -32,17 +32,17 @@ public class ModDiscoverer {
     private final List<IModLocator>          modLocatorList;
 
     public ModDiscoverer(Map<String, ?> arguments) {
-        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.MODDIRECTORYFACTORY.get(), v -> ModsFolderLocator::new);
-        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.PROGRESSMESSAGE.get(), v -> StartupMessageManager.locatorConsumer().orElseGet(() -> s -> {
-        }));
+        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.MODDIRECTORYFACTORY.get(), v->ModsFolderLocator::new);
+        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.PROGRESSMESSAGE.get(), v-> StartupMessageManager.locatorConsumer().orElseGet(()-> s->{}));
         final var moduleLayerManager = Launcher.INSTANCE.environment().findModuleLayerManager().orElseThrow();
         modLocators = ServiceLoader.load(moduleLayerManager.getLayer(IModuleLayerManager.Layer.SERVICE).orElseThrow(), IModLocator.class);
-        modLocatorList = ServiceLoaderUtils.streamServiceLoader(() -> modLocators, sce -> LOGGER.error("Failed to load mod locator list", sce)).collect(Collectors.toList());
-        modLocatorList.forEach(l -> l.initArguments(arguments));
-        if (LOGGER.isDebugEnabled(LogMarkers.CORE)) {
+        modLocatorList = ServiceLoaderUtils.streamServiceLoader(()-> modLocators, sce->LOGGER.error("Failed to load mod locator list", sce)).collect(Collectors.toList());
+        modLocatorList.forEach(l->l.initArguments(arguments));
+        if (LOGGER.isDebugEnabled(LogMarkers.CORE))
+        {
             LOGGER.debug(LogMarkers.CORE, "Found Mod Locators : {}", modLocatorList.stream()
-                    .map(modLocator -> "(%s:%s)".formatted(modLocator.name(),
-                            modLocator.getClass().getPackage().getImplementationVersion())).collect(Collectors.joining(",")));
+                                                                       .map(modLocator -> "(%s:%s)".formatted(modLocator.name(),
+                                                                         modLocator.getClass().getPackage().getImplementationVersion())).collect(Collectors.joining(",")));
         }
     }
 
@@ -78,7 +78,7 @@ public class ModDiscoverer {
             //Grab the temporary results.
             //This allows loading to continue to a base state, in case dependency loading fails.
             modFilesMap = uniqueModsData.modFiles().stream()
-                    .collect(Collectors.groupingBy(IModFile::getType));
+                            .collect(Collectors.groupingBy(IModFile::getType));
             loadedFiles = uniqueModsData.modFiles();
         }
         catch (EarlyLoadingException exception) {
@@ -115,7 +115,7 @@ public class ModDiscoverer {
 
                 //We now only need the mod files map, not the list.
                 modFilesMap = uniqueModsAndDependenciesData.modFiles().stream()
-                        .collect(Collectors.groupingBy(IModFile::getType));
+                                .collect(Collectors.groupingBy(IModFile::getType));
             } catch (EarlyLoadingException exception) {
                 LOGGER.error(LogMarkers.SCAN, "Failed to build unique mod list after dependency discovery.", exception);
                 discoveryErrorData.addAll(exception.getAllData());
@@ -130,7 +130,6 @@ public class ModDiscoverer {
         //Validate the loading. With a deduplicated list, we can now successfully process the artifacts and load
         //transformer plugins.
         var validator = new ModValidator(modFilesMap, discoveryErrorData);
-
         validator.stage1Validation();
         return validator;
     }
@@ -144,5 +143,4 @@ public class ModDiscoverer {
         }
         loadedFiles.addAll(locatedModFiles);
     }
-
 }

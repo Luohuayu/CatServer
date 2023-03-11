@@ -3,16 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory.util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity;
-import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
-import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.DropperBlockEntity;
-import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
-import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
-import net.minecraft.world.level.block.entity.LecternBlockEntity;
-import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
-import net.minecraft.world.level.block.entity.SmokerBlockEntity;
+import net.minecraft.world.level.block.entity.*;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventory;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryBrewer;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryFurnace;
@@ -48,7 +39,7 @@ public abstract class CraftTileInventoryConverter implements CraftInventoryCreat
 
         @Override
         public Container getTileEntity() {
-            AbstractFurnaceBlockEntity furnace = new FurnaceBlockEntity(BlockPos.ZERO, Blocks.FURNACE.defaultBlockState()); // TODO: customize this if required
+            FurnaceBlockEntity furnace = new FurnaceBlockEntity(BlockPos.ZERO, Blocks.FURNACE.defaultBlockState()); // TODO: customize this if required
             return furnace;
         }
 
@@ -74,7 +65,7 @@ public abstract class CraftTileInventoryConverter implements CraftInventoryCreat
 
         @Override
         public Inventory createInventory(InventoryHolder holder, InventoryType type, String title) {
-            // BrewingStand does not extend RandomizableContainerBlockEntity
+            // BrewingStand does not extend TileEntityLootable
             Container tileEntity = getTileEntity();
             if (tileEntity instanceof BrewingStandBlockEntity) {
                 ((BrewingStandBlockEntity) tileEntity).setCustomName(CraftChatMessage.fromStringOrNull(title));

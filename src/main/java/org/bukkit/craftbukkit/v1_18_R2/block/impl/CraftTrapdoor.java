@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.TrapDoor, org.bukkit.block.data.Bisected, org.bukkit.block.data.Directional, org.bukkit.block.data.Openable, org.bukkit.block.data.Powerable, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftTrapdoor extends CraftBlockData implements org.bukkit.block.data.type.TrapDoor, org.bukkit.block.data.Bisected, org.bukkit.block.data.Directional, org.bukkit.block.data.Openable, org.bukkit.block.data.Powerable, org.bukkit.block.data.Waterlogged {
 
     public CraftTrapdoor() {
         super();
@@ -13,7 +15,7 @@ public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.d
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBisected
+    // org.bukkit.craftbukkit.block.data.CraftBisected
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> HALF = getEnum(net.minecraft.world.level.block.TrapDoorBlock.class, "half");
 
@@ -27,7 +29,7 @@ public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.d
         set(HALF, half);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.TrapDoorBlock.class, "facing");
 
@@ -46,7 +48,7 @@ public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.d
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftOpenable
+    // org.bukkit.craftbukkit.block.data.CraftOpenable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = getBoolean(net.minecraft.world.level.block.TrapDoorBlock.class, "open");
 
@@ -60,7 +62,7 @@ public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.d
         set(OPEN, open);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.TrapDoorBlock.class, "powered");
 
@@ -74,7 +76,7 @@ public final class CraftTrapdoor extends org.bukkit.craftbukkit.v1_18_R2.block.d
         set(POWERED, powered);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.TrapDoorBlock.class, "waterlogged");
 

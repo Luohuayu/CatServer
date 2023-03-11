@@ -24,7 +24,7 @@ public class CraftArrow extends AbstractProjectile implements AbstractArrow {
 
     @Override
     public int getKnockbackStrength() {
-        return getHandle().knockback;
+        return getHandle().getKnockback();
     }
 
     @Override
@@ -105,7 +105,7 @@ public class CraftArrow extends AbstractProjectile implements AbstractArrow {
     public void setTicksLived(int value) {
         super.setTicksLived(value);
 
-        // Second field for net.minecraft.world.entity.projectile.AbstractArrow
+        // Second field for EntityArrow
         getHandle().life = value;
     }
 

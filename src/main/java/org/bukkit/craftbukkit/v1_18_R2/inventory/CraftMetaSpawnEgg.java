@@ -2,8 +2,9 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import com.google.common.collect.ImmutableMap.Builder;
 import java.util.Map;
-import net.minecraft.nbt.Tag;
+
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.Material;
 import org.bukkit.configuration.serialization.DelegateDeserialization;
@@ -77,12 +78,12 @@ public class CraftMetaSpawnEgg extends CraftMetaItem implements SpawnEggMeta {
             // Tag still has some other data, lets try our luck with a conversion
             if (!entityTag.isEmpty()) {
                 // SPIGOT-4128: This is hopeless until we start versioning stacks. RIP data.
-                // entityTag = (CompoundTag) MinecraftServer.getServer().dataConverterManager.update(References.ENTITY, new Dynamic(NbtOps.a, entityTag), -1, CraftMagicNumbers.DATA_VERSION).getValue();
+                // entityTag = (NBTTagCompound) MinecraftServer.getServer().dataConverterManager.update(DataConverterTypes.ENTITY, new Dynamic(DynamicOpsNBT.a, entityTag), -1, CraftMagicNumbers.DATA_VERSION).getValue();
             }
 
             // See if we can read a converted ID tag
             if (entityTag.contains(ENTITY_ID.NBT)) {
-                this.spawnedType = EntityType.fromName(new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getNamespace());
+                this.spawnedType = EntityType.fromName(new ResourceLocation(entityTag.getString(ENTITY_ID.NBT)).getPath());
             }
         }
     }

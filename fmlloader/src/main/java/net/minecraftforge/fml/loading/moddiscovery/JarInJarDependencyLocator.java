@@ -40,11 +40,11 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
 
 
         final List<IModFile> dependenciesToLoad = JarSelector.detectAndSelect(
-                sources,
-                this::loadResourceFromModFile,
-                this::loadModFileFrom,
-                this::identifyMod,
-                this::exception
+          sources,
+          this::loadResourceFromModFile,
+          this::loadModFileFrom,
+          this::identifyMod,
+          this::exception
         );
 
         if (dependenciesToLoad.isEmpty()) {
@@ -72,15 +72,15 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     {
 
         final List<EarlyLoadingException.ExceptionData> errors = failedDependencies.stream()
-                .filter(entry -> !entry.sources().isEmpty()) //Should never be the case, but just to be sure
-                .map(entry -> new EarlyLoadingException.ExceptionData(
-                        getErrorTranslationKey(entry),
-                        entry.identifier().group() + ":" + entry.identifier().artifact(),
-                        entry.sources()
-                                .stream()
-                                .flatMap(this::getModWithVersionRangeStream)
-                                .map(this::formatError)
-                                .collect(Collectors.joining(", ")))).toList();
+                                                                   .filter(entry -> !entry.sources().isEmpty()) //Should never be the case, but just to be sure
+                                                                   .map(entry -> new EarlyLoadingException.ExceptionData(
+                                                                     getErrorTranslationKey(entry),
+                                                                     entry.identifier().group() + ":" + entry.identifier().artifact(),
+                                                                     entry.sources()
+                                                                       .stream()
+                                                                       .flatMap(this::getModWithVersionRangeStream)
+                                                                       .map(this::formatError)
+                                                                       .collect(Collectors.joining(", ")))).toList();
 
         return new EarlyLoadingException(failedDependencies.size() + " Dependency restrictions were not met.", null, errors);
     }
@@ -89,8 +89,8 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     private String getErrorTranslationKey(final JarSelector.ResolutionFailureInformation<IModFile> entry)
     {
         return entry.failureReason() == JarSelector.FailureReason.VERSION_RESOLUTION_FAILED
-                ? "fml.dependencyloading.conflictingdependencies"
-                : "fml.dependencyloading.mismatchedcontaineddependencies";
+                 ? "fml.dependencyloading.conflictingdependencies"
+                 : "fml.dependencyloading.mismatchedcontaineddependencies";
     }
 
     @NotNull
@@ -105,8 +105,8 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     private String formatError(final ModWithVersionRange modWithVersionRange)
     {
         return "\u00a7e" + modWithVersionRange.modInfo().getModId() + "\u00a7r - \u00a74"
-                + modWithVersionRange.versionRange().toString() + "\u00a74 - \u00a72"
-                + modWithVersionRange.artifactVersion().toString() + "\u00a72";
+                 + modWithVersionRange.versionRange().toString() + "\u00a74 - \u00a72"
+                 + modWithVersionRange.artifactVersion().toString() + "\u00a72";
     }
 
     private record ModWithVersionRange(IModInfo modInfo, VersionRange versionRange, ArtifactVersion artifactVersion) {}

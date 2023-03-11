@@ -3,10 +3,11 @@ package org.bukkit.craftbukkit.v1_18_R2.util;
 import net.minecraft.world.entity.MobCategory;
 import org.bukkit.entity.SpawnCategory;
 
+// https://github.com/IzzelAliz/Arclight/blob/1.18/arclight-common/src/main/java/io/izzel/arclight/common/mixin/bukkit/CraftSpawnCategoryMixin.java
 public class CraftSpawnCategory {
 
     public static boolean isValidForLimits(SpawnCategory spawnCategory) {
-        return spawnCategory != null && spawnCategory != SpawnCategory.MISC;
+        return spawnCategory != null && spawnCategory.ordinal() < SpawnCategory.MISC.ordinal();
     }
 
     public static String getConfigNameSpawnLimit(SpawnCategory spawnCategory) {
@@ -53,7 +54,8 @@ public class CraftSpawnCategory {
             case WATER_AMBIENT -> SpawnCategory.WATER_AMBIENT;
             case UNDERGROUND_WATER_CREATURE -> SpawnCategory.WATER_UNDERGROUND_CREATURE;
             case MISC -> SpawnCategory.MISC;
-            default -> throw new UnsupportedOperationException("Unknown MobCategory " + enumCreatureType + " for SpawnCategory");
+            // default -> throw new UnsupportedOperationException("Unknown EnumCreatureType " + enumCreatureType + " for SpawnCategory");
+            default -> SpawnCategory.valueOf(enumCreatureType.name()); // CatServer
         };
     }
 
@@ -67,7 +69,8 @@ public class CraftSpawnCategory {
             case WATER_AMBIENT -> MobCategory.WATER_AMBIENT;
             case WATER_UNDERGROUND_CREATURE -> MobCategory.UNDERGROUND_WATER_CREATURE;
             case MISC -> MobCategory.MISC;
-            default -> throw new UnsupportedOperationException("Unknown SpawnCategory " + spawnCategory + " for MobCategory");
+            // default -> throw new UnsupportedOperationException("Unknown SpawnCategory " + spawnCategory + " for EnumCreatureType");
+            default -> MobCategory.valueOf(spawnCategory.name()); // CatServer
         };
     }
 

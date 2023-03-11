@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftCoralDead extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftCoralDead extends CraftBlockData implements org.bukkit.block.data.Waterlogged {
 
     public CraftCoralDead() {
         super();
@@ -13,7 +15,7 @@ public final class CraftCoralDead extends org.bukkit.craftbukkit.v1_18_R2.block.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.BaseCoralPlantBlock.class, "waterlogged");
 

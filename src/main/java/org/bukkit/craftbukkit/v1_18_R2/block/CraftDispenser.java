@@ -1,7 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
-import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.entity.DispenserBlockEntity;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -15,8 +15,8 @@ import org.bukkit.projectiles.BlockProjectileSource;
 
 public class CraftDispenser extends CraftLootable<DispenserBlockEntity> implements Dispenser {
 
-    public CraftDispenser(World world, final DispenserBlockEntity te) {
-        super(world, te);
+    public CraftDispenser(World world, DispenserBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

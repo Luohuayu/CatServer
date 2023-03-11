@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftHay extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Orientable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftHay extends CraftBlockData implements org.bukkit.block.data.Orientable {
 
     public CraftHay() {
         super();
@@ -13,7 +15,7 @@ public final class CraftHay extends org.bukkit.craftbukkit.v1_18_R2.block.data.C
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftOrientable
+    // org.bukkit.craftbukkit.block.data.CraftOrientable
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> AXIS = getEnum(net.minecraft.world.level.block.HayBlock.class, "axis");
 

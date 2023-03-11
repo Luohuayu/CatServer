@@ -6,7 +6,7 @@ import org.bukkit.block.Conduit;
 
 public class CraftConduit extends CraftBlockEntityState<ConduitBlockEntity> implements Conduit {
 
-    public CraftConduit(World world, ConduitBlockEntity te) {
-        super(world, te);
+    public CraftConduit(World world, ConduitBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 }

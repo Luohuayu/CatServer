@@ -1,0 +1,67 @@
+From 1bb5785f5ae79376421052c9bd83f8706528fe23 Mon Sep 17 00:00:00 2001
+From: md_5 <git@md-5.net>
+Date: Thu, 3 Mar 2016 19:45:46 +1100
+Subject: [PATCH] Implement SpawnerSpawnEvent.
+
+
+diff --git a/src/main/java/net/minecraft/world/level/MobSpawnerAbstract.java b/src/main/java/net/minecraft/world/level/MobSpawnerAbstract.java
+index 452de2c89..bd0a49124 100644
+--- a/src/main/java/net/minecraft/world/level/MobSpawnerAbstract.java
++++ b/src/main/java/net/minecraft/world/level/MobSpawnerAbstract.java
+@@ -152,6 +152,18 @@ public abstract class MobSpawnerAbstract {
+                             }
+                             // Spigot End
+                         }
++                        // Spigot Start
++                        if (org.bukkit.craftbukkit.event.CraftEventFactory.callSpawnerSpawnEvent(entity, blockposition).isCancelled()) {
++                            Entity vehicle = entity.getVehicle();
++                            if (vehicle != null) {
++                                vehicle.discard();
++                            }
++                            for (Entity passenger : entity.getIndirectPassengers()) {
++                                passenger.discard();
++                            }
++                            continue;
++                        }
++                        // Spigot End
+ 
+                         if (!worldserver.tryAddFreshEntityWithPassengers(entity, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SPAWNER)) { // CraftBukkit
+                             this.delay(worldserver, blockposition);
+diff --git a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+index c19316b58..1406b7b6d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+@@ -231,6 +231,8 @@ import org.bukkit.inventory.InventoryView;
+ import org.bukkit.inventory.meta.BookMeta;
+ import org.bukkit.potion.PotionEffect;
+ 
++import org.bukkit.event.entity.SpawnerSpawnEvent; // Spigot
++
+ public class CraftEventFactory {
+     public static final DamageSource MELTING = CraftDamageSource.copyOf(DamageSource.ON_FIRE);
+     public static final DamageSource POISON = CraftDamageSource.copyOf(DamageSource.MAGIC);
+@@ -1489,6 +1491,21 @@ public class CraftEventFactory {
+         return event;
+     }
+ 
++    /**
++     * Mob spawner event.
++     */
++    public static SpawnerSpawnEvent callSpawnerSpawnEvent(Entity spawnee, BlockPosition pos) {
++        org.bukkit.craftbukkit.entity.CraftEntity entity = spawnee.getBukkitEntity();
++        BlockState state = entity.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()).getState();
++        if (!(state instanceof org.bukkit.block.CreatureSpawner)) {
++            state = null;
++        }
++
++        SpawnerSpawnEvent event = new SpawnerSpawnEvent(entity, (org.bukkit.block.CreatureSpawner) state);
++        entity.getServer().getPluginManager().callEvent(event);
++        return event;
++    }
++
+     public static EntityToggleGlideEvent callToggleGlideEvent(EntityLiving entity, boolean gliding) {
+         EntityToggleGlideEvent event = new EntityToggleGlideEvent((LivingEntity) entity.getBukkitEntity(), gliding);
+         entity.level.getCraftServer().getPluginManager().callEvent(event);
+-- 
+2.25.1
+

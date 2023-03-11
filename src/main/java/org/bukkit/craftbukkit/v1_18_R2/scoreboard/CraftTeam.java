@@ -1,7 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.scoreboard;
 
-import java.util.Set;
 import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+
 import net.minecraft.world.scores.PlayerTeam;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;

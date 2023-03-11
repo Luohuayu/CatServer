@@ -3,8 +3,10 @@ package org.bukkit.craftbukkit.v1_18_R2;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import java.util.function.Predicate;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -30,10 +32,10 @@ public class CraftChunkSnapshot implements ChunkSnapshot {
     private final boolean[] empty;
     private final Heightmap hmap; // Height map
     private final long captureFulltime;
-    private final net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> biomeRegistry;
+    private final Registry<net.minecraft.world.level.biome.Biome> biomeRegistry;
     private final PalettedContainer<Holder<net.minecraft.world.level.biome.Biome>>[] biome;
 
-    CraftChunkSnapshot(int x, int z, int minHeight, int maxHeight, String wname, long wtime, PalettedContainer<BlockState>[] sectionBlockIDs, byte[][] sectionSkyLights, byte[][] sectionEmitLights, boolean[] sectionEmpty, Heightmap hmap, net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> biomeRegistry, PalettedContainer<Holder<net.minecraft.world.level.biome.Biome>>[] biome) {
+    CraftChunkSnapshot(int x, int z, int minHeight, int maxHeight, String wname, long wtime, PalettedContainer<BlockState>[] sectionBlockIDs, byte[][] sectionSkyLights, byte[][] sectionEmitLights, boolean[] sectionEmpty, Heightmap hmap, Registry<net.minecraft.world.level.biome.Biome> biomeRegistry, PalettedContainer<Holder<net.minecraft.world.level.biome.Biome>>[] biome) {
         this.x = x;
         this.z = z;
         this.minHeight = minHeight;

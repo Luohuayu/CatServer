@@ -3,6 +3,8 @@ package org.bukkit.craftbukkit.v1_18_R2.entity;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import java.util.Set;
+
+import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhase;
 import org.bukkit.boss.BossBar;
 import org.bukkit.boss.DragonBattle;
@@ -22,7 +24,7 @@ public class CraftEnderDragon extends CraftMob implements EnderDragon {
     public Set<ComplexEntityPart> getParts() {
         Builder<ComplexEntityPart> builder = ImmutableSet.builder();
 
-        for (net.minecraft.world.entity.boss.EnderDragonPart part : getHandle().subEntities) {
+        for (EnderDragonPart part : getHandle().getSubEntities()) {
             builder.add((ComplexEntityPart) part.getBukkitEntity());
         }
 

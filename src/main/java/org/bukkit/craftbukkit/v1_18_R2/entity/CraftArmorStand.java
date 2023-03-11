@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+import com.mojang.math.Vector3f;
 import net.minecraft.core.Rotations;
 import org.bukkit.craftbukkit.v1_18_R2.CraftEquipmentSlot;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
@@ -82,7 +83,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getBodyPose() {
-        return fromNMS(getHandle().bodyPose);
+        return fromNMS(getHandle().getBodyPose());
     }
 
     @Override
@@ -92,7 +93,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getLeftArmPose() {
-        return fromNMS(getHandle().leftArmPose);
+        return fromNMS(getHandle().getLeftArmPose());
     }
 
     @Override
@@ -102,7 +103,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getRightArmPose() {
-        return fromNMS(getHandle().rightArmPose);
+        return fromNMS(getHandle().getRightArmPose());
     }
 
     @Override
@@ -112,7 +113,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getLeftLegPose() {
-        return fromNMS(getHandle().leftLegPose);
+        return fromNMS(getHandle().getLeftLegPose());
     }
 
     @Override
@@ -122,7 +123,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getRightLegPose() {
-        return fromNMS(getHandle().rightLegPose);
+        return fromNMS(getHandle().getRightLegPose());
     }
 
     @Override
@@ -132,7 +133,7 @@ public class CraftArmorStand extends CraftLivingEntity implements ArmorStand {
 
     @Override
     public EulerAngle getHeadPose() {
-        return fromNMS(getHandle().headPose);
+        return fromNMS(getHandle().getHeadPose());
     }
 
     @Override

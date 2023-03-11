@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftTurtleEgg extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.TurtleEgg {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftTurtleEgg extends CraftBlockData implements org.bukkit.block.data.type.TurtleEgg {
 
     public CraftTurtleEgg() {
         super();
@@ -13,7 +15,7 @@ public final class CraftTurtleEgg extends org.bukkit.craftbukkit.v1_18_R2.block.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftTurtleEgg
+    // org.bukkit.craftbukkit.block.data.type.CraftTurtleEgg
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty EGGS = getInteger(net.minecraft.world.level.block.TurtleEggBlock.class, "eggs");
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty HATCH = getInteger(net.minecraft.world.level.block.TurtleEggBlock.class, "hatch");

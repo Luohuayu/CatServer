@@ -9,7 +9,6 @@ import com.google.common.base.Joiner;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.AbstractPackResources;
 import net.minecraft.server.packs.PackType;
-import net.minecraftforge.common.ForgeConfig;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,7 +35,6 @@ public class PathResourcePack extends AbstractPackResources
 {
     private final Path source;
     private final String packName;
-
 
     /**
      * Constructs a java.nio.Path-based resource pack.

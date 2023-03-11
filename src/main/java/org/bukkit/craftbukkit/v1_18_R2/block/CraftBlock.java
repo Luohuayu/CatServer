@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -19,12 +20,12 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.apache.commons.lang3.Validate;
@@ -63,7 +64,6 @@ import org.bukkit.util.BlockVector;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
 
 public class CraftBlock implements Block {
     private final net.minecraft.world.level.LevelAccessor world;
@@ -191,7 +191,7 @@ public class CraftBlock implements Block {
         setTypeAndData(((CraftBlockData) data).getState(), applyPhysics);
     }
 
-    public boolean setTypeAndData(final net.minecraft.world.level.block.state.BlockState blockData, final boolean applyPhysics) {
+    boolean setTypeAndData(final net.minecraft.world.level.block.state.BlockState blockData, final boolean applyPhysics) {
         return setTypeAndData(world, position, getNMS(), blockData, applyPhysics);
     }
 
@@ -325,7 +325,7 @@ public class CraftBlock implements Block {
     }
 
     @Override
-    public org.bukkit.block.BlockState getState() {
+    public BlockState getState() {
         return CraftBlockStates.getBlockState(this);
     }
 
@@ -474,7 +474,7 @@ public class CraftBlock implements Block {
         net.minecraft.world.item.ItemStack nmsItem = CraftItemStack.asNMSCopy(item);
         boolean result = false;
 
-        // Modelled off net.minecraft.world.entity.player.Player#hasBlock
+        // Modelled off EntityHuman#hasBlock
         if (block != Blocks.AIR && (item == null || !iblockdata.requiresCorrectToolForDrops() || nmsItem.isCorrectToolForDrops(iblockdata))) {
             net.minecraft.world.level.block.Block.dropResources(iblockdata, world.getMinecraftWorld(), position, world.getBlockEntity(position), null, nmsItem);
             result = true;
@@ -518,6 +518,7 @@ public class CraftBlock implements Block {
                 }
             }
         }
+
         return result == InteractionResult.SUCCESS && (event == null || !event.isCancelled());
     }
 
@@ -536,7 +537,7 @@ public class CraftBlock implements Block {
         net.minecraft.world.level.block.state.BlockState iblockdata = getNMS();
         net.minecraft.world.item.ItemStack nms = CraftItemStack.asNMSCopy(item);
 
-        // Modelled off net.minecraft.world.entity.player.Player#hasBlock
+        // Modelled off EntityHuman#hasBlock
         if (item == null || isPreferredTool(iblockdata, nms)) {
             return net.minecraft.world.level.block.Block.getDrops(iblockdata, (ServerLevel) world.getMinecraftWorld(), position, world.getBlockEntity(position), entity == null ? null : ((CraftEntity) entity).getHandle(), nms)
                     .stream().map(CraftItemStack::asBukkitCopy).collect(Collectors.toList());
@@ -629,7 +630,7 @@ public class CraftBlock implements Block {
     }
 
     @Override
-    public boolean canPlace(@NotNull BlockData data) {
+    public boolean canPlace(BlockData data) {
         Preconditions.checkArgument(data != null, "Provided block data is null!");
         net.minecraft.world.level.block.state.BlockState iblockdata = ((CraftBlockData) data).getState();
         net.minecraft.world.level.Level world = this.world.getMinecraftWorld();

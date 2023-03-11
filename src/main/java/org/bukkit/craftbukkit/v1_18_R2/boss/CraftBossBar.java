@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
 import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
@@ -97,34 +98,34 @@ public class CraftBossBar implements BossBar {
 
     @Override
     public String getTitle() {
-        return CraftChatMessage.fromComponent(handle.name);
+        return CraftChatMessage.fromComponent(handle.getName());
     }
 
     @Override
     public void setTitle(String title) {
-        handle.name = CraftChatMessage.fromString(title, true)[0];
+        handle.setName(CraftChatMessage.fromString(title, true)[0]);
         handle.broadcast(ClientboundBossEventPacket::createUpdateNamePacket);
     }
 
     @Override
     public BarColor getColor() {
-        return convertColor(handle.color);
+        return convertColor(handle.getColor());
     }
 
     @Override
     public void setColor(BarColor color) {
-        handle.color = convertColor(color);
+        handle.setColor(convertColor(color));
         handle.broadcast(ClientboundBossEventPacket::createUpdateStylePacket);
     }
 
     @Override
     public BarStyle getStyle() {
-        return convertStyle(handle.overlay);
+        return convertStyle(handle.getOverlay());
     }
 
     @Override
     public void setStyle(BarStyle style) {
-        handle.overlay = convertStyle(style);
+        handle.setOverlay(convertStyle(style));
         handle.broadcast(ClientboundBossEventPacket::createUpdateStylePacket);
     }
 
@@ -183,7 +184,7 @@ public class CraftBossBar implements BossBar {
     public List<Player> getPlayers() {
         ImmutableList.Builder<Player> players = ImmutableList.builder();
         for (ServerPlayer p : handle.getPlayers()) {
-            players.add((Player) p.getBukkitEntity());
+            players.add(p.getBukkitEntity());
         }
         return players.build();
     }
@@ -195,7 +196,7 @@ public class CraftBossBar implements BossBar {
 
     @Override
     public boolean isVisible() {
-        return handle.visible;
+        return handle.isVisible();
     }
 
     @Override

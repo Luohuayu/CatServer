@@ -8,8 +8,8 @@ import org.bukkit.inventory.ItemStack;
 
 public class CraftCampfire extends CraftBlockEntityState<CampfireBlockEntity> implements Campfire {
 
-    public CraftCampfire(World world, CampfireBlockEntity te) {
-        super(world, te);
+    public CraftCampfire(World world, CampfireBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

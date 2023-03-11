@@ -30,7 +30,7 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
     private final @Nonnull Class<B> baseClass;
     @Nullable
     public CapabilityDispatcher capabilities;
-    private boolean valid = true;
+    public boolean valid = true;
 
     private boolean                       isLazy             = false;
     private Supplier<ICapabilityProvider> lazyParentSupplier = null;

@@ -3,9 +3,8 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import net.minecraft.core.NonNullList;
-import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Location;
@@ -31,13 +30,13 @@ public class CraftInventoryCustom extends CraftInventory {
         super(new MinecraftInventory(owner, size, title));
     }
 
-    // CatServer start - add CatCustomInventory
+    // CatServer start
     public CraftInventoryCustom(InventoryHolder owner, NonNullList<ItemStack> items) {
         super(new MinecraftInventory(owner, items));
     }
     // CatServer end
 
-    static class MinecraftInventory implements Container {
+    static class MinecraftInventory implements net.minecraft.world.Container {
         private final NonNullList<ItemStack> items;
         private int maxStack = MAX_STACK;
         private final List<HumanEntity> viewers;
@@ -59,16 +58,7 @@ public class CraftInventoryCustom extends CraftInventory {
             this(owner, size, "Chest");
         }
 
-        public MinecraftInventory(InventoryHolder owner, int size, String title) {
-            Validate.notNull(title, "Title cannot be null");
-            this.items = NonNullList.withSize(size, ItemStack.EMPTY);
-            this.title = title;
-            this.viewers = new ArrayList<HumanEntity>();
-            this.owner = owner;
-            this.type = InventoryType.CHEST;
-        }
-
-        // CatServer start - add CatCustomInventory
+        // CatServer start
         public MinecraftInventory(InventoryHolder owner, NonNullList<ItemStack> items) {
             this.items = items;
             this.title = "Chest";
@@ -77,6 +67,15 @@ public class CraftInventoryCustom extends CraftInventory {
             this.type = InventoryType.CHEST;
         }
         // CatServer end
+
+        public MinecraftInventory(InventoryHolder owner, int size, String title) {
+            Validate.notNull(title, "Title cannot be null");
+            this.items = NonNullList.withSize(size, ItemStack.EMPTY);
+            this.title = title;
+            this.viewers = new ArrayList<HumanEntity>();
+            this.owner = owner;
+            this.type = InventoryType.CHEST;
+        }
 
         @Override
         public int getContainerSize() {
@@ -141,7 +140,7 @@ public class CraftInventoryCustom extends CraftInventory {
         public void setChanged() {}
 
         @Override
-        public boolean stillValid(net.minecraft.world.entity.player.Player entityhuman) {
+        public boolean stillValid(Player entityhuman) {
             return true;
         }
 
@@ -180,12 +179,12 @@ public class CraftInventoryCustom extends CraftInventory {
         }
 
         @Override
-        public void startOpen(net.minecraft.world.entity.player.Player entityHuman) {
+        public void startOpen(Player entityHuman) {
 
         }
 
         @Override
-        public void stopOpen(net.minecraft.world.entity.player.Player entityHuman) {
+        public void stopOpen(Player entityHuman) {
 
         }
 

@@ -30,17 +30,17 @@ public class PlayerLoginEvent extends PlayerEvent {
      *     timing issues
      * @param realAddress the actual, unspoofed connecting address
      */
-    public PlayerLoginEvent(@NotNull final Player player, @NotNull final String hostname, @NotNull final InetAddress address, final @NotNull InetAddress realAddress) { // Spigot
+    public PlayerLoginEvent(@NotNull final Player player, @NotNull final String hostname, @NotNull final InetAddress address, @NotNull final InetAddress realAddress) { // Spigot
         super(player);
         this.hostname = hostname;
         this.address = address;
-        // Spigot start
+        //Spigot start
         this.realAddress = realAddress;
     }
 
     public PlayerLoginEvent(@NotNull final Player player, @NotNull final String hostname, @NotNull final InetAddress address) {
         this(player, hostname, address, address);
-        // Spigot end
+        //Spigot end
     }
 
     /**
@@ -60,7 +60,7 @@ public class PlayerLoginEvent extends PlayerEvent {
         this.message = message;
     }
 
-    // Spigot start
+    //Spigot start
     /**
      * Gets the connection address of this player, regardless of whether it has been spoofed or not.
      *
@@ -70,7 +70,7 @@ public class PlayerLoginEvent extends PlayerEvent {
     public InetAddress getRealAddress() {
         return realAddress;
     }
-    // Spigot end
+    //Spigot end
 
     /**
      * Gets the current result of the login, as an enum

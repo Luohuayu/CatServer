@@ -87,7 +87,8 @@ public class NewRegistryEvent extends Event implements IModBusEvent
                         RegistryManager.registerToBuiltinRegistry((ForgeRegistry<?>) reg);
                     }
                 }
-                else if (builder.getHasWrapper() && !Registry.REGISTRY.containsKey(reg.getRegistryName()))                    RegistryManager.registerToRootRegistry((ForgeRegistry<?>) reg);
+                else if (builder.getHasWrapper() && !Registry.REGISTRY.containsKey(reg.getRegistryName()))
+                    RegistryManager.registerToRootRegistry((ForgeRegistry<?>) reg);
             } catch (Exception e)
             {
                 aggregate.addSuppressed(e);

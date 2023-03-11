@@ -4,6 +4,10 @@ package org.bukkit;
  * Tree and organic structure types.
  */
 public enum TreeType {
+    /**
+     * MOD CUSTOM tree
+     */
+    MOD_CUSTOM,
 
     /**
      * Regular tree, no branches

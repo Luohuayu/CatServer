@@ -5,7 +5,7 @@ import org.bukkit.map.MapCursor;
 
 public class RenderData {
 
-    public byte[] buffer;
+    public final byte[] buffer;
     public final ArrayList<MapCursor> cursors;
 
     public RenderData() {

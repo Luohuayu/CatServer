@@ -1,8 +1,8 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import com.google.common.base.Preconditions;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import org.bukkit.DyeColor;
 import org.bukkit.World;
@@ -17,19 +17,8 @@ public class CraftSign extends CraftBlockEntityState<SignBlockEntity> implements
     private String[] originalLines = null;
     private String[] lines = null;
 
-    public CraftSign(World world, final SignBlockEntity te) {
-        super(world, te);
-    }
-
-    public static void openSign(Sign sign, Player player) {
-        Preconditions.checkArgument(sign != null, "sign == null");
-        Preconditions.checkArgument(sign.isPlaced(), "Sign must be placed");
-        Preconditions.checkArgument(sign.getWorld() == player.getWorld(), "Sign must be in same world as Player");
-
-        SignBlockEntity handle = ((CraftSign) sign).getTileEntity();
-        handle.isEditable = true;
-
-        ((CraftPlayer) player).getHandle().openTextEdit(handle);
+    public CraftSign(World world, SignBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override
@@ -57,12 +46,12 @@ public class CraftSign extends CraftBlockEntityState<SignBlockEntity> implements
 
     @Override
     public boolean isEditable() {
-        return getSnapshot().isEditable;
+        return getSnapshot().isEditable();
     }
 
     @Override
     public void setEditable(boolean editable) {
-        getSnapshot().isEditable = editable;
+        getSnapshot().setEditable(editable);
     }
 
     @Override
@@ -98,6 +87,17 @@ public class CraftSign extends CraftBlockEntityState<SignBlockEntity> implements
                 sign.setMessage(i, CraftChatMessage.fromString(line)[0]);
             }
         }
+    }
+
+    public static void openSign(Sign sign, Player player) {
+        Preconditions.checkArgument(sign != null, "sign == null");
+        Preconditions.checkArgument(sign.isPlaced(), "Sign must be placed");
+        Preconditions.checkArgument(sign.getWorld() == player.getWorld(), "Sign must be in same world as Player");
+
+        SignBlockEntity handle = ((CraftSign) sign).getTileEntity();
+        handle.setEditable(true);
+
+        ((CraftPlayer) player).getHandle().openTextEdit(handle);
     }
 
     public static Component[] sanitizeLines(String[] lines) {

@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
@@ -88,7 +90,7 @@ public class CraftLootTable implements org.bukkit.loot.LootTable {
             }
 
             if (context.getKiller() != null) {
-                net.minecraft.world.entity.player.Player nmsKiller = ((CraftHumanEntity) context.getKiller()).getHandle();
+                Player nmsKiller = ((CraftHumanEntity) context.getKiller()).getHandle();
                 setMaybe(builder, LootContextParams.KILLER_ENTITY, nmsKiller);
                 // If there is a player killer, damage source should reflect that in case loot tables use that information
                 setMaybe(builder, LootContextParams.DAMAGE_SOURCE, DamageSource.playerAttack(nmsKiller));
@@ -102,7 +104,7 @@ public class CraftLootTable implements org.bukkit.loot.LootTable {
             }
         }
 
-        // SPIGOT-5603 - Avoid IllegalArgumentException in LootContext#build()
+        // SPIGOT-5603 - Avoid IllegalArgumentException in LootTableInfo#build()
         LootContextParamSet.Builder nmsBuilder = new LootContextParamSet.Builder();
         for (LootContextParam<?> param : getHandle().getParamSet().getRequired()) {
             nmsBuilder.required(param);

@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity.memory;
 
 import java.util.UUID;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import org.bukkit.Bukkit;

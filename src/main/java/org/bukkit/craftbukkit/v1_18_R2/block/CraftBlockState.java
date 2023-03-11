@@ -3,14 +3,16 @@ package org.bukkit.craftbukkit.v1_18_R2.block;
 import com.google.common.base.Preconditions;
 import java.lang.ref.WeakReference;
 import java.util.List;
+import javax.annotation.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
@@ -20,12 +22,11 @@ import org.bukkit.material.MaterialData;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 
-import javax.annotation.Nullable;
+public class CraftBlockState implements BlockState {
 
-public class CraftBlockState implements org.bukkit.block.BlockState {
     protected final CraftWorld world;
     private final BlockPos position;
-    protected BlockState data;
+    protected net.minecraft.world.level.block.state.BlockState data;
     protected int flag;
     private WeakReference<LevelAccessor> weakWorld;
 
@@ -42,7 +43,7 @@ public class CraftBlockState implements org.bukkit.block.BlockState {
     }
 
     // world can be null for non-placed BlockStates.
-    protected CraftBlockState(@Nullable World world, BlockPos blockPosition, BlockState blockData) {
+    protected CraftBlockState(@Nullable World world, BlockPos blockPosition, net.minecraft.world.level.block.state.BlockState blockData) {
         this.world = (CraftWorld) world;
         position = blockPosition;
         data = blockData;
@@ -110,7 +111,7 @@ public class CraftBlockState implements org.bukkit.block.BlockState {
         return world.getChunkAt(getX() >> 4, getZ() >> 4);
     }
 
-    public void setData(BlockState data) {
+    public void setData(net.minecraft.world.level.block.state.BlockState data) {
         this.data = data;
     }
 
@@ -118,7 +119,7 @@ public class CraftBlockState implements org.bukkit.block.BlockState {
         return this.position;
     }
 
-    public BlockState getHandle() {
+    public net.minecraft.world.level.block.state.BlockState getHandle() {
         return this.data;
     }
 
@@ -212,7 +213,7 @@ public class CraftBlockState implements org.bukkit.block.BlockState {
             }
         }
 
-        BlockState newBlock = this.data;
+        net.minecraft.world.level.block.state.BlockState newBlock = this.data;
         block.setTypeAndData(newBlock, applyPhysics);
         if (access instanceof net.minecraft.world.level.Level) {
             world.getHandle().sendBlockUpdated(

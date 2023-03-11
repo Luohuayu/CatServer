@@ -19,7 +19,8 @@ import java.util.List;
 /**
  * Assumes VertexFormatElement is present in the BufferBuilder's vertex format.
  */
-public class VertexBufferConsumer implements IVertexConsumer {
+public class VertexBufferConsumer implements IVertexConsumer
+{
     private VertexFormat format;
     private List<VertexFormatElement> elements;
     private VertexConsumer renderer;
@@ -27,21 +28,25 @@ public class VertexBufferConsumer implements IVertexConsumer {
     private int overlayCoordU;
     private int overlayCoordV;
 
-    public VertexBufferConsumer() {
+    public VertexBufferConsumer()
+    {
         setVertexFormat(DefaultVertexFormat.BLOCK);
     }
 
-    public VertexBufferConsumer(VertexConsumer buffer) {
+    public VertexBufferConsumer(VertexConsumer buffer)
+    {
         setBuffer(buffer);
     }
 
     @Override
-    public final VertexFormat getVertexFormat() {
+    public final VertexFormat getVertexFormat()
+    {
         return format;
     }
 
     @Override
-    public void put(int e, float... data) {
+    public void put(int e, float... data)
+    {
         final float d0 = data.length <= 0 ? 0 : data[0];
         final float d1 = data.length <= 1 ? 0 : data[1];
         final float d2 = data.length <= 2 ? 0 : data[2];
@@ -49,66 +54,64 @@ public class VertexBufferConsumer implements IVertexConsumer {
 
         var element = elements.get(e);
 
-        switch (element.getUsage()) {
-            case POSITION: // POSITION_3F
-                if (element.getIndex() == 0)
-                    renderer.vertex(d0, d1, d2);
-                break;
-            case NORMAL: // NORMAL_3B
-                if (element.getIndex() == 0)
-                    renderer.normal(d0, d1, d2);
-                break;
-            case COLOR: // COLOR_4UB
-                if (element.getIndex() == 0)
-                    renderer.color(d0, d1, d2, d3);
-                break;
-            case UV: // TEX_2F
-                switch (element.getIndex()) {
-                    case 0 -> renderer.uv(d0, d1);
-                    case 1 -> {
-                        if (overrideOverlayCoords)
-                            renderer.overlayCoords(overlayCoordU, overlayCoordV);
-                        else
-                            renderer.overlayCoords((int) (d0 * 32767f), (int) (d1 * 32767f));
-                    }
-                    case 2 -> renderer.uv2((int) (d0 * 0xF0), (int) (d1 * 0xF0));
+        switch (element.getUsage())
+        {
+        case POSITION: // POSITION_3F
+            if (element.getIndex() == 0)
+                renderer.vertex(d0, d1, d2);
+            break;
+        case NORMAL: // NORMAL_3B
+            if (element.getIndex() == 0)
+                renderer.normal(d0, d1, d2);
+            break;
+        case COLOR: // COLOR_4UB
+            if (element.getIndex() == 0)
+                renderer.color(d0, d1, d2, d3);
+            break;
+        case UV: // TEX_2F
+            switch(element.getIndex())
+            {
+                case 0 -> renderer.uv(d0, d1);
+                case 1 -> {
+                    if (overrideOverlayCoords)
+                        renderer.overlayCoords(overlayCoordU, overlayCoordV);
+                    else
+                        renderer.overlayCoords((int) (d0 * 32767f), (int) (d1 * 32767f));
                 }
-                break;
-            case PADDING:
-                break;
-            default:
-                throw new IllegalArgumentException("Vertex element out of bounds: " + e);
+                case 2 -> renderer.uv2((int) (d0 * 0xF0), (int) (d1 * 0xF0));
+            }
+            break;
+        case PADDING:
+            break;
+        default:
+            throw new IllegalArgumentException("Vertex element out of bounds: " + e);
         }
-        if (e == 5) {
+        if(e == 5)
+        {
             renderer.endVertex();
         }
     }
 
-    public void setBuffer(VertexConsumer buffer) {
+    public void setBuffer(VertexConsumer buffer)
+    {
         this.renderer = buffer;
         setVertexFormat(buffer.getVertexFormat());
     }
 
-    public void setVertexFormat(@Nullable VertexFormat format) {
+    public void setVertexFormat(@Nullable VertexFormat format)
+    {
         this.format = format != null ? format : DefaultVertexFormat.BLOCK;
         this.elements = this.format.getElements();
     }
 
     @Override
-    public void setQuadTint(int tint) {
-    }
-
+    public void setQuadTint(int tint) {}
     @Override
-    public void setQuadOrientation(Direction orientation) {
-    }
-
+    public void setQuadOrientation(Direction orientation) {}
     @Override
-    public void setApplyDiffuseLighting(boolean diffuse) {
-    }
-
+    public void setApplyDiffuseLighting(boolean diffuse) {}
     @Override
-    public void setTexture(TextureAtlasSprite texture) {
-    }
+    public void setTexture(TextureAtlasSprite texture ) {}
 
     public void setPackedOverlay(int packedOverlay)
     {

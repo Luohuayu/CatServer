@@ -1,6 +1,5 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
-import net.minecraft.world.Container;
 import net.minecraft.world.inventory.ResultContainer;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
@@ -11,7 +10,7 @@ public class CraftInventorySmithing extends CraftResultInventory implements Smit
 
     private final Location location;
 
-    public CraftInventorySmithing(Location location, Container inventory, ResultContainer resultInventory) {
+    public CraftInventorySmithing(Location location, net.minecraft.world.Container inventory, ResultContainer resultInventory) {
         super(inventory, resultInventory);
         this.location = location;
     }

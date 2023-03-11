@@ -1,71 +1,48 @@
 --- a/net/minecraft/world/level/storage/PlayerDataStorage.java
 +++ b/net/minecraft/world/level/storage/PlayerDataStorage.java
-@@ -2,8 +_,6 @@
- 
+@@ -3,13 +_,17 @@
  import com.mojang.datafixers.DataFixer;
  import com.mojang.logging.LogUtils;
--import java.io.File;
--import javax.annotation.Nullable;
+ import java.io.File;
++import java.io.FileInputStream;
++import java.io.InputStream;
+ import javax.annotation.Nullable;
  import net.minecraft.Util;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.NbtIo;
-@@ -12,6 +_,11 @@
+ import net.minecraft.nbt.NbtUtils;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.datafix.DataFixTypes;
  import net.minecraft.world.entity.player.Player;
++import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
  import org.slf4j.Logger;
  
-+import javax.annotation.Nullable;
-+import java.io.File;
-+import java.io.FileInputStream;
-+import java.io.InputStream;
-+
  public class PlayerDataStorage {
-    private static final Logger f_78426_ = LogUtils.getLogger();
-    private final File f_78427_;
-@@ -24,6 +_,7 @@
-    }
- 
-    public void m_78433_(Player p_78434_) {
-+      if (org.spigotmc.SpigotConfig.disablePlayerDataSaving) return; // Spigot
-       try {
-          CompoundTag compoundtag = p_78434_.m_20240_(new CompoundTag());
-          File file1 = File.createTempFile(p_78434_.m_20149_() + "-", ".dat", this.f_78427_);
-@@ -31,6 +_,7 @@
+@@ -31,8 +_,10 @@
           File file2 = new File(this.f_78427_, p_78434_.m_20149_() + ".dat");
           File file3 = new File(this.f_78427_, p_78434_.m_20149_() + ".dat_old");
           Util.m_137462_(file2, file1, file3);
 +         net.minecraftforge.event.ForgeEventFactory.firePlayerSavingEvent(p_78434_, f_78427_, p_78434_.m_20149_());
        } catch (Exception exception) {
           f_78426_.warn("Failed to save player data for {}", (Object)p_78434_.m_7755_().getString());
++         exception.printStackTrace();
        }
-@@ -43,9 +_,27 @@
  
-       try {
-          File file1 = new File(this.f_78427_, p_78436_.m_20149_() + ".dat");
-+         // Spigot Start
-+         boolean usingWrongFile = false;
-+         if ( !file1.exists() )
-+         {
-+            file1 = new File( this.f_78427_, java.util.UUID.nameUUIDFromBytes( ( "OfflinePlayer:" + p_78436_.m_6302_() ).getBytes( "UTF-8" ) ).toString() + ".dat");
-+            if ( file1.exists() )
-+            {
-+               usingWrongFile = true;
-+               org.bukkit.Bukkit.getServer().getLogger().warning( "Using offline mode UUID file for player " + p_78436_.m_6302_() + " as it is the only copy we can find." );
+    }
+@@ -51,13 +_,44 @@
+       }
+ 
+       if (compoundtag != null) {
++         // CraftBukkit start
++         if (p_78436_ instanceof ServerPlayer) {
++            CraftPlayer player = (CraftPlayer) p_78436_.getBukkitEntity();
++            // Only update first played if it is older than the one we have
++            long modified = new File(this.f_78427_, p_78436_.m_142081_().toString() + ".dat").lastModified();
++            if (modified < player.getFirstPlayed()) {
++               player.setFirstPlayed(modified);
 +            }
 +         }
-+         // Spigot End
-          if (file1.exists() && file1.isFile()) {
-             compoundtag = NbtIo.m_128937_(file1);
-          }
-+         // Spigot Start
-+         if ( usingWrongFile )
-+         {
-+            file1.renameTo( new File( file1.getPath() + ".offline-read" ) );
-+         }
-+         // Spigot End
-       } catch (Exception exception) {
-          f_78426_.warn("Failed to load player data for {}", (Object)p_78436_.m_7755_().getString());
-       }
-@@ -54,6 +_,7 @@
++         // CraftBukkit end
           int i = compoundtag.m_128425_("DataVersion", 3) ? compoundtag.m_128451_("DataVersion") : -1;
           p_78436_.m_20258_(NbtUtils.m_129213_(this.f_78425_, DataFixTypes.PLAYER, compoundtag, i));
        }
@@ -73,15 +50,7 @@
  
        return compoundtag;
     }
-@@ -72,4 +_,22 @@
  
-       return astring;
-    }
-+
-+   public File getPlayerDataFolder() {
-+      return f_78427_;
-+   }
-+
 +   // CraftBukkit start
 +   public CompoundTag getPlayerData(String s) {
 +      try {
@@ -95,4 +64,23 @@
 +      return null;
 +   }
 +   // CraftBukkit end
++
++   // CraftBukkit start
++   public File getPlayerDir() {
++      return f_78427_;
++   }
++   // CraftBukkit end
++
+    public String[] m_78432_() {
+       String[] astring = this.f_78427_.list();
+       if (astring == null) {
+@@ -71,5 +_,9 @@
+       }
+ 
+       return astring;
++   }
++
++   public File getPlayerDataFolder() {
++      return f_78427_;
+    }
  }

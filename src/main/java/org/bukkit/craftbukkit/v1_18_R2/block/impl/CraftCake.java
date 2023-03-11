@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftCake extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Cake {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftCake extends CraftBlockData implements org.bukkit.block.data.type.Cake {
 
     public CraftCake() {
         super();
@@ -13,7 +15,7 @@ public final class CraftCake extends org.bukkit.craftbukkit.v1_18_R2.block.data.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftCake
+    // org.bukkit.craftbukkit.block.data.type.CraftCake
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty BITES = getInteger(net.minecraft.world.level.block.CakeBlock.class, "bites");
 

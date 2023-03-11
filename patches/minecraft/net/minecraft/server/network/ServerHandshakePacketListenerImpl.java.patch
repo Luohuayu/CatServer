@@ -1,147 +1,68 @@
 --- a/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
-@@ -1,5 +_,9 @@
- package net.minecraft.server.network;
- 
-+import java.net.InetAddress;
-+import java.text.MessageFormat;
-+import java.util.HashMap;
-+
- import net.minecraft.SharedConstants;
- import net.minecraft.network.Connection;
- import net.minecraft.network.ConnectionProtocol;
-@@ -12,51 +_,87 @@
+@@ -11,10 +_,15 @@
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
  import net.minecraft.server.MinecraftServer;
  
++import java.net.InetAddress;
++import java.util.HashMap;
++
  public class ServerHandshakePacketListenerImpl implements ServerHandshakePacketListener {
--   private static final Component f_9964_ = new TextComponent("Ignoring status request");
--   private final MinecraftServer f_9965_;
--   private final Connection f_9966_;
--
--   public ServerHandshakePacketListenerImpl(MinecraftServer p_9969_, Connection p_9970_) {
--      this.f_9965_ = p_9969_;
--      this.f_9966_ = p_9970_;
--   }
--
--   public void m_7322_(ClientIntentionPacket p_9975_) {
--      switch(p_9975_.m_134735_()) {
--      case LOGIN:
--         this.f_9966_.m_129498_(ConnectionProtocol.LOGIN);
--         if (p_9975_.m_134738_() != SharedConstants.m_183709_().getProtocolVersion()) {
--            Component component;
--            if (p_9975_.m_134738_() < 754) {
--               component = new TranslatableComponent("multiplayer.disconnect.outdated_client", SharedConstants.m_183709_().getName());
--            } else {
--               component = new TranslatableComponent("multiplayer.disconnect.incompatible", SharedConstants.m_183709_().getName());
--            }
--
--            this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(component));
--            this.f_9966_.m_129507_(component);
--         } else {
--            this.f_9966_.m_129505_(new ServerLoginPacketListenerImpl(this.f_9965_, this.f_9966_));
--         }
--         break;
--      case STATUS:
--         if (this.f_9965_.m_6373_()) {
--            this.f_9966_.m_129498_(ConnectionProtocol.STATUS);
--            this.f_9966_.m_129505_(new ServerStatusPacketListenerImpl(this.f_9965_, this.f_9966_));
--         } else {
--            this.f_9966_.m_129507_(f_9964_);
--         }
--         break;
--      default:
--         throw new UnsupportedOperationException("Invalid intention " + p_9975_.m_134735_());
--      }
--
--   }
--
--   public void m_7026_(Component p_9973_) {
--   }
--
--   public Connection m_6198_() {
--      return this.f_9966_;
--   }
-+    private static final Component f_9964_ = new TextComponent("Ignoring status request");
-+    private final MinecraftServer f_9965_;
-+    private final Connection f_9966_;
-+
-+    // Spigot start
-+    private static final com.google.gson.Gson gson = new com.google.gson.Gson();
-+    static final java.util.regex.Pattern HOST_PATTERN = java.util.regex.Pattern.compile("[0-9a-f\\.:]{0,45}");
-+    static final java.util.regex.Pattern PROP_PATTERN = java.util.regex.Pattern.compile("\\w{0,16}");
-+    // Spigot end
-+
-+    // CraftBukkit start - add fields
-+    private static final HashMap<InetAddress, Long> throttleTracker = new HashMap<InetAddress, Long>();
-+    private static int throttleCounter = 0;
-+    // CraftBukkit end
-+
-+    public ServerHandshakePacketListenerImpl(MinecraftServer p_9969_, Connection p_9970_) {
-+        this.f_9965_ = p_9969_;
-+        this.f_9966_ = p_9970_;
-+    }
-+
-+    public void m_7322_(ClientIntentionPacket p_9975_) {
-+        if (!net.minecraftforge.server.ServerLifecycleHooks.handleServerLogin(p_9975_, this.f_9966_)) return;
-+        switch (p_9975_.m_134735_()) {
-+            case LOGIN:
-+                this.f_9966_.m_129498_(ConnectionProtocol.LOGIN);
-+                if (p_9975_.m_134738_() != SharedConstants.m_183709_().getProtocolVersion()) {
-+                    Component component;
-+                    if (p_9975_.m_134738_() < 754) {
-+                        component = new TranslatableComponent(MessageFormat.format(org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName())); // Spigot
-+                    } else {
-+                        component = new TranslatableComponent(MessageFormat.format(org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.m_183709_().getName())); // Spigot
-+                    }
-+
-+                    this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(component));
-+                    this.f_9966_.m_129507_(component);
-+                } else {
-+                    this.f_9966_.m_129505_(new ServerLoginPacketListenerImpl(this.f_9965_, this.f_9966_));
-+                    // Spigot Start
-+                    String[] split = p_9975_.f_134721_.split("\00");
-+                    if (org.spigotmc.SpigotConfig.bungee) {
-+                        if ((split.length == 3 || split.length == 4) && (HOST_PATTERN.matcher(split[1]).matches())) {
-+                            p_9975_.f_134721_ = split[0];
-+                            f_9966_.f_129469_ = new java.net.InetSocketAddress(split[1], ((java.net.InetSocketAddress) f_9966_.m_129523_()).getPort());
-+                            f_9966_.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString(split[2]);
-+                        } else {
-+                            Component chatmessage = new TranslatableComponent("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
-+                            this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
-+                            this.f_9966_.m_129507_(chatmessage);
-+                            return;
-+                        }
-+                        if (split.length == 4) {
-+                            f_9966_.spoofedProfile = gson.fromJson(split[3], com.mojang.authlib.properties.Property[].class);
-+                        }
-+                    } else if ((split.length == 3 || split.length == 4) && (HOST_PATTERN.matcher(split[1]).matches())) {
-+                        Component chatmessage = new TranslatableComponent("Unknown data in login hostname, did you forget to enable BungeeCord in spigot.yml?");
-+                        this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
-+                        this.f_9966_.m_129507_(chatmessage);
-+                        return;
-+                    }
-+                    // Spigot End
-+                    ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit - set hostname
-+                }
-+                break;
-+            case STATUS:
-+                if (this.f_9965_.m_6373_()) {
-+                    this.f_9966_.m_129498_(ConnectionProtocol.STATUS);
-+                    this.f_9966_.m_129505_(new ServerStatusPacketListenerImpl(this.f_9965_, this.f_9966_));
-+                } else {
-+                    this.f_9966_.m_129507_(f_9964_);
-+                }
-+                break;
-+            default:
-+                throw new UnsupportedOperationException("Invalid intention " + p_9975_.m_134735_());
-+        }
-+
-+    }
-+
-+    public void m_7026_(Component p_9973_) {
-+    }
-+
-+    public Connection m_6198_() {
-+        return this.f_9966_;
-+    }
- }
+    private static final Component f_9964_ = new TextComponent("Ignoring status request");
+    private final MinecraftServer f_9965_;
+    private final Connection f_9966_;
++   private static final HashMap<InetAddress, Long> throttleTracker = new HashMap<InetAddress, Long>();
++   private static int throttleCounter = 0;
+ 
+    public ServerHandshakePacketListenerImpl(MinecraftServer p_9969_, Connection p_9970_) {
+       this.f_9965_ = p_9969_;
+@@ -22,9 +_,41 @@
+    }
+ 
+    public void m_7322_(ClientIntentionPacket p_9975_) {
++      if (!net.minecraftforge.server.ServerLifecycleHooks.handleServerLogin(p_9975_, this.f_9966_)) return;
+       switch(p_9975_.m_134735_()) {
+       case LOGIN:
+          this.f_9966_.m_129498_(ConnectionProtocol.LOGIN);
++         // CraftBukkit start - Connection throttle
++         try {
++            long currentTime = System.currentTimeMillis();
++            long connectionThrottle = this.f_9965_.server.getConnectionThrottle();
++            InetAddress address = ((java.net.InetSocketAddress) this.f_9966_.m_129523_()).getAddress();
++            synchronized (throttleTracker) {
++               if (throttleTracker.containsKey(address) && !"127.0.0.1".equals(address.getHostAddress()) && currentTime - throttleTracker.get(address) < connectionThrottle) {
++                  throttleTracker.put(address, currentTime);
++                  TranslatableComponent chatmessage = new TranslatableComponent("Connection throttled! Please wait before reconnecting.");
++                  this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
++                  this.f_9966_.m_129507_(chatmessage);
++                  return;
++               }
++               throttleTracker.put(address, currentTime);
++               throttleCounter++;
++               if (throttleCounter > 200) {
++                  throttleCounter = 0;
++                  // Cleanup stale entries
++                  java.util.Iterator iter = throttleTracker.entrySet().iterator();
++                  while (iter.hasNext()) {
++                     java.util.Map.Entry<InetAddress, Long> entry = (java.util.Map.Entry) iter.next();
++                     if (entry.getValue() > connectionThrottle) {
++                        iter.remove();
++                     }
++                  }
++               }
++            }
++         } catch (Throwable t) {
++            org.apache.logging.log4j.LogManager.getLogger().debug("Failed to check connection throttle", t);
++         }
++         // CraftBukkit end
+          if (p_9975_.m_134738_() != SharedConstants.m_183709_().getProtocolVersion()) {
+             Component component;
+             if (p_9975_.m_134738_() < 754) {
+@@ -37,6 +_,7 @@
+             this.f_9966_.m_129507_(component);
+          } else {
+             this.f_9966_.m_129505_(new ServerLoginPacketListenerImpl(this.f_9965_, this.f_9966_));
++            ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit - set hostname
+          }
+          break;
+       case STATUS:

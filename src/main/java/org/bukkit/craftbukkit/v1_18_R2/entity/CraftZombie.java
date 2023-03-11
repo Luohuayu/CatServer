@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
 import com.google.common.base.Preconditions;
+import net.minecraft.world.entity.monster.ZombieVillager;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Villager;
@@ -39,7 +40,7 @@ public class CraftZombie extends CraftMonster implements Zombie {
 
     @Override
     public boolean isVillager() {
-        return getHandle() instanceof net.minecraft.world.entity.monster.ZombieVillager;
+        return getHandle() instanceof ZombieVillager;
     }
 
     @Override

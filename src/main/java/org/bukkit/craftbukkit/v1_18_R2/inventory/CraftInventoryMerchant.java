@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import net.minecraft.world.inventory.MerchantContainer;
+import net.minecraft.world.inventory.MerchantMenu;
 import org.bukkit.inventory.Merchant;
 import org.bukkit.inventory.MerchantInventory;
 import org.bukkit.inventory.MerchantRecipe;

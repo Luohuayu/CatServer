@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftSkull extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Rotatable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftSkull extends CraftBlockData implements org.bukkit.block.data.Rotatable {
 
     public CraftSkull() {
         super();
@@ -13,7 +15,7 @@ public final class CraftSkull extends org.bukkit.craftbukkit.v1_18_R2.block.data
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftRotatable
+    // org.bukkit.craftbukkit.block.data.CraftRotatable
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty ROTATION = getInteger(net.minecraft.world.level.block.SkullBlock.class, "rotation");
 

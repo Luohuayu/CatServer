@@ -24,7 +24,7 @@ public class CraftStrider extends CraftAnimals implements Strider {
 
     @Override
     public boolean hasSaddle() {
-        return getHandle().isSaddleable();
+        return getHandle().isSaddled();
     }
 
     @Override

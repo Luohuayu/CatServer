@@ -15,7 +15,7 @@
  import net.minecraft.tags.BlockTags;
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.effect.MobEffect;
-@@ -24,12 +_,15 @@
+@@ -24,12 +_,16 @@
  import net.minecraft.world.item.alchemy.Potions;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.block.AbstractCandleBlock;
@@ -28,6 +28,7 @@
  import net.minecraft.world.phys.HitResult;
 +import org.bukkit.craftbukkit.v1_18_R2.entity.CraftLivingEntity;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityPotionEffectEvent;
  
  public class ThrownPotion extends ThrowableItemProjectile implements ItemSupplier {
     public static final double f_150190_ = 4.0D;
@@ -40,39 +41,20 @@
              if (this.m_37553_()) {
                 this.m_37537_(itemstack, potion);
              } else {
-@@ -119,37 +_,82 @@
- 
-    }
- 
--   private void m_37547_(List<MobEffectInstance> p_37548_, @Nullable Entity p_37549_) {
--      AABB aabb = this.m_142469_().m_82377_(4.0D, 2.0D, 4.0D);
--      List<LivingEntity> list = this.f_19853_.m_45976_(LivingEntity.class, aabb);
--      if (!list.isEmpty()) {
-+   private void m_37547_(List<MobEffectInstance> p_37548_, @Nullable Entity p_37549_)
-+   {
-+      AABB aabb = this.m_142469_().m_82377_( 4.0D, 2.0D, 4.0D );
-+      List< LivingEntity > list = this.f_19853_.m_45976_( LivingEntity.class, aabb );
-+      Map< org.bukkit.entity.LivingEntity, Double > affected = new HashMap< org.bukkit.entity.LivingEntity, Double >(); // CraftBukkit
-+      if ( !list.isEmpty() )
-+      {
+@@ -122,10 +_,11 @@
+    private void m_37547_(List<MobEffectInstance> p_37548_, @Nullable Entity p_37549_) {
+       AABB aabb = this.m_142469_().m_82377_(4.0D, 2.0D, 4.0D);
+       List<LivingEntity> list = this.f_19853_.m_45976_(LivingEntity.class, aabb);
++      Map<org.bukkit.entity.LivingEntity, Double> affected = new HashMap<org.bukkit.entity.LivingEntity, Double>(); // CraftBukkit
+       if (!list.isEmpty()) {
           Entity entity = this.m_150173_();
  
 -         for(LivingEntity livingentity : list) {
--            if (livingentity.m_5801_()) {
--               double d0 = this.m_20280_(livingentity);
--               if (d0 < 16.0D) {
--                  double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
--                  if (livingentity == p_37549_) {
-+         for ( LivingEntity livingentity : list )
-+         {
-+            if ( livingentity.m_5801_() )
-+            {
-+               double d0 = this.m_20280_( livingentity );
-+               if ( d0 < 16.0D )
-+               {
-+                  double d1 = 1.0D - Math.sqrt( d0 ) / 4.0D;
-+                  if ( livingentity == p_37549_ )
-+                  {
++         for (LivingEntity livingentity : list) {
+             if (livingentity.m_5801_()) {
+                double d0 = this.m_20280_(livingentity);
+                if (d0 < 16.0D) {
+@@ -134,22 +_,47 @@
                       d1 = 1.0D;
                    }
  
@@ -93,54 +75,41 @@
 -      }
 -
 +                  // CraftBukkit start
-+                  affected.put( ( org.bukkit.entity.LivingEntity ) livingentity.getBukkitEntity(), d1 );
++                  affected.put((org.bukkit.entity.LivingEntity) livingentity.getBukkitEntity(), d1);
 +               }
 +            }
 +         }
 +      }
-+      org.bukkit.event.entity.PotionSplashEvent event = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callPotionSplashEvent( this, affected );
-+      if ( !event.isCancelled() && list != null && !list.isEmpty() )
-+      { // do not process effects if there are no effects to process
-+         Entity entity1 = this.m_150173_();
-+         for ( org.bukkit.entity.LivingEntity victim : event.getAffectedEntities() )
-+         {
-+            if ( !( victim instanceof CraftLivingEntity ) )
-+            {
++
++      org.bukkit.event.entity.PotionSplashEvent event = CraftEventFactory.callPotionSplashEvent(this, affected);
++      if (!event.isCancelled() && list != null && !list.isEmpty()) { // do not process effects if there are no effects to process
++         for (org.bukkit.entity.LivingEntity victim : event.getAffectedEntities()) {
++            if (!(victim instanceof CraftLivingEntity)) {
 +               continue;
 +            }
 +
-+            LivingEntity entityliving = ( ( CraftLivingEntity ) victim ).getHandle();
-+            double d1 = event.getIntensity( victim );
++            LivingEntity livingentity = ((CraftLivingEntity) victim).getHandle();
++            double intensity = event.getIntensity(victim);
 +            // CraftBukkit end
 +
-+
-+            for ( MobEffectInstance mobeffectinstance : p_37548_ )
-+            {
-+               MobEffect mobeffect = mobeffectinstance.m_19544_();
-+
++            for (MobEffectInstance effectinstance : p_37548_) {
++               MobEffect effect = effectinstance.m_19544_();
 +               // CraftBukkit start - Abide by PVP settings - for players only!
-+               if ( !this.f_19853_.pvpMode && this.m_37282_() instanceof ServerPlayer && entityliving instanceof ServerPlayer && entityliving != this.m_37282_() )
-+               {
-+                  int i = MobEffect.m_19459_( mobeffect );
++               if (!this.f_19853_.pvpMode && this.m_37282_() instanceof ServerPlayer && livingentity instanceof ServerPlayer && livingentity != this.m_37282_()) {
++                  int i = MobEffect.m_19459_(effect);
 +                  // Block SLOWER_MOVEMENT, SLOWER_DIG, HARM, BLINDNESS, HUNGER, WEAKNESS and POISON potions
-+                  if ( i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18 || i == 19 )
-+                  {
++                  if (i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18 || i == 19) {
 +                     continue;
 +                  }
 +               }
 +               // CraftBukkit end
 +
-+
-+               if ( mobeffect.m_8093_() )
-+               {
-+                  mobeffect.m_19461_( this, this.m_37282_(), entityliving, mobeffectinstance.m_19564_(), d1 );
-+               }
-+               else
-+               {
-+                  int i = ( int ) ( d1 * ( double ) mobeffectinstance.m_19557_() + 0.5D );
-+                  if ( i > 20 )
-+                  {
-+                     entityliving.m_147207_( new MobEffectInstance( mobeffect, i, mobeffectinstance.m_19564_(), mobeffectinstance.m_19571_(), mobeffectinstance.m_19572_() ), p_37549_ );
++               if (effect.m_8093_()) {
++                  effect.m_19461_(this, this.m_37282_(), livingentity, effectinstance.m_19564_(), intensity);
++               } else {
++                  int i = (int) (intensity * (double) effectinstance.m_19557_() + 0.5D);
++                  if (i > 20) {
++                     livingentity.addEffect(new MobEffectInstance(effect, i, effectinstance.m_19564_(), effectinstance.m_19571_(), effectinstance.m_19572_()), EntityPotionEffectEvent.Cause.POTION_SPLASH); // CraftBukkit
 +                  }
 +               }
 +            }

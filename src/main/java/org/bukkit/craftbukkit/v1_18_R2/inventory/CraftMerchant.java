@@ -4,7 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
-import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.trading.MerchantOffers;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.Merchant;
@@ -24,12 +24,7 @@ public class CraftMerchant implements Merchant {
 
     @Override
     public List<MerchantRecipe> getRecipes() {
-        return Collections.unmodifiableList(Lists.transform(merchant.getOffers(), new Function<MerchantOffer, MerchantRecipe>() {
-            @Override
-            public MerchantRecipe apply(MerchantOffer recipe) {
-                return recipe.asBukkit();
-            }
-        }));
+        return Collections.unmodifiableList(Lists.transform(merchant.getOffers(), (Function<net.minecraft.world.item.trading.MerchantOffer, MerchantRecipe>) recipe -> recipe.asBukkit()));
     }
 
     @Override
@@ -63,7 +58,7 @@ public class CraftMerchant implements Merchant {
 
     @Override
     public HumanEntity getTrader() {
-        net.minecraft.world.entity.player.Player eh = merchant.getTradingPlayer();
+        Player eh = merchant.getTradingPlayer();
         return eh == null ? null : eh.getBukkitEntity();
     }
 

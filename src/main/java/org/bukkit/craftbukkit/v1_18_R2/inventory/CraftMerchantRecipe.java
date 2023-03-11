@@ -10,10 +10,10 @@ public class CraftMerchantRecipe extends MerchantRecipe {
     private final net.minecraft.world.item.trading.MerchantOffer handle;
 
     public CraftMerchantRecipe(net.minecraft.world.item.trading.MerchantOffer merchantRecipe) {
-        super(CraftItemStack.asBukkitCopy(merchantRecipe.result), 0);
+        super(CraftItemStack.asBukkitCopy(merchantRecipe.getResult()), 0);
         this.handle = merchantRecipe;
-        addIngredient(CraftItemStack.asBukkitCopy(merchantRecipe.baseCostA));
-        addIngredient(CraftItemStack.asBukkitCopy(merchantRecipe.costB));
+        addIngredient(CraftItemStack.asBukkitCopy(merchantRecipe.getBaseCostA()));
+        addIngredient(CraftItemStack.asBukkitCopy(merchantRecipe.getCostB()));
     }
 
     public CraftMerchantRecipe(ItemStack result, int uses, int maxUses, boolean experienceReward, int experience, float priceMultiplier) {
@@ -44,12 +44,12 @@ public class CraftMerchantRecipe extends MerchantRecipe {
 
     @Override
     public void setSpecialPrice(int specialPrice) {
-        handle.specialPriceDiff = specialPrice;
+        handle.setSpecialPriceDiff(specialPrice);
     }
 
     @Override
     public int getDemand() {
-        return handle.demand;
+        return handle.getDemand();
     }
 
     @Override
@@ -59,7 +59,7 @@ public class CraftMerchantRecipe extends MerchantRecipe {
 
     @Override
     public int getUses() {
-        return handle.uses;
+        return handle.getUses();
     }
 
     @Override
@@ -69,7 +69,7 @@ public class CraftMerchantRecipe extends MerchantRecipe {
 
     @Override
     public int getMaxUses() {
-        return handle.maxUses;
+        return handle.getMaxUses();
     }
 
     @Override
@@ -89,7 +89,7 @@ public class CraftMerchantRecipe extends MerchantRecipe {
 
     @Override
     public int getVillagerExperience() {
-        return handle.xp;
+        return handle.getXp();
     }
 
     @Override
@@ -99,7 +99,7 @@ public class CraftMerchantRecipe extends MerchantRecipe {
 
     @Override
     public float getPriceMultiplier() {
-        return handle.priceMultiplier;
+        return handle.getPriceMultiplier();
     }
 
     @Override

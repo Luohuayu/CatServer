@@ -9,15 +9,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Ghast;
 
 public class TrackingRange {
-
-    /**
-     * Gets the range an entity should be 'tracked' by players and visible in
-     * the client.
-     *
-     * @param entity
-     * @param defaultRange Default range defined by Mojang
-     * @return
-     */
     public static int getEntityTrackingRange(Entity entity, int defaultRange) {
         if (defaultRange == 0) {
             return defaultRange;

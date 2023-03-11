@@ -3,9 +3,9 @@ package org.bukkit.craftbukkit.v1_18_R2.persistence;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import org.apache.commons.lang3.Validate;
@@ -118,7 +118,7 @@ public class CraftPersistentDataContainer implements PersistentDataContainer {
 
     public CompoundTag toTagCompound() {
         CompoundTag tag = new CompoundTag();
-        for (Entry<String, Tag> entry : this.customDataTags.entrySet()) {
+        for (Map.Entry<String, Tag> entry : this.customDataTags.entrySet()) {
             tag.put(entry.getKey(), entry.getValue());
         }
         return tag;

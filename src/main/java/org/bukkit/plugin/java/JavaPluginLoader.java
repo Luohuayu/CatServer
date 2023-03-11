@@ -309,10 +309,12 @@ public final class JavaPluginLoader implements PluginLoader {
                         if (!eventClass.isAssignableFrom(event.getClass())) {
                             return;
                         }
+                        // Spigot start
                         boolean isAsync = event.isAsynchronous();
                         if (!isAsync) timings.startTiming();
                         method.invoke(listener, event);
                         if (!isAsync) timings.stopTiming();
+                        // Spigot end
                     } catch (InvocationTargetException ex) {
                         throw new EventException(ex.getCause());
                     } catch (Throwable t) {

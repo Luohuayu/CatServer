@@ -13,7 +13,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.*;
-import net.minecraft.world.level.block.entity.SculkSensorBlockEntity;
 import net.minecraft.world.level.block.piston.PistonMovingBlockEntity;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -331,7 +330,7 @@ public final class CraftBlockStates {
         return getBlockState(null, blockPosition, blockData, tileEntity);
     }
 
-    // See BlockStateFactory#createBlockState(World, BlockPos, IBlockData, TileEntity)
+    // See BlockStateFactory#createBlockState(World, BlockPosition, IBlockData, TileEntity)
     private static CraftBlockState getBlockState(World world, BlockPos blockPosition, net.minecraft.world.level.block.state.BlockState blockData, BlockEntity tileEntity) {
         Material material = CraftMagicNumbers.getMaterial(blockData.getBlock());
         BlockStateFactory<?> factory;

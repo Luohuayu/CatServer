@@ -2,12 +2,47 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import net.minecraft.nbt.*;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.item.BlockItem;
-import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.EnumUtils;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
@@ -38,31 +73,14 @@ import org.bukkit.inventory.meta.Repairable;
 import org.bukkit.inventory.meta.tags.CustomItemTagContainer;
 import org.bukkit.persistence.PersistentDataContainer;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static org.spigotmc.ValidateUtils.limit;
-
 /**
  * Children must include the following:
  *
  * <li> Constructor(CraftMetaItem meta)
- * <li> Constructor(CompoundTag tag)
+ * <li> Constructor(NBTTagCompound tag)
  * <li> Constructor(Map&lt;String, Object&gt; map)
  * <br><br>
- * <li> void applyToItem(CompoundTag tag)
+ * <li> void applyToItem(NBTTagCompound tag)
  * <li> boolean applicableTo(Material type)
  * <br><br>
  * <li> boolean equalsCommon(CraftMetaItem meta)
@@ -278,7 +296,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
         this.customModelData = meta.customModelData;
         this.blockData = meta.blockData;
 
-        if (meta.enchantments != null) { // Spigot
+        if (meta.hasEnchants()) {
             this.enchantments = new LinkedHashMap<Enchantment, Integer>(meta.enchantments);
         }
 
@@ -306,18 +324,18 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
             CompoundTag display = tag.getCompound(DISPLAY.NBT);
 
             if (display.contains(NAME.NBT)) {
-                displayName = limit( display.getString(NAME.NBT), 8192 ); // Spigot
+                displayName = display.getString(NAME.NBT);
             }
 
             if (display.contains(LOCNAME.NBT)) {
-                locName = limit( display.getString(LOCNAME.NBT), 8192 ); // Spigot
+                locName = display.getString(LOCNAME.NBT);
             }
 
             if (display.contains(LORE.NBT)) {
                 ListTag list = display.getList(LORE.NBT, CraftMagicNumbers.NBT.TAG_STRING);
                 lore = new ArrayList<String>(list.size());
                 for (int index = 0; index < list.size(); index++) {
-                    String line = limit( list.getString(index), 8192 ); // Spigot
+                    String line = list.getString(index);
                     lore.add(line);
                 }
             }
@@ -394,7 +412,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
         for (int i = 0; i < size; i++) {
             CompoundTag entry = mods.getCompound(i);
             if (entry.isEmpty()) {
-                // entry is not an actual CompoundTag. getCompound returns empty CompoundTag in that case
+                // entry is not an actual NBTTagCompound. getCompound returns empty NBTTagCompound in that case
                 continue;
             }
             net.minecraft.world.entity.ai.attributes.AttributeModifier nmsModifier = net.minecraft.world.entity.ai.attributes.AttributeModifier.load(entry);
@@ -650,7 +668,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
     }
 
     static void applyEnchantments(Map<Enchantment, Integer> enchantments, CompoundTag tag, ItemMetaKey key) {
-        if (enchantments == null /*|| enchantments.size() == 0*/) { // Spigot - remove size check
+        if (enchantments == null || enchantments.size() == 0) {
             return;
         }
 
@@ -799,14 +817,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
     @Override
     public boolean removeEnchant(Enchantment ench) {
         Validate.notNull(ench, "Enchantment cannot be null");
-        // Spigot start
-        boolean b = hasEnchants() && enchantments.remove( ench ) != null;
-        if ( enchantments != null && enchantments.isEmpty() )
-        {
-            this.enchantments = null;
-        }
-        return b;
-        // Spigot end
+        return hasEnchants() && enchantments.remove(ench) != null;
     }
 
     @Override

@@ -5,18 +5,13 @@
 
 package net.minecraftforge.client;
 
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -42,7 +37,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 public class ClientCommandHandler
 {
@@ -67,7 +61,7 @@ public class ClientCommandHandler
 
     /*
      * For internal use
-     * 
+     *
      * Merges command dispatcher use for suggestions to the command dispatcher used for client commands so they can be sent to the server, and vice versa so client commands appear
      * with server commands in suggestions
      */
@@ -139,9 +133,9 @@ public class ClientCommandHandler
     }
 
     /**
-     * 
+     *
      * Creates a deep copy of the sourceNode while keeping the redirects referring to the old command tree
-     * 
+     *
      * @param sourceNode
      *            the original
      * @param resultNode
@@ -167,9 +161,9 @@ public class ClientCommandHandler
     /**
      * Always try to execute the cached parsing of client message as a command. Requires that the execute field of the commands to be set to send to server so that they aren't
      * treated as client command's that do nothing.
-     * 
+     *
      * {@link net.minecraft.commands.Commands#performCommand(CommandSourceStack, String)} for reference
-     * 
+     *
      * @param sendMessage
      *            the chat message
      * @return false leaves the message to be sent to the server, true means it should be caught before {@link LocalPlayer#chat(String)}

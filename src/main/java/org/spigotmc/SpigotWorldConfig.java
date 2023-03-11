@@ -1,12 +1,11 @@
 package org.spigotmc;
 
-import java.util.List;
-
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-public class SpigotWorldConfig {
+import java.util.List;
 
+public class SpigotWorldConfig {
     private final String worldName;
     private final YamlConfiguration config;
     private boolean verbose;
@@ -18,8 +17,7 @@ public class SpigotWorldConfig {
     }
 
     public void init() {
-        this.verbose = getBoolean("verbose", false);
-
+        this.verbose = getBoolean("verbose", true);
         log("-------- World Settings For [" + worldName + "] --------");
         SpigotConfig.readConfig(SpigotWorldConfig.class, this);
     }
@@ -173,6 +171,7 @@ public class SpigotWorldConfig {
         log("Item Despawn Rate: " + itemDespawnRate);
     }
 
+
     public int animalActivationRange = 32;
     public int monsterActivationRange = 32;
     public int raiderActivationRange = 48;
@@ -187,7 +186,7 @@ public class SpigotWorldConfig {
         miscActivationRange = getInt("entity-activation-range.misc", miscActivationRange);
         tickInactiveVillagers = getBoolean("entity-activation-range.tick-inactive-villagers", tickInactiveVillagers);
         ignoreSpectatorActivation = getBoolean("entity-activation-range.ignore-spectators", ignoreSpectatorActivation);
-        log("Entity Activation Range: An " + animalActivationRange + " / Mo " + monsterActivationRange + " / Ra " + raiderActivationRange + " / Mi " + miscActivationRange + " / Tiv " + tickInactiveVillagers);
+        log("Entity Activation Range: An " + animalActivationRange + " / Mo " + monsterActivationRange + " / Ra " + raiderActivationRange + " / Mi " + miscActivationRange + " / Tiv " + tickInactiveVillagers + " / Isa " + ignoreSpectatorActivation);
     }
 
     public int playerTrackingRange = 48;
@@ -208,7 +207,6 @@ public class SpigotWorldConfig {
     public int hopperTransfer;
     public int hopperCheck;
     public int hopperAmount;
-    public boolean hopperCanLoadChunks;
 
     private void hoppers() {
         // Set the tick delay between hopper item movements
@@ -218,8 +216,7 @@ public class SpigotWorldConfig {
         }
         hopperCheck = getInt("ticks-per.hopper-check", 1);
         hopperAmount = getInt("hopper-amount", 1);
-        hopperCanLoadChunks = getBoolean( "hopper-can-load-chunks", false );
-        log( "Hopper Transfer: " + hopperTransfer + " Hopper Check: " + hopperCheck + " Hopper Amount: " + hopperAmount + " Hopper Can Load Chunks: " + hopperCanLoadChunks );
+        log("Hopper Transfer: " + hopperTransfer + " Hopper Check: " + hopperCheck + " Hopper Amount: " + hopperAmount);
     }
 
     public int arrowDespawnRate;

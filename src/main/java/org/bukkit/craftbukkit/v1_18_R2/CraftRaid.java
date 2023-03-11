@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.bukkit.Location;
@@ -33,14 +34,14 @@ public final class CraftRaid implements Raid {
 
     @Override
     public int getBadOmenLevel() {
-        return handle.badOmenLevel;
+        return handle.getBadOmenLevel();
     }
 
     @Override
     public void setBadOmenLevel(int badOmenLevel) {
         int max = handle.getMaxBadOmenLevel();
         Preconditions.checkArgument(0 <= badOmenLevel && badOmenLevel <= max, "Bad Omen level must be between 0 and %s", max);
-        handle.badOmenLevel = badOmenLevel;
+        handle.setBadOmenLevel(badOmenLevel);
     }
 
     @Override
@@ -70,7 +71,7 @@ public final class CraftRaid implements Raid {
 
     @Override
     public int getTotalGroups() {
-        return handle.numGroups + (handle.badOmenLevel > 1 ? 1 : 0);
+        return handle.numGroups + (handle.getBadOmenLevel() > 1 ? 1 : 0);
     }
 
     @Override
@@ -90,11 +91,6 @@ public final class CraftRaid implements Raid {
 
     @Override
     public List<Raider> getRaiders() {
-        return handle.getRaiders().stream().map(new Function<net.minecraft.world.entity.raid.Raider, Raider>() {
-            @Override
-            public Raider apply(net.minecraft.world.entity.raid.Raider entityRaider) {
-                return (Raider) entityRaider.getBukkitEntity();
-            }
-        }).collect(ImmutableList.toImmutableList());
+        return handle.getRaiders().stream().map((Function<net.minecraft.world.entity.raid.Raider, Raider>) entityRaider -> (Raider) entityRaider.getBukkitEntity()).collect(ImmutableList.toImmutableList());
     }
 }

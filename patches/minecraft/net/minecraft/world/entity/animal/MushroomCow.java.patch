@@ -1,31 +1,42 @@
 --- a/net/minecraft/world/entity/animal/MushroomCow.java
 +++ b/net/minecraft/world/entity/animal/MushroomCow.java
-@@ -41,8 +_,9 @@
+@@ -1,9 +_,12 @@
+ package net.minecraft.world.entity.animal;
+ 
++import java.util.Collections;
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
++import com.google.common.collect.ImmutableList;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+@@ -41,8 +_,12 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.gameevent.GameEvent;
  import org.apache.commons.lang3.tuple.Pair;
++import org.bukkit.Bukkit;
 +import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityDropItemEvent;
++import org.bukkit.event.entity.EntityTransformEvent;
  
 -public class MushroomCow extends Cow implements Shearable {
 +public class MushroomCow extends Cow implements Shearable, net.minecraftforge.common.IForgeShearable {
     private static final EntityDataAccessor<String> f_28908_ = SynchedEntityData.m_135353_(MushroomCow.class, EntityDataSerializers.f_135030_);
     private static final int f_148934_ = 1024;
     @Nullable
-@@ -104,7 +_,12 @@
+@@ -104,7 +_,7 @@
  
           this.m_5496_(soundevent, 1.0F, 1.0F);
           return InteractionResult.m_19078_(this.f_19853_.f_46443_);
 -      } else if (itemstack.m_150930_(Items.f_42574_) && this.m_6220_()) {
 +      } else if (false && itemstack.m_41720_() == Items.f_42574_ && this.m_6220_()) { //Forge: Moved to onSheared
-+         // CraftBukkit start
-+         if (!CraftEventFactory.handlePlayerShearEntityEvent(p_28941_, this, itemstack, p_28942_)) {
-+            return InteractionResult.PASS;
-+         }
-+         // CraftBukkit end
           this.m_5851_(SoundSource.PLAYERS);
           this.m_146852_(GameEvent.f_157781_, p_28941_);
           if (!this.f_19853_.f_46443_) {
-@@ -145,7 +_,18 @@
+@@ -145,11 +_,20 @@
        }
     }
  
@@ -39,19 +50,39 @@
 +      shearInternal(p_28924_).forEach(s -> this.f_19853_.m_7967_(new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20227_(1.0D), this.m_20189_(), s)));
 +   }
 +
-+   // TODO
 +   private java.util.List<ItemStack> shearInternal(SoundSource p_28924_) {
        this.f_19853_.m_6269_((Player)null, this, SoundEvents.f_12075_, p_28924_, 1.0F, 1.0F);
        if (!this.f_19853_.m_5776_()) {
           ((ServerLevel)this.f_19853_).m_8767_(ParticleTypes.f_123813_, this.m_20185_(), this.m_20227_(0.5D), this.m_20189_(), 1, 0.0D, 0.0D, 0.0D, 0.0D);
-@@ -166,10 +_,13 @@
+-         this.m_146870_();
+          Cow cow = EntityType.f_20557_.m_20615_(this.f_19853_);
+          cow.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), this.m_146909_());
+          cow.m_21153_(this.m_21223_());
+@@ -164,12 +_,29 @@
+          }
+ 
           cow.m_20331_(this.m_20147_());
-          this.f_19853_.m_7967_(cow);
+-         this.f_19853_.m_7967_(cow);
++         // CraftBukkit start
++         if (CraftEventFactory.callEntityTransformEvent(this, cow, EntityTransformEvent.TransformReason.SHEARED).isCancelled()) {
++            return Collections.emptyList();
++         }
++         this.f_19853_.addFreshEntity(cow, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SHEARED);
++         this.m_146870_(); // CraftBukkit - from above
++         // CraftBukkit end
  
 +         java.util.List<ItemStack> items = new java.util.ArrayList<>();
           for(int i = 0; i < 5; ++i) {
 -            this.f_19853_.m_7967_(new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20227_(1.0D), this.m_20189_(), new ItemStack(this.m_28955_().f_28961_.m_60734_())));
-+            items.add(new ItemStack(this.m_28955_().f_28961_.m_60734_()));
++            // CraftBukkit start
++            ItemEntity entityitem = new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20227_(1.0D), this.m_20189_(), new ItemStack(this.m_28955_().f_28961_.m_60734_()));
++            EntityDropItemEvent event = new EntityDropItemEvent(this.getBukkitEntity(), (org.bukkit.entity.Item) entityitem.getBukkitEntity());
++            Bukkit.getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++               continue;
++            }
++            items.add(entityitem.m_32055_());
++            // CraftBukkit end
           }
 +         return items;
        }

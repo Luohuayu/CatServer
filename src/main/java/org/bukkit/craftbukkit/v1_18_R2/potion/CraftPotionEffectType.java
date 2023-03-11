@@ -2,13 +2,14 @@ package org.bukkit.craftbukkit.v1_18_R2.potion;
 
 import net.minecraft.world.effect.MobEffect;
 import org.bukkit.Color;
+import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
 import org.bukkit.potion.PotionEffectType;
 
 public class CraftPotionEffectType extends PotionEffectType {
     private final MobEffect handle;
 
     public CraftPotionEffectType(MobEffect handle) {
-        super(MobEffect.getId(handle), org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey.fromMinecraft(net.minecraft.core.Registry.MOB_EFFECT.getKey(handle)));
+        super(MobEffect.getId(handle), CraftNamespacedKey.fromMinecraft(net.minecraft.core.Registry.MOB_EFFECT.getKey(handle)));
         this.handle = handle;
     }
 

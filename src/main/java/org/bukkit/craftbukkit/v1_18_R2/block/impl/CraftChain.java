@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftChain extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Chain, org.bukkit.block.data.Orientable, org.bukkit.block.data.Waterlogged {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftChain extends CraftBlockData implements org.bukkit.block.data.type.Chain, org.bukkit.block.data.Orientable, org.bukkit.block.data.Waterlogged {
 
     public CraftChain() {
         super();
@@ -13,7 +15,7 @@ public final class CraftChain extends org.bukkit.craftbukkit.v1_18_R2.block.data
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftOrientable
+    // org.bukkit.craftbukkit.block.data.CraftOrientable
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> AXIS = getEnum(net.minecraft.world.level.block.ChainBlock.class, "axis");
 
@@ -32,7 +34,7 @@ public final class CraftChain extends org.bukkit.craftbukkit.v1_18_R2.block.data
         return getValues(AXIS, org.bukkit.Axis.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftWaterlogged
+    // org.bukkit.craftbukkit.block.data.CraftWaterlogged
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = getBoolean(net.minecraft.world.level.block.ChainBlock.class, "waterlogged");
 

@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftSoil extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Farmland {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftSoil extends CraftBlockData implements org.bukkit.block.data.type.Farmland {
 
     public CraftSoil() {
         super();
@@ -13,7 +15,7 @@ public final class CraftSoil extends org.bukkit.craftbukkit.v1_18_R2.block.data.
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftFarmland
+    // org.bukkit.craftbukkit.block.data.type.CraftFarmland
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty MOISTURE = getInteger(net.minecraft.world.level.block.FarmBlock.class, "moisture");
 

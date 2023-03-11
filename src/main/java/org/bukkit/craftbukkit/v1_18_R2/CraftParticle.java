@@ -6,14 +6,10 @@ import com.google.common.collect.HashBiMap;
 import com.mojang.math.Vector3f;
 import java.util.HashMap;
 import java.util.Map;
+
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.DustColorTransitionOptions;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.core.particles.VibrationParticleOption;
+import net.minecraft.core.Registry;
+import net.minecraft.core.particles.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.gameevent.BlockPositionSource;
 import net.minecraft.world.level.gameevent.EntityPositionSource;
@@ -162,7 +158,7 @@ public enum CraftParticle {
             canonical = aliases.get(particle);
         }
 
-        net.minecraft.core.particles.ParticleType nms = net.minecraft.core.Registry.PARTICLE_TYPE.get(particles.get(canonical));
+        net.minecraft.core.particles.ParticleType nms = Registry.PARTICLE_TYPE.get(particles.get(canonical));
         Preconditions.checkArgument(nms != null, "No NMS particle %s", particle);
 
         if (particle.getDataType().equals(Void.class)) {
@@ -217,6 +213,6 @@ public enum CraftParticle {
     }
 
     public static Particle toBukkit(net.minecraft.core.particles.ParticleType nms) {
-        return particles.inverse().get(net.minecraft.core.Registry.PARTICLE_TYPE.getKey(nms));
+        return particles.inverse().get(Registry.PARTICLE_TYPE.getKey(nms));
     }
 }

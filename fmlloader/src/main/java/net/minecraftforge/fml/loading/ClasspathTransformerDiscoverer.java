@@ -38,7 +38,7 @@ public class ClasspathTransformerDiscoverer implements ITransformerDiscoveryServ
     public static List<Path> allExcluded() {
         return found.stream().map(np->np.paths()[0]).toList();
     }
-
+    
     private void scan(final Path gameDirectory) {
         try {
             locateTransformers("META-INF/services/cpw.mods.modlauncher.api.ITransformationService");

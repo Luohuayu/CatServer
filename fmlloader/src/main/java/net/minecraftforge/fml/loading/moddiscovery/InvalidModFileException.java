@@ -5,8 +5,9 @@
 
 package net.minecraftforge.fml.loading.moddiscovery;
 
-import java.util.Locale;
 import net.minecraftforge.forgespi.language.IModFileInfo;
+
+import java.util.Locale;
 
 public class InvalidModFileException extends RuntimeException
 {
@@ -14,7 +15,7 @@ public class InvalidModFileException extends RuntimeException
 
     public InvalidModFileException(String message, IModFileInfo modFileInfo)
     {
-        super(String.format(Locale.ENGLISH,"%s (%s)", message, ((ModFileInfo)modFileInfo).getFile().getFileName()));
+        super(String.format(Locale.ENGLISH, "%s (%s)", message, ((ModFileInfo)modFileInfo).getFile().getFileName()));
         this.modFileInfo = modFileInfo;
     }
 }

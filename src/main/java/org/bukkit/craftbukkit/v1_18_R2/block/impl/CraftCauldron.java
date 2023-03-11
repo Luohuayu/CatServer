@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftCauldron extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.Levelled {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftCauldron extends CraftBlockData implements org.bukkit.block.data.Levelled {
 
     public CraftCauldron() {
         super();
@@ -13,7 +15,7 @@ public final class CraftCauldron extends org.bukkit.craftbukkit.v1_18_R2.block.d
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftLevelled
+    // org.bukkit.craftbukkit.block.data.CraftLevelled
 
     private static final net.minecraft.world.level.block.state.properties.IntegerProperty LEVEL = getInteger(net.minecraft.world.level.block.CauldronBlock.class, "level");
 

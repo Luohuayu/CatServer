@@ -1,20 +1,7 @@
 package org.spigotmc;
 
 import com.google.common.base.Throwables;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
-
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -29,8 +16,15 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-public class SpigotConfig {
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.*;
+import java.util.logging.Level;
 
+public class SpigotConfig {
     private static File CONFIG_FILE;
     private static final String HEADER = "This is the main configuration file for Spigot.\n"
             + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n"
@@ -39,10 +33,11 @@ public class SpigotConfig {
             + "http://www.spigotmc.org/wiki/spigot-configuration/\n"
             + "\n"
             + "If you need help with the configuration or have any questions related to Spigot,\n"
-            + "join us at the IRC or drop by our forums and leave a post.\n"
+            + "join us at the Discord or drop by our forums and leave a post.\n"
             + "\n"
-            + "IRC: #spigot @ irc.spi.gt ( http://www.spigotmc.org/pages/irc/ )\n"
+            + "Discord: https://www.spigotmc.org/go/discord\n"
             + "Forums: http://www.spigotmc.org/\n";
+
     /*========================================================================*/
     public static YamlConfiguration config;
     static int version;
@@ -59,13 +54,10 @@ public class SpigotConfig {
             Bukkit.getLogger().log(Level.SEVERE, "Could not load spigot.yml, please correct your syntax errors", ex);
             throw Throwables.propagate(ex);
         }
-
         config.options().header(HEADER);
         config.options().copyDefaults(true);
-
         commands = new HashMap<String, Command>();
         commands.put("spigot", new SpigotCommand("spigot"));
-
         version = getInt("config-version", 12);
         set("config-version", 12);
         readConfig(SpigotConfig.class, null);
@@ -92,7 +84,6 @@ public class SpigotConfig {
                 }
             }
         }
-
         try {
             config.save(CONFIG_FILE);
         } catch (IOException ex) {
@@ -155,7 +146,7 @@ public class SpigotConfig {
     public static String unknownCommandMessage;
     public static String serverFullMessage;
     public static String outdatedClientMessage = "Outdated client! Please use {0}";
-    public static String outdatedServerMessage = "Outdated server! I\'m still on {0}";
+    public static String outdatedServerMessage = "Outdated server! I'm still on {0}";
 
     private static String transform(String s) {
         return ChatColor.translateAlternateColorCodes('&', s).replaceAll("\\\\n", "\n");
@@ -193,7 +184,7 @@ public class SpigotConfig {
     private static void bungee() {
         if (version < 4) {
             set("settings.bungeecord", false);
-            System.out.println("Outdated config, disabling BungeeCord support!");
+            System.out.println("Oudated config, disabling BungeeCord support!");
         }
         bungee = getBoolean("settings.bungeecord", false);
     }
@@ -219,7 +210,7 @@ public class SpigotConfig {
             if (section.isInt(name)) {
                 try {
                     ResourceLocation key = new ResourceLocation(name);
-                    if (net.minecraft.core.Registry.CUSTOM_STAT.get(key) == null) {
+                    if (Registry.CUSTOM_STAT.get(key) == null) {
                         Bukkit.getLogger().log(Level.WARNING, "Ignoring non existent stats.forced-stats " + name);
                         continue;
                     }

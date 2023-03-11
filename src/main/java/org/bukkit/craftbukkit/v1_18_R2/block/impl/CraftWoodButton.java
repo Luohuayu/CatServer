@@ -3,7 +3,9 @@
  */
 package org.bukkit.craftbukkit.v1_18_R2.block.impl;
 
-public final class CraftWoodButton extends org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData implements org.bukkit.block.data.type.Switch, org.bukkit.block.data.Directional, org.bukkit.block.data.FaceAttachable, org.bukkit.block.data.Powerable {
+import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
+
+public final class CraftWoodButton extends CraftBlockData implements org.bukkit.block.data.type.Switch, org.bukkit.block.data.Directional, org.bukkit.block.data.FaceAttachable, org.bukkit.block.data.Powerable {
 
     public CraftWoodButton() {
         super();
@@ -13,7 +15,7 @@ public final class CraftWoodButton extends org.bukkit.craftbukkit.v1_18_R2.block
         super(state);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.type.CraftSwitch
+    // org.bukkit.craftbukkit.block.data.type.CraftSwitch
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACE = getEnum(net.minecraft.world.level.block.WoodButtonBlock.class, "face");
 
@@ -27,7 +29,7 @@ public final class CraftWoodButton extends org.bukkit.craftbukkit.v1_18_R2.block
         set(FACE, face);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftDirectional
+    // org.bukkit.craftbukkit.block.data.CraftDirectional
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> FACING = getEnum(net.minecraft.world.level.block.WoodButtonBlock.class, "facing");
 
@@ -46,7 +48,7 @@ public final class CraftWoodButton extends org.bukkit.craftbukkit.v1_18_R2.block
         return getValues(FACING, org.bukkit.block.BlockFace.class);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftFaceAttachable
+    // org.bukkit.craftbukkit.block.data.CraftFaceAttachable
 
     private static final net.minecraft.world.level.block.state.properties.EnumProperty<?> ATTACH_FACE = getEnum(net.minecraft.world.level.block.WoodButtonBlock.class, "face");
 
@@ -60,7 +62,7 @@ public final class CraftWoodButton extends org.bukkit.craftbukkit.v1_18_R2.block
         set(ATTACH_FACE, face);
     }
 
-    // org.bukkit.craftbukkit.v1_18_R2.block.data.CraftPowerable
+    // org.bukkit.craftbukkit.block.data.CraftPowerable
 
     private static final net.minecraft.world.level.block.state.properties.BooleanProperty POWERED = getBoolean(net.minecraft.world.level.block.WoodButtonBlock.class, "powered");
 

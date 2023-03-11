@@ -1,7 +1,9 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import java.util.Random;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
@@ -38,7 +40,7 @@ public final class CapturedBlockState extends CraftBlockState {
                 int j = 2 + random.nextInt(2);
 
                 for (int k = 0; k < j; ++k) {
-                    Bee entitybee = new Bee(net.minecraft.world.entity.EntityType.BEE, generatoraccessseed.getMinecraftWorld());
+                    Bee entitybee = new Bee(EntityType.BEE, generatoraccessseed.getMinecraftWorld());
 
                     tileentitybeehive.addOccupantWithPresetTicks(entitybee, false, random.nextInt(599));
                 }

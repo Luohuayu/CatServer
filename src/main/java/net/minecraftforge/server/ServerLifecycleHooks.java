@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 
 import net.minecraft.core.Registry;
 import net.minecraft.gametest.framework.GameTestServer;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.RepositorySource;
 import net.minecraft.world.level.storage.LevelResource;
@@ -33,7 +32,6 @@ import net.minecraftforge.network.ServerStatusPing;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.forgespi.locating.IModFile;
-import net.minecraftforge.registries.DataPackRegistriesHooks;
 import net.minecraftforge.resource.PathResourcePack;
 import net.minecraftforge.server.permission.PermissionAPI;
 import org.apache.logging.log4j.LogManager;
@@ -45,6 +43,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.protocol.handshake.ClientIntentionPacket;
 import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.chat.TextComponent;
@@ -59,6 +58,7 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.fml.loading.FileUtils;
 import net.minecraftforge.forgespi.language.IModInfo;
+import net.minecraftforge.registries.DataPackRegistriesHooks;
 import net.minecraftforge.registries.GameData;
 
 public class ServerLifecycleHooks
@@ -155,7 +155,7 @@ public class ServerLifecycleHooks
             {
                 // Allow clients with incorrect netcode version to connect to netversion 3 servers,
                 // if and only if client is netversion 2 and server has no syncable non-vanilla datapack registries.
-                // TODO 1.19: Remove netcode backwards-compatability in 1.19, as there will be no clients on netversion 2 in 1.19.
+                // TODO 1.19: Remove netcode backwards-compatability in 1.19, as there will be no clients on netversion 2 in 1.19. 
                 Set<ResourceKey<? extends Registry<?>>> customDatapackRegistries = DataPackRegistriesHooks.getSyncedCustomRegistries();
                 if (versionNumber == 2)
                 {

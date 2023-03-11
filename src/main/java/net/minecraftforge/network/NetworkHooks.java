@@ -18,6 +18,7 @@ import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraftforge.fml.util.thread.EffectiveSide;
 import net.minecraftforge.client.ConfigGuiHandler.ConfigGuiFactory;
+import net.minecraftforge.network.ConnectionData.ModMismatchData;
 import net.minecraftforge.network.filters.NetworkFilters;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -227,7 +228,7 @@ public class NetworkHooks
     }
 
     @Nullable
-    public static ConnectionData.ModMismatchData getModMismatchData(Connection mgr)
+    public static ModMismatchData getModMismatchData(Connection mgr)
     {
         return mgr.channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).get();
     }

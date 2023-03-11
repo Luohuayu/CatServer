@@ -8,7 +8,11 @@ import org.bukkit.material.MaterialData;
  * @deprecated legacy use only
  */
 @Deprecated
+// https://github.com/IzzelAliz/Arclight/blob/1.18/arclight-common/src/main/java/io/izzel/arclight/common/mixin/bukkit/CraftLegacyUtilMixin.java
 public final class CraftLegacy {
+
+    private static Material[] moddedMaterials; // CatServer
+    private static int offset; // CatServer
 
     private CraftLegacy() {
         //
@@ -27,16 +31,23 @@ public final class CraftLegacy {
     }
 
     public static Material[] modern_values() {
-        Material[] values = Material.values();
-        return Arrays.copyOfRange(values, 0, Material.LEGACY_AIR.ordinal());
+        if (moddedMaterials == null) {
+            int origin = Material.values().length;
+            moddedMaterials = Arrays.stream(Material.values()).filter(it -> !it.isLegacy()).toArray(Material[]::new);
+            offset = origin - moddedMaterials.length;
+        }
+        return Arrays.copyOf(moddedMaterials, moddedMaterials.length);
     }
 
     public static int modern_ordinal(Material material) {
-        if (material.isLegacy()) {
-            // SPIGOT-4002: Fix for eclipse compiler manually compiling in default statements to lookupswitch
-            throw new NoSuchFieldError("Legacy field ordinal: " + material);
+        if (moddedMaterials == null) {
+            modern_values();
         }
-
-        return material.ordinal();
+        if (material.isLegacy()) {
+            throw new NoSuchFieldError("Legacy field ordinal: " + material);
+        } else {
+            int ordinal = material.ordinal();
+            return ordinal < Material.LEGACY_AIR.ordinal() ? ordinal : ordinal - offset;
+        }
     }
 }

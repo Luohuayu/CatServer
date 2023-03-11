@@ -227,5 +227,6 @@ public class TimingsCommand extends BukkitCommand {
                 Bukkit.getServer().getLogger().log(Level.WARNING, "Could not paste timings", ex);
             }
         }
-    }// Spigot end
+    }
+    // Spigot end
 }

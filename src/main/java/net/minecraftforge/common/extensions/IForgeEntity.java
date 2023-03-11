@@ -201,7 +201,7 @@ public interface IForgeEntity extends ICapabilitySerializable<CompoundTag>
      */
     default float getStepHeight()
     {
-        var vanillaStep = self().maxUpStep;
+        float vanillaStep = self().maxUpStep;
         if (self() instanceof LivingEntity living)
         {
             AttributeInstance stepHeightAttribute = living.getAttribute(ForgeMod.STEP_HEIGHT_ADDITION.get());

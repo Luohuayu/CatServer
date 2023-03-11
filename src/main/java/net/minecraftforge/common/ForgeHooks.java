@@ -7,7 +7,19 @@ package net.minecraftforge.common;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Objects;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -121,6 +133,7 @@ import net.minecraftforge.event.DifficultyChangeEvent;
 import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.GrindstoneEvent;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
+import net.minecraftforge.event.ModMismatchEvent;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.RegisterStructureConversionsEvent;
 import net.minecraftforge.event.VanillaGameEvent;
@@ -157,7 +170,6 @@ import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.event.world.NoteBlockEvent;
 import net.minecraftforge.eventbus.api.Event.Result;
 import net.minecraftforge.fluids.FluidAttributes;
-import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoader;
 import net.minecraftforge.resource.ResourcePackLoader;
@@ -190,6 +202,9 @@ import net.minecraft.world.level.material.EmptyFluid;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.LavaFluid;
 import net.minecraft.world.level.material.WaterFluid;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.jetbrains.annotations.ApiStatus;
 
 public class ForgeHooks
 {
@@ -295,15 +310,15 @@ public class ForgeHooks
     {
         MinecraftForge.EVENT_BUS.post(new LivingSetAttackTargetEvent(entity, target, targetType));
     }
-
+    
     public static LivingChangeTargetEvent onLivingChangeTarget(LivingEntity entity, LivingEntity originalTarget, ILivingTargetType targetType)
     {
         LivingChangeTargetEvent event = new LivingChangeTargetEvent(entity, originalTarget, targetType);
         MinecraftForge.EVENT_BUS.post(event);
-
+        
         return event;
     }
-
+    
     public static boolean onLivingUpdate(LivingEntity entity)
     {
         return MinecraftForge.EVENT_BUS.post(new LivingUpdateEvent(entity));
@@ -884,7 +899,7 @@ public class ForgeHooks
             ret = ForgeEventFactory.loadLootTable(name, ret, lootTableManager);
 
         if (ret != null)
-            ret.freeze();
+           ret.freeze();
 
         return ret;
     }
@@ -897,8 +912,8 @@ public class ForgeHooks
                     .color(0).density(0).temperature(0).luminosity(0).viscosity(0).build(fluid);
         if (fluid instanceof WaterFluid)
             return net.minecraftforge.fluids.FluidAttributes.Water.builder(
-                            new ResourceLocation("block/water_still"),
-                            new ResourceLocation("block/water_flow"))
+                    new ResourceLocation("block/water_still"),
+                    new ResourceLocation("block/water_flow"))
                     .overlay(new ResourceLocation("block/water_overlay"))
                     .translationKey("block.minecraft.water")
                     .color(0xFF3F76E4)
@@ -906,8 +921,8 @@ public class ForgeHooks
                     .build(fluid);
         if (fluid instanceof LavaFluid)
             return net.minecraftforge.fluids.FluidAttributes.builder(
-                            new ResourceLocation("block/lava_still"),
-                            new ResourceLocation("block/lava_flow"))
+                    new ResourceLocation("block/lava_still"),
+                    new ResourceLocation("block/lava_flow"))
                     .translationKey("block.minecraft.lava")
                     .luminosity(15).density(3000).viscosity(6000).temperature(1300)
                     .sound(SoundEvents.BUCKET_FILL_LAVA, SoundEvents.BUCKET_EMPTY_LAVA)
@@ -1403,9 +1418,9 @@ public class ForgeHooks
     /** Called in the LevelStem codec builder to add extra fields to dimension jsons **/
     public static App<Mu<LevelStem>, LevelStem> expandLevelStemCodec(RecordCodecBuilder.Instance<LevelStem> builder, Supplier<App<Mu<LevelStem>, LevelStem>> vanillaFieldsSupplier)
     {
-        App<Mu<LevelStem>, LevelStem> vanillaFields = vanillaFieldsSupplier.get();
-        return builder.group(vanillaFields).and(
-                        Codec.BOOL.optionalFieldOf("forge:use_server_seed", false).stable().forGetter(levelStem -> levelStem.useServerSeed()))
+            App<Mu<LevelStem>, LevelStem> vanillaFields = vanillaFieldsSupplier.get();
+            return builder.group(vanillaFields).and(
+                    Codec.BOOL.optionalFieldOf("forge:use_server_seed", false).stable().forGetter(levelStem -> levelStem.useServerSeed()))
                 .apply(builder, builder.stable((stem, useServerSeed) -> new LevelStem(stem.typeHolder(), stem.generator(), useServerSeed)));
     }
 
@@ -1433,13 +1448,30 @@ public class ForgeHooks
         LOGGER.debug(WORLDPERSISTENCE, "ID Map collection complete {}", worldData.getLevelName());
         levelTag.put("fml", fmlData);
     }
-
+    
+    /**
+     * @deprecated To be removed in 1.20.
+     * Use {@link #readAdditionalLevelSaveData(CompoundTag, Path)} instead.
+     */
+    @Deprecated(forRemoval = true, since = "1.19.2")
     public static void readAdditionalLevelSaveData(CompoundTag rootTag)
+    {
+        readAdditionalLevelSaveData(rootTag, null);
+    }
+    
+    /**
+     * @param rootTag Level data file contents.
+     * @param levelPath Level currently being loaded. TODO 1.20 - Remove nullable annotation
+     */
+    @ApiStatus.Internal
+    public static void readAdditionalLevelSaveData(CompoundTag rootTag, @Nullable Path levelPath)
     {
         CompoundTag tag = rootTag.getCompound("fml");
         if (tag.contains("LoadingModList"))
         {
             ListTag modList = tag.getList("LoadingModList", net.minecraft.nbt.Tag.TAG_COMPOUND);
+            Map<String, ArtifactVersion> mismatchedVersions = new HashMap<>(modList.size());
+            Map<String, ArtifactVersion> missingVersions = new HashMap<>(modList.size());
             for (int i = 0; i < modList.size(); i++)
             {
                 CompoundTag mod = modList.getCompound(i);
@@ -1449,16 +1481,70 @@ public class ForgeHooks
                     continue;
                 }
                 String modVersion = mod.getString("ModVersion");
-                Optional<? extends ModContainer> container = ModList.get().getModContainerById(modId);
-                if (container.isEmpty())
+                final var previousVersion = new DefaultArtifactVersion(modVersion);
+                ModList.get().getModContainerById(modId).ifPresentOrElse(container ->
                 {
-                    LOGGER.error(WORLDPERSISTENCE,"This world was saved with mod {} which appears to be missing, things may not work well", modId);
-                    continue;
-                }
-                if (!Objects.equals(modVersion, MavenVersionStringHelper.artifactVersionToString(container.get().getModInfo().getVersion())))
+                    final var loadingVersion = container.getModInfo().getVersion();
+                    if (!loadingVersion.equals(previousVersion))
+                    {
+                        // Enqueue mismatched versions for bulk event
+                        mismatchedVersions.put(modId, previousVersion);
+                    }
+                }, () -> missingVersions.put(modId, previousVersion));
+            }
+    
+            final var mismatchEvent = new ModMismatchEvent(levelPath, mismatchedVersions, missingVersions);
+            ModLoader.get().postEvent(mismatchEvent);
+    
+            StringBuilder resolved = new StringBuilder("The following mods have version differences that were marked resolved:");
+            StringBuilder unresolved = new StringBuilder("The following mods have version differences that were not resolved:");
+    
+            // For mods that were marked resolved, log the version resolution and the mod that resolved the mismatch
+            mismatchEvent.getResolved().forEachOrdered((res) ->
+            {
+                final var modid = res.modid();
+                final var diff = res.versionDifference();
+                if (res.wasSelfResolved())
                 {
-                    LOGGER.warn(WORLDPERSISTENCE,"This world was saved with mod {} version {} and it is now at version {}, things may not work well", modId, modVersion, MavenVersionStringHelper.artifactVersionToString(container.get().getModInfo().getVersion()));
+                    resolved.append(System.lineSeparator())
+                        .append(diff.isMissing()
+                                    ? "%s (version %s -> MISSING, self-resolved)".formatted(modid, diff.oldVersion())
+                                    : "%s (version %s -> %s, self-resolved)".formatted(modid, diff.oldVersion(), diff.newVersion())
+                        );
                 }
+                else
+                {
+                    final var resolver = res.resolver().getModId();
+                    resolved.append(System.lineSeparator())
+                        .append(diff.isMissing()
+                                    ? "%s (version %s -> MISSING, resolved by %s)".formatted(modid, diff.oldVersion(), resolver)
+                                    : "%s (version %s -> %s, resolved by %s)".formatted(modid, diff.oldVersion(), diff.newVersion(), resolver)
+                        );
+                }
+            });
+    
+            // For mods that did not specify handling, show a warning to users that errors may occur
+            mismatchEvent.getUnresolved().forEachOrdered((unres) ->
+            {
+                final var modid = unres.modid();
+                final var diff = unres.versionDifference();
+                unresolved.append(System.lineSeparator())
+                    .append(diff.isMissing()
+                                ? "%s (version %s -> MISSING)".formatted(modid, diff.oldVersion())
+                                : "%s (version %s -> %s)".formatted(modid, diff.oldVersion(), diff.newVersion())
+                    );
+            });
+    
+            if (mismatchEvent.anyResolved())
+            {
+                resolved.append(System.lineSeparator()).append("Things may not work well.");
+                LOGGER.debug(WORLDPERSISTENCE, resolved.toString());
+            }
+    
+            if (mismatchEvent.anyUnresolved())
+            {
+                unresolved.append(System.lineSeparator()).append("Things may not work well.");
+                LOGGER.warn(WORLDPERSISTENCE, unresolved.toString());
             }
         }
 
@@ -1479,8 +1565,8 @@ public class ForgeHooks
         {
             StringBuilder buf = new StringBuilder();
             buf.append("Forge Mod Loader could not load this save.\n\n")
-                    .append("There are ").append(failedElements.size()).append(" unassigned registry entries in this save.\n")
-                    .append("You will not be able to load until they are present again.\n\n");
+                .append("There are ").append(failedElements.size()).append(" unassigned registry entries in this save.\n")
+                .append("You will not be able to load until they are present again.\n\n");
 
             failedElements.asMap().forEach((name, entries) ->
             {
@@ -1547,7 +1633,6 @@ public class ForgeHooks
     {
         refreshBannerPatternData();
     }
-
     public static void refreshBannerPatternData()
     {
         nonPatternItems = Arrays.stream(BannerPattern.values())

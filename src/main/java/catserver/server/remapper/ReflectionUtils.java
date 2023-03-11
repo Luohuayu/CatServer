@@ -3,6 +3,7 @@ package catserver.server.remapper;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+@SuppressWarnings("removal")
 public class ReflectionUtils {
     private static SecurityManager sm = new SecurityManager();
 

@@ -10,8 +10,8 @@ import org.bukkit.inventory.Inventory;
 
 public class CraftLectern extends CraftBlockEntityState<LecternBlockEntity> implements Lectern {
 
-    public CraftLectern(World world, LecternBlockEntity te) {
-        super(world, te);
+    public CraftLectern(World world, LecternBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

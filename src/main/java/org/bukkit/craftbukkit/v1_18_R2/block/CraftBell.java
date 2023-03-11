@@ -6,7 +6,7 @@ import org.bukkit.block.Bell;
 
 public class CraftBell extends CraftBlockEntityState<BellBlockEntity> implements Bell {
 
-    public CraftBell(World world, BellBlockEntity te) {
-        super(world, te);
+    public CraftBell(World world, BellBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 }

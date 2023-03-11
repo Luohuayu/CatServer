@@ -1,11 +1,10 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
-import net.minecraft.world.Container;
 import org.bukkit.inventory.EnchantingInventory;
 import org.bukkit.inventory.ItemStack;
 
 public class CraftInventoryEnchanting extends CraftInventory implements EnchantingInventory {
-    public CraftInventoryEnchanting(Container inventory) {
+    public CraftInventoryEnchanting(net.minecraft.world.Container inventory) {
         super(inventory);
     }
 

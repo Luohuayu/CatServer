@@ -47,27 +47,23 @@ public class RestartCommand extends Command {
                 // Kick all players
                 for (ServerPlayer p : (List<ServerPlayer>) MinecraftServer.getServer().getPlayerList().players) {
                     p.connection.disconnect(SpigotConfig.restartMessage);
-                }
-                // Give the socket a chance to send the packets
+                }// Give the socket a chance to send the packets
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException ex) {
                 }
                 // Close the socket so we can rebind with the new process
                 MinecraftServer.getServer().getConnection().stop();
-
                 // Give time for it to kick in
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException ex) {
                 }
-
                 // Actually shutdown
                 try {
                     MinecraftServer.getServer().close();
                 } catch (Throwable t) {
                 }
-
                 // This will be done AFTER the server has completely halted
                 Thread shutdownHook = new Thread() {
                     @Override
@@ -84,12 +80,10 @@ public class RestartCommand extends Command {
                         }
                     }
                 };
-
                 shutdownHook.setDaemon(true);
                 Runtime.getRuntime().addShutdownHook(shutdownHook);
             } else {
                 System.out.println("Startup script '" + SpigotConfig.restartScript + "' does not exist! Stopping server.");
-
                 // Actually shutdown
                 try {
                     MinecraftServer.getServer().close();

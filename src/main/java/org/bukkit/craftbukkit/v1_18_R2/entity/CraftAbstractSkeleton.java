@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.v1_18_R2.entity;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.entity.AbstractSkeleton;
 import org.bukkit.entity.Skeleton;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class CraftAbstractSkeleton extends CraftMonster implements AbstractSkeleton {
 

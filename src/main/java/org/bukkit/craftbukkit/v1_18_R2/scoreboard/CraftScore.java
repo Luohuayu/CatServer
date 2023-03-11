@@ -1,11 +1,12 @@
 package org.bukkit.craftbukkit.v1_18_R2.scoreboard;
 
-import java.util.Map;
 import net.minecraft.world.scores.Scoreboard;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
+
+import java.util.Map;
 
 /**
  * TL;DR: This class is special and lazily grabs a handle...

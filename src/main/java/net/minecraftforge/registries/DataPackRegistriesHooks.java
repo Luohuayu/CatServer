@@ -24,10 +24,10 @@ import net.minecraft.resources.ResourceKey;
 public final class DataPackRegistriesHooks
 {
     private DataPackRegistriesHooks() {} // utility class
-
+    
     private static Map<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> REGISTRY_ACCESS_REGISTRIES_COPY;
     private static final Set<ResourceKey<? extends Registry<?>>> SYNCED_CUSTOM_REGISTRIES = new HashSet<>();
-    private static final Set<ResourceKey<? extends Registry<?>>> SYNCED_CUSTOM_REGISTRIES_VIEW = Collections.unmodifiableSet(SYNCED_CUSTOM_REGISTRIES);
+    private static final Set<ResourceKey<? extends Registry<?>>> SYNCED_CUSTOM_REGISTRIES_VIEW = Collections.unmodifiableSet(SYNCED_CUSTOM_REGISTRIES); 
 
     /* Internal forge hook for retaining mutable access to RegistryAccess's codec registry when it bootstraps. */
     public static Map<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> grabBuiltinRegistries(ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> builder)
@@ -47,7 +47,7 @@ public final class DataPackRegistriesHooks
             SYNCED_CUSTOM_REGISTRIES.add(registryKey);
         }
     }
-
+    
     /**
      * {@return unmodifiable view of the set of synced non-vanilla datapack registry IDs}
      * Clients must have each of a server's synced datapack registries to be able to connect to that server;
@@ -57,4 +57,4 @@ public final class DataPackRegistriesHooks
     {
         return SYNCED_CUSTOM_REGISTRIES_VIEW;
     }
-} 
+}

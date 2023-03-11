@@ -1,6 +1,5 @@
 package catserver.server.remapper;
 
-import catserver.server.CatServer;
 import catserver.server.remapper.proxy.ProxyClassLoader;
 import catserver.server.remapper.proxy.ProxyMethodHandle;
 import catserver.server.remapper.proxy.ProxyReflection;

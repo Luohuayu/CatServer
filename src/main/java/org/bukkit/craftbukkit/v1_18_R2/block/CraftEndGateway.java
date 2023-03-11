@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import java.util.Objects;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity;
 import org.bukkit.Location;
@@ -9,8 +10,8 @@ import org.bukkit.block.EndGateway;
 
 public class CraftEndGateway extends CraftBlockEntityState<TheEndGatewayBlockEntity> implements EndGateway {
 
-    public CraftEndGateway(World world, TheEndGatewayBlockEntity te) {
-        super(world, te);
+    public CraftEndGateway(World world, TheEndGatewayBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

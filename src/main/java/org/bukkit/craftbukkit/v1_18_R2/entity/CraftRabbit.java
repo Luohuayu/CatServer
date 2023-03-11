@@ -43,7 +43,7 @@ public class CraftRabbit extends CraftAnimals implements Rabbit {
             entity.goalSelector = new GoalSelector(world.getProfilerSupplier());
             entity.targetSelector = new GoalSelector(world.getProfilerSupplier());
             entity.registerGoals();
-            entity.setSpeedModifier(0.0D);
+            entity.initializePathFinderGoals();
         }
 
         entity.setRabbitType(CraftMagicMapping.toMagic(type));

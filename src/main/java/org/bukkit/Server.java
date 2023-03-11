@@ -64,7 +64,7 @@ public interface Server extends PluginMessageRecipient {
      * Used for all administrative messages, such as an operator using a
      * command.
      * <p>
-     * For use in {@link #broadcast(String, String)}.
+     * For use in {@link #broadcast(java.lang.String, java.lang.String)}.
      */
     public static final String BROADCAST_CHANNEL_ADMINISTRATIVE = "bukkit.broadcast.admin";
 
@@ -72,7 +72,7 @@ public interface Server extends PluginMessageRecipient {
      * Used for all announcement messages, such as informing users that a
      * player has joined.
      * <p>
-     * For use in {@link #broadcast(String, String)}.
+     * For use in {@link #broadcast(java.lang.String, java.lang.String)}.
      */
     public static final String BROADCAST_CHANNEL_USERS = "bukkit.broadcast.user";
 
@@ -289,8 +289,8 @@ public interface Server extends PluginMessageRecipient {
     /**
      * Broadcast a message to all players.
      * <p>
-     * This is the same as calling {@link #broadcast(String,
-     * String)} to {@link #BROADCAST_CHANNEL_USERS}
+     * This is the same as calling {@link #broadcast(java.lang.String,
+     * java.lang.String)} to {@link #BROADCAST_CHANNEL_USERS}
      *
      * @param message the message
      * @return the number of players
@@ -649,8 +649,8 @@ public interface Server extends PluginMessageRecipient {
      * @param structureType the type of structure to find
      * @return a newly created item stack
      *
-     * @see World#locateNearestStructure(Location,
-     *      StructureType, int, boolean)
+     * @see World#locateNearestStructure(org.bukkit.Location,
+     *      org.bukkit.StructureType, int, boolean)
      */
     @NotNull
     public ItemStack createExplorerMap(@NotNull World world, @NotNull Location location, @NotNull StructureType structureType);
@@ -670,8 +670,8 @@ public interface Server extends PluginMessageRecipient {
      * @param findUnexplored whether to find unexplored structures
      * @return the newly created item stack
      *
-     * @see World#locateNearestStructure(Location,
-     *      StructureType, int, boolean)
+     * @see World#locateNearestStructure(org.bukkit.Location,
+     *      org.bukkit.StructureType, int, boolean)
      */
     @NotNull
     public ItemStack createExplorerMap(@NotNull World world, @NotNull Location location, @NotNull StructureType structureType, int radius, boolean findUnexplored);
@@ -909,7 +909,7 @@ public interface Server extends PluginMessageRecipient {
      *
      * @param name the name the player to retrieve
      * @return an offline player
-     * @see #getOfflinePlayer(UUID)
+     * @see #getOfflinePlayer(java.util.UUID)
      * @deprecated Persistent storage of users should be by UUID as names are no longer
      *             unique past a single session.
      */
@@ -1346,7 +1346,7 @@ public interface Server extends PluginMessageRecipient {
     /**
      * Create a ChunkData for use in a generator.
      *
-     * See {@link ChunkGenerator#generateChunkData(World, java.util.Random, int, int, ChunkGenerator.BiomeGrid)}
+     * See {@link ChunkGenerator#generateChunkData(org.bukkit.World, java.util.Random, int, int, org.bukkit.generator.ChunkGenerator.BiomeGrid)}
      *
      * @param world the world to create the ChunkData for
      * @return a new ChunkData for the world
@@ -1600,33 +1600,19 @@ public interface Server extends PluginMessageRecipient {
 
     // Spigot start
     public class Spigot {
-
         @NotNull
         public org.bukkit.configuration.file.YamlConfiguration getConfig() {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        /**
-         * Sends the component to the player
-         *
-         * @param component the components to send
-         */
         public void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent component) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        /**
-         * Sends an array of components as a single message to the player
-         *
-         * @param components the components to send
-         */
         public void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        /**
-         * Restart the server. If the server administrator has not configured restarting, the server will stop.
-         */
         public void restart() {
             throw new UnsupportedOperationException("Not supported yet.");
         }

@@ -55,6 +55,7 @@ public class FoxServerLauncher {
         System.arraycopy(args, 0, launchArgs, launchArgs.length, args.length);
 
         DataManager.gc();
+        System.setProperty("log4j.configurationFile", "log4j2-catserver.xml");
 
         Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { launchArgs } );
     }

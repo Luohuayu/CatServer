@@ -3,29 +3,42 @@
 @@ -1,5 +_,7 @@
  package net.minecraft.commands;
  
-+import catserver.server.utils.CommandNodeHook;
++import catserver.server.utils.CommandNodeHelper;
 +import com.google.common.base.Joiner;
  import com.google.common.collect.Maps;
  import com.mojang.brigadier.CommandDispatcher;
  import com.mojang.brigadier.ParseResults;
-@@ -12,6 +_,8 @@
+@@ -12,8 +_,13 @@
  import com.mojang.brigadier.tree.CommandNode;
  import com.mojang.brigadier.tree.RootCommandNode;
  import com.mojang.logging.LogUtils;
++
 +import java.util.Collection;
 +import java.util.LinkedHashSet;
  import java.util.Map;
  import java.util.Set;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicReference;
  import java.util.function.Predicate;
-@@ -106,6 +_,8 @@
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+@@ -105,6 +_,8 @@
+ import net.minecraft.server.commands.data.DataCommands;
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.util.profiling.jfr.JvmProfiler;
- import org.slf4j.Logger;
 +import org.bukkit.event.player.PlayerCommandSendEvent;
 +import org.bukkit.event.server.ServerCommandEvent;
+ import org.slf4j.Logger;
  
  public class Commands {
-    private static final Logger f_82089_ = LogUtils.getLogger();
+@@ -117,6 +_,7 @@
+    private final CommandDispatcher<CommandSourceStack> f_82090_ = new CommandDispatcher<>();
+ 
+    public Commands(Commands.CommandSelection p_82093_) {
++      this(); // CraftBukkit
+       AdvancementCommands.m_136310_(this.f_82090_);
+       AttributeCommand.m_136444_(this.f_82090_);
+       ExecuteCommand.m_137042_(this.f_82090_);
 @@ -177,7 +_,7 @@
           JfrCommand.m_183645_(this.f_82090_);
        }
@@ -35,25 +48,26 @@
           TestCommand.m_127946_(this.f_82090_);
        }
  
-@@ -201,6 +_,7 @@
+@@ -201,18 +_,73 @@
        if (p_82093_.f_82144_) {
           PublishCommand.m_138184_(this.f_82090_);
        }
 +      net.minecraftforge.event.ForgeEventFactory.onCommandRegister(this.f_82090_, p_82093_);
  
        this.f_82090_.findAmbiguities((p_82108_, p_82109_, p_82110_, p_82111_) -> {
-          f_82089_.warn("Ambiguity between arguments {} and {} with inputs: {}", this.f_82090_.getPath(p_82109_), this.f_82090_.getPath(p_82110_), p_82111_);
-@@ -210,9 +_,55 @@
+-         f_82089_.warn("Ambiguity between arguments {} and {} with inputs: {}", this.f_82090_.getPath(p_82109_), this.f_82090_.getPath(p_82110_), p_82111_);
++         // LOGGER.warn("Ambiguity between arguments {} and {} with inputs: {}", this.dispatcher.getPath(p_82109_), this.dispatcher.getPath(p_82110_), p_82111_);
+       });
++      // CraftBukkit start
++   }
++
++   public Commands() {
++      // CraftBukkkit end
+       this.f_82090_.setConsumer((p_82104_, p_82105_, p_82106_) -> {
+          p_82104_.getSource().m_81342_(p_82104_, p_82105_, p_82106_);
        });
     }
  
-+    public Commands() {
-+       this.f_82090_.setConsumer((p_82104_, p_82105_, p_82106_) -> {
-+          p_82104_.getSource().m_81342_(p_82104_, p_82105_, p_82106_);
-+       });
-+    }
-+
-+   // CraftBukkit start
 +   public int dispatchServerCommand(CommandSourceStack sender, String command) {
 +      Joiner joiner = Joiner.on(" ");
 +      if (command.startsWith("/")) {
@@ -89,11 +103,21 @@
 +      return this.performCommand(sender, newCommand, newCommand, false);
 +   }
 +
-    public int m_82117_(CommandSourceStack p_82118_, String p_82119_) {
-+      return this.performCommand(p_82118_, p_82119_, p_82119_, true);
++   // CatServer start
++   private AtomicReference<String> catserver$performLabel = new AtomicReference<>();
++   private AtomicBoolean catserver$performStripSlash = new AtomicBoolean(true);
++   public int performCommand(CommandSourceStack p_82118_, String p_82119_, String label, boolean stripSlash) {
++      this.catserver$performLabel.set(label);
++      this.catserver$performStripSlash.set(stripSlash);
++      return this.m_82117_(p_82118_, p_82119_);
 +   }
 +
-+    public int performCommand(CommandSourceStack p_82118_, String p_82119_, String label, boolean stripSlash) {
+    public int m_82117_(CommandSourceStack p_82118_, String p_82119_) {
++      // CatServer start - default value
++      var label = this.catserver$performLabel.getAndSet(null);
++      var stripSlash = this.catserver$performStripSlash.getAndSet(true);
++      label = label == null ? p_82119_ : label;
++      // CatServer end
        StringReader stringreader = new StringReader(p_82119_);
 -      if (stringreader.canRead() && stringreader.peek() == '/') {
 +      if (stripSlash && stringreader.canRead() && stringreader.peek() == '/') {
@@ -119,68 +143,52 @@
           } catch (CommandRuntimeException commandruntimeexception) {
              p_82118_.m_81352_(commandruntimeexception.m_79226_());
              return 0;
-@@ -229,7 +_,7 @@
+@@ -228,8 +_,9 @@
+             p_82118_.m_81352_(ComponentUtils.m_130729_(commandsyntaxexception.getRawMessage()));
              if (commandsyntaxexception.getInput() != null && commandsyntaxexception.getCursor() >= 0) {
                 int j = Math.min(commandsyntaxexception.getInput().length(), commandsyntaxexception.getCursor());
++               String finalLabel = label; // CatServer - need final label
                 MutableComponent mutablecomponent1 = (new TextComponent("")).m_130940_(ChatFormatting.GRAY).m_130938_((p_82134_) -> {
 -                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, p_82119_));
-+                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, label));
++                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, finalLabel)); // CatServer
                 });
                 if (j > 10) {
                    mutablecomponent1.m_130946_("...");
-@@ -247,7 +_,7 @@
-          } catch (Exception exception) {
-             MutableComponent mutablecomponent = new TextComponent(exception.getMessage() == null ? exception.getClass().getName() : exception.getMessage());
-             if (f_82089_.isDebugEnabled()) {
--               f_82089_.error("Command exception: {}", p_82119_, exception);
-+               f_82089_.error("Command exception: {0}", p_82119_, exception);
-                StackTraceElement[] astacktraceelement = exception.getStackTrace();
- 
-                for(int i = 0; i < Math.min(astacktraceelement.length, 3); ++i) {
-@@ -273,15 +_,44 @@
+@@ -271,12 +_,35 @@
+          p_82118_.m_81377_().m_129905_().m_7238_();
+       }
     }
++   // CatServer end
  
     public void m_82095_(ServerPlayer p_82096_) {
 -      Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> map = Maps.newHashMap();
-+      if ( org.spigotmc.SpigotConfig.tabComplete < 0 ) return; // Spigot
 +      // CraftBukkit start
 +      // Register Vanilla commands into builtRoot as before
 +      Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> map = Maps.newIdentityHashMap(); // Use identity to prevent aliasing issues
 +      RootCommandNode vanillaRoot = new RootCommandNode();
-+
 +      RootCommandNode<CommandSourceStack> vanilla = p_82096_.f_8924_.vanillaCommandDispatcher.m_82094_().getRoot();
 +      map.put(vanilla, vanillaRoot);
-+      this.m_82112_(vanilla, vanillaRoot, p_82096_.m_20203_(), (Map) map);
++      this.m_82112_(vanilla, vanillaRoot, p_82096_.m_20203_(), map);
 +
 +      // Now build the global commands in a second pass
        RootCommandNode<SharedSuggestionProvider> rootcommandnode = new RootCommandNode<>();
-+
        map.put(this.f_82090_.getRoot(), rootcommandnode);
 -      this.m_82112_(this.f_82090_.getRoot(), rootcommandnode, p_82096_.m_20203_(), map);
 +      // FORGE: Use our own command node merging method to handle redirect nodes properly, see issue #7551
 +      net.minecraftforge.server.command.CommandHelper.mergeCommandNode(this.f_82090_.getRoot(), rootcommandnode, map, p_82096_.m_20203_(), ctx -> 0, suggest -> SuggestionProviders.m_121664_((com.mojang.brigadier.suggestion.SuggestionProvider<SharedSuggestionProvider>) (com.mojang.brigadier.suggestion.SuggestionProvider<?>) suggest));
-+
 +      Collection<String> bukkit = new LinkedHashSet<>();
 +      for (CommandNode node : rootcommandnode.getChildren()) {
 +         bukkit.add(node.getName());
 +      }
-+
 +      PlayerCommandSendEvent event = new PlayerCommandSendEvent(p_82096_.getBukkitEntity(), new LinkedHashSet<>(bukkit));
 +      event.getPlayer().getServer().getPluginManager().callEvent(event);
-+
 +      // Remove labels that were removed during the event
 +      for (String orig : bukkit) {
 +         if (!event.getCommands().contains(orig)) {
-+            CommandNodeHook.removeCommand(rootcommandnode, orig);
++            CommandNodeHelper.removeCommand(rootcommandnode, orig); // CatServer
 +         }
 +      }
 +      // CraftBukkit end
        p_82096_.f_8906_.m_141995_(new ClientboundCommandsPacket(rootcommandnode));
     }
  
-    private void m_82112_(CommandNode<CommandSourceStack> p_82113_, CommandNode<SharedSuggestionProvider> p_82114_, CommandSourceStack p_82115_, Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> p_82116_) {
-       for(CommandNode<CommandSourceStack> commandnode : p_82113_.getChildren()) {
-+         if ( !org.spigotmc.SpigotConfig.sendNamespaced && commandnode.getName().contains( ":" ) ) continue; // Spigot
-          if (commandnode.canUse(p_82115_)) {
-             ArgumentBuilder<SharedSuggestionProvider, ?> argumentbuilder = (ArgumentBuilder)commandnode.createBuilder();
-             argumentbuilder.requires((p_82126_) -> {

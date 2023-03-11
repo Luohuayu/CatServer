@@ -23,14 +23,12 @@ import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.HttpsURLConnection;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.loading.moddiscovery.ModInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.spigotmc.SpigotConfig;
 
 /**
  * bStats collects some data for plugin authors.
@@ -44,8 +42,8 @@ public class Metrics {
     private final List<CustomChart> charts = new ArrayList<>();
 
     public Metrics(String name, String serverUUID) {
-            this.name = name;
-            this.serverUUID = serverUUID;
+        this.name = name;
+        this.serverUUID = serverUUID;
 
         startSubmitting();
     }
@@ -261,7 +259,8 @@ public class Metrics {
 
                 metrics.addCustomChart(new SingleLineChart("players", () -> Bukkit.getOnlinePlayers().size()));
                 metrics.addCustomChart(new SimplePie("online_mode", () -> Bukkit.getOnlineMode() ? "online" : "offline"));
-                metrics.addCustomChart(new SimplePie("bungeecord", () -> SpigotConfig.bungee ? "true" : "false"));
+                //metrics.addCustomChart(new SimplePie("bungeecord", () -> SpigotConfig.bungee ? "true" : "false")); // TODO
+                metrics.addCustomChart(new SimplePie("bungeecord", () -> "false"));
 
                 metrics.addCustomChart(new DrilldownPie("java_version", () -> {
                     Map<String, Map<String, Integer>> map = new HashMap<>();

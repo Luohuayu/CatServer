@@ -1,6 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.command;
 
 import com.google.common.base.Joiner;
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.tree.CommandNode;
 import java.util.ArrayList;

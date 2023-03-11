@@ -218,9 +218,15 @@ public interface Villager extends AbstractVillager {
         WEAPONSMITH;
         private final NamespacedKey key;
 
+        // CatServer start
         private Profession() {
-            this.key = NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT));
+            this(null);
         }
+
+        private Profession(NamespacedKey key) {
+            this.key = key == null ? NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT)) : key;
+        }
+        // CatServer end
 
         @NotNull
         @Override

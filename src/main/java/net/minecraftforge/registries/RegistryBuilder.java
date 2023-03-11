@@ -248,10 +248,10 @@ public class RegistryBuilder<T extends IForgeRegistryEntry<T>>
      * a datapack folder based on the registry's name. The mod that registers this registry does not need to exist
      * on the client to connect to servers with the mod/registry.</p>
      * <p>Data JSONs will be loaded from {@code data/<datapack_namespace>/modid/registryname/}, where modid is the mod that registered this registry.</p>
-     *
+     * 
      * @param codec the codec to be used for loading data from datapacks on servers
      * @return this builder
-     *
+     * 
      * @see #dataPackRegistry(Codec, Codec)
      */
     public RegistryBuilder<T> dataPackRegistry(Codec<T> codec)
@@ -263,7 +263,7 @@ public class RegistryBuilder<T extends IForgeRegistryEntry<T>>
      * <p>Register this registry as a datapack registry, which will cause data to be loaded from
      * a datapack folder based on the registry's name.</p>
      * <p>Data JSONs will be loaded from {@code data/<datapack_namespace>/modid/registryname/}, where modid is the mod that registered this registry.</p>
-     *
+     * 
      * @param codec the codec to be used for loading data from datapacks on servers
      * @param networkCodec the codec to be used for syncing loaded data to clients.<br>
      * If networkCodec is null, data will not be synced, and clients without the mod that registered this registry can
@@ -271,7 +271,7 @@ public class RegistryBuilder<T extends IForgeRegistryEntry<T>>
      * If networkCodec is not null, then data will be synced (accessible via {@link ClientPacketListener#registryAccess()}),
      * and the mod must be present on a client to connect to servers with the mod.
      * @return this builder
-     *
+     * 
      * @see #dataPackRegistry(Codec)
      */
     public RegistryBuilder<T> dataPackRegistry(Codec<T> codec, @Nullable Codec<T> networkCodec)
@@ -283,18 +283,18 @@ public class RegistryBuilder<T extends IForgeRegistryEntry<T>>
             // Validate registry key.
             if (this.registryName == null)
                 throw new IllegalStateException("Registry builder cannot build a datapack registry: registry name not set");
-
+                            
             ResourceKey<Registry<T>> registryKey = ResourceKey.createRegistryKey(this.registryName);
-            return new RegistryAccess.RegistryData<>(registryKey, codec, networkCodec);
+            return new RegistryAccess.RegistryData<>(registryKey, codec, networkCodec); 
         });
         return this;
     }
 
     /**
      * Retrieves datapack registry information, if any.
-     *
+     * 
      * @return RegistryData containing the registry's key and codec(s). If returned data is null, this has not been marked as a datapack registry.
-     *
+     * 
      * @throws IllegalStateException if this has been marked as a datapack registry, but registry name has not been set.
      */
     @Nullable

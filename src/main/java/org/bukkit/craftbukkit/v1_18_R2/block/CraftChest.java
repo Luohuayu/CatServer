@@ -2,8 +2,8 @@ package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Material;
@@ -16,8 +16,8 @@ import org.bukkit.inventory.Inventory;
 
 public class CraftChest extends CraftLootable<ChestBlockEntity> implements Chest {
 
-    public CraftChest(World world, final ChestBlockEntity te) {
-        super(world, te);
+    public CraftChest(World world, ChestBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override
@@ -41,10 +41,10 @@ public class CraftChest extends CraftLootable<ChestBlockEntity> implements Chest
             return inventory;
         }
 
-        // The logic here is basically identical to the logic in ChestBlock.interact
+        // The logic here is basically identical to the logic in BlockChest.interact
         CraftWorld world = (CraftWorld) this.getWorld();
 
-        ChestBlock blockChest= (ChestBlock) (this.getType() == Material.CHEST ? Blocks.CHEST : Blocks.TRAPPED_CHEST);
+        ChestBlock blockChest = (ChestBlock) (this.getType() == Material.CHEST ? Blocks.CHEST : Blocks.TRAPPED_CHEST);
         MenuProvider nms = blockChest.getMenuProvider(data, world.getHandle(), this.getPosition(), true);
 
         if (nms instanceof ChestBlock.DoubleInventory) {

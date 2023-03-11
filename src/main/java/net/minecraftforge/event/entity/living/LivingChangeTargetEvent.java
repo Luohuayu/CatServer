@@ -39,7 +39,7 @@ public class LivingChangeTargetEvent extends LivingEvent
     private final ILivingTargetType targetType;
     private final LivingEntity originalTarget;
     private LivingEntity newTarget;
-
+    
     public LivingChangeTargetEvent(LivingEntity entity, LivingEntity originalTarget, ILivingTargetType targetType)
     {
         super(entity);
@@ -64,7 +64,7 @@ public class LivingChangeTargetEvent extends LivingEvent
     {
         this.newTarget = newTarget;
     }
-
+    
     /**
      * {@return the living target type.}
      */
@@ -80,8 +80,8 @@ public class LivingChangeTargetEvent extends LivingEvent
     {
         return originalTarget;
     }
-
-
+    
+    
     /**
      * A living target type indicates what kind of system caused a change of
      * targets. For a list of default target types, take a look at
@@ -89,9 +89,9 @@ public class LivingChangeTargetEvent extends LivingEvent
      */
     public static interface ILivingTargetType
     {
-
+        
     }
-
+    
     /**
      * This enum contains two default living target types.
      */

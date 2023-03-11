@@ -1,7 +1,7 @@
 package org.bukkit.craftbukkit.v1_18_R2.block;
 
-import net.minecraft.world.level.block.DropperBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DropperBlock;
 import net.minecraft.world.level.block.entity.DropperBlockEntity;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -13,8 +13,8 @@ import org.bukkit.inventory.Inventory;
 
 public class CraftDropper extends CraftLootable<DropperBlockEntity> implements Dropper {
 
-    public CraftDropper(World world, DropperBlockEntity te) {
-        super(world, te);
+    public CraftDropper(World world, DropperBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

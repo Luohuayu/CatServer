@@ -2,6 +2,7 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import com.google.common.collect.ImmutableMap.Builder;
 import java.util.Map;
+
 import net.minecraft.nbt.CompoundTag;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Material;

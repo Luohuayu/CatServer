@@ -1,0 +1,67 @@
+From 301f71492f826fc71d316f13b5137c8a8da8b75d Mon Sep 17 00:00:00 2001
+From: md_5 <git@md-5.net>
+Date: Fri, 20 Feb 2015 21:39:31 +1100
+Subject: [PATCH] Allow Capping (Tile)Entity Tick Time.
+
+This patch adds world configuration options for max-tick-time.entity / max-tick-time.tile which allows setting a hard cap on the amount of time (in milliseconds) that a tick can consume. The default values of 50ms each are very conservative and mean this feature will not activate until the server is well below 15tps (minimum). Values of 20ms each have been reported to provide a good performance increase, however I personally think 25ms for entities and 10-15ms for tiles would give even more significant gains, assuming that these things are not a large priority on your server.
+
+For tiles there is very little tradeoff for this option, as tile ticks are based on wall time for most things, however for entities setting this option too low could lead to jerkiness / lag. The gain however is a faster and more responsive server to other actions such as blocks, chat, combat etc.
+
+This feature was commisioned by Chunkr.
+
+diff --git a/src/main/java/net/minecraft/world/level/World.java b/src/main/java/net/minecraft/world/level/World.java
+index 825bb3868..6345b3cf0 100644
+--- a/src/main/java/net/minecraft/world/level/World.java
++++ b/src/main/java/net/minecraft/world/level/World.java
+@@ -146,6 +146,9 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
+ 
+     public final SpigotTimings.WorldTimingsHandler timings; // Spigot
+     public static BlockPosition lastPhysicsProblem; // Spigot
+ 
+     public CraftWorld getWorld() {
+         return this.world;
+@@ -232,6 +235,8 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
+         });
+         // CraftBukkit end
+         timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
+     }
+ 
+     @Override
+@@ -656,20 +661,28 @@ public abstract class World implements GeneratorAccess, AutoCloseable {
+         timings.tileEntityPending.stopTiming(); // Spigot
+ 
+         timings.tileEntityTick.startTiming(); // Spigot
+-        Iterator iterator = this.blockEntityTickers.iterator();
+-
+-        while (iterator.hasNext()) {
+-            TickingBlockEntity tickingblockentity = (TickingBlockEntity) iterator.next();
++        // Spigot start
++        // Iterator iterator = this.blockEntityTickers.iterator();
++        int tilesThisCycle = 0;
++        for (tileLimiter.initTick();
++                tilesThisCycle < blockEntityTickers.size() && (tilesThisCycle % 10 != 0 || tileLimiter.shouldContinue());
++                tileTickPosition++, tilesThisCycle++) {
++            tileTickPosition = (tileTickPosition < blockEntityTickers.size()) ? tileTickPosition : 0;
++            TickingBlockEntity tickingblockentity = (TickingBlockEntity) this.blockEntityTickers.get(tileTickPosition);
+             // Spigot start
+             if (tickingblockentity == null) {
+                 getCraftServer().getLogger().severe("Spigot has detected a null entity and has removed it, preventing a crash");
+-                iterator.remove();
++                tilesThisCycle--;
++                this.blockEntityTickers.remove(tileTickPosition--);
+                 continue;
+             }
+             // Spigot end
+ 
+             if (tickingblockentity.isRemoved()) {
+-                iterator.remove();
++                // Spigot start
++                tilesThisCycle--;
++                this.blockEntityTickers.remove(tileTickPosition--);
++                // Spigot end
+             } else if (this.shouldTickBlocksAt(ChunkCoordIntPair.asLong(tickingblockentity.getPos()))) {
+                 tickingblockentity.tick();
+             }
+-- 
+2.25.1
+

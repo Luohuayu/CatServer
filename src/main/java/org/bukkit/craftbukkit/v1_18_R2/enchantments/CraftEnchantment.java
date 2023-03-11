@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2.enchantments;
 
+import net.minecraft.core.Registry;
 import net.minecraft.world.item.enchantment.BindingCurseEnchantment;
 import net.minecraft.world.item.enchantment.VanishingCurseEnchantment;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
@@ -13,7 +14,7 @@ public class CraftEnchantment extends Enchantment {
     private final net.minecraft.world.item.enchantment.Enchantment target;
 
     public CraftEnchantment(net.minecraft.world.item.enchantment.Enchantment target) {
-        super(CraftNamespacedKey.fromMinecraft(net.minecraft.core.Registry.ENCHANTMENT.getKey(target)));
+        super(CraftNamespacedKey.fromMinecraft(Registry.ENCHANTMENT.getKey(target)));
         this.target = target;
     }
 
@@ -81,7 +82,7 @@ public class CraftEnchantment extends Enchantment {
     @Override
     public String getName() {
         // PAIL: migration paths
-        switch (net.minecraft.core.Registry.ENCHANTMENT.getId(target)) {
+        switch (Registry.ENCHANTMENT.getId(target)) {
         case 0:
             return "PROTECTION_ENVIRONMENTAL";
         case 1:
@@ -159,7 +160,7 @@ public class CraftEnchantment extends Enchantment {
         case 37:
             return "VANISHING_CURSE";
         default:
-            return "UNKNOWN_ENCHANT_" + net.minecraft.core.Registry.ENCHANTMENT.getId(target);
+            return "UNKNOWN_ENCHANT_" + Registry.ENCHANTMENT.getId(target);
         }
     }
 

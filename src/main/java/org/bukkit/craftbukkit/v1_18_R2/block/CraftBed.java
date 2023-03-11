@@ -7,8 +7,8 @@ import org.bukkit.block.Bed;
 
 public class CraftBed extends CraftBlockEntityState<BedBlockEntity> implements Bed {
 
-    public CraftBed(World world, BedBlockEntity te) {
-        super(world, te);
+    public CraftBed(World world, BedBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

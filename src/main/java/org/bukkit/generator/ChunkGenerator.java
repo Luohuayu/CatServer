@@ -154,11 +154,11 @@ public abstract class ChunkGenerator {
      *
      * @param worldInfo The world info of the world this chunk will be used for
      * @param random The random generator to use
-     * @param x The X-coordinate of the chunk
-     * @param z The Z-coordinate of the chunk
+     * @param chunkX The X-coordinate of the chunk
+     * @param chunkZ The Z-coordinate of the chunk
      * @param chunkData To modify
      */
-    public void generateCaves(@NotNull WorldInfo worldInfo, @NotNull Random random, int x, int z, @NotNull ChunkData chunkData) {
+    public void generateCaves(@NotNull WorldInfo worldInfo, @NotNull Random random, int chunkX, int chunkZ, @NotNull ChunkData chunkData) {
     }
 
     /**

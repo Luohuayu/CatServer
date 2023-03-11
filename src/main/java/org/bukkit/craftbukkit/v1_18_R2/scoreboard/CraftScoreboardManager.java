@@ -6,13 +6,16 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Consumer;
+
 import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Score;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
@@ -39,7 +42,6 @@ public final class CraftScoreboardManager implements ScoreboardManager {
 
     @Override
     public CraftScoreboard getNewScoreboard() {
-        org.spigotmc.AsyncCatcher.catchOp("scoreboard creation"); // Spigot
         CraftScoreboard scoreboard = new CraftScoreboard(new ServerScoreboard(server));
         scoreboards.add(scoreboard);
         return scoreboard;
@@ -71,9 +73,9 @@ public final class CraftScoreboardManager implements ScoreboardManager {
         }
 
         // Old objective tracking
-        HashSet<net.minecraft.world.scores.Objective> removed = new HashSet<net.minecraft.world.scores.Objective>();
+        HashSet<Objective> removed = new HashSet<Objective>();
         for (int i = 0; i < 3; ++i) {
-            net.minecraft.world.scores.Objective scoreboardobjective = oldboard.getDisplayObjective(i);
+            Objective scoreboardobjective = oldboard.getDisplayObjective(i);
             if (scoreboardobjective != null && !removed.contains(scoreboardobjective)) {
                 entityplayer.connection.send(new ClientboundSetObjectivePacket(scoreboardobjective, 1));
                 removed.add(scoreboardobjective);
@@ -97,10 +99,10 @@ public final class CraftScoreboardManager implements ScoreboardManager {
     }
 
     // CraftBukkit method
-    public void getScoreboardScores(ObjectiveCriteria criteria, String name, Consumer<net.minecraft.world.scores.Score> consumer) {
+    public void getScoreboardScores(ObjectiveCriteria criteria, String name, Consumer<Score> consumer) {
         for (CraftScoreboard scoreboard : scoreboards) {
             Scoreboard board = scoreboard.board;
-            board.forAllObjectives(criteria, name, score -> consumer.accept(score));
+            board.forAllObjectives(criteria, name, (score) -> consumer.accept(score));
         }
     }
 }

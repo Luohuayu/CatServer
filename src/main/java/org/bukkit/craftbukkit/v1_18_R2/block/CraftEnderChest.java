@@ -6,7 +6,7 @@ import org.bukkit.block.EnderChest;
 
 public class CraftEnderChest extends CraftBlockEntityState<EnderChestBlockEntity> implements EnderChest {
 
-    public CraftEnderChest(World world, final EnderChestBlockEntity te) {
-        super(world, te);
+    public CraftEnderChest(World world, EnderChestBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 }

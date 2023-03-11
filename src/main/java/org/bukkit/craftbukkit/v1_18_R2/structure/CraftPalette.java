@@ -2,7 +2,6 @@ package org.bukkit.craftbukkit.v1_18_R2.structure;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockStates;

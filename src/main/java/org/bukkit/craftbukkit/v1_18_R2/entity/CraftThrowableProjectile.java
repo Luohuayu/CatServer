@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2.entity;
 
+import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
 import org.bukkit.entity.ThrowableProjectile;
@@ -7,16 +8,16 @@ import org.bukkit.inventory.ItemStack;
 
 public abstract class CraftThrowableProjectile extends CraftProjectile implements ThrowableProjectile {
 
-    public CraftThrowableProjectile(CraftServer server, net.minecraft.world.entity.projectile.ThrowableItemProjectile entity) {
+    public CraftThrowableProjectile(CraftServer server, ThrowableItemProjectile entity) {
         super(server, entity);
     }
 
     @Override
     public ItemStack getItem() {
-        if (getHandle().getItem().isEmpty()) {
+        if (getHandle().getItemRaw().isEmpty()) {
             return CraftItemStack.asBukkitCopy(new net.minecraft.world.item.ItemStack(getHandle().getDefaultItemPublic()));
         } else {
-            return CraftItemStack.asBukkitCopy(getHandle().getItem());
+            return CraftItemStack.asBukkitCopy(getHandle().getItemRaw());
         }
     }
 
@@ -26,7 +27,7 @@ public abstract class CraftThrowableProjectile extends CraftProjectile implement
     }
 
     @Override
-    public net.minecraft.world.entity.projectile.ThrowableItemProjectile getHandle() {
-        return (net.minecraft.world.entity.projectile.ThrowableItemProjectile) entity;
+    public ThrowableItemProjectile getHandle() {
+        return (ThrowableItemProjectile) entity;
     }
 }

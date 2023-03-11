@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
 import org.bukkit.block.Biome;
@@ -16,9 +17,9 @@ public class CustomWorldChunkManager extends BiomeSource {
 
     private final WorldInfo worldInfo;
     private final BiomeProvider biomeProvider;
-    private final net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> registry;
+    private final Registry<net.minecraft.world.level.biome.Biome> registry;
 
-    private static List<Holder<net.minecraft.world.level.biome.Biome>> biomeListToBiomeBaseList(List<Biome> biomes, net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> registry) {
+    private static List<Holder<net.minecraft.world.level.biome.Biome>> biomeListToBiomeBaseList(List<Biome> biomes, Registry<net.minecraft.world.level.biome.Biome> registry) {
         List<Holder<net.minecraft.world.level.biome.Biome>> biomeBases = new ArrayList<>();
 
         for (Biome biome : biomes) {
@@ -29,7 +30,7 @@ public class CustomWorldChunkManager extends BiomeSource {
         return biomeBases;
     }
 
-    public CustomWorldChunkManager(WorldInfo worldInfo, BiomeProvider biomeProvider, net.minecraft.core.Registry<net.minecraft.world.level.biome.Biome> registry) {
+    public CustomWorldChunkManager(WorldInfo worldInfo, BiomeProvider biomeProvider, Registry<net.minecraft.world.level.biome.Biome> registry) {
         super(biomeListToBiomeBaseList(biomeProvider.getBiomes(worldInfo), registry));
 
         this.worldInfo = worldInfo;

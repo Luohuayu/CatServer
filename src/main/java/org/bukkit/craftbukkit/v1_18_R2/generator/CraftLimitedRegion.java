@@ -7,10 +7,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -29,8 +29,6 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.generator.LimitedRegion;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Consumer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class CraftLimitedRegion extends CraftRegionAccessor implements LimitedRegion {
 
@@ -80,13 +78,14 @@ public class CraftLimitedRegion extends CraftRegionAccessor implements LimitedRe
         if (entitiesLoaded) {
             return;
         }
+
         WorldGenLevel access = getHandle();
         // load entities which are already present
         for (int x = -(buffer >> 4); x <= (buffer >> 4); x++) {
             for (int z = -(buffer >> 4); z <= (buffer >> 4); z++) {
                 ProtoChunk chunk = (ProtoChunk) access.getChunk(centerChunkX + x, centerChunkZ + z);
                 for (CompoundTag compound : chunk.getEntities()) {
-                    net.minecraft.world.entity.EntityType.loadEntityRecursive(compound, access.getMinecraftWorld(), (entity) -> {
+                    EntityType.loadEntityRecursive(compound, access.getMinecraftWorld(), (entity) -> {
                         if (region.contains(entity.getX(), entity.getY(), entity.getZ())) {
                             entity.generation = true;
                             entities.add(entity);
@@ -101,6 +100,7 @@ public class CraftLimitedRegion extends CraftRegionAccessor implements LimitedRe
 
         entitiesLoaded = true;
     }
+
     public void saveEntities() {
         WorldGenLevel access = getHandle();
         // We don't clear existing entities when they are not loaded and therefore not modified
@@ -120,6 +120,7 @@ public class CraftLimitedRegion extends CraftRegionAccessor implements LimitedRe
                 access.addFreshEntity(entity);
             }
         }
+
         for (net.minecraft.world.entity.Entity entity : outsideEntities) {
             access.addFreshEntity(entity);
         }
@@ -207,11 +208,6 @@ public class CraftLimitedRegion extends CraftRegionAccessor implements LimitedRe
     public boolean generateTree(Location location, Random random, TreeType treeType, Consumer<BlockState> consumer) {
         Preconditions.checkArgument(isInRegion(location), "Coordinates %s, %s, %s are not in the region", location.getBlockX(), location.getBlockY(), location.getBlockZ());
         return super.generateTree(location, random, treeType, consumer);
-    }
-
-    @Override
-    public boolean generateTree(@NotNull Location location, @NotNull Random random, @NotNull TreeType type, @Nullable Predicate<BlockState> statePredicate) {
-        return false;
     }
 
     @Override

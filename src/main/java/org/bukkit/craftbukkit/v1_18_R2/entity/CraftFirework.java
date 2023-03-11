@@ -58,7 +58,7 @@ public class CraftFirework extends CraftProjectile implements Firework {
     public void setFireworkMeta(FireworkMeta meta) {
         item.setItemMeta(meta);
 
-        // Copied from FireworkRocketEntity constructor, update firework lifetime/power
+        // Copied from EntityFireworks constructor, update firework lifetime/power
         getHandle().lifetime = 10 * (1 + meta.getPower()) + random.nextInt(6) + random.nextInt(7);
 
         getHandle().getEntityData().markDirty(FireworkRocketEntity.DATA_ID_FIREWORKS_ITEM);

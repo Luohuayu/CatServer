@@ -1,9 +1,10 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.trading.Merchant;
 import net.minecraft.world.item.trading.MerchantOffer;
@@ -32,7 +33,7 @@ public class CraftMerchantCustom extends CraftMerchant {
 
         private final Component title;
         private final MerchantOffers trades = new MerchantOffers();
-        private net.minecraft.world.entity.player.Player tradingPlayer;
+        private Player tradingPlayer;
         private Level tradingWorld;
         protected CraftMerchant craftMerchant;
 
@@ -47,7 +48,7 @@ public class CraftMerchantCustom extends CraftMerchant {
         }
 
         @Override
-        public void setTradingPlayer(net.minecraft.world.entity.player.Player entityhuman) {
+        public void setTradingPlayer(Player entityhuman) {
             this.tradingPlayer = entityhuman;
             if (entityhuman != null) {
                 this.tradingWorld = entityhuman.level;
@@ -55,7 +56,7 @@ public class CraftMerchantCustom extends CraftMerchant {
         }
 
         @Override
-        public net.minecraft.world.entity.player.Player getTradingPlayer() {
+        public Player getTradingPlayer() {
             return this.tradingPlayer;
         }
 
@@ -71,8 +72,7 @@ public class CraftMerchantCustom extends CraftMerchant {
         }
 
         @Override
-        public void notifyTradeUpdated(ItemStack p_45308_) {
-
+        public void notifyTradeUpdated(ItemStack itemstack) {
         }
 
         public Component getScoreboardDisplayName() {
@@ -99,7 +99,7 @@ public class CraftMerchantCustom extends CraftMerchant {
         }
 
         @Override
-        public void overrideOffers(net.minecraft.world.item.trading.MerchantOffers merchantrecipelist) {
+        public void overrideOffers(MerchantOffers merchantrecipelist) {
         }
 
         @Override

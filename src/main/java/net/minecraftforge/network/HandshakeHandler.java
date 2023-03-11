@@ -7,23 +7,21 @@ package net.minecraftforge.network;
 
 import com.google.common.collect.Multimap;
 import com.mojang.authlib.GameProfile;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 import net.minecraft.core.Registry;
 import net.minecraft.network.Connection;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.network.protocol.handshake.ClientIntentionPacket;
 import net.minecraft.network.protocol.login.ClientboundCustomQueryPacket;
 import net.minecraft.network.protocol.login.ServerboundCustomQueryPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.LogMessageAdapter;
 import net.minecraftforge.event.entity.player.PlayerNegotiationEvent;
+import net.minecraftforge.network.ConnectionData.ModMismatchData;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.registries.DataPackRegistriesHooks;
 import net.minecraftforge.registries.ForgeRegistry;
@@ -37,7 +35,10 @@ import org.apache.logging.log4j.MarkerManager;
 import com.google.common.collect.Maps;
 
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -187,9 +188,9 @@ public class HandshakeHandler
         //The connection data needs to be modified before a new ModMismatchData instance could be constructed
         NetworkHooks.appendConnectionData(c.get().getNetworkManager(), serverModList.getModList().stream().collect(Collectors.toMap(Function.identity(), s -> Pair.of("", ""))), serverModList.getChannels());
         if (!mismatchedChannels.isEmpty()) {
-            //Populate the mod mismatch attribute with a new mismatch data instance to indicate that the disconnect happened due to a mod mismatch
-            c.get().getNetworkManager().channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ConnectionData.ModMismatchData.channel(mismatchedChannels, NetworkHooks.getConnectionData(c.get().getNetworkManager()), true));
             LOGGER.error(FMLHSMARKER, "Terminating connection with server, mismatched mod list");
+            //Populate the mod mismatch attribute with a new mismatch data instance to indicate that the disconnect happened due to a mod mismatch
+            c.get().getNetworkManager().channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ModMismatchData.channel(mismatchedChannels, NetworkHooks.getConnectionData(c.get().getNetworkManager()), true));
             c.get().getNetworkManager().disconnect(new TextComponent("Connection closed - mismatched mod channel list"));
             return;
         }
@@ -261,7 +262,7 @@ public class HandshakeHandler
             LOGGER.error(FMLHSMARKER, "Terminating connection with server, mismatched mod list");
             c.get().setPacketHandled(true);
             //Populate the mod mismatch attribute with a new mismatch data instance to indicate that the disconnect happened due to a mod mismatch
-            c.get().getNetworkManager().channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ConnectionData.ModMismatchData.channel(modMismatchData.getMismatchedChannelData(), NetworkHooks.getConnectionData(c.get().getNetworkManager()), false));
+            c.get().getNetworkManager().channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ModMismatchData.channel(modMismatchData.getMismatchedChannelData(), NetworkHooks.getConnectionData(c.get().getNetworkManager()), false));
             c.get().getNetworkManager().disconnect(new TextComponent("Connection closed - mismatched mod channel list"));
         }
     }
@@ -312,7 +313,7 @@ public class HandshakeHandler
         } else {
             LOGGER.error(FMLHSMARKER, "Failed to load registry, closing connection.");
             //Populate the mod mismatch attribute with a new mismatch data instance to indicate that the disconnect happened due to a mod mismatch
-            this.manager.channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ConnectionData.ModMismatchData.registry(registryMismatches.get(), NetworkHooks.getConnectionData(contextSupplier.get().getNetworkManager())));
+            this.manager.channel().attr(NetworkConstants.FML_MOD_MISMATCH_DATA).set(ModMismatchData.registry(registryMismatches.get(), NetworkHooks.getConnectionData(contextSupplier.get().getNetworkManager())));
             this.manager.disconnect(new TextComponent("Failed to synchronize registry data from server, closing connection"));
         }
         return successfulConnection.get();
@@ -348,6 +349,7 @@ public class HandshakeHandler
             MinecraftForge.EVENT_BUS.post(event);
             negotiationStarted = true;
         }
+
         if (packetPosition < messageList.size()) {
             NetworkRegistry.LoginPayload message = messageList.get(packetPosition);
 

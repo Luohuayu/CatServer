@@ -5,12 +5,11 @@
 
 package net.minecraftforge.client.extensions;
 
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraftforge.client.model.pipeline.LightUtil;
 
 import org.jetbrains.annotations.Nullable;

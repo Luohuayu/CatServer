@@ -1,9 +1,10 @@
 package org.bukkit.craftbukkit.v1_18_R2.inventory;
 
 import com.google.common.base.Preconditions;
-import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
 import org.bukkit.entity.HumanEntity;
@@ -17,8 +18,8 @@ public class CraftInventoryPlayer extends CraftInventory implements org.bukkit.i
     }
 
     @Override
-    public net.minecraft.world.entity.player.Inventory getInventory() {
-        return (net.minecraft.world.entity.player.Inventory) inventory;
+    public Inventory getInventory() {
+        return (Inventory) inventory;
     }
 
     @Override
@@ -102,14 +103,14 @@ public class CraftInventoryPlayer extends CraftInventory implements org.bukkit.i
         // to reverse the order of the index from 8. That means we need 0 to correspond to 8, 1 to correspond to 7,
         // 2 to correspond to 6, and 3 to correspond to 5. We do this simply by taking the result of (index - 36) and
         // subtracting that value from 8.
-        if (index < net.minecraft.world.entity.player.Inventory.getSelectionSize()) {
+        if (index < Inventory.getSelectionSize()) {
             index += 36;
         } else if (index > 39) {
             index += 5; // Off hand
         } else if (index > 35) {
             index = 8 - (index - 36);
         }
-        player.connection.send(new ClientboundContainerSetSlotPacket(player.inventoryMenu.containerId,  player.inventoryMenu.incrementStateId(), index, CraftItemStack.asNMSCopy(item)));
+        player.connection.send(new ClientboundContainerSetSlotPacket(player.inventoryMenu.containerId, player.inventoryMenu.incrementStateId(), index, CraftItemStack.asNMSCopy(item)));
     }
 
     @Override
@@ -174,7 +175,7 @@ public class CraftInventoryPlayer extends CraftInventory implements org.bukkit.i
 
     @Override
     public void setHeldItemSlot(int slot) {
-        Validate.isTrue(slot >= 0 && slot < net.minecraft.world.entity.player.Inventory.getSelectionSize(), "Slot is not between 0 and 8 inclusive");
+        Validate.isTrue(slot >= 0 && slot < Inventory.getSelectionSize(), "Slot is not between 0 and 8 inclusive");
         this.getInventory().selected = slot;
         ((CraftPlayer) this.getHolder()).getHandle().connection.send(new ClientboundSetCarriedItemPacket(slot));
     }

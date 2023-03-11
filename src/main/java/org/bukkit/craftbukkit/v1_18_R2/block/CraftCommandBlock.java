@@ -7,8 +7,8 @@ import org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage;
 
 public class CraftCommandBlock extends CraftBlockEntityState<CommandBlockEntity> implements CommandBlock {
 
-    public CraftCommandBlock(World world, final CommandBlockEntity te) {
-        super(world, te);
+    public CraftCommandBlock(World world, CommandBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override

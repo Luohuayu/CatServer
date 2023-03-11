@@ -1,0 +1,46 @@
+From 6697d66e7c14a2469a773c7b096a3e231891d7f9 Mon Sep 17 00:00:00 2001
+From: md_5 <git@md-5.net>
+Date: Tue, 19 Feb 2019 22:30:00 +1100
+Subject: [PATCH] Allow Reading Old Large Chunks
+
+The size of chunks in the region format is overdetermined. In particular their size on disk is indicated by both a sector count in the header, and actual size in the body.
+If their size would overflow the header field (>= 255 sectors), it can just be read directly from the body instead.
+
+This code/concept was adapted from MinecraftForge.
+
+diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
+index c62c8cbab..c78c5468c 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
++++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
+@@ -84,6 +84,14 @@ public class RegionFile implements AutoCloseable {
+                     if (l != 0) {
+                         int i1 = getSectorNumber(l);
+                         int j1 = getNumSectors(l);
++                        // Spigot start
++                        if (j1 == 255) {
++                            // We're maxed out, so we need to read the proper length from the section
++                            ByteBuffer realLen = ByteBuffer.allocate(4);
++                            this.file.read(realLen, i1 * 4096);
++                            j1 = (realLen.getInt(0) + 4) / 4096 + 1;
++                        }
++                        // Spigot end
+ 
+                         if (i1 < 2) {
+                             RegionFile.LOGGER.warn("Region file {} has invalid sector at index: {}; sector {} overlaps with header", new Object[]{path, k, i1});
+@@ -119,6 +127,13 @@ public class RegionFile implements AutoCloseable {
+         } else {
+             int j = getSectorNumber(i);
+             int k = getNumSectors(i);
++            // Spigot start
++            if (k == 255) {
++                ByteBuffer realLen = ByteBuffer.allocate(4);
++                this.file.read(realLen, j * 4096);
++                k = (realLen.getInt(0) + 4) / 4096 + 1;
++            }
++            // Spigot end
+             int l = k * 4096;
+             ByteBuffer bytebuffer = ByteBuffer.allocate(l);
+ 
+-- 
+2.25.1
+

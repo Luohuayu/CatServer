@@ -3,20 +3,13 @@ package org.bukkit.craftbukkit.v1_18_R2.inventory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+
 import net.minecraft.world.Container;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.MerchantContainer;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.level.block.ComposterBlock;
-import net.minecraft.world.level.block.entity.BarrelBlockEntity;
-import net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity;
-import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
-import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.DropperBlockEntity;
-import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
-import net.minecraft.world.level.block.entity.LecternBlockEntity;
-import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
-import net.minecraft.world.level.block.entity.SmokerBlockEntity;
+import net.minecraft.world.level.block.entity.*;
 import org.apache.commons.lang3.Validate;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -461,7 +454,7 @@ public class CraftInventory implements Inventory {
             return InventoryType.BLAST_FURNACE;
         } else if (inventory instanceof SmokerBlockEntity) {
             return InventoryType.SMOKER;
-        } else if (inventory instanceof AbstractFurnaceBlockEntity) {
+        } else if (inventory instanceof FurnaceBlockEntity) {
             return InventoryType.FURNACE;
         } else if (this instanceof CraftInventoryEnchanting) {
             return InventoryType.ENCHANTING;
@@ -479,7 +472,7 @@ public class CraftInventory implements Inventory {
             return InventoryType.ANVIL;
         } else if (this instanceof CraftInventorySmithing) {
             return InventoryType.SMITHING;
-        } else if (inventory instanceof net.minecraft.world.level.block.entity.Hopper) {
+        } else if (inventory instanceof Hopper) {
             return InventoryType.HOPPER;
         } else if (inventory instanceof ShulkerBoxBlockEntity) {
             return InventoryType.SHULKER_BOX;

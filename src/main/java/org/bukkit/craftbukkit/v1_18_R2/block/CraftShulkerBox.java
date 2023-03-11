@@ -2,7 +2,6 @@ package org.bukkit.craftbukkit.v1_18_R2.block;
 
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import org.bukkit.DyeColor;
@@ -14,8 +13,8 @@ import org.bukkit.inventory.Inventory;
 
 public class CraftShulkerBox extends CraftLootable<ShulkerBoxBlockEntity> implements ShulkerBox {
 
-    public CraftShulkerBox(World world, final ShulkerBoxBlockEntity te) {
-        super(world, te);
+    public CraftShulkerBox(World world, ShulkerBoxBlockEntity tileEntity) {
+        super(world, tileEntity);
     }
 
     @Override
@@ -43,7 +42,7 @@ public class CraftShulkerBox extends CraftLootable<ShulkerBoxBlockEntity> implem
     public void open() {
         requirePlaced();
         if (!getTileEntity().opened && getWorldHandle() instanceof net.minecraft.world.level.Level) {
-            Level world = getTileEntity().getLevel();
+            net.minecraft.world.level.Level world = getTileEntity().getLevel();
             world.blockEvent(getPosition(), getTileEntity().getBlockState().getBlock(), 1, 1);
             world.playSound(null, getPosition(), SoundEvents.SHULKER_BOX_OPEN, SoundSource.BLOCKS, 0.5F, world.random.nextFloat() * 0.1F + 0.9F);
         }
@@ -54,7 +53,7 @@ public class CraftShulkerBox extends CraftLootable<ShulkerBoxBlockEntity> implem
     public void close() {
         requirePlaced();
         if (getTileEntity().opened && getWorldHandle() instanceof net.minecraft.world.level.Level) {
-            Level world = getTileEntity().getLevel();
+            net.minecraft.world.level.Level world = getTileEntity().getLevel();
             world.blockEvent(getPosition(), getTileEntity().getBlockState().getBlock(), 1, 0);
             world.playSound(null, getPosition(), SoundEvents.SHULKER_BOX_OPEN, SoundSource.BLOCKS, 0.5F, world.random.nextFloat() * 0.1F + 0.9F);
         }
