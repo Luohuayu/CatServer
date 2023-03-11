@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
-@@ -11,10 +_,15 @@
+@@ -11,10 +_,20 @@
  import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
  import net.minecraft.server.MinecraftServer;
  
@@ -11,6 +11,11 @@
     private static final Component f_9964_ = new TextComponent("Ignoring status request");
     private final MinecraftServer f_9965_;
     private final Connection f_9966_;
++   // Spigot start
++   private static final com.google.gson.Gson gson = new com.google.gson.Gson();
++   static final java.util.regex.Pattern HOST_PATTERN = java.util.regex.Pattern.compile("[0-9a-f\\.:]{0,45}");
++   static final java.util.regex.Pattern PROP_PATTERN = java.util.regex.Pattern.compile("\\w{0,16}");
++   // Spigot end
 +   private static final HashMap<InetAddress, Long> throttleTracker = new HashMap<InetAddress, Long>();
 +   private static int throttleCounter = 0;
  
@@ -58,10 +63,35 @@
           if (p_9975_.m_134738_() != SharedConstants.m_183709_().getProtocolVersion()) {
              Component component;
              if (p_9975_.m_134738_() < 754) {
-@@ -37,6 +_,7 @@
+@@ -37,6 +_,32 @@
              this.f_9966_.m_129507_(component);
           } else {
              this.f_9966_.m_129505_(new ServerLoginPacketListenerImpl(this.f_9965_, this.f_9966_));
++            // Spigot Start
++            String[] split = p_9975_.f_134721_.split("\00");
++            if (org.spigotmc.SpigotConfig.bungee) {
++               if ( ( split.length == 3 || split.length == 4 ) && ( HOST_PATTERN.matcher( split[1] ).matches() ) ) {
++                  p_9975_.f_134721_ = split[0];
++                  f_9966_.f_129469_ = new java.net.InetSocketAddress(split[1], ((java.net.InetSocketAddress) f_9966_.m_129523_()).getPort());
++                  f_9966_.spoofedUUID = com.mojang.util.UUIDTypeAdapter.fromString( split[2] );
++               } else
++               {
++                  TranslatableComponent chatmessage = new TranslatableComponent("If you wish to use IP forwarding, please enable it in your BungeeCord config as well!");
++                  this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
++                  this.f_9966_.m_129507_(chatmessage);
++                  return;
++               }
++               if ( split.length == 4 )
++               {
++                  f_9966_.spoofedProfile = gson.fromJson(split[3], com.mojang.authlib.properties.Property[].class);
++               }
++            } else if ( ( split.length == 3 || split.length == 4 ) && ( HOST_PATTERN.matcher( split[1] ).matches() ) ) {
++               TranslatableComponent chatmessage = new TranslatableComponent("Unknown data in login hostname, did you forget to enable BungeeCord in spigot.yml?");
++               this.f_9966_.m_129512_(new ClientboundLoginDisconnectPacket(chatmessage));
++               this.f_9966_.m_129507_(chatmessage);
++               return;
++            }
++            // Spigot End
 +            ((ServerLoginPacketListenerImpl) this.f_9966_.m_129538_()).hostname = p_9975_.f_134721_ + ":" + p_9975_.f_134722_; // CraftBukkit - set hostname
           }
           break;

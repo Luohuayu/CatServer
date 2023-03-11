@@ -1879,6 +1879,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
     // Spigot start
     private final Player.Spigot spigot = new Player.Spigot() {
         @Override
+        public InetSocketAddress getRawAddress() {
+            return (InetSocketAddress) getHandle().connection.connection.getRawAddress();
+        }
+
+        @Override
         public boolean getCollidesWithEntities() {
             return CraftPlayer.this.isCollidable();
         }
