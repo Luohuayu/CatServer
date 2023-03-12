@@ -74,7 +74,7 @@ public class FoxServerLauncher {
     }
 
     private static String[] removeArg(String [] mainArgs, String arg) {
-        if (Arrays.stream(mainArgs).anyMatch(unlessArg -> unlessArg.equalsIgnoreCase(arg))) {
+        if (Arrays.stream(mainArgs).anyMatch(uselessArg -> uselessArg.equalsIgnoreCase(arg))) {
             if (mainArgs.length > 0) {
                 int index = -1;
                 for (int i = 0; i < mainArgs.length; i++) {
