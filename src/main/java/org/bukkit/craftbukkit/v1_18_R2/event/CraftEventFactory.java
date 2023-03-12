@@ -613,6 +613,21 @@ public class CraftEventFactory {
                 return true;
             }
             event = CraftEventFactory.callLightningStrikeEvent((LightningStrike) entity.getBukkitEntity(), cause);
+            // Spigot start
+        } else if (entity instanceof net.minecraft.world.entity.ExperienceOrb xp) {
+            double radius = world.spigotConfig.expMerge;
+            if (radius > 0) {
+                List<Entity> entities = world.getEntities(entity, entity.getBoundingBox().inflate(radius, radius, radius));
+                for (Entity e : entities) {
+                    if (e instanceof net.minecraft.world.entity.ExperienceOrb loopItem) {
+                        if (!loopItem.isRemoved()) {
+                            xp.value += loopItem.value;
+                            loopItem.discard();
+                        }
+                    }
+                }
+            }
+            // Spigot end
         } else if (!(entity instanceof ServerPlayer)) {
             event = CraftEventFactory.callEntitySpawnEvent(entity);
         }
