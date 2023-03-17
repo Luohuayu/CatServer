@@ -39,7 +39,7 @@ public class FoxServerLauncher {
         System.setProperty("java.net.preferIPv6Addresses", "system");
         System.setProperty("ignoreList", "bootstraplauncher-1.0.0.jar,securejarhandler-1.0.3.jar,asm-commons-9.2.jar,asm-util-9.2.jar,asm-analysis-9.2.jar,asm-tree-9.2.jar,asm-9.2.jar");
         System.setProperty("libraryDirectory", "libraries");
-        System.setProperty("legacyClassPath", String.join(";", DataManager.getLibrariesMap().entrySet().stream().map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
+        System.setProperty("legacyClassPath", String.join(Utils.isWindows() ? ";" : ":", DataManager.getLibrariesMap().entrySet().stream().map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
 
         String[] launchArgs = new String[] {
                 "--launchTarget",

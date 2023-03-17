@@ -16,6 +16,11 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class Utils {
+
+    public static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().contains("windows");
+    }
+
     public static String getFileSHA256(File file) {
         try (FileInputStream in = new FileInputStream(file)) {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
