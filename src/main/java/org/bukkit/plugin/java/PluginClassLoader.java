@@ -134,6 +134,10 @@ public final class PluginClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
+        if (name.startsWith("org.apache.commons.lang.")) {
+            return ClassLoader.getSystemClassLoader().loadClass(name);
+        }
+
         Class<?> result = classes.get(name);
         synchronized (name.intern()) {
             if (result == null) {

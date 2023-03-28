@@ -29,11 +29,6 @@ public class MappingLoader {
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/joptsimple", "joptsimple");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/apache", "org/apache");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/objectweb/asm", "org/objectweb/asm");
-            // TODO
-            globalJarMapping.classes.put("org/apache/commons/lang/WordUtils", "org/apache/commons/lang3/text/WordUtils");
-            globalJarMapping.classes.put("org/apache/commons/lang/StringUtils", "org/apache/commons/lang3/StringUtils");
-            globalJarMapping.classes.put("org/apache/commons/lang/Validate", "catserver/server/utils/commons/Validate");
-            globalJarMapping.classes.put("org/apache/commons/lang/NullArgumentException", "catserver/server/utils/commons/NullArgumentException");
 
             loadNmsMappings(globalJarMapping, CatServer.NATIVE_VERSION);
 

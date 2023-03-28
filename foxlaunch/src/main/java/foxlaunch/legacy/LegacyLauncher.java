@@ -1,5 +1,6 @@
 package foxlaunch.legacy;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
@@ -40,6 +41,8 @@ public class LegacyLauncher {
         JVMHack.addModuleDynamic("libraries/cpw/mods/bootstraplauncher/1.0.0/bootstraplauncher-1.0.0.jar");
 
         JVMHack.addModuleOptionDynamic("addExportsToAllUnnamed", "cpw.mods.bootstraplauncher", "cpw.mods.bootstraplauncher", null);
+
+        JarLoader.loadJar(new File("libraries/commons-lang/commons-lang/2.6/commons-lang-2.6.jar"));
     }
 
     static class JVMHack {

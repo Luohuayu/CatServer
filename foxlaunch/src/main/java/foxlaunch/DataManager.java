@@ -50,6 +50,7 @@ public class DataManager {
             }
 
             librariesWithoutLaunchMap.put("minecraft_server.1.18.2.jar", new File("foxlaunch-data/"));
+            librariesWithoutLaunchMap.put("commons-lang-2.6.jar", new File("libraries/commons-lang/commons-lang/2.6/"));
             librariesMap.put("bootstraplauncher-1.0.0.jar", new File("libraries/cpw/mods/bootstraplauncher/1.0.0/"));
 
             versionData.put("minecraft", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.SPECIFICATION_VERSION)));
@@ -187,6 +188,9 @@ public class DataManager {
             System.out.println(LanguageUtils.I18nToString("launch.lib_missing"));
             LibrariesDownloader.setupDownloadSource();
             for (Map.Entry<File, String> libraryEntry : needDownloadLibrariesMap.entrySet()) {
+                if (Objects.equals(libraryEntry.getKey().getName(), "server-" + versionData.get("minecraft") + "-" + versionData.get("mcp") + "-extra.jar")) {
+                    continue;
+                }
                 LibrariesDownloader.tryDownload(libraryEntry.getKey(), libraryEntry.getValue());
             }
             for (Map.Entry<File, String> libraryEntry : needDownloadMappingDataMap.entrySet()) {
