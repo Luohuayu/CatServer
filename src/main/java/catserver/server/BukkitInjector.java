@@ -87,6 +87,10 @@ public class BukkitInjector {
         List<World.Environment> worldTypes = Lists.newArrayList();
         for (var entry : registry.entrySet()) {
             ResourceKey<LevelStem> resourceKey = entry.getKey();
+            // Skip minecraft
+            if (Objects.equals(resourceKey.location().getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             World.Environment environment = environments.get(resourceKey);
             if (environment == null) {
                 String name = standardize(resourceKey.location());
@@ -105,6 +109,10 @@ public class BukkitInjector {
         int i = Statistic.values().length;
         List<Statistic> statistics = Lists.newArrayList();
         for (var stat : ForgeRegistries.STAT_TYPES) {
+            // Skip minecraft
+            if (stat.getRegistryName() == null || Objects.equals(NamespacedKey.MINECRAFT, stat.getRegistryName().getNamespace())) {
+                continue;
+            }
             if (stat == Stats.CUSTOM) continue;
             Statistic statistic = STATS.get(stat.getRegistryName());
             if (statistic != null) {
@@ -127,6 +135,10 @@ public class BukkitInjector {
         }
         // Custom Stats
         for (var location : Registry.CUSTOM_STAT) {
+            // Skip minecraft
+            if (Objects.equals(NamespacedKey.MINECRAFT, location.getNamespace())) {
+                continue;
+            }
             Statistic statistic = STATS.get(location);
             if (statistic == null) {
                 String statName = standardize(location);
@@ -146,12 +158,14 @@ public class BukkitInjector {
         List<Villager.Profession> professions = Lists.newArrayList();
         for (var forgeProfessions: ForgeRegistries.PROFESSIONS.getEntries()) {
             ResourceLocation location = forgeProfessions.getKey().location();
-            if (!location.getNamespace().equals(NamespacedKey.MINECRAFT)) {
-                var newPfName = standardize(location);
-                var bukkitProfessions = EnumHelper.makeEnum(Villager.Profession.class, newPfName, i++, ImmutableList.of(), ImmutableList.of());
-                professions.add(bukkitProfessions);
-                CatServer.LOGGER.debug("Save-VillagerProfessions: {}", bukkitProfessions.name());
+            // Skip minecraft
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
             }
+            var newPfName = standardize(location);
+            var bukkitProfessions = EnumHelper.makeEnum(Villager.Profession.class, newPfName, i++, ImmutableList.of(), ImmutableList.of());
+            professions.add(bukkitProfessions);
+            CatServer.LOGGER.debug("Save-VillagerProfessions: {}", bukkitProfessions.name());
         }
         EnumHelper.addEnums(Villager.Profession.class, professions);
         CatServer.LOGGER.info("Registered {} villager professions into Bukkit", professions.size());
@@ -165,6 +179,10 @@ public class BukkitInjector {
         List<EntityType> entityTypes = Lists.newArrayList();
         for (var entry : ForgeRegistries.ENTITIES.getEntries()) {
             ResourceLocation location = entry.getValue().getRegistryName();
+            // Skip minecraft
+            if (location == null || Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             String entityName = standardize(location);
             int typeId = entityName.hashCode();
             EntityType entityType = EnumHelper.makeEnum(EntityType.class, entityName, i++, List.of(String.class, Class.class, Integer.TYPE, Boolean.TYPE), List.of(entityName.toLowerCase(), CraftCustomEntity.class, typeId, false));
@@ -182,6 +200,10 @@ public class BukkitInjector {
         List<Biome> enumBiomes = Lists.newArrayList();
         for (var biome : ForgeRegistries.BIOMES.getEntries()) {
             ResourceLocation location = biome.getKey().location();
+            // Skip minecraft
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             String biomeName = standardize(location);
             Biome bukkitBiome = EnumHelper.makeEnum(Biome.class, biomeName, i++, ImmutableList.of(), ImmutableList.of());
             enumBiomes.add(bukkitBiome);
@@ -194,6 +216,10 @@ public class BukkitInjector {
     private static void registerPotionEffects() {
         int i = 0;
         for (var potion : ForgeRegistries.MOB_EFFECTS.getEntries()) {
+            // Skip minecraft
+            if (potion.getValue().getRegistryName() == null || Objects.equals(potion.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             var name = standardize(potion.getValue().getRegistryName());
             CraftCustomPotionEffect potionEffect = new CraftCustomPotionEffect(potion.getValue(), name);
             PotionEffectType.registerPotionEffectType(potionEffect);
@@ -207,6 +233,10 @@ public class BukkitInjector {
         List<PotionType> potionTypes = Lists.newArrayList();
         BiMap<PotionType, String> regularMap = HashBiMap.create(CraftPotionUtil.regular);
         for (var potionType : ForgeRegistries.POTIONS.getEntries()) {
+            // Skip minecraft
+            if (potionType.getValue().getRegistryName() == null || Objects.equals(potionType.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             if (CraftPotionUtil.toBukkit(potionType.getValue().getRegistryName().toString()).getType() == PotionType.UNCRAFTABLE && potionType.getValue() != Potions.EMPTY) {
                 var name = standardize(potionType.getValue().getRegistryName());
                 MobEffectInstance effectInstance = potionType.getValue().getEffects().isEmpty() ? null : potionType.getValue().getEffects().get(0);
@@ -223,6 +253,10 @@ public class BukkitInjector {
     private static void registerEnchantments() {
         int i = 0;
         for (var enchantment : ForgeRegistries.ENCHANTMENTS.getEntries()) {
+            // Skip minecraft
+            if (enchantment.getValue().getRegistryName() == null || Objects.equals(enchantment.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             var name = standardize(enchantment.getValue().getRegistryName());
             CraftCustomEnchantment enchantmentCb = new CraftCustomEnchantment(enchantment.getValue(), name);
             Enchantment.registerEnchantment(enchantmentCb);
@@ -244,6 +278,10 @@ public class BukkitInjector {
         int blocks = 0, items = 0;
         for (var entry : ForgeRegistries.BLOCKS.getEntries()) {
             var location = entry.getKey().location();
+            // Skip minecraft
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
             var blockName = standardize(location);
             var block = entry.getValue();
             var item = ForgeRegistries.ITEMS.getValue(location);
@@ -274,7 +312,8 @@ public class BukkitInjector {
 
         for (var entry : ForgeRegistries.ITEMS.getEntries()) {
             var location = entry.getKey().location();
-            if (location.getNamespace().equals(NamespacedKey.MINECRAFT)) {
+            // Skip minecraft
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
                 continue;
             }
             var itemName = standardize(location);
