@@ -1,6 +1,7 @@
 package catserver.server.patcher;
 
 import catserver.server.patcher.plugins.EssentialsPatcher;
+import catserver.server.patcher.plugins.WorldEditPatcher;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +11,7 @@ public class PatcherManager {
 
     static {
         registerPluginPatcher("Essentials", new EssentialsPatcher());
+        registerPluginPatcher("WorldEdit", new WorldEditPatcher());
     }
 
     public static IPatcher getPluginPatcher(String pluginName) {
