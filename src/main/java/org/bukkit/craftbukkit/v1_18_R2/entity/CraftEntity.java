@@ -46,6 +46,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.entity.vehicle.*;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
 import org.bukkit.EntityEffect;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -98,10 +100,16 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
             // Players
             if (entity instanceof Player) {
                 if (entity instanceof ServerPlayer) {
-                    return new CraftPlayer(server, (ServerPlayer) entity);
+                    // CatServer start - support fakePlayer
+                    if (entity instanceof FakePlayer) {
+                        return new CraftFakePlayer(server, (FakePlayer) entity);
+                    } else {
+                        return new CraftPlayer(server, (ServerPlayer) entity);
+                    }
                 } else {
-                    return new CraftHumanEntity(server, (Player) entity);
+                    return new CraftFakePlayer(server, FakePlayerFactory.get((ServerLevel) entity.getLevel(), ((Player) entity).getGameProfile()));
                 }
+                // CatServer end
             }
             // Water Animals
             else if (entity instanceof WaterAnimal) {
