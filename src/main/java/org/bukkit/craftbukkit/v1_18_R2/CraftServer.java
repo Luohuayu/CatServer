@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
+import catserver.server.CatServer;
 import catserver.server.remapper.ReflectionTransformer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -274,6 +275,7 @@ public final class CraftServer implements Server {
         TicketType.PLUGIN.timeout = configuration.getInt("chunk-gc.period-in-ticks");
         minimumAPI = configuration.getString("settings.minimum-api");
         loadIcon();
+        CatServer.getConfig().loadConfig(); // CatServer
     }
 
     public boolean getCommandBlockOverride(String command) {
