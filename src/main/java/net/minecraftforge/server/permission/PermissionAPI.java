@@ -5,6 +5,8 @@
 
 package net.minecraftforge.server.permission;
 
+import catserver.server.CatServer;
+import catserver.server.CatServerPermissionHandler;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -128,6 +130,10 @@ public final class PermissionAPI
                 LOGGER.warn("Identifier for permission handler {} does not match registered one {}", activeHandler.getIdentifier(), selectedPermissionHandler);
 
             LOGGER.info("Successfully initialized permission handler {}", PermissionAPI.activeHandler.getIdentifier());
+            // CatServer start
+            CatServer.LOGGER.info("Forwarding forge permission {} to bukkit", activeHandler.getIdentifier());
+            activeHandler = new CatServerPermissionHandler(activeHandler);
+            // CatServer end
         }
         catch (ResourceLocationException e)
         {
