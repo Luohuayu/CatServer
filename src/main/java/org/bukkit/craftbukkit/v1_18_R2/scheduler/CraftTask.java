@@ -2,8 +2,10 @@ package org.bukkit.craftbukkit.v1_18_R2.scheduler;
 
 import java.util.function.Consumer;
 import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.spigotmc.CustomTimingsHandler;
 
 public class CraftTask implements BukkitTask, Runnable {
 
@@ -28,6 +30,7 @@ public class CraftTask implements BukkitTask, Runnable {
     private final Plugin plugin;
     private final int id;
     private final long createdAt = System.nanoTime();
+    final CustomTimingsHandler timings; // Spigot
 
     CraftTask() {
         this(null, null, CraftTask.NO_REPEATING, CraftTask.NO_REPEATING);
@@ -54,6 +57,7 @@ public class CraftTask implements BukkitTask, Runnable {
         }
         this.id = id;
         this.period = period;
+        this.timings = this.isSync() ? SpigotTimings.getPluginTaskTimings(this, period) : null; // Spigot
     }
 
     @Override

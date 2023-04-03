@@ -37,7 +37,7 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -144,1693 +_,2033 @@
+@@ -144,1693 +_,2055 @@
  import net.minecraft.world.level.levelgen.WorldGenSettings;
  import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
@@ -61,6 +61,7 @@
 +import org.bukkit.Bukkit;
 +import org.bukkit.craftbukkit.Main;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
++import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 +import org.bukkit.craftbukkit.v1_18_R2.scoreboard.CraftScoreboardManager;
 +import org.bukkit.event.server.ServerLoadEvent;
 +import org.bukkit.event.world.WorldInitEvent;
@@ -2683,6 +2684,7 @@
 +    }
 +
 +    public void m_5705_(BooleanSupplier p_129871_) {
++        SpigotTimings.serverTickTimer.startTiming(); // Spigot
 +        long i = Util.m_137569_();
 +        net.minecraftforge.event.ForgeEventFactory.onPreServerTick(p_129871_);
 +        ++this.f_129766_;
@@ -2710,11 +2712,13 @@
 +        }
 +
 +        if (autosavePeriod > 0 && this.f_129766_ % autosavePeriod == 0) { // CraftBukkit
++            SpigotTimings.worldSaveTimer.startTiming(); // Spigot
 +            f_129750_.debug("Autosave started");
 +            this.f_129754_.m_6180_("save");
 +            this.m_195514_(true, false, false);
 +            this.f_129754_.m_7238_();
 +            f_129750_.debug("Autosave finished");
++            SpigotTimings.worldSaveTimer.stopTiming(); // Spigot
 +        }
 +
 +        this.f_129754_.m_6180_("tallying");
@@ -2723,34 +2727,46 @@
 +        long i1 = Util.m_137569_();
 +        this.f_129735_.m_13755_(i1 - i);
 +        this.f_129754_.m_7238_();
++        SpigotTimings.serverTickTimer.stopTiming(); // Spigot
++        org.spigotmc.CustomTimingsHandler.tick(); // Spigot
 +        net.minecraftforge.event.ForgeEventFactory.onPostServerTick(p_129871_);
 +    }
 +
 +    public void m_5703_(BooleanSupplier p_129954_) {
++        SpigotTimings.schedulerTimer.startTiming(); // Spigot
 +        this.server.getScheduler().mainThreadHeartbeat(this.f_129766_); // CraftBukkit
++        SpigotTimings.schedulerTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6180_("commandFunctions");
++        SpigotTimings.commandFunctionsTimer.startTiming(); // Spigot
 +        this.m_129890_().m_136128_();
++        SpigotTimings.commandFunctionsTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6182_("levels");
 +        // CraftBukkit start
 +        // Run tasks that are waiting on processing
++        SpigotTimings.processQueueTimer.startTiming(); // Spigot
 +        this.drainQueuedTasks();
++        SpigotTimings.processQueueTimer.stopTiming(); // Spigot
 +
 +        for (ServerLevel serverlevel : this.getWorldArray()) {
 +            long tickStart = Util.m_137569_();
 +            this.f_129754_.m_6521_(() -> {
 +                return serverlevel + " " + serverlevel.m_46472_().m_135782_();
 +            });
++            SpigotTimings.timeUpdateTimer.startTiming(); // Spigot
 +            if (this.f_129766_ % 20 == 0) {
 +                this.f_129754_.m_6180_("timeSync");
 +                this.f_129763_.m_11270_(new ClientboundSetTimePacket(serverlevel.m_46467_(), serverlevel.m_46468_(), serverlevel.m_46469_().m_46207_(GameRules.f_46140_)), serverlevel.m_46472_());
 +                this.f_129754_.m_7238_();
 +            }
++            SpigotTimings.timeUpdateTimer.stopTiming(); // Spigot
 +
 +            this.f_129754_.m_6180_("tick");
 +            net.minecraftforge.event.ForgeEventFactory.onPreWorldTick(serverlevel, p_129954_);
 +
 +            try {
++                serverlevel.timings.doTick.startTiming(); // Spigot
 +                serverlevel.m_8793_(p_129954_);
++                serverlevel.timings.doTick.stopTiming(); // Spigot
 +            } catch (Throwable throwable) {
 +                CrashReport crashreport = CrashReport.m_127521_(throwable, "Exception ticking world");
 +                serverlevel.m_6026_(crashreport);
@@ -2764,18 +2780,24 @@
 +        }
 +
 +        this.f_129754_.m_6182_("connection");
++        SpigotTimings.connectionTimer.startTiming(); // Spigot
 +        this.m_129919_().m_9721_();
++        SpigotTimings.connectionTimer.stopTiming(); // Spigot
 +        this.f_129754_.m_6182_("players");
++        SpigotTimings.playerListTimer.startTiming(); // Spigot
 +        this.f_129763_.m_11288_();
++        SpigotTimings.playerListTimer.stopTiming(); // Spigot
 +        if (net.minecraftforge.gametest.ForgeGameTestHooks.isGametestEnabled()) {
 +            GameTestTicker.f_177648_.m_127790_();
 +        }
 +
 +        this.f_129754_.m_6182_("server gui refresh");
 +
++        SpigotTimings.tickablesTimer.startTiming(); // Spigot
 +        for (int i = 0; i < this.f_129752_.size(); ++i) {
 +            this.f_129752_.get(i).run();
 +        }
++        SpigotTimings.tickablesTimer.stopTiming(); // Spigot
 +
 +        this.f_129754_.m_7238_();
 +    }

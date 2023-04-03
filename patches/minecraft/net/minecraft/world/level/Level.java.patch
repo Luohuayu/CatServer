@@ -41,7 +41,7 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.crafting.RecipeManager;
-@@ -45,859 +_,1213 @@
+@@ -45,859 +_,1223 @@
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.entity.TickingBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -226,6 +226,7 @@
 +import org.bukkit.World;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
++import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
 +import org.bukkit.craftbukkit.v1_18_R2.block.CapturedBlockState;
 +import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
 +import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
@@ -290,6 +291,7 @@
 +    public Map<BlockPos, BlockEntity> capturedTileEntities = new HashMap<>();
 +    public List<ItemEntity> captureDrops;
 +    public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
++    public final SpigotTimings.WorldTimingsHandler timings; // Spigot
 +    protected final ResourceKey<Level> typeKey;
 +
 +    public ResourceKey<LevelStem> getTypeKey() {
@@ -383,6 +385,7 @@
 +        // CraftBukkit end
 +        this.entityLimiter = new org.spigotmc.TickLimiter(spigotConfig.entityMaxTickTime);
 +        this.tileLimiter = new org.spigotmc.TickLimiter(spigotConfig.tileMaxTickTime);
++        this.timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
 +    }
 +
 +    protected Level(WritableLevelData p_204149_, ResourceKey<Level> p_204150_, Holder<DimensionType> p_204151_, Supplier<ProfilerFiller> p_204152_, boolean p_204153_, boolean p_204154_, long p_204155_, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env) {
@@ -468,6 +471,7 @@
 +        // CraftBukkit end
 +        this.entityLimiter = new org.spigotmc.TickLimiter(spigotConfig.entityMaxTickTime);
 +        this.tileLimiter = new org.spigotmc.TickLimiter(spigotConfig.tileMaxTickTime);
++        this.timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
 +    }
 +
 +    public CraftWorld getWorld() {
@@ -1219,10 +1223,12 @@
 +    protected void m_46463_() {
 +        ProfilerFiller profilerfiller = this.m_46473_();
 +        profilerfiller.m_6180_("blockEntities");
++        timings.tileEntityPending.startTiming(); // Spigot
 +        if (!this.pendingFreshBlockEntities.isEmpty()) {
 +            this.freshBlockEntities.addAll(this.pendingFreshBlockEntities);
 +            this.pendingFreshBlockEntities.clear();
 +        }
++        timings.tileEntityPending.stopTiming(); // Spigot
 +        this.f_151504_ = true;
 +        if (!this.freshBlockEntities.isEmpty()) {
 +            this.freshBlockEntities.forEach(BlockEntity::onLoad);
@@ -1233,6 +1239,7 @@
 +            this.f_151503_.clear();
 +        }
 +
++        timings.tileEntityTick.startTiming(); // Spigot
 +        Iterator<TickingBlockEntity> iterator = this.f_151512_.iterator();
 +
 +        while (iterator.hasNext()) {
@@ -1244,6 +1251,7 @@
 +            }
 +        }
 +
++        timings.tileEntityTick.stopTiming(); // Spigot
 +        this.f_151504_ = false;
 +        profilerfiller.m_7238_();
 +    }
@@ -1251,7 +1259,9 @@
 +    public <T extends Entity> void m_46653_(Consumer<T> p_46654_, T p_46655_) {
 +        try {
 +            net.minecraftforge.server.timings.TimeTracker.ENTITY_UPDATE.trackStart(p_46655_);
++            SpigotTimings.tickEntityTimer.startTiming(); // Spigot
 +            p_46654_.accept(p_46655_);
++            SpigotTimings.tickEntityTimer.stopTiming(); // Spigot
 +        } catch (Throwable throwable) {
 +            CrashReport crashreport = CrashReport.m_127521_(throwable, "Ticking entity");
 +            CrashReportCategory crashreportcategory = crashreport.m_127514_("Entity being ticked");
