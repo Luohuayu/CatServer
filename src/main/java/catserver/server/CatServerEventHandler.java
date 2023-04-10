@@ -25,15 +25,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CatServerEventHandler {
+
+    public static boolean isDropItems;
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onBlockBreak(BlockEvent.BreakEvent event) {
         BlockBreakEvent bukkitEvent = CraftEventFactory.callBlockBreakEvent(event.getWorld(), event.getPos(), event.getState(), (EntityPlayerMP) event.getPlayer());
-
-        if (bukkitEvent.isCancelled()) {
-            event.setCanceled(true);
-        } else {
-            event.setExpToDrop(bukkitEvent.getExpToDrop());
-        }
+        bukkitEvent.setCancelled(event.isCanceled());
+        bukkitEvent.setExpToDrop(event.getExpToDrop());
+        event.setCanceled(bukkitEvent.isCancelled());
+        event.setExpToDrop(bukkitEvent.getExpToDrop());
+        isDropItems = bukkitEvent.isDropItems();
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
