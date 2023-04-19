@@ -150,6 +150,7 @@ import org.bukkit.scheduler.BukkitWorker;
 import org.bukkit.structure.StructureManager;
 import org.bukkit.util.StringUtil;
 import org.bukkit.util.permissions.DefaultPermissions;
+import org.spigotmc.SpigotConfig;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.error.MarkedYAMLException;
@@ -1535,8 +1536,13 @@ public final class CraftServer implements Server {
 
         OfflinePlayer result = getPlayerExact(name);
         if (result == null) {
-            // This is potentially blocking :(
-            GameProfile profile = console.getProfileCache().get(name).orElse(null);
+            // Spigot Start
+            GameProfile profile = null;
+            // Only fetch an online UUID in online mode
+            if (getOnlineMode() || SpigotConfig.bungee) {
+                profile = console.getProfileCache().get(name).orElse(null);
+            }
+            // Spigot end
             if (profile == null) {
                 // Make an OfflinePlayer using an offline mode UUID since the name has no profile
                 result = getOfflinePlayer(new GameProfile(UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(Charsets.UTF_8)), name));
