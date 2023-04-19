@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -33,6 +34,7 @@ public class CatServerCaptures {
     private AtomicReference<Direction> direction = new AtomicReference<>();
     private AtomicReference<BlockState> blockState = new AtomicReference<>();
     private AtomicReference<ServerPlayer> serverPlayer = new AtomicReference<>();
+    private AtomicReference<Level> level =  new AtomicReference<>();
 
     public void captureEntity(Entity entity) {
         this.entity.set(entity);
@@ -96,6 +98,13 @@ public class CatServerCaptures {
     }
     public void captureDoPlace(boolean doPlace) {
         this.doPlace.set(doPlace);
+    }
+    public void captureLevel(Level level) {
+        this.level.set(level);
+    }
+
+    public Level getCaptureLevel() {
+        return this.level.getAndSet(null);
     }
 
     public CreatureSpawnEvent.SpawnReason getCaptureSpawnReason() {
