@@ -216,10 +216,6 @@ public class BukkitInjector {
     private static void registerPotionEffects() {
         int i = 0;
         for (var potion : ForgeRegistries.MOB_EFFECTS.getEntries()) {
-            // Skip minecraft
-            if (potion.getValue().getRegistryName() == null || Objects.equals(potion.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
-                continue;
-            }
             var name = standardize(potion.getValue().getRegistryName());
             CraftCustomPotionEffect potionEffect = new CraftCustomPotionEffect(potion.getValue(), name);
             PotionEffectType.registerPotionEffectType(potionEffect);
@@ -233,10 +229,6 @@ public class BukkitInjector {
         List<PotionType> potionTypes = Lists.newArrayList();
         BiMap<PotionType, String> regularMap = HashBiMap.create(CraftPotionUtil.regular);
         for (var potionType : ForgeRegistries.POTIONS.getEntries()) {
-            // Skip minecraft
-            if (potionType.getValue().getRegistryName() == null || Objects.equals(potionType.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
-                continue;
-            }
             if (CraftPotionUtil.toBukkit(potionType.getValue().getRegistryName().toString()).getType() == PotionType.UNCRAFTABLE && potionType.getValue() != Potions.EMPTY) {
                 var name = standardize(potionType.getValue().getRegistryName());
                 MobEffectInstance effectInstance = potionType.getValue().getEffects().isEmpty() ? null : potionType.getValue().getEffects().get(0);
@@ -253,10 +245,6 @@ public class BukkitInjector {
     private static void registerEnchantments() {
         int i = 0;
         for (var enchantment : ForgeRegistries.ENCHANTMENTS.getEntries()) {
-            // Skip minecraft
-            if (enchantment.getValue().getRegistryName() == null || Objects.equals(enchantment.getValue().getRegistryName().getNamespace(), NamespacedKey.MINECRAFT)) {
-                continue;
-            }
             var name = standardize(enchantment.getValue().getRegistryName());
             CraftCustomEnchantment enchantmentCb = new CraftCustomEnchantment(enchantment.getValue(), name);
             Enchantment.registerEnchantment(enchantmentCb);
