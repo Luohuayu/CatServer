@@ -65,7 +65,7 @@ import org.bukkit.plugin.Plugin;
 
 public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
     private CraftInventoryPlayer inventory;
-    private final CraftInventory enderChest;
+    private CraftInventory enderChest; // CatServer - remove final
     protected final PermissibleBase perm = new PermissibleBase(this);
     private boolean op;
     private GameMode mode;
@@ -73,22 +73,26 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
     public CraftHumanEntity(final CraftServer server, final Player entity) {
         super(server, entity);
         mode = server.getDefaultGameMode();
-        this.inventory = new CraftInventoryPlayer(entity.getInventory());
-        enderChest = new CraftInventory(entity.getEnderChestInventory());
+        // CatServer - Player inventory may not init, handle in getInventory() and getEnderChest()
+        // this.inventory = new CraftInventoryPlayer(entity.getInventory());
+        // enderChest = new CraftInventory(entity.getEnderChestInventory());
     }
 
     @Override
     public PlayerInventory getInventory() {
+        if (inventory == null) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
         return inventory;
     }
 
     @Override
     public EntityEquipment getEquipment() {
+        if (inventory == null) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
         return inventory;
     }
 
     @Override
     public Inventory getEnderChest() {
+        if (enderChest == null) enderChest = new CraftInventory(((Player)entity).getEnderChestInventory()); // CatServer
         return enderChest;
     }
 
