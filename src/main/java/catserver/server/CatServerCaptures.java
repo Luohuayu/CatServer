@@ -1,5 +1,6 @@
 package catserver.server;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,6 +36,11 @@ public class CatServerCaptures {
     private AtomicReference<BlockState> blockState = new AtomicReference<>();
     private AtomicReference<ServerPlayer> serverPlayer = new AtomicReference<>();
     private AtomicReference<Level> level =  new AtomicReference<>();
+    private AtomicDouble blockRange = new AtomicDouble();
+
+    public void captureBlockRange(double d) {
+        this.blockRange.set(d);
+    }
 
     public void captureEntity(Entity entity) {
         this.entity.set(entity);
@@ -166,6 +172,9 @@ public class CatServerCaptures {
     }
     public ServerPlayer getCaptureServerPlayer() {
         return this.serverPlayer.getAndSet(null);
+    }
+    public double getCaptureBlockRange() {
+        return this.blockRange.getAndSet(0.0D);
     }
 
     public static CatServerCaptures getCatServerCaptures() {
