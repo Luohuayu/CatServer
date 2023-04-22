@@ -212,7 +212,7 @@ public final class CraftServer implements Server {
         this.console = console;
         this.playerList = (DedicatedPlayerList) playerList;
         this.playerView = Collections.unmodifiableList(Lists.transform(playerList.players, (Function<ServerPlayer, CraftPlayer>) player -> player.getBukkitEntity()));
-        this.serverVersion = "1.18.2";
+        this.serverVersion = (CraftServer.class.getPackage().getImplementationVersion() != null) ? CraftServer.class.getPackage().getImplementationVersion() : "unknown"; // CatServer
         this.structureManager = new CraftStructureManager(console.getStructureManager());
 
         this.scoreboardManager = new CraftScoreboardManager(console, new ServerScoreboard(console));
