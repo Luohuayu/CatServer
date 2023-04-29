@@ -14,6 +14,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.fusesource.jansi.AnsiConsole;
+import net.minecrell.terminalconsole.TerminalConsoleAppender;
 
 public class Main {
     public static boolean useJline = true;
@@ -167,46 +168,15 @@ public class Main {
                 return;
             }
 
-            try {
-                // This trick bypasses Maven Shade's clever rewriting of our getProperty call when using String literals
-                String jline_UnsupportedTerminal = new String(new char[]{'j', 'l', 'i', 'n', 'e', '.', 'U', 'n', 's', 'u', 'p', 'p', 'o', 'r', 't', 'e', 'd', 'T', 'e', 'r', 'm', 'i', 'n', 'a', 'l'});
-                String jline_terminal = new String(new char[]{'j', 'l', 'i', 'n', 'e', '.', 't', 'e', 'r', 'm', 'i', 'n', 'a', 'l'});
+            if (options.has("nojline")) {
+                System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
+                useJline = false;
+            }
 
-                useJline = !(jline_UnsupportedTerminal).equals(System.getProperty(jline_terminal));
-
-                if (options.has("nojline")) {
-                    System.setProperty("user.language", "en");
-                    useJline = false;
-                }
-
-                if (useJline) {
-                    AnsiConsole.systemInstall();
-                } else {
-                    // This ensures the terminal literal will always match the jline implementation
-                    System.setProperty(jline.TerminalFactory.JLINE_TERMINAL, jline.UnsupportedTerminal.class.getName());
-                }
-
-                if (options.has("noconsole")) {
-                    useConsole = false;
-                }
-
-                if (false) {
-                    Date buildDate = new Date(Integer.parseInt(Main.class.getPackage().getImplementationVendor()) * 1000L);
-
-                    Calendar deadline = Calendar.getInstance();
-                    deadline.add(Calendar.DAY_OF_YEAR, -21);
-                    if (buildDate.before(deadline.getTime())) {
-                        System.err.println("*** Error, this build is outdated ***");
-                        System.err.println("*** Please download a new build as per instructions from https://www.spigotmc.org/go/outdated-spigot ***");
-                        System.err.println("*** Server will start in 20 seconds ***");
-                        Thread.sleep(TimeUnit.SECONDS.toMillis(20));
-                    }
-                }
-
-                System.out.println("Loading libraries, please wait...");
-                //net.minecraft.server.Main.main(options);
-            } catch (Throwable t) {
-                t.printStackTrace();
+            if (options.has("noconsole")) {
+                useConsole = false;
+                useJline = false;
+                System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
             }
         }
     }

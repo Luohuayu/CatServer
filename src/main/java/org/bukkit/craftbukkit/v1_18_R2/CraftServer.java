@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import jline.console.ConsoleReader;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.commands.CommandSourceStack;
@@ -1143,10 +1142,6 @@ public final class CraftServer implements Server {
     @Override
     public Logger getLogger() {
         return logger;
-    }
-
-    public ConsoleReader getReader() {
-        return console.reader;
     }
 
     @Override

@@ -34,7 +34,7 @@ public class TerminalConsoleWriterThread extends Thread {
             }
 
             try {
-                if (Main.useJline) {
+                if (true) {
                     reader.print(Ansi.ansi().eraseLine(Erase.ALL).toString() + ConsoleReader.RESET_LINE);
                     reader.flush();
                     output.write(message.getBytes());
