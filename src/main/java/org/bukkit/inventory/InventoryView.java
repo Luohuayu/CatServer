@@ -238,7 +238,7 @@ public abstract class InventoryView {
             return null;
         }
         Preconditions.checkArgument(rawSlot >= 0, "Negative, non outside slot %s", rawSlot);
-        Preconditions.checkArgument(rawSlot < countSlots(), "Slot %s greater than inventory slot count", rawSlot);
+        // Preconditions.checkArgument(rawSlot < countSlots(), "Slot %s greater than inventory slot count", rawSlot); // CatServer
 
         if (rawSlot < getTopInventory().getSize()) {
             return getTopInventory();
