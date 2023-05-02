@@ -37,6 +37,11 @@ public class CatServerCaptures {
     private AtomicReference<ServerPlayer> serverPlayer = new AtomicReference<>();
     private AtomicReference<Level> level =  new AtomicReference<>();
     private AtomicDouble blockRange = new AtomicDouble();
+    private AtomicBoolean dropper = new AtomicBoolean(false);
+
+    public void captureDropper(boolean dropper) {
+        this.dropper.set(dropper);
+    }
 
     public void captureBlockRange(double d) {
         this.blockRange.set(d);
@@ -175,6 +180,10 @@ public class CatServerCaptures {
     }
     public double getCaptureBlockRange() {
         return this.blockRange.getAndSet(0.0D);
+    }
+
+    public boolean getCaptureDropper() {
+        return this.dropper.getAndSet(false);
     }
 
     public static CatServerCaptures getCatServerCaptures() {
