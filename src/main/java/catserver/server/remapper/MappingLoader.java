@@ -31,6 +31,7 @@ public class MappingLoader {
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/joptsimple", "joptsimple");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/apache", "org/apache");
             globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/objectweb/asm", "org/objectweb/asm");
+            globalJarMapping.packages.put(org_bukkit_craftbukkit + "/libs/org/eclipse", "org/eclipse");
 
             loadNmsMappings(globalJarMapping, CatServer.getNativeVersion());
 
