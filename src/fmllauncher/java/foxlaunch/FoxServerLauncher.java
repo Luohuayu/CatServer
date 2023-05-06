@@ -36,7 +36,11 @@ public class FoxServerLauncher {
     private static boolean checkJavaVersion() {
         String classVersion = System.getProperty("java.class.version");
         try {
-            return Integer.parseInt(classVersion.split("\\.")[0]) < 58; // jdk14: 58
+            int version = Integer.parseInt(classVersion.split("\\.")[0]);
+            if (version > 60) { // jdk16: 60
+                System.out.println(String.format(LanguageUtils.I18nToString("launch.java_wrong"), System.getProperty("java.version")));
+            }
+            return version < 58; // jdk14: 58
         } catch (Exception e) {
             System.out.println("Unknown java version: " + classVersion);
         }
