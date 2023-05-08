@@ -38,7 +38,6 @@ QQ群: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](
 
 ### 构建方法
 - 1.配置项目: `gradlew setup`<br>
-- 如需导入IDEA或Eclipse打开: `projects/Catserver/.project`
 - 2.生成补丁(如果你修改了Minecraft代码): `gradlew genPatches`
 - 3.编译项目: `gradlew build`
 

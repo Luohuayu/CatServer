@@ -36,7 +36,6 @@ Provide API to allow plugins to interact with mods easily<br>
 
 ### Building
 - 1.Setup project: `gradlew setup`
-- To import IDEA or Eclipse open: projects/Catserver/.project
 - 2.Generate patch(If you modify the Minecraft code): `gradlew genPatches`
 - 3.Build: `gradlew build`
 

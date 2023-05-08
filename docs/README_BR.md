@@ -36,7 +36,6 @@ Fornecer API para permitir que plugins interajam facilmente com mods<br>
 
 ### Building
 - 1.Iniciar projeto: `gradlew setup`
-- Para importar para o IDEA ou Eclipse abra: projects/Catserver/.project
 - 2.Criar um caminho(Se você modificar o código do Minecraft): `gradlew genPatches`
 - 3.Build: `gradlew build`
 
