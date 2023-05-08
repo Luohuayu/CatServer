@@ -26,6 +26,12 @@ public class CatServerGradleStart {
         System.out.println("[Warning] If you want to start the server");
         System.out.println("[Warning] Please use catserver.server.CatServerLaunch class");
         System.out.println("================================================================");
+
+        if (new File("build.gradle").exists()) {
+            System.out.println("[ERROR] Detect the server is running in project directory!");
+            return;
+        }
+
         (new CatServerGradleStart()).launch(args);
     }
 
