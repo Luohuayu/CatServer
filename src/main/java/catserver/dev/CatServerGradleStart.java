@@ -1,4 +1,4 @@
-package catserver.server.launch;
+package catserver.dev;
 
 import catserver.server.CatServer;
 import java.io.File;
@@ -17,10 +17,16 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-public class CatGradleStart {
+public class CatServerGradleStart {
     public static void main(String[] args) throws Throwable
     {
-        (new CatGradleStart()).launch(args);
+        System.out.println("================================================================");
+        System.out.println("[Warning] Don't use the class to start the server!");
+        System.out.println("[Warning] It's only for development!");
+        System.out.println("[Warning] If you want to start the server");
+        System.out.println("[Warning] Please use catserver.server.CatServerLaunch class");
+        System.out.println("================================================================");
+        (new CatServerGradleStart()).launch(args);
     }
 
     protected static Logger LOGGER        = LogManager.getLogger("GradleStart");
@@ -28,7 +34,7 @@ public class CatGradleStart {
     Map<String, String>     argMap        = Maps.newHashMap();
     List<String>            extras        = Lists.newArrayList();
 
-    static final File       SRG_SRG_MCP   = new File(CatGradleStart.class.getClassLoader().getResource("mappings/" + CatServer.getNativeVersion() + "/srg2mcp.srg").getFile());
+    static final File       SRG_SRG_MCP   = new File(CatServerGradleStart.class.getClassLoader().getResource("mappings/" + CatServer.getNativeVersion() + "/srg2mcp.srg").getFile());
 
     protected void launch(String[] args) throws Throwable
     {
@@ -93,7 +99,7 @@ public class CatGradleStart {
             }
         }
         b.append(']');
-        CatGradleStart.LOGGER.info("Running with arguments: " + b.toString());
+        CatServerGradleStart.LOGGER.info("Running with arguments: " + b.toString());
 
         return out;
     }
