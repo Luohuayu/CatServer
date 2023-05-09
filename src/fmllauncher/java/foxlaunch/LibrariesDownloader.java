@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,7 @@ public class LibrariesDownloader {
         try {
             String str = sendRequest("https://catserver.moe/api/libraries_sources/");
             for (String s : str.split("\\|")) {
-                if (s.startsWith("http://") || s.startsWith("https://")) {
+                if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("httpauth://")) {
                     librariesSources.add(s);
                 }
             }
@@ -49,6 +50,13 @@ public class LibrariesDownloader {
         while (iterator.hasNext()) {
             String downloadUrl = iterator.next() + (dir == null ? "" : dir + "/") + file.getName();
             try {
+                String authKey = null;
+                if (downloadUrl.startsWith("httpauth://")) {
+                    String[] split = downloadUrl.substring("httpauth://".length()).split("###auth###/");
+                    authKey = split[0];
+                    downloadUrl = split[1];
+                }
+
                 if (md5 == null && downloadUrl.startsWith("http://")) {
                     System.out.println(String.format("[Warning] Trying to download a file (%s) that missing MD5 from http protocol, possible security risk!", file.getName()));
                 }
@@ -57,7 +65,7 @@ public class LibrariesDownloader {
                     file.getParentFile().mkdirs();
                 }
 
-                new Downloader(downloadUrl, file);
+                new Downloader(downloadUrl, file, authKey);
 
                 if (file.exists() && file.getName().endsWith(".packed")) {
                     file = Utils.unpackSingleFileZip(file);
@@ -98,14 +106,49 @@ public class LibrariesDownloader {
 
     static class Downloader {
         public Downloader(String downloadUrl, File saveFile) throws IOException {
+            this(downloadUrl, saveFile, null);
+        }
+
+        public Downloader(String downloadUrl, File saveFile, String authKey) throws IOException {
             URL url = new URL(downloadUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(8000);
             connection.setRequestMethod("GET");
+            if (authKey != null) {
+                connection.setRequestProperty("authorization","Basic " + authKey);
+            }
 
             System.out.println(String.format(LanguageUtils.I18nToString("launch.lib_downloading"), saveFile.getName(), getSize(connection.getContentLengthLong())));
 
-            ReadableByteChannel rbc = Channels.newChannel(connection.getInputStream());
+            ReadableByteChannel rbc = new ReadableByteChannel() {
+                final ReadableByteChannel rbc0 = Channels.newChannel(connection.getInputStream());
+                long currentTime = System.currentTimeMillis();
+                int totalRead = 0;
+                int bytesRead = 0;
+                int lastTotalRead = 0;
+
+                @Override
+                public boolean isOpen() {
+                    return rbc0.isOpen();
+                }
+
+                @Override
+                public void close() throws IOException {
+                    rbc0.close();
+                }
+
+                @Override
+                public int read(ByteBuffer dst) throws IOException {
+                    bytesRead = rbc0.read(dst);
+                    totalRead += bytesRead;
+                    if (System.currentTimeMillis() - currentTime > 1000) {
+                        System.out.println("> " + getSize(totalRead) + "  (" + getSize(totalRead - lastTotalRead) + "/S)");
+                        currentTime = System.currentTimeMillis();
+                        lastTotalRead = totalRead;
+                    }
+                    return bytesRead;
+                }
+            };
             FileOutputStream fos = new FileOutputStream(saveFile);
             fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
             rbc.close();
