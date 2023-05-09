@@ -369,12 +369,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                 return new CraftEnderPearl(server, (ThrownEnderpearl) entity);
             } else if (entity instanceof ThrownExperienceBottle) {
                 return new CraftThrownExpBottle(server, (ThrownExperienceBottle) entity);
-            }
-            // CatServer start
-            else if (entity instanceof ThrowableItemProjectile) {
-                return new CraftCustomProjectile(server, entity);
-            } else return new CraftCustomEntity(server, entity);
-            // CatServer end
+            } else return new CraftCustomProjectile(server, entity); // CatServer
         } else if (entity instanceof FallingBlockEntity) {
             return new CraftFallingBlock(server, (FallingBlockEntity) entity);
         } else if (entity instanceof AbstractHurtingProjectile) {
