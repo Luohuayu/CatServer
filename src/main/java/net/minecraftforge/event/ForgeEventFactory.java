@@ -153,6 +153,7 @@ public class ForgeEventFactory
         BlockSnapshot snap = blockSnapshots.get(0);
         BlockState placedAgainst = snap.getLevel().getBlockState(snap.getPos().relative(direction.getOpposite()));
         EntityMultiPlaceEvent event = new EntityMultiPlaceEvent(blockSnapshots, placedAgainst, entity);
+        BlockEvent.direction = direction; // CatServer - Fire Bukkit BlockMultiPlaceEvent
         return MinecraftForge.EVENT_BUS.post(event);
     }
 
@@ -160,6 +161,7 @@ public class ForgeEventFactory
     {
         BlockState placedAgainst = blockSnapshot.getLevel().getBlockState(blockSnapshot.getPos().relative(direction.getOpposite()));
         EntityPlaceEvent event = new BlockEvent.EntityPlaceEvent(blockSnapshot, placedAgainst, entity);
+        BlockEvent.direction = direction; // CatServer start - Fire Bukkit BlockPlaceEvent
         return MinecraftForge.EVENT_BUS.post(event);
     }
 

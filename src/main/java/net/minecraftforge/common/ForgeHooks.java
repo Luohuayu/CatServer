@@ -650,6 +650,8 @@ public class ForgeHooks
 
             Direction side = context.getClickedFace();
 
+            BlockEvent.hand = context.getHand(); // CatServer - Fire Bukkit BlockPlaceEvent
+
             boolean eventResult = false;
             if (blockSnapshots.size() > 1)
             {

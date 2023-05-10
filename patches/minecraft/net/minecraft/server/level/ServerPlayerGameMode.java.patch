@@ -53,20 +53,6 @@
  public class ServerPlayerGameMode {
     private static final Logger f_9246_ = LogUtils.getLogger();
     protected ServerLevel f_9244_;
-@@ -51,6 +_,13 @@
-       if (p_143474_ == this.f_9247_) {
-          return false;
-       } else {
-+         // CraftBukkit start
-+         PlayerGameModeChangeEvent event = new PlayerGameModeChangeEvent(f_9245_.getBukkitEntity(), GameMode.getByValue(p_143474_.m_46392_()));
-+         f_9244_.getCraftServer().getPluginManager().callEvent(event);
-+         if (event.isCancelled()) {
-+            return false;
-+         }
-+         // CraftBukkit end
-          this.m_9273_(p_143474_, this.f_9247_);
-          return true;
-       }
 @@ -61,7 +_,7 @@
        this.f_9247_ = p_9274_;
        p_9274_.m_46398_(this.f_9245_.m_150110_());
@@ -197,7 +183,7 @@
           }
  
        }
-@@ -217,45 +_,146 @@
+@@ -217,14 +_,15 @@
        if (this.m_9280_(p_9287_)) {
           this.f_9245_.f_8906_.m_141995_(new ClientboundBlockBreakAckPacket(p_9287_, this.f_9244_.m_8055_(p_9287_), p_9288_, true, p_9289_));
        } else {
@@ -207,150 +193,54 @@
  
     }
  
-+   private @Nullable org.bukkit.block.Block catserver$destroyBlock;
-+   private @Nullable Optional<BlockBreakEvent> catserver$destroyBlockEvent;
-+   private @Nullable org.bukkit.block.BlockState catserver$destroyBlockState;
     public boolean m_9280_(BlockPos p_9281_) {
--      BlockState blockstate = this.f_9244_.m_8055_(p_9281_);
+       BlockState blockstate = this.f_9244_.m_8055_(p_9281_);
 -      if (!this.f_9245_.m_21205_().m_41720_().m_6777_(blockstate, this.f_9244_, p_9281_, this.f_9245_)) {
-+      BlockState blockState = this.f_9244_.m_8055_(p_9281_);
-+      // CraftBukkit start - fire BlockBreakEvent
-+      catserver$destroyBlock = CraftBlock.at(f_9244_, p_9281_);
-+      catserver$destroyBlockEvent = isSwordNoBreak(p_9281_, blockState, catserver$destroyBlock);
-+
-+      if (catserver$destroyBlockEvent.isEmpty())
-+         return false;
-+      // CraftBukkit end
-+
-+      if (false && !this.f_9245_.m_21205_().m_41720_().m_6777_(blockState, this.f_9244_, p_9281_, this.f_9245_)) { // CraftBukkit - false
++      int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(f_9244_, f_9247_, f_9245_, p_9281_);
++      if (exp == -1) {
           return false;
        } else {
--         BlockEntity blockentity = this.f_9244_.m_7702_(p_9281_);
--         Block block = blockstate.m_60734_();
-+         blockState = this.f_9244_.m_8055_(p_9281_); // CraftBukkit - update state from plugins
-+         if (blockState.m_60795_()) return false; // CraftBukkit - A plugin set block to air without cancelling
-+         BlockEntity tileentity = this.f_9244_.m_7702_(p_9281_);
-+         Block block = blockState.m_60734_();
-+
+          BlockEntity blockentity = this.f_9244_.m_7702_(p_9281_);
+@@ -232,30 +_,42 @@
           if (block instanceof GameMasterBlock && !this.f_9245_.m_36337_()) {
--            this.f_9244_.m_7260_(p_9281_, blockstate, blockstate, 3);
-+            this.f_9244_.m_7260_(p_9281_, blockState, blockState, 3);
-+            return false;
-+         } else if (f_9245_.m_21205_().onBlockStartBreak(p_9281_, f_9245_)) {
+             this.f_9244_.m_7260_(p_9281_, blockstate, blockstate, 3);
              return false;
++         } else if (f_9245_.m_21205_().onBlockStartBreak(p_9281_, f_9245_)) {
++            return false;
           } else if (this.f_9245_.m_36187_(this.f_9244_, p_9281_, this.f_9247_)) {
              return false;
           } else {
 -            block.m_5707_(this.f_9244_, p_9281_, blockstate, this.f_9245_);
 -            boolean flag = this.f_9244_.m_7471_(p_9281_, false);
-+            // CraftBukkit start
-+            catserver$destroyBlockState = catserver$destroyBlock.getState();
-+            f_9244_.captureDrops = new ArrayList<>();
-+            // CraftBukkit end
-+            boolean flag = removeBlock(p_9281_, false);
-+
-             if (flag) {
+-            if (flag) {
 -               block.m_6786_(this.f_9244_, p_9281_, blockstate);
-+               block.m_6786_(this.f_9244_, p_9281_, blockState);
-             }
- 
+-            }
+-
              if (this.m_9295_()) {
--               return true;
-+               // return true; // CraftBukkit
++               removeBlock(p_9281_, false);
+                return true;
              } else {
                 ItemStack itemstack = this.f_9245_.m_21205_();
                 ItemStack itemstack1 = itemstack.m_41777_();
 -               boolean flag1 = this.f_9245_.m_36298_(blockstate);
--               itemstack.m_41686_(this.f_9244_, blockstate, p_9281_, this.f_9245_);
++               boolean flag1 = blockstate.canHarvestBlock(this.f_9244_, p_9281_, this.f_9245_); // previously player.hasCorrectToolForDrops(blockstate)
+                itemstack.m_41686_(this.f_9244_, blockstate, p_9281_, this.f_9245_);
 -               if (flag && flag1) {
--                  block.m_6240_(this.f_9244_, this.f_9245_, p_9281_, blockstate, blockentity, itemstack1);
-+               boolean flag1 = this.f_9245_.m_36298_(blockState);
++               if (itemstack.m_41619_() && !itemstack1.m_41619_())
++                  net.minecraftforge.event.ForgeEventFactory.onPlayerDestroyItem(this.f_9245_, itemstack1, InteractionHand.MAIN_HAND);
++               boolean flag = removeBlock(p_9281_, flag1);
 +
-+               itemstack.m_41686_(this.f_9244_, blockState, p_9281_, this.f_9245_);
-+               if (flag && flag1 && catserver$destroyBlockEvent.get().isDropItems()) { // CraftBukkit - Check if block should drop items
-+                  block.m_6240_(this.f_9244_, this.f_9245_, p_9281_, blockState, tileentity, itemstack1);
++               if (flag && flag1 && catserver.server.CatServerEventHandler.isDropItems) {
+                   block.m_6240_(this.f_9244_, this.f_9245_, p_9281_, blockstate, blockentity, itemstack1);
                 }
  
--               return true;
--            }
--         }
--      }
-+               // return true; // CraftBukkit
-+            }
-+            // CraftBukkit start
-+            if (catserver$destroyBlockEvent.get().isDropItems()) {
-+               CraftEventFactory.handleBlockDropItemEvent(catserver$destroyBlock, catserver$destroyBlockState, this.f_9245_, f_9244_.captureDrops);
-+            }
-+            f_9244_.captureDrops = null;
++               if (flag && exp > 0)
++                  blockstate.m_60734_().m_49805_(f_9244_, p_9281_, exp);
 +
-+            // Drop event experience
-+            if (flag && catserver$destroyBlockEvent != null) {
-+               blockState.m_60734_().m_49805_(this.f_9244_, p_9281_, catserver$destroyBlockEvent.get().getExpToDrop());
-+            }
-+
-+            return true;
-+            // CraftBukkit end
-+         }
-+      }
-+   }
-+
-+   private Optional<BlockBreakEvent> isSwordNoBreak(BlockPos p_9281_, BlockState blockState, org.bukkit.block.Block bblock) {
-+      BlockBreakEvent event = null;
-+      if (this.f_9245_ instanceof ServerPlayer) {
-+         // Sword + Creative mode pre-cancel
-+         boolean isSwordNoBreak = !this.f_9245_.m_21205_().m_41720_().m_6777_(blockState, this.f_9244_, p_9281_, this.f_9245_);
-+
-+         // Tell client the block is gone immediately then process events
-+         // Don't tell the client if its a creative sword break because its not broken!
-+         if (f_9244_.m_7702_(p_9281_) == null && !isSwordNoBreak) {
-+            ClientboundBlockUpdatePacket packet = new ClientboundBlockUpdatePacket(p_9281_, Blocks.f_50016_.m_49966_());
-+            this.f_9245_.f_8906_.m_141995_(packet);
-+         }
-+
-+         event = new BlockBreakEvent(bblock, this.f_9245_.getBukkitEntity());
-+
-+         int exp = net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(f_9244_, f_9247_, f_9245_, p_9281_);
-+         if (exp == -1) {
-+            return Optional.empty();
-+         }
-+         if(this.f_9245_.m_7500_() && ((Player) this.f_9245_.getBukkitEntity()).getInventory().getItemInMainHand().getType().toString().contains("SWORD") || ((Player) this.f_9245_.getBukkitEntity()).getInventory().getItemInMainHand().getType().toString().contains("TRIDENT")){
-+            event.setCancelled(true);
-+            isSwordNoBreak = true;
-+         }
-+
-+         // Calculate default block experience
-+         BlockState nmsData = this.f_9244_.m_8055_(p_9281_);
-+         Block nmsBlock = nmsData.m_60734_();
-+
-+         ItemStack itemstack = this.f_9245_.m_6844_(EquipmentSlot.MAINHAND);
-+
-+         if (nmsBlock != null && !event.isCancelled() && !this.m_9295_() && this.f_9245_.m_36298_(nmsBlock.m_49966_())) {
-+            event.setExpToDrop(nmsBlock.getExpDrop(nmsData, this.f_9244_, p_9281_, itemstack));
-+         }
-+
-+         this.f_9244_.getCraftServer().getPluginManager().callEvent(event);
-+
-+         if (event.isCancelled()) {
-+            if (isSwordNoBreak) {
-+               return Optional.empty();
-+            }
-+            // Let the client know the block still exists
-+            this.f_9245_.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(this.f_9244_, p_9281_));
-+
-+            // Brute force all possible updates
-+            for (Direction dir : Direction.values()) {
-+               this.f_9245_.f_8906_.m_141995_(new ClientboundBlockUpdatePacket(f_9244_, p_9281_.m_142300_(dir)));
-+            }
-+
-+            // Update any tile entity data for this block
-+            BlockEntity tileentity = this.f_9244_.m_7702_(p_9281_);
-+            if (tileentity != null) {
-+               this.f_9245_.f_8906_.m_141995_(tileentity.m_183216_());
-+            }
-+            return Optional.empty();
-+         }
-+      }
-+      return Optional.of(event);
+                return true;
+             }
+          }
+       }
 +   }
 +
 +   private boolean removeBlock(BlockPos p_180235_1_, boolean canHarvest) {

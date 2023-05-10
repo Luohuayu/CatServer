@@ -49,6 +49,16 @@ public class CraftBlockState implements BlockState {
         data = blockData;
     }
 
+    // CatServer start
+    public static CraftBlockState getBlockState(net.minecraft.world.level.LevelAccessor world, BlockPos pos) {
+        return new CraftBlockState(CraftBlock.at(world, pos));
+    }
+
+    public static CraftBlockState getBlockState(net.minecraft.world.level.Level world, BlockPos pos, int flag) {
+        return new CraftBlockState(world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ()), flag);
+    }
+    // CatServer end
+
     public void setWorldHandle(LevelAccessor generatorAccess) {
         if (generatorAccess instanceof net.minecraft.world.level.Level) {
             this.weakWorld = null;

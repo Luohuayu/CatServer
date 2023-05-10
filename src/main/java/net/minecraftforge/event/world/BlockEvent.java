@@ -8,6 +8,7 @@ package net.minecraftforge.event.world;
 import java.util.EnumSet;
 import java.util.List;
 
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.portal.PortalShape;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,6 +41,10 @@ public class BlockEvent extends Event
     private final LevelAccessor world;
     private final BlockPos pos;
     private final BlockState state;
+    // CatServer start
+    public static Direction direction = null;
+    public static InteractionHand hand = null;
+    // CatServer end
     public BlockEvent(LevelAccessor world, BlockPos pos, BlockState state)
     {
         this.pos = pos;

@@ -181,6 +181,7 @@ public class ForgeMod
         {
             ModelLoaderRegistry.init();
         }
+        MinecraftForge.EVENT_BUS.register(new catserver.server.CatServerEventHandler()); // CatServer
     }
 
     public void registerCapabilities(RegisterCapabilitiesEvent event)
