@@ -107,20 +107,7 @@ public class InstallTool {
         }
 
         if (!minecraftUnpack.exists()) {
-            Utils.relaunch(
-                    "net.minecraftforge.installertools.ConsoleTool",
-                    libInstallerTools,
-                    new String[] {
-                            "--task",
-                            "BUNDLER_EXTRACT",
-                            "--input",
-                            minecraftServer.getAbsolutePath(),
-                            "--output",
-                            minecraftUnpack.getAbsolutePath(),
-                            "--jar-only"
-                    },
-                    true
-            );
+            Utils.unpackZipEntry(minecraftServer, minecraftUnpack, "META-INF/versions/" + minecraftVersion + "/server-" + minecraftVersion + ".jar");
         }
 
         // MCP_DATA

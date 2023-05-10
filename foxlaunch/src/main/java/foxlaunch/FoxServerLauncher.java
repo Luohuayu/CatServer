@@ -25,14 +25,13 @@ public class FoxServerLauncher {
             );
         }
 
+        args = FoxServerLauncher.removeArg(args, "nogui");
+
         DataManager.setup();
         if (!skipCheckLibraries) {
             DataManager.downloadLibraries();
         }
-        args = FoxServerLauncher.removeArg(args, "nogui");
-        if (InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"))) {
-            System.out.println(LanguageUtils.I18nToString("launch.server_installed"));
-        }
+        InstallTool.install(DataManager.getVersionData("minecraft"), DataManager.getVersionData("mcp"), DataManager.getVersionData("forge"));
 
         LegacyLauncher.loadJars();
 

@@ -146,6 +146,27 @@ public class Utils {
         }
     }
 
+    public static File unpackZipEntry(File file, File target, String entry) throws IOException {
+        try (ZipFile zipFile = new ZipFile(file)) {
+            ZipEntry zipEntry = zipFile.getEntry(entry);
+            if (zipEntry != null) {
+                try (FileOutputStream out = new FileOutputStream(target)) {
+                    try (InputStream in = zipFile.getInputStream(zipEntry)) {
+                        byte[] bytes = new byte[4096];
+                        int readSize;
+                        while ((readSize = in.read(bytes)) > 0) {
+                            out.write(bytes, 0, readSize);
+                        }
+                    }
+                    out.flush();
+                    return target;
+                }
+            } else {
+                throw new IOException("Zip entry not found: " + entry);
+            }
+        }
+    }
+
     public static File findServerJar() throws IOException {
         try {
             URL jarUrl = Utils.class.getProtectionDomain().getCodeSource().getLocation();
