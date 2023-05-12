@@ -279,17 +279,17 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
 
     private static final Set<String> HANDLED_TAGS = Sets.newHashSet();
     private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
-    // LoliServer start
+    // CatServer start
     private static final Set<String> CUSTOM_TAGS = Sets.newHashSet();
     public static Set<String> getCustomTags() {
         synchronized (CUSTOM_TAGS) {
             if (CUSTOM_TAGS.isEmpty()) {
-                CUSTOM_TAGS.addAll(Arrays.asList(CraftMetaMap.MAP_SCALING.NBT, CraftMetaPotion.POTION_EFFECTS.NBT, CraftMetaPotion.DEFAULT_POTION.NBT, CraftMetaSkull.SKULL_OWNER.NBT, CraftMetaSkull.SKULL_PROFILE.NBT, CraftMetaSpawnEgg.ENTITY_TAG.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaBook.BOOK_TITLE.NBT, CraftMetaBook.BOOK_AUTHOR.NBT, CraftMetaBook.BOOK_PAGES.NBT, CraftMetaBook.RESOLVED.NBT, CraftMetaBook.GENERATION.NBT, CraftMetaFirework.FIREWORKS.NBT, CraftMetaEnchantedBook.STORED_ENCHANTMENTS.NBT, CraftMetaCharge.EXPLOSION.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaKnowledgeBook.BOOK_RECIPES.NBT));
+                CUSTOM_TAGS.addAll(Arrays.asList(CraftMetaMap.MAP_SCALING.NBT, CraftMetaMap.MAP_ID.NBT, CraftMetaPotion.POTION_EFFECTS.NBT, CraftMetaPotion.DEFAULT_POTION.NBT, CraftMetaPotion.POTION_COLOR.NBT, CraftMetaSkull.SKULL_OWNER.NBT, CraftMetaSkull.SKULL_PROFILE.NBT, CraftMetaSpawnEgg.ENTITY_TAG.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaBook.BOOK_TITLE.NBT, CraftMetaBook.BOOK_AUTHOR.NBT, CraftMetaBook.BOOK_PAGES.NBT, CraftMetaBook.RESOLVED.NBT, CraftMetaBook.GENERATION.NBT, CraftMetaFirework.FIREWORKS.NBT, CraftMetaEnchantedBook.STORED_ENCHANTMENTS.NBT, CraftMetaCharge.EXPLOSION.NBT, CraftMetaBlockState.BLOCK_ENTITY_TAG.NBT, CraftMetaKnowledgeBook.BOOK_RECIPES.NBT, CraftMetaTropicalFishBucket.VARIANT.NBT, CraftMetaCrossbow.CHARGED.NBT, CraftMetaCrossbow.CHARGED_PROJECTILES.NBT, CraftMetaSuspiciousStew.EFFECTS.NBT, CraftMetaCompass.LODESTONE_DIMENSION.NBT, CraftMetaCompass.LODESTONE_POS.NBT, CraftMetaCompass.LODESTONE_TRACKED.NBT));
             }
             return CUSTOM_TAGS;
         }
     }
-    // LoliServer end
+    // CatServer end
 
     private CompoundNBT internalTag;
     private final Map<String, INBT> unhandledTags = new HashMap<String, INBT>();
@@ -394,13 +394,13 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
             if (!getHandledTags().contains(key)) {
                 unhandledTags.put(key, tag.get(key));
             }
-            // LoliServer start - handle mod custom nbt
+            // CatServer start - handle mod custom nbt
             else {
                 if (getClass() == CraftMetaItem.class && getCustomTags().contains(key)) {
                     unhandledTags.put(key, tag.get(key));
                 }
             }
-            // LoliServer end
+            // CatServer end
         }
     }
 
@@ -544,13 +544,13 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
                     if (!getHandledTags().contains(key)) {
                         unhandledTags.put(key, internalTag.get(key));
                     }
-                    // LoliServer start - handle mod custom nbt
+                    // CatServer start - handle mod custom nbt
                     else {
                         if (getClass() == CraftMetaItem.class && getCustomTags().contains(key)) {
                             unhandledTags.put(key, internalTag.get(key));
                         }
                     }
-                    // LoliServer end
+                    // CatServer end
                 }
             } catch (IOException ex) {
                 Logger.getLogger(CraftMetaItem.class.getName()).log(Level.SEVERE, null, ex);

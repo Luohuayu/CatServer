@@ -53,7 +53,8 @@ public class BukkitInjector {
                     .build());
 
     public static Map<Villager.Profession, ResourceLocation> profession = new HashMap<>();
-    public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributemap = new HashMap<>();
+    public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributemap = new HashMap<>(); // attributeToNameMap
+    public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
     public static Map<PaintingType, Art> artMap = new HashMap<>();
 
     public static Map<net.minecraft.entity.EntityType<?>, String> entityTypeMap = new HashMap<>();
@@ -232,6 +233,7 @@ public class BukkitInjector {
             if(!resourceLocation.getNamespace().equals(NamespacedKey.MINECRAFT)) {
                 org.bukkit.attribute.Attribute ab = EnumHelper.addEnum0(org.bukkit.attribute.Attribute.class, name, new Class[]{String.class}, resourceLocation.getPath());
                 attributemap.put(ab, resourceLocation);
+                nameToAttributeMap.put(resourceLocation, ab);
                 LoliServer.LOGGER.debug("Registered forge Attribute as Attribute(Bukkit) {}", ab.name());
             }
         }
