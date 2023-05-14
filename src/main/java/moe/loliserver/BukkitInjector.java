@@ -229,9 +229,9 @@ public class BukkitInjector {
     public static void addEnumAttribute() {
         for (Attribute attribute : ForgeRegistries.ATTRIBUTES) {
             ResourceLocation resourceLocation = attribute.getRegistryName();
-            String name = normalizeName(resourceLocation.getPath());
+            String name = normalizeName(resourceLocation.toString());
             if(!resourceLocation.getNamespace().equals(NamespacedKey.MINECRAFT)) {
-                org.bukkit.attribute.Attribute ab = EnumHelper.addEnum0(org.bukkit.attribute.Attribute.class, name, new Class[]{String.class}, resourceLocation.getPath());
+                org.bukkit.attribute.Attribute ab = EnumHelper.addEnum0(org.bukkit.attribute.Attribute.class, name, new Class[]{NamespacedKey.class}, CraftNamespacedKey.fromMinecraft(resourceLocation));
                 attributemap.put(ab, resourceLocation);
                 nameToAttributeMap.put(resourceLocation, ab);
                 LoliServer.LOGGER.debug("Registered forge Attribute as Attribute(Bukkit) {}", ab.name());
