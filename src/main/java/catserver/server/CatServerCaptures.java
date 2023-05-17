@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,6 +39,11 @@ public class CatServerCaptures {
     private AtomicReference<Level> level =  new AtomicReference<>();
     private AtomicDouble blockRange = new AtomicDouble();
     private AtomicBoolean dropper = new AtomicBoolean(false);
+    private AtomicReference<EntityRegainHealthEvent.RegainReason> regainReason = new AtomicReference<>(EntityRegainHealthEvent.RegainReason.CUSTOM);
+
+    public void captureRegainReason(EntityRegainHealthEvent.RegainReason regainReason) {
+        this.regainReason.set(regainReason);
+    }
 
     public void captureDropper(boolean dropper) {
         this.dropper.set(dropper);
@@ -112,6 +118,10 @@ public class CatServerCaptures {
     }
     public void captureLevel(Level level) {
         this.level.set(level);
+    }
+
+    public EntityRegainHealthEvent.RegainReason getCaptureRegainReason() {
+        return this.regainReason.getAndSet(EntityRegainHealthEvent.RegainReason.CUSTOM);
     }
 
     public Level getCaptureLevel() {
