@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
@@ -40,6 +41,21 @@ public class CatServerCaptures {
     private AtomicDouble blockRange = new AtomicDouble();
     private AtomicBoolean dropper = new AtomicBoolean(false);
     private AtomicReference<EntityRegainHealthEvent.RegainReason> regainReason = new AtomicReference<>(EntityRegainHealthEvent.RegainReason.CUSTOM);
+    private AtomicReference<EntityPotionEffectEvent.Cause> potionEffectCause = new AtomicReference<>(EntityPotionEffectEvent.Cause.UNKNOWN);
+    private AtomicReference<PlayerTeleportEvent.TeleportCause> teleportCause = new AtomicReference<>(PlayerTeleportEvent.TeleportCause.UNKNOWN);
+    private AtomicBoolean arrowFlag = new AtomicBoolean(false);
+
+    public void captureTeleportCause(PlayerTeleportEvent.TeleportCause cause) {
+        this.teleportCause.set(cause);
+    }
+
+    public void captureArrowFlag(boolean flag) {
+        this.arrowFlag.set(flag);
+    }
+
+    public void capturePotionEffectCause(EntityPotionEffectEvent.Cause cause) {
+        this.potionEffectCause.set(cause);
+    }
 
     public void captureRegainReason(EntityRegainHealthEvent.RegainReason regainReason) {
         this.regainReason.set(regainReason);
@@ -194,6 +210,18 @@ public class CatServerCaptures {
 
     public boolean getCaptureDropper() {
         return this.dropper.getAndSet(false);
+    }
+
+    public EntityPotionEffectEvent.Cause getCapturePotionEffectCause() {
+        return this.potionEffectCause.getAndSet(EntityPotionEffectEvent.Cause.UNKNOWN);
+    }
+
+    public boolean getCaptureArrowFlag() {
+        return this.arrowFlag.getAndSet(false);
+    }
+
+    public PlayerTeleportEvent.TeleportCause getCaptureTeleportCause() {
+        return this.teleportCause.getAndSet(PlayerTeleportEvent.TeleportCause.UNKNOWN);
     }
 
     public static CatServerCaptures getCatServerCaptures() {
