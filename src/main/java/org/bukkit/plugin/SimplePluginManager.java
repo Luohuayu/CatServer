@@ -560,20 +560,21 @@ public final class SimplePluginManager implements PluginManager {
      */
     @Override
     public void callEvent(@NotNull Event event) {
-        if (event.isAsynchronous()) {
+        // CatServer start
+        if (event.isAsynchronous() || !server.isPrimaryThread()) {
             if (Thread.holdsLock(this)) {
                 throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from inside synchronized code.");
             }
             if (server.isPrimaryThread()) {
                 throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from primary server thread.");
             }
+            fireEvent(event);
         } else {
-            if (!server.isPrimaryThread()) {
-                throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from another thread.");
+            synchronized (this) {
+                fireEvent(event);
             }
         }
-
-        fireEvent(event);
+        // CatServer end
     }
 
     private void fireEvent(@NotNull Event event) {
