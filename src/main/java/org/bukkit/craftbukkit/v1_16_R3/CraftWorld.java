@@ -392,8 +392,7 @@ public class CraftWorld implements World {
 
     @Override
     public boolean isChunkLoaded(int x, int z) {
-        net.minecraft.world.chunk.Chunk chunk = world.getChunkSource().getChunk(x,z, false);
-        return chunk != null;
+        return world.getChunkSource().isChunkLoaded(x, z);
     }
 
     @Override
