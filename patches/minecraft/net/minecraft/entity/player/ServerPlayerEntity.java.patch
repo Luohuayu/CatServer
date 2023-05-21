@@ -146,7 +146,7 @@
     private ChatVisibility field_71143_cn;
     private boolean field_71140_co = true;
     private long field_143005_bX = Util.func_211177_b();
-@@ -175,6 +_,22 @@
+@@ -175,6 +_,21 @@
     public int field_71138_i;
     public boolean field_71136_j;
  
@@ -164,7 +164,6 @@
 +   public Integer clientViewDistance;
 +   // CraftBukkit end
 +   private boolean initialized = false;
-+   public java.util.Collection<ItemEntity> capturedDeathDrops = new java.util.ArrayList<>(); // LoliServer
 +
     public ServerPlayerEntity(MinecraftServer p_i45285_1_, ServerWorld p_i45285_2_, GameProfile p_i45285_3_, PlayerInteractionManager p_i45285_4_) {
        super(p_i45285_2_, p_i45285_2_.func_241135_u_(), p_i45285_2_.func_242107_v(), p_i45285_3_);
@@ -350,7 +349,7 @@
        } catch (Throwable throwable) {
           CrashReport crashreport = CrashReport.func_85055_a(throwable, "Ticking player");
           CrashReportCategory crashreportcategory = crashreport.func_85058_a("Player being ticked");
-@@ -469,15 +_,55 @@
+@@ -469,15 +_,62 @@
     }
  
     private void func_184849_a(ScoreCriteria p_184849_1_, int p_184849_2_) {
@@ -371,20 +370,27 @@
 +         return;
 +      }
 +
-+      java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<>(this.field_71071_by.func_70302_i_());
++      int lootingLevel = net.minecraftforge.common.ForgeHooks.getLootingLevel(this, p_70645_1_.func_76346_g(), p_70645_1_);
++
++      java.util.List<ItemEntity> drops = new java.util.ArrayList<>(this.field_71071_by.func_70302_i_());
 +      boolean keepInventory = this.field_70170_p.func_82736_K().func_223586_b(GameRules.field_223600_c) || this.func_175149_v();
-+      // LoliServer start
-+      PlayerInventory playerInventoryCapture = new PlayerInventory(this);
-+      playerInventoryCapture.func_70455_b(this.field_71071_by);
-+      func_213345_d(p_70645_1_);
-+      for (ItemEntity itemEntity : capturedDeathDrops) {
-+         ItemStack item = itemEntity.func_92059_d();
-+         if (!item.func_190926_b() && !EnchantmentHelper.func_190939_c(item)) {
-+            loot.add(CraftItemStack.asCraftMirror(item));
++
++      if (!keepInventory) {
++         for (ItemStack item : this.field_71071_by.getContents()) {
++            if (!item.func_190926_b() && !EnchantmentHelper.func_190939_c(item)) {
++               drops.add(new ItemEntity(this.field_70170_p, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), item));
++            }
 +         }
 +      }
-+      capturedDeathDrops.clear();
-+      // LoliServer end
++
++      captureDrops(drops);
++      func_213354_a(p_70645_1_, field_70718_bc > 0);
++      captureDrops(null);
++
++      java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<>(drops.size());
++      if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_70645_1_, drops, lootingLevel, field_70718_bc > 0)) {
++         drops.forEach(e -> loot.add(CraftItemStack.asCraftMirror(e.func_92059_d())));
++      }
 +
 +      ITextComponent defaultMessage = this.func_110142_aN().func_151521_b();
 +
@@ -409,7 +415,7 @@
           this.field_71135_a.func_211148_a(new SCombatPacket(this.func_110142_aN(), SCombatPacket.Event.ENTITY_DIED, itextcomponent), (p_212356_2_) -> {
              if (!p_212356_2_.isSuccess()) {
                 int i = 256;
-@@ -509,11 +_,17 @@
+@@ -509,11 +_,15 @@
           this.func_241157_eT_();
        }
  
@@ -420,8 +426,6 @@
 +      // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
 +      if (!event.getKeepInventory()) {
 +         this.field_71071_by.func_174888_l();
-+      } else { // LoliServer start
-+         this.field_71071_by = playerInventoryCapture;  // LoliServer enc
        }
  
 -      this.func_96123_co().func_197893_a(ScoreCriteria.field_96642_c, this.func_195047_I_(), Score::func_96648_a);
@@ -941,6 +945,32 @@
  
     public void func_146105_b(ITextComponent p_146105_1_, boolean p_146105_2_) {
        this.field_71135_a.func_147359_a(new SChatPacket(p_146105_1_, p_146105_2_ ? ChatType.GAME_INFO : ChatType.CHAT, Util.field_240973_b_));
+@@ -1072,6 +_,25 @@
+          this.field_71106_cc = p_193104_1_.field_71106_cc;
+          this.func_85040_s(p_193104_1_.func_71037_bA());
+       }
++      // CatServer start
++      else {
++         this.field_71071_by.func_70455_b(p_193104_1_.field_71071_by);
++
++         if (p_193104_1_.keepLevel) {
++            this.newLevel = p_193104_1_.field_71068_ca;
++            this.newTotalExp = p_193104_1_.field_71067_cb;
++         }
++
++         this.field_71068_ca = this.newLevel;
++         this.field_71067_cb = this.newTotalExp;
++
++         if (p_193104_1_.keepLevel) {
++            this.field_71106_cc = p_193104_1_.field_71106_cc;
++         } else {
++            this.func_82242_a(p_193104_1_.newExp);
++         }
++      }
++      // CatServer end
+ 
+       this.field_175152_f = p_193104_1_.field_175152_f;
+       this.field_71078_a = p_193104_1_.field_71078_a;
 @@ -1079,12 +_,19 @@
        this.field_71144_ck = -1;
        this.field_71149_ch = -1.0F;

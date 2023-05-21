@@ -1,11 +1,9 @@
 --- a/net/minecraft/entity/LivingEntity.java
 +++ b/net/minecraft/entity/LivingEntity.java
-@@ -113,22 +_,44 @@
- import net.minecraft.world.server.ServerWorld;
+@@ -114,21 +_,43 @@
  import net.minecraftforge.api.distmarker.Dist;
  import net.minecraftforge.api.distmarker.OnlyIn;
-+import net.minecraftforge.common.ForgeHooks;
-+
+ 
 +import com.google.common.base.Function;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
@@ -16,6 +14,7 @@
 +import org.bukkit.entity.Player;
 +import org.bukkit.event.entity.ArrowBodyCountChangeEvent;
 +import org.bukkit.event.entity.EntityDamageEvent;
++import org.bukkit.event.entity.EntityDropItemEvent;
 +import org.bukkit.event.entity.EntityRegainHealthEvent;
 +import org.bukkit.event.entity.EntityResurrectEvent;
 +import org.bukkit.event.entity.EntityTeleportEvent;
@@ -24,7 +23,7 @@
 +import org.bukkit.event.player.PlayerItemConsumeEvent;
 +import org.bukkit.event.player.PlayerTeleportEvent;
 +import io.papermc.paper.event.entity.EntityMoveEvent;
- 
++
  public abstract class LivingEntity extends Entity {
     private static final UUID field_110156_b = UUID.fromString("662A6B8D-DA3E-4C1C-8813-96EA6097278D");
     private static final UUID field_233625_c_ = UUID.fromString("87f46a96-686f-4796-b035-22e16ee9e038");
@@ -98,7 +97,7 @@
 +   public int expToDrop;
 +   public int maxAirTicks = 300;
 +   public boolean forceDrops;
-+   public java.util.ArrayList<org.bukkit.inventory.ItemStack> drops = new java.util.ArrayList<org.bukkit.inventory.ItemStack>();
++   // public java.util.ArrayList<org.bukkit.inventory.ItemStack> drops = new java.util.ArrayList<org.bukkit.inventory.ItemStack>(); // CatServer - Don't use it
 +   public CraftAttributeMap craftAttributes;
 +   public boolean collides = true;
 +   public java.util.Set<UUID> collidableExemptions = new java.util.HashSet<>();
@@ -683,7 +682,7 @@
                 this.field_70170_p.func_217376_c(itementity);
              }
           }
-@@ -1216,36 +_,64 @@
+@@ -1216,36 +_,70 @@
  
     protected void func_213345_d(DamageSource p_213345_1_) {
        Entity entity = p_213345_1_.func_76346_g();
@@ -703,26 +702,33 @@
           this.func_213354_a(p_213345_1_, flag);
           this.func_213333_a(p_213345_1_, i, flag);
        }
-+      Collection<ItemEntity> drops = captureDrops(null);
-+      // LoliServer start
-+      if (!(this instanceof ServerPlayerEntity)) {
-+         this.expToDrop = this.getExpReward();
-+         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_213345_1_, drops, i, field_70718_bc > 0)) {
-+            this.drops = new java.util.ArrayList<>();
-+            for (ItemEntity drop : drops) {
-+               this.drops.add(CraftItemStack.asCraftMirror(drop.func_92059_d()));
-+            }
-+            CraftEventFactory.callEntityDeathEvent(this, this.drops);
-+         }
-+      } else {
-+         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_213345_1_, drops, i, field_70718_bc > 0)) {
-+            ((ServerPlayerEntity) this).capturedDeathDrops = drops;
-+         }
- 
+-
 -      this.func_213337_cE();
 -      this.func_226294_cV_();
++      Collection<ItemEntity> drops = captureDrops(null);
++      // CatServer start - capture drops for plugins then fire event
++      if (!(this instanceof ServerPlayerEntity)) {
++         // CatServer - handle after capture
++         drops.removeIf(e -> {
++            EntityDropItemEvent event = new EntityDropItemEvent(this.getBukkitEntity(), (org.bukkit.entity.Item) e.getBukkitEntity());
++            Bukkit.getPluginManager().callEvent(event);
++            return event.isCancelled();
++         });
++         this.expToDrop = this.getExpReward();
++         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_213345_1_, drops, i, field_70718_bc > 0)) {
++            List<org.bukkit.inventory.ItemStack> bukkitDrops = new java.util.ArrayList<>();
++            for (ItemEntity drop : drops) {
++               bukkitDrops.add(CraftItemStack.asCraftMirror(drop.func_92059_d()));
++            }
++            CraftEventFactory.callEntityDeathEvent(this, bukkitDrops);
++         }
++      } else {
++         // Shouldn't arrive here
++         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_213345_1_, drops, i, field_70718_bc > 0)) {
++            drops.forEach(e -> field_70170_p.func_217376_c(e));
++         }
 +      }
-+      // LoliServer end
++      // CatServer end
     }
  
     protected void func_213337_cE() {

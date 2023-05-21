@@ -71,7 +71,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
 
     @Override
     public PlayerInventory getInventory() {
-        if (inventory == null) {
+        if (inventory == null || inventory.getInventory() != ((PlayerEntity) entity).inventory) {
             inventory = new CraftInventoryPlayer(((PlayerEntity) entity).inventory);
         }
         return inventory;
@@ -79,7 +79,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
 
     @Override
     public EntityEquipment getEquipment() {
-        if (inventory == null) {
+        if (inventory == null || inventory.getInventory() != ((PlayerEntity) entity).inventory) {
             inventory = new CraftInventoryPlayer(((PlayerEntity) entity).inventory);
         }
         return inventory;
@@ -87,7 +87,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
 
     @Override
     public Inventory getEnderChest() {
-        if (enderChest == null) {
+        if (enderChest == null || enderChest.getInventory() != ((PlayerEntity) entity).getEnderChestInventory()) {
             enderChest = new CraftInventory(((PlayerEntity) entity).getEnderChestInventory());
         }
         return enderChest;
