@@ -349,7 +349,7 @@
        } catch (Throwable throwable) {
           CrashReport crashreport = CrashReport.func_85055_a(throwable, "Ticking player");
           CrashReportCategory crashreportcategory = crashreport.func_85058_a("Player being ticked");
-@@ -469,15 +_,62 @@
+@@ -469,15 +_,59 @@
     }
  
     private void func_184849_a(ScoreCriteria p_184849_1_, int p_184849_2_) {
@@ -372,24 +372,21 @@
 +
 +      int lootingLevel = net.minecraftforge.common.ForgeHooks.getLootingLevel(this, p_70645_1_.func_76346_g(), p_70645_1_);
 +
-+      java.util.List<ItemEntity> drops = new java.util.ArrayList<>(this.field_71071_by.func_70302_i_());
++      java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<>(this.field_71071_by.func_70302_i_());
 +      boolean keepInventory = this.field_70170_p.func_82736_K().func_223586_b(GameRules.field_223600_c) || this.func_175149_v();
 +
 +      if (!keepInventory) {
 +         for (ItemStack item : this.field_71071_by.getContents()) {
 +            if (!item.func_190926_b() && !EnchantmentHelper.func_190939_c(item)) {
-+               drops.add(new ItemEntity(this.field_70170_p, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), item));
++               loot.add(CraftItemStack.asCraftMirror(item));
 +            }
 +         }
 +      }
 +
-+      captureDrops(drops);
++      captureDrops(new java.util.ArrayList<>());
 +      func_213354_a(p_70645_1_, field_70718_bc > 0);
-+      captureDrops(null);
-+
-+      java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<>(drops.size());
-+      if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_70645_1_, drops, lootingLevel, field_70718_bc > 0)) {
-+         drops.forEach(e -> loot.add(CraftItemStack.asCraftMirror(e.func_92059_d())));
++      for (ItemEntity captureDrop : captureDrops(null)) {
++         loot.add(CraftItemStack.asCraftMirror(captureDrop.func_92059_d()));
 +      }
 +
 +      ITextComponent defaultMessage = this.func_110142_aN().func_151521_b();
@@ -415,20 +412,37 @@
           this.field_71135_a.func_211148_a(new SCombatPacket(this.func_110142_aN(), SCombatPacket.Event.ENTITY_DIED, itextcomponent), (p_212356_2_) -> {
              if (!p_212356_2_.isSuccess()) {
                 int i = 256;
-@@ -509,11 +_,15 @@
+@@ -509,11 +_,30 @@
           this.func_241157_eT_();
        }
  
 -      if (!this.func_175149_v()) {
 -         this.func_213345_d(p_70645_1_);
+-      }
+-
+-      this.func_96123_co().func_197893_a(ScoreCriteria.field_96642_c, this.func_195047_I_(), Score::func_96648_a);
 +      // SPIGOT-5478 must be called manually now
 +      this.func_226294_cV_();
 +      // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
 +      if (!event.getKeepInventory()) {
 +         this.field_71071_by.func_174888_l();
-       }
- 
--      this.func_96123_co().func_197893_a(ScoreCriteria.field_96642_c, this.func_195047_I_(), Score::func_96648_a);
++      }
++
++      if (!keepInventory || !event.getKeepInventory()) {
++         java.util.List<ItemEntity> drops = new java.util.ArrayList<>(event.getDrops().size());
++         for (org.bukkit.inventory.ItemStack stack : event.getDrops()) {
++            if (stack == null || stack.getType() == org.bukkit.Material.AIR) continue;
++
++            drops.add(new ItemEntity(this.field_70170_p, this.func_226277_ct_(), this.func_226278_cu_(), this.func_226281_cx_(), CraftItemStack.asNMSCopy(stack)));
++         }
++
++         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_70645_1_, drops, lootingLevel, field_70718_bc > 0)) {
++            for (ItemEntity drop : drops) {
++               this.field_70170_p.func_217376_c(drop);
++            }
++         }
++      }
++
 +      // CraftBukkit - Get our scores instead
 +      this.field_70170_p.getCBServer().getScoreboardManager().getScoreboardScores(ScoreCriteria.field_96642_c, this.func_195047_I_(), Score::func_96648_a);
        LivingEntity livingentity = this.func_94060_bK();
