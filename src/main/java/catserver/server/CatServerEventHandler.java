@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CatServerEventHandler {
+    public static final BukkitEventCapture<BlockBreakEvent> bukkitBlockBreakEventCapture = new BukkitEventCapture<>();
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onBlockBreak(BlockEvent.BreakEvent event) {
         BlockBreakEvent bukkitEvent = CraftEventFactory.callBlockBreakEvent(event.getWorld(), event.getPos(), event.getState(), (EntityPlayerMP) event.getPlayer());
@@ -34,6 +36,8 @@ public class CatServerEventHandler {
         } else {
             event.setExpToDrop(bukkitEvent.getExpToDrop());
         }
+
+        bukkitBlockBreakEventCapture.put(bukkitEvent);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -87,5 +91,29 @@ public class CatServerEventHandler {
     @SubscribeEvent
     public void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         Bukkit.getPluginManager().callEvent(new PlayerChangedWorldEvent((CraftPlayer) event.player.getBukkitEntity(), MinecraftServer.getServerInst().getWorldServer(event.fromDim).getWorld()));
+    }
+
+    public static class BukkitEventCapture<T extends Event> {
+        private T bukkitEvent;
+
+        public boolean hasResult() {
+            return bukkitEvent != null;
+        }
+
+        public void put(T bukkitEvent) {
+            if (this.bukkitEvent == null) {
+                this.bukkitEvent = bukkitEvent;
+            }
+        }
+
+        public T get() {
+            T bukkitEvent = this.bukkitEvent;
+            this.bukkitEvent = null;
+            return bukkitEvent;
+        }
+
+        public void reset() {
+            bukkitEvent = null;
+        }
     }
 }
