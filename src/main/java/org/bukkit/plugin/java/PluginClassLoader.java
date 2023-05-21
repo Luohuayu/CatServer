@@ -58,6 +58,10 @@ public final class PluginClassLoader extends URLClassLoader {
     private CatServerRemapper remapper;
     private JarMapping jarMapping;
 
+    // For 1.18+, Fucking the obf
+    private JarMapping preJarMapping;
+    private CatServerRemapper preRemapper;
+
     private IPatcher patcher; // CatServer
 
     static {
@@ -83,6 +87,10 @@ public final class PluginClassLoader extends URLClassLoader {
         provider.add(new ClassLoaderProvider(this));
         this.jarMapping.setFallbackInheritanceProvider(provider);
         this.remapper = new CatServerRemapper(jarMapping);
+
+        this.preJarMapping = MappingLoader.loadPreMapping();
+        this.preJarMapping.setFallbackInheritanceProvider(provider);
+        this.preRemapper = new CatServerRemapper(preJarMapping);
 
         this.patcher = PatcherManager.getPluginPatcher(description.getName());
 
@@ -232,7 +240,7 @@ public final class PluginClassLoader extends URLClassLoader {
                     URL jarURL = jarURLConnection.getJarFileURL();
 
                     // Remap the classes
-                    byte[] bytecode = remapper.remapClassFile(stream, RuntimeRepo.getInstance());
+                    byte[] bytecode = remapper.remapClassFile(preRemapper.remapClassFile(stream, RuntimeRepo.getInstance()), RuntimeRepo.getInstance());
                     if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
                     bytecode = ReflectionTransformer.transform(bytecode);
 
