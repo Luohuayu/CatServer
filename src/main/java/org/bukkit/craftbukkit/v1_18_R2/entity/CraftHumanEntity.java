@@ -80,19 +80,19 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
 
     @Override
     public PlayerInventory getInventory() {
-        if (inventory == null) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
+        if (inventory == null || inventory.getInventory() != ((Player) entity).getInventory()) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
         return inventory;
     }
 
     @Override
     public EntityEquipment getEquipment() {
-        if (inventory == null) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
+        if (inventory == null || inventory.getInventory() != ((Player) entity).getInventory()) inventory = new CraftInventoryPlayer(((Player)entity).getInventory()); // CatServer
         return inventory;
     }
 
     @Override
     public Inventory getEnderChest() {
-        if (enderChest == null) enderChest = new CraftInventory(((Player)entity).getEnderChestInventory()); // CatServer
+        if (enderChest == null || enderChest.getInventory() != ((Player) entity).getEnderChestInventory()) enderChest = new CraftInventory(((Player)entity).getEnderChestInventory()); // CatServer
         return enderChest;
     }
 
