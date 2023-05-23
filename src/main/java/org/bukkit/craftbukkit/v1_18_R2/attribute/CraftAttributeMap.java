@@ -1,7 +1,9 @@
 package org.bukkit.craftbukkit.v1_18_R2.attribute;
 
+import catserver.server.BukkitInjector;
 import com.google.common.base.Preconditions;
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attributable;
 import org.bukkit.attribute.Attribute;
@@ -25,7 +27,7 @@ public class CraftAttributeMap implements Attributable {
     }
 
     public static net.minecraft.world.entity.ai.attributes.Attribute toMinecraft(Attribute attribute) {
-        return net.minecraft.core.Registry.ATTRIBUTE.get(CraftNamespacedKey.toMinecraft(attribute.getKey()));
+        return !BukkitInjector.attributeMap.containsKey(attribute) ? net.minecraft.core.Registry.ATTRIBUTE.get(CraftNamespacedKey.toMinecraft(attribute.getKey())) : ForgeRegistries.ATTRIBUTES.getValue(BukkitInjector.attributeMap.get(attribute)); // CatServer
     }
 
     public static Attribute fromMinecraft(String nms) {
