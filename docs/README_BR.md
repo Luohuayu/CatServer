@@ -11,7 +11,7 @@ Todas as versões do CatServer:
 |    Versões    |    Status     |
 | ------------- | ------------- |
 | [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Ativo       |
-| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS/ESTÁVEL |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/ESTÁVEL |
 
 Grupo QQ: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [Click to join](https://discord.gg/wvBJN4d)<br>

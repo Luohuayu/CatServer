@@ -14,7 +14,7 @@ CatServer на версии 1.12.2 | Forge+Bukkit+Spigot сервер<br>
 |    Version    |    Status     |
 | ------------- | ------------- |
 | [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Active      |
-| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS/STABLE  |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/STABLE  |
 
 ### Особенности
