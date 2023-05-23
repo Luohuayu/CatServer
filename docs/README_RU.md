@@ -15,7 +15,7 @@
 |    Версия    |    Статус     |
 | ------------- | ------------- |
 | [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Активная разработка      |
-| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  Долгосрочная поддержка         |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  Долгосрочная поддержка/Стабильная версия  |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  Долгосрочная поддержка/Стабильная версия  |
 
 QQ Группа: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Телеграм: [@CatServer](https://t.me/CatServer) | Дискорд канал: [Нажмите, чтобы присоединиться

@@ -12,7 +12,7 @@ All versions of CatServer:
 |    Version    |    Status     |
 | ------------- | ------------- |
 | [1.18.2](https://github.com/Luohuayu/CatServer/tree/1.18.2)  |  Active      |
-| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS         |
+| [1.16.5](https://github.com/Luohuayu/CatServer/tree/1.16.5)  |  LTS/STABLE  |
 | [1.12.2](https://github.com/Luohuayu/CatServer/tree/1.12.2)  |  LTS/STABLE  |
 
 QQ Group: [591257](https://jq.qq.com/?_wv=1027&k=5B5aKkW) | Telegram: [@CatServer](https://t.me/CatServer) | Discord: [点击加入](https://discord.gg/wvBJN4d)
@@ -41,11 +41,11 @@ Provide API to allow plugins to interact with mods easily<br>
 
 ### Generate dependency
 1. Run the server, Wait for the libraries to be downloaded and generate the SRG
-2. Import the following jar in order as dependencies (if you need to use more libraries, please add them yourself):
+2. Import the following jar in order as dependencies (Add more libraries if you need to use):
 ```
-libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-universal.jar
-libraries/net/minecraftforge/forge/1.16.5-xx.xx.xx/forge-1.16.5-xx.xx.xx-server.jar
-libraries/net/minecraft/server/1.16.5-xxxxxxxx.xxxxxx/server-1.16.5-xxxxxxxx.xxxxxx-srg.jar
-libraries/net/minecraftforge/eventbus/4.0.0/eventbus-4.0.0.jar
-libraries/net/minecraftforge/forgespi/3.2.0/forgespi-3.2.0.jar
+libraries/net/minecraftforge/forge/{MC_VERSION}-{FORGE_VERSION}/forge-{MC_VERSION}-{FORGE_VERSION}-universal.jar
+libraries/net/minecraftforge/forge/{MC_VERSION}-{FORGE_VERSION}/forge-{MC_VERSION}-{FORGE_VERSION}-server.jar
+libraries/net/minecraft/server/{MC_VERSION}-{MCP_VERSION}/server-{MC_VERSION}-{MCP_VERSION}-srg.jar
+libraries/net/minecraftforge/eventbus/{EVENTBUS_VERSION}/eventbus-{EVENTBUS_VERSION}.jar
+libraries/net/minecraftforge/forgespi/{SPI_VERSION}/forgespi-{SPI_VERSION}.jar
 ```
