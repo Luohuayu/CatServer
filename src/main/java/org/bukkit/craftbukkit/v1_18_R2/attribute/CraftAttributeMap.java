@@ -27,10 +27,20 @@ public class CraftAttributeMap implements Attributable {
     }
 
     public static net.minecraft.world.entity.ai.attributes.Attribute toMinecraft(Attribute attribute) {
-        return !BukkitInjector.attributeMap.containsKey(attribute) ? net.minecraft.core.Registry.ATTRIBUTE.get(CraftNamespacedKey.toMinecraft(attribute.getKey())) : ForgeRegistries.ATTRIBUTES.getValue(BukkitInjector.attributeMap.get(attribute)); // CatServer
+        net.minecraft.resources.ResourceLocation resourceLocation = BukkitInjector.attributeToNameMap.get(attribute);
+        if (resourceLocation == null) {
+            return net.minecraft.core.Registry.ATTRIBUTE.get(CraftNamespacedKey.toMinecraft(attribute.getKey())); // Minecraft
+        } else {
+            return net.minecraftforge.registries.ForgeRegistries.ATTRIBUTES.getValue(resourceLocation); // Mod
+        }
     }
 
     public static Attribute fromMinecraft(String nms) {
-        return Registry.ATTRIBUTE.get(CraftNamespacedKey.fromString(nms));
+        Attribute attribute = Registry.ATTRIBUTE.get(CraftNamespacedKey.fromString(nms));
+        if (attribute != null) {
+            return attribute; // Minecraft
+        } else {
+            return BukkitInjector.nameToAttributeMap.get(net.minecraft.resources.ResourceLocation.tryParse(nms)); // Mod
+        }
     }
 }

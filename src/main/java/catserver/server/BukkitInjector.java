@@ -57,10 +57,12 @@ import java.util.Objects;
 
 public class BukkitInjector {
 
-    public static Map<Motive, Art> artMap = new HashMap<>();
-    public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributeMap = new HashMap<>();
-    public static Map<Villager.Profession, ResourceLocation> professionMap = new HashMap<>();
     public static BiMap<ResourceKey<LevelStem>, World.Environment> environments = HashBiMap.create(ImmutableMap.<ResourceKey<LevelStem>, World.Environment>builder().put(LevelStem.OVERWORLD, World.Environment.NORMAL).put(LevelStem.NETHER, World.Environment.NETHER).put(LevelStem.END, World.Environment.THE_END).build());
+
+    public static Map<Villager.Profession, ResourceLocation> professionMap = new HashMap<>();
+    public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributeToNameMap = new HashMap<>();
+    public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
+    public static Map<Motive, Art> artMap = new HashMap<>();
 
     public static void registerAll() {
         registerMaterials();
@@ -92,9 +94,10 @@ public class BukkitInjector {
             if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
                 continue;
             }
-            Attribute bukkitAttribute = EnumHelper.makeEnum(org.bukkit.attribute.Attribute.class, name, length++, ImmutableList.of(String.class), ImmutableList.of(location.getPath()));
+            Attribute bukkitAttribute = EnumHelper.makeEnum(org.bukkit.attribute.Attribute.class, name, length++, ImmutableList.of(NamespacedKey.class), ImmutableList.of(CraftNamespacedKey.fromMinecraft(location)));
             attributes.add(bukkitAttribute);
-            attributeMap.put(bukkitAttribute, location);
+            attributeToNameMap.put(bukkitAttribute, location);
+            nameToAttributeMap.put(location, bukkitAttribute);
             CatServer.LOGGER.debug("Save-Attribute: {}", name);
         }
         EnumHelper.addEnums(Attribute.class, attributes);
