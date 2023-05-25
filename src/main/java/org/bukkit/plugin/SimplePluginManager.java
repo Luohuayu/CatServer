@@ -562,6 +562,10 @@ public final class SimplePluginManager implements PluginManager {
     public void callEvent(@NotNull Event event) {
         // CatServer start
         if (event.isAsynchronous() || !server.isPrimaryThread()) {
+            // CatServer - Thread safety check
+            if (!event.isAsynchronous() && Thread.currentThread() instanceof java.util.concurrent.ForkJoinWorkerThread) {
+                catserver.server.CatServer.LOGGER.debug("Call event at worker thread!", new RuntimeException());
+            }
             if (Thread.holdsLock(this)) {
                 throw new IllegalStateException(event.getEventName() + " cannot be triggered asynchronously from inside synchronized code.");
             }

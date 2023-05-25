@@ -142,7 +142,7 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
             return false;
         }
 
-        if (getHandle().forceSleep(force).startSleepInBed(blockposition).left().isPresent()) {
+        if (getHandle().startSleepInBed(blockposition, force).left().isPresent()) {
             return false;
         }
 
