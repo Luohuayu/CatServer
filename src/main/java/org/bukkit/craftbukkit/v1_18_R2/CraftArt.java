@@ -1,5 +1,6 @@
 package org.bukkit.craftbukkit.v1_18_R2;
 
+import catserver.server.BukkitInjector;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -7,6 +8,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.decoration.Motive;
 import org.bukkit.Art;
+import org.bukkit.NamespacedKey;
 
 public class CraftArt {
     private static final BiMap<Motive, Art> artwork;
@@ -14,7 +16,13 @@ public class CraftArt {
     static {
         ImmutableBiMap.Builder<Motive, Art> artworkBuilder = ImmutableBiMap.builder();
         for (ResourceLocation key : Registry.MOTIVE.keySet()) {
-            artworkBuilder.put(Registry.MOTIVE.get(key), Art.getByName(key.getPath()));
+            // CatServer start
+            if (key.getNamespace().equals(NamespacedKey.MINECRAFT)) {
+                artworkBuilder.put(Registry.MOTIVE.get(key), Art.getByName(key.getPath()));
+            } else {
+                BukkitInjector.artMap.forEach(artworkBuilder::put);
+            }
+            // CatServer end
         }
 
         artwork = artworkBuilder.build();

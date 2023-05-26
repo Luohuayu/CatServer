@@ -1,12 +1,10 @@
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -5,21 +_,24 @@
+@@ -5,21 +_,22 @@
  import java.util.stream.Collectors;
  import java.util.stream.IntStream;
  import javax.annotation.Nullable;
 +
-+import catserver.server.CatServer;
-+import catserver.server.CatServerCaptures;
 +import catserver.server.inventory.CatCustomInventory;
 +import catserver.server.inventory.CatInventoryUtils;
  import net.minecraft.core.BlockPos;
@@ -172,40 +170,30 @@
           });
        } else {
           for(ItemEntity itementity : m_155589_(p_155553_, p_155554_)) {
-@@ -193,24 +_,86 @@
-       }
+@@ -194,15 +_,56 @@
     }
  
-+   // CatServer start
-+   private static boolean tryTakeInItemFromSlot(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_, Level level) {
-+      CatServerCaptures.getCatServerCaptures().captureLevel(level);
-+      return m_59354_(p_59355_, p_59356_, p_59357_, p_59358_);
+    private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
++      // CatServer start
++      Level level;
++      if (p_59355_ instanceof HopperBlockEntity) {
++         level = ((HopperBlockEntity) p_59355_).f_58857_;
++      } else if (p_59355_ instanceof MinecartHopper) {
++         level = ((MinecartHopper) p_59355_).f_19853_;
++      } else {
++         level = net.minecraft.server.MinecraftServer.getServer().m_129783_();
++      }
++      return tryTakeInItemFromSlot(p_59355_, p_59356_, p_59357_, p_59358_, level);
++      // CatServer end
 +   }
 +
-    private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
++   private static boolean tryTakeInItemFromSlot(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_, Level level) {
        ItemStack itemstack = p_59356_.m_8020_(p_59357_);
        if (!itemstack.m_41619_() && m_59380_(p_59356_, itemstack, p_59357_, p_59358_)) {
           ItemStack itemstack1 = itemstack.m_41777_();
 -         ItemStack itemstack2 = m_59326_(p_59356_, p_59355_, p_59356_.m_7407_(p_59357_, 1), (Direction)null);
 +         // CraftBukkit start - Call event on collection of items from inventories into the hopper
-+
-+         // CatServer start - add a null check
-+         Level world = CatServerCaptures.getCatServerCaptures().getCaptureLevel();
-+         int hopperAmount = 0;
-+         int hopperTransfer = 0;
-+         if (world != null) {
-+            hopperAmount = world.spigotConfig.hopperAmount;
-+            hopperTransfer = world.spigotConfig.hopperTransfer;
-+         } else {
-+            hopperAmount = 1;
-+            hopperTransfer = 8;
-+            CatServer.LOGGER.warn("[CatServer]: It is detected that the Level is null, and the hopperAmount is set to 1 by default");
-+            CatServer.LOGGER.warn("[CatServer]: If you see this message, Spigot is not working properly, please report it to the developer!");
-+            CatServer.LOGGER.warn("[CatServer]: Class location: {}", HopperBlockEntity.class.getName());
-+         }
-+         // CatServer end
-+
-+         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_59356_.m_7407_(p_59357_, hopperAmount));
++         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_59356_.m_7407_(p_59357_, level.spigotConfig.hopperAmount));
 +         org.bukkit.inventory.Inventory sourceInventory;
 +         // Have to special case large chests as they work oddly
 +         if (p_59356_ instanceof CompoundContainer) {
@@ -222,9 +210,9 @@
 +         if (event.isCancelled()) {
 +            p_59356_.m_6836_(p_59357_, itemstack1);
 +            if (p_59355_ instanceof HopperBlockEntity) {
-+               ((HopperBlockEntity) p_59355_).m_59395_(hopperTransfer); // Spigot
++               ((HopperBlockEntity) p_59355_).m_59395_(level.spigotConfig.hopperTransfer); // Spigot
 +            } else if (p_59355_ instanceof MinecartHopper) {
-+               ((MinecartHopper) p_59355_).m_38610_(hopperTransfer / 2); // Spigot
++               ((MinecartHopper) p_59355_).m_38610_(level.spigotConfig.hopperTransfer / 2); // Spigot
 +            }
 +            return false;
 +         }
@@ -240,9 +228,7 @@
           p_59356_.m_6836_(p_59357_, itemstack1);
        }
  
-       return false;
-    }
-+   // CatServer end
+@@ -211,6 +_,17 @@
  
     public static boolean m_59331_(Container p_59332_, ItemEntity p_59333_) {
        boolean flag = false;
@@ -281,6 +267,14 @@
                 }
              }
  
+@@ -320,6 +_,7 @@
+    private static Container m_59347_(Level p_59348_, double p_59349_, double p_59350_, double p_59351_) {
+       Container container = null;
+       BlockPos blockpos = new BlockPos(p_59349_, p_59350_, p_59351_);
++      if ( !p_59348_.m_46805_( blockpos ) ) return null; // Spigot
+       BlockState blockstate = p_59348_.m_8055_(blockpos);
+       Block block = blockstate.m_60734_();
+       if (block instanceof WorldlyContainerHolder) {
 @@ -399,5 +_,14 @@
  
     protected AbstractContainerMenu m_6555_(int p_59312_, Inventory p_59313_) {

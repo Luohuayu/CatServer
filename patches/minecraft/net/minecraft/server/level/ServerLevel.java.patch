@@ -1,67 +1,9 @@
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -1,5 +_,7 @@
- package net.minecraft.server.level;
- 
-+import catserver.server.CatServerCaptures;
-+import catserver.server.level.CustomDerivedLevelData;
- import com.google.common.annotations.VisibleForTesting;
- import com.google.common.collect.Lists;
- import com.mojang.datafixers.DataFixer;
-@@ -14,6 +_,7 @@
- import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
- import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
- import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
-+
- import java.io.IOException;
- import java.io.Writer;
- import java.nio.file.Files;
-@@ -26,6 +_,7 @@
- import java.util.Set;
- import java.util.UUID;
- import java.util.concurrent.Executor;
-+import java.util.concurrent.atomic.AtomicReference;
- import java.util.function.BooleanSupplier;
- import java.util.function.Function;
- import java.util.function.Predicate;
-@@ -33,6 +_,7 @@
- import java.util.stream.Stream;
- import javax.annotation.Nonnull;
- import javax.annotation.Nullable;
-+
- import net.minecraft.CrashReport;
- import net.minecraft.Util;
- import net.minecraft.core.BlockPos;
-@@ -71,6 +_,7 @@
- import net.minecraft.util.ProgressListener;
- import net.minecraft.util.Unit;
- import net.minecraft.util.profiling.ProfilerFiller;
-+import net.minecraft.world.Container;
- import net.minecraft.world.DifficultyInstance;
- import net.minecraft.world.damagesource.DamageSource;
- import net.minecraft.world.entity.Entity;
-@@ -87,7 +_,6 @@
- import net.minecraft.world.entity.animal.Animal;
- import net.minecraft.world.entity.animal.WaterAnimal;
- import net.minecraft.world.entity.animal.horse.SkeletonHorse;
--import net.minecraft.world.entity.boss.EnderDragonPart;
- import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
- import net.minecraft.world.entity.npc.Npc;
- import net.minecraft.world.entity.player.Player;
-@@ -136,1408 +_,1800 @@
- import net.minecraft.world.level.portal.PortalForcer;
- import net.minecraft.world.level.saveddata.maps.MapIndex;
- import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
--import net.minecraft.world.level.storage.DimensionDataStorage;
--import net.minecraft.world.level.storage.LevelStorageSource;
--import net.minecraft.world.level.storage.ServerLevelData;
-+import net.minecraft.world.level.storage.*;
- import net.minecraft.world.phys.AABB;
- import net.minecraft.world.phys.Vec3;
- import net.minecraft.world.phys.shapes.BooleanOp;
- import net.minecraft.world.phys.shapes.Shapes;
- import net.minecraft.world.phys.shapes.VoxelShape;
+@@ -147,1397 +_,1795 @@
  import net.minecraft.world.ticks.LevelTicks;
+ import org.slf4j.Logger;
+ 
 +import org.bukkit.Bukkit;
 +import org.bukkit.WeatherType;
 +import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
@@ -71,8 +13,7 @@
 +import org.bukkit.event.server.MapInitializeEvent;
 +import org.bukkit.event.weather.LightningStrikeEvent;
 +import org.bukkit.event.world.TimeSkipEvent;
- import org.slf4j.Logger;
- 
++
  public class ServerLevel extends Level implements WorldGenLevel {
 -   public static final BlockPos f_8562_ = new BlockPos(100, 50, 0);
 -   private static final int f_184049_ = 12000;
@@ -216,7 +157,7 @@
 +    private final boolean f_8561_;
 +    private net.minecraftforge.common.util.WorldCapabilityData capabilityData;
 +    // CraftBukkit start
-+    public PrimaryLevelData worldDataServer;
++    public net.minecraft.world.level.storage.PrimaryLevelData worldDataServer;
 +    private int tickPosition;
 +    public final LevelStorageSource.LevelStorageAccess convertable;
 +    public final UUID uuid;
@@ -232,10 +173,10 @@
 +        this.pvpMode = p_203762_.m_129799_();
 +        this.uuid = WorldUUID.getUUID(p_203762_.f_129744_.m_197394_(p_203766_).toFile()); // CatServer
 +        // CatServer start
-+        if (p_203765_ instanceof PrimaryLevelData primaryLevelData) {
++        if (p_203765_ instanceof net.minecraft.world.level.storage.PrimaryLevelData primaryLevelData) {
 +            this.worldDataServer = primaryLevelData;
-+        } else if (p_203765_ instanceof DerivedLevelData derivedLevelData) {
-+            this.worldDataServer = CustomDerivedLevelData.wrap(derivedLevelData);
++        } else if (p_203765_ instanceof net.minecraft.world.level.storage.DerivedLevelData derivedLevelData) {
++            this.worldDataServer = catserver.server.level.CustomDerivedLevelData.wrap(derivedLevelData);
 +        }
 +        if (generator != null) {
 +            p_203769_ = new org.bukkit.craftbukkit.v1_18_R2.generator.CustomChunkGenerator(this, p_203769_, generator);
@@ -291,10 +232,10 @@
 +        this.pvpMode = p_203762_.m_129799_();
 +        this.uuid = WorldUUID.getUUID(p_203762_.f_129744_.m_197394_(p_203766_).toFile()); // CatServer
 +        // CatServer start
-+        if (p_203765_ instanceof PrimaryLevelData primaryLevelData) {
++        if (p_203765_ instanceof net.minecraft.world.level.storage.PrimaryLevelData primaryLevelData) {
 +            this.worldDataServer = primaryLevelData;
-+        } else if (p_203765_ instanceof DerivedLevelData derivedLevelData) {
-+            this.worldDataServer = CustomDerivedLevelData.wrap(derivedLevelData);
++        } else if (p_203765_ instanceof net.minecraft.world.level.storage.DerivedLevelData derivedLevelData) {
++            this.worldDataServer = catserver.server.level.CustomDerivedLevelData.wrap(derivedLevelData);
 +        }
 +        if (generator != null) {
 +            p_203769_ = new org.bukkit.craftbukkit.v1_18_R2.generator.CustomChunkGenerator(this, p_203769_, generator);
@@ -1685,39 +1626,34 @@
 +    }
 +
 +    // CatServer start
-+    public boolean addFreshEntity(Entity p_8837_, CreatureSpawnEvent.SpawnReason reason) {
-+        CatServerCaptures.getCatServerCaptures().captureSpawnReason(reason);
-+        return this.m_7967_(p_8837_);
-+    }
-+
 +    public boolean m_7967_(Entity p_8837_) {
-+        var reason = CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
-+        if (reason == null) reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
-+        return this.addEntity(p_8837_, reason); // CraftBukkit
++        CreatureSpawnEvent.SpawnReason reason = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++        return this.addFreshEntity(p_8837_, reason == null ? CreatureSpawnEvent.SpawnReason.DEFAULT : reason);
 +    }
 +
-+    public boolean addWithUUID(Entity p_8848_, CreatureSpawnEvent.SpawnReason reason) {
-+        CatServerCaptures.getCatServerCaptures().captureSpawnReason(reason);
-+        return this.m_8847_(p_8848_);
++    public boolean addFreshEntity(Entity p_8837_, CreatureSpawnEvent.SpawnReason reason) {
++        return this.addEntity(p_8837_, reason);
 +    }
 +
 +    public boolean m_8847_(Entity p_8848_) {
-+        var reason = CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
-+        if (reason == null) reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
-+        return this.addEntity(p_8848_, reason); // CraftBukkit
++        CreatureSpawnEvent.SpawnReason reason = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++        return this.addEntity(p_8848_, reason == null ? CreatureSpawnEvent.SpawnReason.DEFAULT : reason);
 +    }
 +
-+    public void addDuringTeleport(Entity p_143335_, CreatureSpawnEvent.SpawnReason reason) {
-+        // CraftBukkit start
++    public boolean addWithUUID(Entity p_8848_, CreatureSpawnEvent.SpawnReason reason) {
++        return this.addEntity(p_8848_, reason);
++    }
++    // CatServer end
++
++    public void m_143334_(Entity p_143335_) {
++        CreatureSpawnEvent.SpawnReason reason = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
 +        // SPIGOT-6415: Don't call spawn event for entities which travel trough worlds,
 +        // since it is only an implementation detail, that a new entity is created when
 +        // they are traveling between worlds.
-+        CatServerCaptures.getCatServerCaptures().captureSpawnReason(reason);
-+        this.m_143334_(p_143335_);
++        this.addDuringTeleport(p_143335_, reason == null ? null : reason);
 +    }
 +
-+    public void m_143334_(Entity p_143335_) {
-+        var reason = CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++    public void addDuringTeleport(Entity p_143335_, CreatureSpawnEvent.SpawnReason reason) {
 +        this.addEntity(p_143335_, reason);
 +    }
 +    // CatServer end
@@ -1808,23 +1744,25 @@
 +    }
 +
 +    // CatServer start
-+    private AtomicReference<CreatureSpawnEvent.SpawnReason> catserver$addEntityReason = new AtomicReference<>();
-+
-+    public boolean addEntity(Entity entity, CreatureSpawnEvent.SpawnReason spawnReason) {
-+        this.catserver$addEntityReason.set(spawnReason);
-+        return this.m_8872_(entity);
-+    }
-+
++    // Must use CatServerCaptures here to compatible with mixin inject
 +    private boolean m_8872_(Entity p_8873_) {
++        CreatureSpawnEvent.SpawnReason spawnReason = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++        // CatServer start - Thread safety check
++        if (!f_8548_.m_18695_()) {
++            catserver.server.CatServer.LOGGER.debug("Async add entity captured!", new RuntimeException());
++            f_8548_.processQueue.add(() -> addEntity(p_8873_, spawnReason));
++            return true;
++        }
++        // CatServer end
 +        if (p_8873_.m_146910_()) {
-+            //LOGGER.warn("Tried to add entity {} but it was marked as removed already", (Object)EntityType.getKey(p_8873_.getType()));
++            // LOGGER.warn("Tried to add entity {} but it was marked as removed already", (Object)EntityType.getKey(p_8873_.getType()));
 +            return false;
 +        } else {
 +            // SPIGOT-6415: Don't call spawn event when reason is null. For example when an entity teleports to a new world.
-+            var spawnReason = this.catserver$addEntityReason.getAndSet(null); // CatServer
 +            if (spawnReason != null && !CraftEventFactory.doEntityAddEventCalling(this, p_8873_, spawnReason)) {
 +                return false;
 +            }
++            // CraftBukkit end
 +            if (this.f_143244_.m_157533_(p_8873_)) {
 +                p_8873_.onAddedToWorld();
 +                return true;
@@ -1833,33 +1771,39 @@
 +            }
 +        }
 +    }
++
++    private boolean addEntity(Entity p_8873_, CreatureSpawnEvent.SpawnReason spawnReason) {
++        catserver.server.CatServerCaptures.getCatServerCaptures().captureSpawnReason(spawnReason);
++        try {
++            return m_8872_(p_8873_);
++        } finally {
++            // CatServer - Make sure reset
++            catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++        }
++    }
 +    // CatServer end
 +
-+    // CatServer start
-+    private CreatureSpawnEvent.SpawnReason catserver$bukkitReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
-+
-+    public boolean tryAddFreshEntityWithPassengers(Entity p_8861_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason reason) {
-+        this.catserver$bukkitReason = reason;
-+        return m_8860_(p_8861_);
++    public boolean m_8860_(Entity p_8861_) {
++        // CraftBukkit start
++        CreatureSpawnEvent.SpawnReason reason = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason();
++        return tryAddFreshEntityWithPassengers(p_8861_, reason == null ? org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT : reason);
 +    }
 +
-+    public boolean m_8860_(Entity p_8861_) {
++    public boolean tryAddFreshEntityWithPassengers(Entity p_8861_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason reason) {
++        // CraftBukkit end
 +        if (p_8861_.m_142428_().map(Entity::m_142081_).anyMatch(this.f_143244_::m_157550_)) {
 +            return false;
 +        } else {
-+            var reason = this.catserver$bukkitReason;
-+            this.catserver$bukkitReason = null; // CatServer - reset
 +            this.addFreshEntityWithPassengers(p_8861_, reason); // CraftBukkit
 +            return true;
 +        }
 +    }
-+    // CatServer end
 +
 +    public void m_8712_(LevelChunk p_8713_) {
 +        // Spigot Start
 +        for (net.minecraft.world.level.block.entity.BlockEntity tileentity : p_8713_.m_62954_().values()) {
 +            if (tileentity instanceof net.minecraft.world.Container) {
-+                for (org.bukkit.entity.HumanEntity h : Lists.newArrayList(catserver.server.inventory.CatInventoryUtils.getViewers((Container) tileentity))) { // CatServer
++                for (org.bukkit.entity.HumanEntity h : Lists.newArrayList(catserver.server.inventory.CatInventoryUtils.getViewers((net.minecraft.world.Container) tileentity))) { // CatServer
 +                    h.closeInventory();
 +                }
 +            }

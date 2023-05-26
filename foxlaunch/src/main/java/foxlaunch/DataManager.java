@@ -52,6 +52,7 @@ public class DataManager {
             librariesWithoutLaunchMap.put("minecraft_server.1.18.2.jar", new File("foxlaunch-data/"));
             librariesWithoutLaunchMap.put("commons-lang-2.6.jar", new File("libraries/commons-lang/commons-lang/2.6/"));
             librariesMap.put("bootstraplauncher-1.0.0.jar", new File("libraries/cpw/mods/bootstraplauncher/1.0.0/"));
+            librariesMap.put("JarJarFileSystems-0.3.19.jar", new File("libraries/net/minecraftforge/JarJarFileSystems/0.3.19/"));
 
             versionData.put("minecraft", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.SPECIFICATION_VERSION)));
             versionData.put("mcp", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.IMPLEMENTATION_VERSION)));

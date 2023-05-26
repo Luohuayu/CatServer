@@ -5,7 +5,11 @@ import catserver.server.bukkit.CraftCustomPotionEffect;
 import catserver.server.entity.CraftCustomEntity;
 import catserver.server.utils.EnumHelper;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.*;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import io.izzel.arclight.api.Unsafe;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -14,16 +18,20 @@ import net.minecraft.stats.Stats;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.decoration.Motive;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.bukkit.Art;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Statistic;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Biome;
 import org.bukkit.craftbukkit.v1_18_R2.CraftStatistic;
 import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
@@ -40,11 +48,21 @@ import org.bukkit.potion.PotionType;
 import org.jetbrains.annotations.Contract;
 
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 public class BukkitInjector {
 
     public static BiMap<ResourceKey<LevelStem>, World.Environment> environments = HashBiMap.create(ImmutableMap.<ResourceKey<LevelStem>, World.Environment>builder().put(LevelStem.OVERWORLD, World.Environment.NORMAL).put(LevelStem.NETHER, World.Environment.NETHER).put(LevelStem.END, World.Environment.THE_END).build());
+
+    public static Map<Villager.Profession, ResourceLocation> professionMap = new HashMap<>();
+    public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributeToNameMap = new HashMap<>();
+    public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
+    public static Map<Motive, Art> artMap = new HashMap<>();
 
     public static void registerAll() {
         registerMaterials();
@@ -55,6 +73,8 @@ public class BukkitInjector {
         registerVillagerProfessions();
         registerStatistics();
         registerSpawnCategory();
+        registerArts();
+        registerAttribute();
         try {
             for (var field : org.bukkit.Registry.class.getFields()) {
                 if (Modifier.isStatic(field.getModifiers()) && field.get(null) instanceof org.bukkit.Registry.SimpleRegistry<?> registry) {
@@ -63,6 +83,50 @@ public class BukkitInjector {
             }
         } catch (Throwable ignored) {
         }
+    }
+
+    private static void registerAttribute() {
+        int length = Attribute.values().length;
+        List<Attribute> attributes = Lists.newArrayList();
+        for (var attribute : ForgeRegistries.ATTRIBUTES) {
+            ResourceLocation location = attribute.getRegistryName();
+            String name = standardize(location);
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
+            Attribute bukkitAttribute = EnumHelper.makeEnum(org.bukkit.attribute.Attribute.class, name, length++, ImmutableList.of(NamespacedKey.class), ImmutableList.of(CraftNamespacedKey.fromMinecraft(location)));
+            attributes.add(bukkitAttribute);
+            attributeToNameMap.put(bukkitAttribute, location);
+            nameToAttributeMap.put(location, bukkitAttribute);
+            CatServer.LOGGER.debug("Save-Attribute: {}", name);
+        }
+        EnumHelper.addEnums(Attribute.class, attributes);
+        CatServer.LOGGER.info("Registered {} Attribute into Bukkit", attributes.size());
+    }
+
+    private static void registerArts() {
+        int length = Art.values().length;
+        List<Art> arts = Lists.newArrayList();
+        HashMap<String, Art> BY_NAME = ObfuscationReflectionHelper.getPrivateValue(Art.class, null, "BY_NAME");
+        HashMap<Integer, Art> BY_ID = ObfuscationReflectionHelper.getPrivateValue(Art.class, null, "BY_ID");
+        for (Motive motive : ForgeRegistries.PAINTING_TYPES) {
+            var width = motive.getWidth();
+            var height = motive.getHeight();
+            ResourceLocation location = motive.getRegistryName();
+            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+                continue;
+            }
+            var motiveName = standardize(location);
+            int id = length - 1;
+            Art art = EnumHelper.makeEnum(Art.class, motiveName, length++, ImmutableList.of(Integer.TYPE, Integer.TYPE, Integer.TYPE), ImmutableList.of(id, width, height));
+            arts.add(art);
+            artMap.put(motive, art);
+            BY_NAME.put(motiveName, art);
+            BY_ID.put(id, art);
+            CatServer.LOGGER.debug("Save-Art: {}", motiveName);
+        }
+        EnumHelper.addEnums(Art.class, arts);
+        CatServer.LOGGER.info("Registered {} Art into Bukkit", arts.size());
     }
 
     private static void registerSpawnCategory() {
@@ -164,6 +228,7 @@ public class BukkitInjector {
             }
             var newPfName = standardize(location);
             var bukkitProfessions = EnumHelper.makeEnum(Villager.Profession.class, newPfName, i++, ImmutableList.of(), ImmutableList.of());
+            professionMap.put(bukkitProfessions, location);
             professions.add(bukkitProfessions);
             CatServer.LOGGER.debug("Save-VillagerProfessions: {}", bukkitProfessions.name());
         }

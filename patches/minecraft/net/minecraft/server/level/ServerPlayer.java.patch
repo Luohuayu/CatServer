@@ -44,7 +44,7 @@
  import net.minecraft.world.level.block.HorizontalDirectionalBlock;
  import net.minecraft.world.level.block.NetherPortalBlock;
  import net.minecraft.world.level.block.entity.BlockEntity;
-@@ -132,1393 +_,1945 @@
+@@ -132,1393 +_,1951 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Score;
@@ -1524,8 +1524,15 @@
 +
 +    @Nullable
 +    public Entity changeDimension(ServerLevel p_9180_, PlayerTeleportEvent.TeleportCause cause) {
++        // CatServer start
 +        CatServerCaptures.getCatServerCaptures().captureChangeDimCause(cause);
-+        return this.changeDimension(p_9180_, p_9180_.m_8871_());
++        try {
++            return this.changeDimension(p_9180_, p_9180_.m_8871_());
++        } finally {
++            // CatServer - Make sure reset
++            CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause();
++        }
++        // CatServer end
 +    }
 +
 +    @Nullable
@@ -1569,9 +1576,7 @@
 +                    }
 +                    Location enter = this.getBukkitEntity().getLocation();
 +                    Location exit = (exitLevel[0] == null) ? null : new Location(exitLevel[0].getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
-+                    var cause = CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause();
-+                    if (cause == null) cause = PlayerTeleportEvent.TeleportCause.UNKNOWN;
-+                    PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, cause);
++                    PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause());
 +                    Bukkit.getServer().getPluginManager().callEvent(tpEvent);
 +                    if (tpEvent.isCancelled() || tpEvent.getTo() == null) {
 +                        return null;
@@ -1656,17 +1661,11 @@
 +
 +    }
 +
-+    protected Optional<BlockUtil.FoundRectangle> getExitPortal(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
-+        CatServerCaptures.getCatServerCaptures().capturePortalSearchRadius(searchRadius);
-+        CatServerCaptures.getCatServerCaptures().captureCanCreatePortal(canCreatePortal);
-+        CatServerCaptures.getCatServerCaptures().capturePortalRadius(createRadius);
-+        return this.m_183318_(p_184131_, p_184132_, p_184133_, p_184134_);
++    protected Optional<BlockUtil.FoundRectangle> m_183318_(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_) {
++        return this.getExitPortal(p_184131_, p_184132_, p_184133_, p_184134_, p_184133_ ? 16 : 128, true, 16); // CatServer
 +    }
 +
-+    protected Optional<BlockUtil.FoundRectangle> m_183318_(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_) {
-+        var searchRadius = CatServerCaptures.getCatServerCaptures().getCapturePortalSearchRadius();
-+        var canCreatePortal = CatServerCaptures.getCatServerCaptures().getCaptureCanCreatePortal();
-+        var createRadius = CatServerCaptures.getCatServerCaptures().getCapturePortalRadius();
++    protected Optional<BlockUtil.FoundRectangle> getExitPortal(ServerLevel p_184131_, BlockPos p_184132_, boolean p_184133_, WorldBorder p_184134_, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
 +        Optional<BlockUtil.FoundRectangle> optional = super.getExitPortal(p_184131_, p_184132_, p_184133_, p_184134_, searchRadius, canCreatePortal, createRadius); // CraftBukkit
 +        if (optional.isPresent() || !canCreatePortal) { // CraftBukkit
 +            return optional;
@@ -1717,6 +1716,13 @@
 +        this.f_36096_.m_38946_();
 +    }
 +
++    // CatServer start
++    public boolean isForceSleep; // CatServer
++    public Either<Player.BedSleepingProblem, Unit> startSleepInBed(BlockPos p_36203_, boolean force) {
++        isForceSleep = force;
++        return m_7720_(p_36203_); // CatServer - Call origin method
++    }
++    // CatServer end
 +    public Either<Player.BedSleepingProblem, Unit> m_7720_(BlockPos p_9115_) {
 +        Direction enumdirection = this.f_19853_.m_8055_(p_9115_).m_61143_(HorizontalDirectionalBlock.f_54117_);
 +        Either<Player.BedSleepingProblem, Unit> bedResult = null;
@@ -1761,10 +1767,10 @@
 +            return bedResult; // return immediately if the result is not bypassable by plugins
 +        }
 +
-+        boolean force = CatServerCaptures.getCatServerCaptures().getCaptureIsForceSleep(); // CatServer
-+        if (force) {
++        if (isForceSleep) {
 +            bedResult = Either.right(Unit.INSTANCE);
 +        }
++        isForceSleep = false; // CatServer - Reset
 +
 +        bedResult = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callPlayerBedEnterEvent(this, p_9115_, bedResult);
 +        if (bedResult.left().isPresent()) {

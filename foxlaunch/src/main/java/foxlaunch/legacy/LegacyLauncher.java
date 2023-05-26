@@ -32,15 +32,19 @@ public class LegacyLauncher {
     }
 
     public static void loadJars() throws Exception {
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm/9.2/asm-9.2.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-tree/9.2/asm-tree-9.2.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-util/9.2/asm-util-9.2.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.jar");
-        JVMHack.addModuleDynamic("libraries/cpw/mods/securejarhandler/1.0.3/securejarhandler-1.0.3.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm/9.5/asm-9.5.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-tree/9.5/asm-tree-9.5.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-analysis/9.5/asm-analysis-9.5.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-util/9.5/asm-util-9.5.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-commons/9.5/asm-commons-9.5.jar");
+        JVMHack.addModuleDynamic("libraries/cpw/mods/securejarhandler/1.0.8/securejarhandler-1.0.8.jar");
         JVMHack.addModuleDynamic("libraries/cpw/mods/bootstraplauncher/1.0.0/bootstraplauncher-1.0.0.jar");
+        JVMHack.addModuleDynamic("libraries/net/minecraftforge/JarJarFileSystems/0.3.19/JarJarFileSystems-0.3.19.jar");
 
         JVMHack.addModuleOptionDynamic("addExportsToAllUnnamed", "cpw.mods.bootstraplauncher", "cpw.mods.bootstraplauncher", null);
+        JVMHack.addModuleOptionDynamic("addOpens", "java.base", "java.util.jar", "cpw.mods.securejarhandler");
+        JVMHack.addModuleOptionDynamic("addOpens", "java.base", "java.lang.invoke", "cpw.mods.securejarhandler");
+        JVMHack.addModuleOptionDynamic("addExports", "java.base", "sun.security.util", "cpw.mods.securejarhandler");
 
         JarLoader.loadJar(new File("libraries/commons-lang/commons-lang/2.6/commons-lang-2.6.jar"));
     }

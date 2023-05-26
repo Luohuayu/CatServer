@@ -68,6 +68,12 @@ public enum Attribute implements Keyed {
         this.key = NamespacedKey.minecraft(key);
     }
 
+    // CatServer start
+    private Attribute(NamespacedKey key) {
+        this.key = key;
+    }
+    // CatServer end
+
     @NotNull
     @Override
     public NamespacedKey getKey() {
