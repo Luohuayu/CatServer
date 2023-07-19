@@ -1,5 +1,6 @@
 package moe.loliserver;
 
+import catserver.server.CatServer;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -16,6 +17,9 @@ import net.minecraft.entity.item.PaintingType;
 import net.minecraft.entity.merchant.villager.VillagerProfession;
 import net.minecraft.item.Item;
 import net.minecraft.potion.Effect;
+import net.minecraft.potion.EffectInstance;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.BannerPattern;
 import net.minecraft.util.RegistryKey;
@@ -34,13 +38,14 @@ import org.bukkit.WorldType;
 import org.bukkit.block.banner.PatternType;
 import org.bukkit.craftbukkit.v1_16_R3.enchantments.CraftEnchantment;
 import org.bukkit.craftbukkit.v1_16_R3.potion.CraftPotionEffectType;
+import org.bukkit.craftbukkit.v1_16_R3.potion.CraftPotionUtil;
 import org.bukkit.craftbukkit.v1_16_R3.util.CraftMagicNumbers;
 import org.bukkit.craftbukkit.v1_16_R3.util.CraftNamespacedKey;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Villager;
-import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.potion.PotionType;
 import org.bukkit.util.permissions.DefaultPermissions;
 
 public class BukkitInjector {
@@ -123,11 +128,19 @@ public class BukkitInjector {
 
     public static void addEnumPotion() {
         // Points
-        for (Map.Entry<RegistryKey<Effect>, Effect> entry : ForgeRegistries.POTIONS.getEntries()) {
-            PotionEffectType pet = new CraftPotionEffectType(entry.getValue());
+        for (Effect effect : ForgeRegistries.POTIONS) {
+            PotionEffectType pet = new CraftPotionEffectType(effect);
             PotionEffectType.registerPotionEffectType(pet);
         }
         PotionEffectType.stopAcceptingRegistrations();
+        for (Potion potionType : ForgeRegistries.POTION_TYPES) {
+            if (CraftPotionUtil.toBukkit(potionType.getRegistryName().toString()).getType() == PotionType.UNCRAFTABLE && potionType != Potions.EMPTY) {
+                String name = normalizeName(potionType.getRegistryName().toString());
+                EffectInstance instance = potionType.getEffects().isEmpty() ? null : potionType.getEffects().get(0);
+                PotionType type = EnumHelper.addEnum0(PotionType.class, name, new Class[]{PotionEffectType.class, Boolean.TYPE, Boolean.TYPE}, instance == null ? null : PotionEffectType.getById(Effect.getId(instance.getEffect())), false, false);
+                if (type != null) CatServer.log.debug("Save-PotionType: {} - {}", name, type.name());
+            }
+        }
     }
 
     public static void addEnumBiome() {
