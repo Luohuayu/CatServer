@@ -61,6 +61,7 @@ public class BukkitInjector {
     public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributemap = new HashMap<>(); // attributeToNameMap
     public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
     public static Map<PaintingType, Art> artMap = new HashMap<>();
+    public static Map<org.bukkit.block.Biome, Biome> biomeMap = new HashMap<>();
 
     public static Map<net.minecraft.entity.EntityType<?>, String> entityTypeMap = new HashMap<>();
 
@@ -150,6 +151,7 @@ public class BukkitInjector {
             if (!biomeName.equals(NamespacedKey.MINECRAFT) && !map.contains(biomeName)) {
                 map.add(biomeName);
                 org.bukkit.block.Biome biome = EnumHelper.addEnum0(org.bukkit.block.Biome.class, biomeName, new Class[0]);
+                biomeMap.put(biome, entry.getValue());
                 LoliServer.LOGGER.debug("Save-BIOME:" + biome.name() + " - " + biomeName);
             }
         }

@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import moe.loliserver.BukkitInjector;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ContainerBlock;
 import net.minecraft.block.RedstoneWireBlock;
@@ -505,7 +507,13 @@ public class CraftBlock implements Block {
             return null;
         }
 
-        return registry.get(CraftNamespacedKey.toMinecraft(bio.getKey()));
+        // CatServer start - fix bukkit use forgeMod's biomes
+        if (BukkitInjector.biomeMap.containsKey(bio)) {
+            return BukkitInjector.biomeMap.get(bio);
+        } else {
+            return registry.get(CraftNamespacedKey.toMinecraft(bio.getKey()));
+        }
+        // CatServer
     }
 
     @Override

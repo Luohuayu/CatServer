@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import moe.loliserver.BukkitInjector;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ChorusFlowerBlock;
 import net.minecraft.block.RedstoneDiodeBlock;
@@ -998,7 +1000,14 @@ public class CraftWorld implements World {
     @Override
     public void setBiome(int x, int y, int z, Biome bio) {
         Preconditions.checkArgument(bio != Biome.CUSTOM, "Cannot set the biome to %s", bio);
-        net.minecraft.world.biome.Biome bb = CraftBlock.biomeToBiomeBase(getHandle().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), bio);
+        // CatServer start - fix bukkit use forgeMod's biomes
+        net.minecraft.world.biome.Biome bb;
+        if (BukkitInjector.biomeMap.containsKey(bio)) {
+            bb = BukkitInjector.biomeMap.get(bio);
+        } else {
+            bb = CraftBlock.biomeToBiomeBase(getHandle().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), bio);
+        }
+        // CatServer end
         BlockPos pos = new BlockPos(x, 0, z);
         if (this.world.hasChunkAt(pos)) {
             net.minecraft.world.chunk.Chunk chunk = this.world.getChunkAt(pos);
