@@ -98,7 +98,7 @@ public class CatServerConfig {
         craftRequestThrottle = getOrWriteIntConfig("network.packetLimit.craftRequestThrottle", craftRequestThrottle);
         itemNBTThrottle = getOrWriteIntConfig("network.packetLimit.itemNBTThrottle", itemNBTThrottle);
         limitFastClickGUI = getOrWriteBooleanConfig("network.packetLimit.fastClickGUI", config.getBoolean("vanilla.limitFastClickGUI"));
-        clickGUIThrottle = getOrWriteIntConfig("network.packetLimit.clickGUIThrottle ", clickGUIThrottle);
+        clickGUIThrottle = getOrWriteIntConfig("network.packetLimit.clickGUIThrottle", clickGUIThrottle);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
