@@ -105,6 +105,10 @@ public class CatServerConfig {
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableAsyncCatchWarn = getOrWriteBooleanConfig("disableAsyncCatchWarn", disableAsyncCatchWarn);
         versionCheck = getOrWriteBooleanConfig("versionCheck", versionCheck);
+        // remove old config
+        config.set("vanilla.limitFastClickGUI", null);
+        config.set("disableFMLHandshake", null);
+        config.set("disableFMLStatusModInfo", null);
         // save config
         try {
             config.save(configFile);
