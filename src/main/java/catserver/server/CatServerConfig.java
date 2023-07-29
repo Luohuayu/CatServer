@@ -97,12 +97,12 @@ public class CatServerConfig {
         // network
         craftRequestThrottle = getOrWriteIntConfig("network.packetLimit.craftRequestThrottle", craftRequestThrottle);
         itemNBTThrottle = getOrWriteIntConfig("network.packetLimit.itemNBTThrottle", itemNBTThrottle);
-        limitFastClickGUI = getOrWriteBooleanConfig("network.packetLimit.fastClickGUI", config.getBoolean("vanilla.limitFastClickGUI"));
+        limitFastClickGUI = getOrWriteBooleanConfig("network.packetLimit.fastClickGUI", config.getBoolean("vanilla.limitFastClickGUI", limitFastClickGUI));
         clickGUIThrottle = getOrWriteIntConfig("network.packetLimit.clickGUIThrottle", clickGUIThrottle);
+        disableFMLHandshake = getOrWriteBooleanConfig("network.fml.disableHandshake", config.getBoolean("disableFMLHandshake", disableFMLHandshake));
+        disableFMLStatusModInfo = getOrWriteBooleanConfig("network.fml.disableStatusModInfo", config.getBoolean("disableFMLStatusModInfo", disableFMLStatusModInfo));
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
-        disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
-        disableFMLStatusModInfo = getOrWriteBooleanConfig("disableFMLStatusModInfo", disableFMLStatusModInfo);
         disableAsyncCatchWarn = getOrWriteBooleanConfig("disableAsyncCatchWarn", disableAsyncCatchWarn);
         versionCheck = getOrWriteBooleanConfig("versionCheck", versionCheck);
         // save config
