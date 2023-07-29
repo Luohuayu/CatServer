@@ -31,7 +31,6 @@ public class CatServerConfig {
     public boolean preventPistonPushTileEntity = true;
     public boolean preventPistonPushRail = false;
     public boolean preventPistonPushSlimeBlock = false;
-    public boolean limitFastClickGUI = false;
 
     public boolean enableDynmapCompatible = true;
     public boolean enableCoreProtectModBlockCompatible = true;
@@ -45,8 +44,10 @@ public class CatServerConfig {
 
     public boolean waitForgeServerChatEvent = false;
 
-    public boolean securityOpManager = false;
-    public boolean securityGameModeManager = false;
+    public int craftRequestThrottle = 20;
+    public int itemNBTThrottle = 200;
+    public boolean limitFastClickGUI = false;
+    public int clickGUIThrottle = 50;
 
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
@@ -81,7 +82,6 @@ public class CatServerConfig {
         preventPistonPushTileEntity = getOrWriteBooleanConfig("vanilla.preventPistonPushTileEntity", preventPistonPushTileEntity);
         preventPistonPushRail = getOrWriteBooleanConfig("vanilla.preventPistonPushRail", preventPistonPushRail);
         preventPistonPushSlimeBlock = getOrWriteBooleanConfig("vanilla.preventPistonPushSlimeBlock", preventPistonPushRail);
-        limitFastClickGUI = getOrWriteBooleanConfig("vanilla.limitFastClickGUI", limitFastClickGUI);
         // plugin
         enableDynmapCompatible = getOrWriteBooleanConfig("plugin.patcher.enableDynmapCompatible", enableDynmapCompatible);
         enableCoreProtectModBlockCompatible = getOrWriteBooleanConfig("plugin.patcher.enableCoreProtectModBlockCompatible", enableCoreProtectModBlockCompatible);
@@ -94,9 +94,11 @@ public class CatServerConfig {
         defaultInstallPluginSpark = getOrWriteBooleanConfig("plugin.defaultInstall.spark", defaultInstallPluginSpark);
         // async
         waitForgeServerChatEvent = getOrWriteBooleanConfig("async.waitForgeServerChatEvent", waitForgeServerChatEvent);
-        // security
-        securityOpManager = getOrWriteBooleanConfig("security.opManager", securityOpManager);
-        securityGameModeManager = getOrWriteBooleanConfig("security.gameModeManager", securityGameModeManager);
+        // network
+        craftRequestThrottle = getOrWriteIntConfig("network.packetLimit.craftRequestThrottle", craftRequestThrottle);
+        itemNBTThrottle = getOrWriteIntConfig("network.packetLimit.itemNBTThrottle", itemNBTThrottle);
+        limitFastClickGUI = getOrWriteBooleanConfig("network.packetLimit.fastClickGUI", config.getBoolean("vanilla.limitFastClickGUI"));
+        clickGUIThrottle = getOrWriteIntConfig("network.packetLimit.clickGUIThrottle ", clickGUIThrottle);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableFMLHandshake = getOrWriteBooleanConfig("disableFMLHandshake", disableFMLHandshake);
