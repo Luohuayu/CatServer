@@ -2,6 +2,7 @@ package org.bukkit.craftbukkit.v1_16_R3.entity;
 
 import catserver.server.PlayerDataFixer;
 import catserver.server.entity.CraftCustomChestHorse;
+import catserver.server.entity.CraftCustomCreature;
 import catserver.server.entity.CraftCustomEntity;
 import catserver.server.entity.CraftCustomHorse;
 import catserver.server.entity.CraftCustomProjectile;
@@ -312,7 +313,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                     else if (entity instanceof WanderingTraderEntity) { return new CraftWanderingTrader(server, (WanderingTraderEntity) entity); }
                     else { return new CraftAbstractVillager(server, (AbstractVillagerEntity) entity); }
                 }
-                else { return new CraftCreature(server, (CreatureEntity) entity); }
+                else { return new CraftCustomCreature(server, (CreatureEntity) entity); } // CatServer
             }
             // Slimes are a special (and broken) case
             else if (entity instanceof SlimeEntity) {

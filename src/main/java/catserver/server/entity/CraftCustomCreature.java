@@ -1,17 +1,17 @@
 package catserver.server.entity;
 
 import moe.loliserver.BukkitInjector;
-import net.minecraft.entity.passive.horse.AbstractHorseEntity;
+import net.minecraft.entity.MobEntity;
 import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
-import org.bukkit.craftbukkit.v1_16_R3.entity.CraftAbstractHorse;
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftMob;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Horse;
+import org.jetbrains.annotations.NotNull;
 
-public class CraftCustomChestHorse extends CraftAbstractHorse {
+public class CraftCustomCreature extends CraftMob {
 
     public String entityName;
 
-    public CraftCustomChestHorse(CraftServer server, AbstractHorseEntity entity) {
+    public CraftCustomCreature(CraftServer server, MobEntity entity) {
         super(server, entity);
         this.entityName = BukkitInjector.entityTypeMap.get(entity.getType());
         if (entityName == null) {
@@ -20,12 +20,7 @@ public class CraftCustomChestHorse extends CraftAbstractHorse {
     }
 
     @Override
-    public String toString() {
-        return "CraftCustomHorse";
-    }
-
-    @Override
-    public EntityType getType() {
+    public @NotNull EntityType getType() {
         EntityType entityType = EntityType.fromName(this.entityName);
         if (entityType != null) {
             return entityType;
@@ -35,7 +30,7 @@ public class CraftCustomChestHorse extends CraftAbstractHorse {
     }
 
     @Override
-    public Horse.Variant getVariant() {
-        return Horse.Variant.MOD_CUSTOM;
+    public String toString() {
+        return "CraftCustomMob";
     }
 }
