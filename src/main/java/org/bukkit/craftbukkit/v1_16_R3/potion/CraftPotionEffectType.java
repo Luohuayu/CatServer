@@ -1,6 +1,5 @@
 package org.bukkit.craftbukkit.v1_16_R3.potion;
 
-import moe.loliserver.BukkitInjector;
 import net.minecraft.potion.Effect;
 import org.bukkit.Color;
 import org.bukkit.potion.PotionEffectType;
@@ -90,17 +89,7 @@ public class CraftPotionEffectType extends PotionEffectType {
             case 32:
                 return "HERO_OF_THE_VILLAGE";
             default:
-                // CatServer start - handle custom effectType
-                String effectType = "";
-                if (getId() > 32) {
-                    if (handle != null && handle.getRegistryName() != null) {
-                        effectType = BukkitInjector.normalizeName(handle.getRegistryName().toString());
-                    } else {
-                        effectType = "UNKNOWN_EFFECT_TYPE_" + getId();
-                    }
-                }
-                return effectType;
-            // CatServer end
+                return "UNKNOWN_EFFECT_TYPE_" + getId();
         }
     }
 

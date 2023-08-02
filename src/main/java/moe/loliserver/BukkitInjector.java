@@ -1,6 +1,7 @@
 package moe.loliserver;
 
 import catserver.server.CatServer;
+import catserver.server.bukkit.CraftCustomPotionEffectType;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -130,7 +131,8 @@ public class BukkitInjector {
     public static void addEnumPotion() {
         // Points
         for (Effect effect : ForgeRegistries.POTIONS) {
-            PotionEffectType pet = new CraftPotionEffectType(effect);
+            String name = normalizeName(effect.getRegistryName().toString());
+            PotionEffectType pet = new CraftCustomPotionEffectType(effect, name);
             PotionEffectType.registerPotionEffectType(pet);
         }
         PotionEffectType.stopAcceptingRegistrations();
