@@ -154,42 +154,59 @@
        IInventory iinventory = func_145884_b(p_145891_0_);
        if (iinventory != null) {
           Direction direction = Direction.DOWN;
-@@ -198,12 +_,41 @@
+@@ -198,12 +_,57 @@
        ItemStack itemstack = p_174915_1_.func_70301_a(p_174915_2_);
        if (!itemstack.func_190926_b() && func_174921_b(p_174915_1_, itemstack, p_174915_2_, p_174915_3_)) {
           ItemStack itemstack1 = itemstack.func_77946_l();
 -         ItemStack itemstack2 = func_174918_a(p_174915_1_, p_174915_0_, p_174915_1_.func_70298_a(p_174915_2_, 1), (Direction)null);
 +
-+         // CraftBukkit start - Call event on collection of items from inventories into the hopper
-+         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_174915_1_.func_70298_a(p_174915_2_, p_174915_0_.func_145831_w().spigotConfig.hopperAmount)); // Spigot
-+         Inventory sourceInventory;
-+         // Have to special case large chests as they work oddly
-+         if (p_174915_1_ instanceof DoubleSidedInventory) {
-+            sourceInventory = new org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryDoubleChest((DoubleSidedInventory) p_174915_1_);
-+         } else {
-+            sourceInventory = CatInventoryUtils.getOwner(p_174915_1_).getInventory();
-+         }
++         // CatServer start - Optimized of call event on collection of items from inventories into the hopper
++         ItemStack originNMSStack = p_174915_1_.func_70298_a(p_174915_2_, p_174915_0_.func_145831_w().spigotConfig.hopperAmount);
++         ItemStack resultNMSStack = originNMSStack;
 +
 +         InventoryHolder owner = CatInventoryUtils.getOwner(p_174915_0_);
 +         Inventory hopperOwner = (owner != null ? owner.getInventory() : new CatCustomInventory(p_174915_0_).getInventory());
 +
-+         InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, oitemstack.clone(), hopperOwner, false);
-+         p_174915_0_.func_145831_w().getCBServer().getPluginManager().callEvent(event);
-+         if (event.isCancelled()) {
-+            p_174915_1_.func_70299_a(p_174915_2_, itemstack1);
-+            if (p_174915_0_ instanceof HopperTileEntity) {
-+               ((HopperTileEntity) p_174915_0_).func_145896_c(p_174915_0_.func_145831_w().spigotConfig.hopperTransfer); // Spigot
-+            } else if (p_174915_0_ instanceof HopperMinecartEntity) {
-+               ((HopperMinecartEntity) p_174915_0_).func_98042_n(p_174915_0_.func_145831_w().spigotConfig.hopperTransfer / 2); // Spigot
++         InventoryMoveItemEvent event = null;
++         if (true /*!TileEntityHopper.skipHopperEvents*/) {
++            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originNMSStack);
++
++            Inventory sourceInventory;
++            // Have to special case large chests as they work oddly
++            if (p_174915_1_ instanceof DoubleSidedInventory) {
++               sourceInventory = new org.bukkit.craftbukkit.v1_16_R3.inventory.CraftInventoryDoubleChest((DoubleSidedInventory) p_174915_1_);
++            } else {
++               sourceInventory = CatInventoryUtils.getOwner(p_174915_1_).getInventory();
 +            }
-+            return false;
++
++            if (sourceInventory != null) {
++               event = new InventoryMoveItemEvent(sourceInventory, oitemstack, hopperOwner, false);
++               p_174915_0_.func_145831_w().getCBServer().getPluginManager().callEvent(event);
++
++               if (event.isCancelled()) {
++                  p_174915_1_.func_70299_a(p_174915_2_, itemstack1);
++                  if (p_174915_0_ instanceof HopperTileEntity) {
++                     ((HopperTileEntity) p_174915_0_).func_145896_c(p_174915_0_.func_145831_w().spigotConfig.hopperTransfer); // Spigot
++                  } else if (p_174915_0_ instanceof HopperMinecartEntity) {
++                     ((HopperMinecartEntity) p_174915_0_).func_98042_n(p_174915_0_.func_145831_w().spigotConfig.hopperTransfer / 2); // Spigot
++                  }
++                  return false;
++               }
++            }
++
++            if (event.isCallSetItem) resultNMSStack = CraftItemStack.asNMSCopy(event.getRawItem());
 +         }
-+         int origCount = event.getItem().getAmount(); // Spigot
-+         ItemStack itemstack2 = func_174918_a(p_174915_1_, p_174915_0_, CraftItemStack.asNMSCopy(event.getItem()), null);
-+         // CraftBukkit end
++         int origCount = resultNMSStack.func_190916_E();
++         ItemStack itemstack2 = func_174918_a(p_174915_1_, p_174915_0_, resultNMSStack, null);
++         // CatServer end
 +
           if (itemstack2.func_190926_b()) {
-             p_174915_1_.func_70296_d();
+-            p_174915_1_.func_70296_d();
++            if (event == null || !event.isCallSetItem || ItemStack.func_77989_b(resultNMSStack, originNMSStack)) {
++               p_174915_1_.func_70296_d();
++            } else {
++               p_174915_1_.func_70299_a(p_174915_2_, itemstack1);
++            }
              return true;
           }
  
