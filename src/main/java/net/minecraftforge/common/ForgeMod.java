@@ -243,7 +243,7 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
 
     public void missingSoundMapping(RegistryEvent.MissingMappings<SoundEvent> event)
     {
-        //Removed in 1.15, see https://minecraft.gamepedia.com/Parrot#History
+        //Removed in 1.15, see https://minecraft.wiki/w/Parrot#History
         List<String> removedSounds = Arrays.asList("entity.parrot.imitate.panda", "entity.parrot.imitate.zombie_pigman", "entity.parrot.imitate.enderman", "entity.parrot.imitate.polar_bear", "entity.parrot.imitate.wolf");
         for (RegistryEvent.MissingMappings.Mapping<SoundEvent> mapping : event.getAllMappings())
         {
