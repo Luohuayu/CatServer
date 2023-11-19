@@ -53,4 +53,4 @@ libraries/net/minecraftforge/forgespi/{SPI_VERSION}/forgespi-{SPI_VERSION}.jar
 ```
 
 ### 赞助商
-[昱通云 - 想开服? 点我点我! >_<](https://blog.ytonidc.com/2022/06/05/server-price/)
+[昱通云 - 想开服? 点我点我! >_<](https://item.taobao.com/item.htm?id=708369974528)
