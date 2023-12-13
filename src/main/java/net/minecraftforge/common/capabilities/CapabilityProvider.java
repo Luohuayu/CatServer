@@ -123,7 +123,7 @@ public abstract class CapabilityProvider<B extends CapabilityProvider<B>> implem
         }
     }
 
-    protected final @Nullable CompoundNBT serializeCaps()
+    public final @Nullable CompoundNBT serializeCaps()
     {
         if(isLazy && !initialized)
         {
