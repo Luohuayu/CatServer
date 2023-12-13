@@ -146,6 +146,10 @@ public final class PluginClassLoader extends URLClassLoader {
             return ClassLoader.getSystemClassLoader().loadClass(name);
         }
 
+        if (name.startsWith("org.apache.commons.codec.")) {
+            return ClassLoader.getSystemClassLoader().loadClass(name);
+        }
+
         Class<?> result = classes.get(name);
         synchronized (name.intern()) {
             if (result == null) {

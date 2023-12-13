@@ -47,6 +47,7 @@ public class LegacyLauncher {
         JVMHack.addModuleOptionDynamic("addExports", "java.base", "sun.security.util", "cpw.mods.securejarhandler");
 
         JarLoader.loadJar(new File("libraries/commons-lang/commons-lang/2.6/commons-lang-2.6.jar"));
+        JarLoader.loadJar(new File("libraries/commons-codec/commons-codec/1.10/commons-codec-1.10.jar"));
     }
 
     static class JVMHack {
