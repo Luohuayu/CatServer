@@ -824,11 +824,14 @@ public class CraftEventFactory {
         victim.expToDrop = event.getDroppedExp();
         victim.newExp = event.getNewExp();
 
+        // CatServer - handle later
+        /*
         for (org.bukkit.inventory.ItemStack stack : event.getDrops()) {
             if (stack == null || stack.getType() == Material.AIR) continue;
 
             world.dropItem(entity.getLocation(), stack);
         }
+        */
 
         return event;
     }
@@ -1222,6 +1225,7 @@ public class CraftEventFactory {
 
         InventoryOpenEvent event = new InventoryOpenEvent(container.getBukkitView());
         event.setCancelled(cancelled);
+        if (container.getBukkitView() != null) // CatServer - Bypass call event if Bukkit view is null (mod custom container)
         server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
@@ -1371,6 +1375,7 @@ public class CraftEventFactory {
 
     public static void handleInventoryCloseEvent(net.minecraft.world.entity.player.Player human) {
         InventoryCloseEvent event = new InventoryCloseEvent(human.containerMenu.getBukkitView());
+        if (human.containerMenu.getBukkitView() != null) // CatServer - Bypass call event if Bukkit view is null (mod custom container)
         human.level.getCraftServer().getPluginManager().callEvent(event);
         human.containerMenu.transferTo(human.inventoryMenu, human.getBukkitEntity());
     }

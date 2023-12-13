@@ -64,7 +64,11 @@ public interface EnderDragon extends ComplexLivingEntity, Boss, Mob {
         /**
          * The dragon will hover at its current location, not performing any actions.
          */
-        HOVER
+        HOVER,
+        /**
+         * Mod custom
+         */
+        CUSTOM
     }
 
     /**

@@ -1446,6 +1446,30 @@ public interface Server extends PluginMessageRecipient {
     @Nullable
     Entity getEntity(@NotNull UUID uuid);
 
+    // Paper start
+    /**
+     * Gets the ccurrent server TPS
+     * @return current server TPS (1m, 5m, 15m in CatServer)
+     */
+    @NotNull
+    public double[] getTPS();
+
+    /**
+     * Get a sample of the servers last tick times (in nanos)
+     *
+     * @return A sample of the servers last tick times (in nanos)
+     */
+    @NotNull
+    long[] getTickTimes();
+
+    /**
+     * Get the average tick time (in millis)
+     *
+     * @return Average tick time (in millis)
+     */
+    double getAverageTickTime();
+    // Paper end
+
     /**
      * Get the advancement specified by this key.
      *

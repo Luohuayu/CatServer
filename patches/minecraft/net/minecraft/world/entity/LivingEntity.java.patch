@@ -143,7 +143,7 @@
 +   // CraftBukkit start
 +   public int expToDrop;
 +   public boolean forceDrops;
-+   public ArrayList<org.bukkit.inventory.ItemStack> drops = new ArrayList<org.bukkit.inventory.ItemStack>();
++   // public ArrayList<org.bukkit.inventory.ItemStack> drops = new ArrayList<org.bukkit.inventory.ItemStack>(); // CatServer - Don't use it
 +   public final org.bukkit.craftbukkit.v1_18_R2.attribute.CraftAttributeMap craftAttributes;
 +   public boolean collides = true;
 +   public Set<UUID> collidableExemptions = new HashSet<>();
@@ -462,22 +462,40 @@
  
     protected void m_142540_(MobEffectInstance p_147190_, @Nullable Entity p_147191_) {
        this.f_20948_ = true;
-@@ -963,19 +_,53 @@
+@@ -963,19 +_,71 @@
  
     }
  
 +   // CatServer start
-    public void m_5634_(float p_21116_) {
-+      this.heal(p_21116_, EntityRegainHealthEvent.RegainReason.CUSTOM);
++   private @Nullable EntityRegainHealthEvent.RegainReason regainReason;
++
++   public void setRegainReason(EntityRegainHealthEvent.RegainReason reason) {
++      this.regainReason = reason;
++   }
++
++   public void resetRegainReason() {
++      this.regainReason = null;
 +   }
 +
 +   public void heal(float p_21116_, EntityRegainHealthEvent.RegainReason regainReason) {
++      this.setRegainReason(regainReason);
++      this.m_5634_(p_21116_);
++   }
++
+    public void m_5634_(float p_21116_) {
 +      p_21116_ = net.minecraftforge.event.ForgeEventFactory.onLivingHeal(this, p_21116_);
 +      if (p_21116_ <= 0) return;
        float f = this.m_21223_();
        if (f > 0.0F) {
 -         this.m_21153_(f + p_21116_);
-+         EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), p_21116_, regainReason);
++         EntityRegainHealthEvent.RegainReason reason = this.regainReason;
++         this.resetRegainReason();
++
++         if (reason == null) {
++            reason = EntityRegainHealthEvent.RegainReason.CUSTOM;
++         }
++
++         EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), p_21116_, reason);
 +         // Suppress during worldgen
 +         if (this.valid) {
 +            this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
@@ -735,7 +753,7 @@
                 this.f_19853_.m_7967_(itementity);
              }
           }
-@@ -1288,31 +_,50 @@
+@@ -1288,31 +_,66 @@
  
     protected void m_6668_(DamageSource p_21192_) {
        Entity entity = p_21192_.m_7639_();
@@ -755,18 +773,35 @@
           this.m_7625_(p_21192_, flag);
           this.m_7472_(p_21192_, i, flag);
        }
-+      // CraftBukkit start - Call death event
-+      CraftEventFactory.callEntityDeathEvent(this, this.drops);
-+      this.drops = new ArrayList<>();
-+      // CraftBukkit end
  
 -      this.m_5907_();
+-      this.m_21226_();
 +      // this.dropEquipment(); // CraftBukkit - moved up
-       this.m_21226_();
++      // this.dropExperience(); // CatServer - drop exp after EntityDeathEvent
 +
 +      Collection<ItemEntity> drops = captureDrops(null);
-+      if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_21192_, drops, i, f_20889_ > 0))
-+         drops.forEach(e -> f_19853_.m_7967_(e));
++      // CatServer start - capture drops for plugins then fire event
++      if (!(this instanceof ServerPlayer)) {
++         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_21192_, drops, i, f_20889_ > 0)) {
++            List<org.bukkit.inventory.ItemStack> bukkitDrops = new java.util.ArrayList<>();
++            for (ItemEntity drop : drops) {
++               bukkitDrops.add(CraftItemStack.asCraftMirror(drop.m_32055_()));
++            }
++            // CatServer - handle ArmorStand
++            if (this instanceof net.minecraft.world.entity.decoration.ArmorStand) {
++               bukkitDrops.addAll(((net.minecraft.world.entity.decoration.ArmorStand) this).drops);
++               ((net.minecraft.world.entity.decoration.ArmorStand) this).drops.clear();
++            }
++            CraftEventFactory.callEntityDeathEvent(this, bukkitDrops);
++            this.m_21226_(); // CatServer
++         }
++      } else {
++         // Shouldn't arrive here
++         if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_21192_, drops, i, f_20889_ > 0)) {
++            drops.forEach(e -> f_19853_.m_7967_(e));
++         }
++      }
++      // CatServer end
     }
  
     protected void m_5907_() {

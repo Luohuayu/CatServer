@@ -48,16 +48,23 @@ public class CraftEnderDragon extends CraftMob implements EnderDragon {
 
     @Override
     public Phase getPhase() {
-        return Phase.values()[getHandle().getEntityData().get(net.minecraft.world.entity.boss.enderdragon.EnderDragon.DATA_PHASE)];
+        // CatServer start
+        int id = getHandle().getEntityData().get(net.minecraft.world.entity.boss.enderdragon.EnderDragon.DATA_PHASE);
+        return id >= 0 && id < Phase.CUSTOM.ordinal() ? Phase.values()[id] : Phase.CUSTOM;
+        // CatServer end
     }
 
     @Override
     public void setPhase(Phase phase) {
+        if (phase == Phase.CUSTOM) return; // CatServer
         getHandle().getPhaseManager().setPhase(getMinecraftPhase(phase));
     }
 
     public static Phase getBukkitPhase(EnderDragonPhase phase) {
-        return Phase.values()[phase.getId()];
+        // CatServer start
+        int id = phase.getId();
+        return id >= 0 && id < Phase.CUSTOM.ordinal() ? Phase.values()[id] : Phase.CUSTOM;
+        // CatServer end
     }
 
     public static EnderDragonPhase getMinecraftPhase(Phase phase) {

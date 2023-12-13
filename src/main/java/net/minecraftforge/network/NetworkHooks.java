@@ -168,7 +168,7 @@ public class NetworkHooks
      */
     public static void openGui(ServerPlayer player, MenuProvider containerSupplier, BlockPos pos)
     {
-        openGui(player, containerSupplier, buf -> buf.writeBlockPos(pos));
+        openGui(player, containerSupplier.setBlockPosForEvent(pos), buf -> buf.writeBlockPos(pos));
     }
     /**
      * Request to open a GUI on the client, from the server
@@ -200,6 +200,20 @@ public class NetworkHooks
             throw new IllegalArgumentException("Invalid PacketBuffer for openGui, found "+ output.readableBytes()+ " bytes");
         }
         AbstractContainerMenu c = containerSupplier.createMenu(openContainerId, player.getInventory(), player);
+        // CatServer start
+        if (c.getBukkitView() == null) {
+            net.minecraft.world.level.block.entity.BlockEntity te = containerSupplier.blockPosForEvent[0] != null ? player.level.getBlockEntity(containerSupplier.blockPosForEvent[0]) : null;
+            if (te instanceof net.minecraft.world.Container) {
+                c.setBukkitView(new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryView(player.getBukkitEntity(), new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventory((net.minecraft.world.Container) te), c));
+            } else {
+                c.setBukkitView(new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryView(player.getBukkitEntity(), org.bukkit.Bukkit.createInventory(player.getBukkitEntity(), org.bukkit.event.inventory.InventoryType.CHEST), c));
+            }
+        }
+        c = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callInventoryOpenEvent(player, c, false);
+        if (c == null) {
+            return;
+        }
+        // CatServer end
         MenuType<?> type = c.getType();
         PlayMessages.OpenContainer msg = new PlayMessages.OpenContainer(type, openContainerId, containerSupplier.getDisplayName(), output);
         NetworkConstants.playChannel.sendTo(msg, player.connection.getConnection(), NetworkDirection.PLAY_TO_CLIENT);

@@ -44,7 +44,7 @@
  import net.minecraft.world.level.block.HorizontalDirectionalBlock;
  import net.minecraft.world.level.block.NetherPortalBlock;
  import net.minecraft.world.level.block.entity.BlockEntity;
-@@ -132,1393 +_,1951 @@
+@@ -132,1393 +_,2010 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Score;
@@ -1110,11 +1110,27 @@
 +        if (this.m_146910_()) {
 +            return;
 +        }
-+        boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || this.m_5833_();
-+        this.m_6668_(p_9035_);
 +
-+        List<org.bukkit.inventory.ItemStack> playerDrops = this.drops;
-+        this.drops.clear(); // SPIGOT-5188: make sure to clear
++        int lootingLevel = net.minecraftforge.common.ForgeHooks.getLootingLevel(this, p_9035_.m_7639_(), p_9035_);
++
++        java.util.List<org.bukkit.inventory.ItemStack> playerDrops = new java.util.ArrayList<>(this.m_150109_().m_6643_());
++        boolean keepInventory = this.f_19853_.m_46469_().m_46207_(GameRules.f_46133_) || this.m_5833_();
++
++        if (!keepInventory) {
++            for (ItemStack item : this.m_150109_().getContents()) {
++                if (!item.m_41619_() && !net.minecraft.world.item.enchantment.EnchantmentHelper.m_44924_(item)) {
++                    playerDrops.add(org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asCraftMirror(item));
++                }
++            }
++        }
++
++        captureDrops(new java.util.ArrayList<>());
++        m_7625_(p_9035_, f_20889_ > 0);
++        // CatServer - Should call dropCustomDeathLoot() here?
++        for (ItemEntity captureDrop : captureDrops(null)) {
++            playerDrops.add(org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asCraftMirror(captureDrop.m_32055_()));
++        }
++
 +        Component defaultMessage = this.m_21231_().m_19293_();
 +        String deathmessage = defaultMessage.getString();
 +        this.keepLevel = keepInventory; // SPIGOT-2222: pre-set keepLevel
@@ -1173,6 +1189,22 @@
 +        }
 +        this.m_9213_(this); // Remove spectated target
 +        // CraftBukkit end
++
++        // CatServer - Handle drops
++        if (!keepInventory || !event.getKeepInventory()) {
++            java.util.List<ItemEntity> drops = new java.util.ArrayList<>(event.getDrops().size());
++            for (org.bukkit.inventory.ItemStack stack : event.getDrops()) {
++                if (stack == null || stack.getType() == org.bukkit.Material.AIR) continue;
++
++                drops.add(new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20186_(), this.m_20189_(), org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asNMSCopy(stack)));
++            }
++
++            if (!net.minecraftforge.common.ForgeHooks.onLivingDrops(this, p_9035_, drops, lootingLevel, f_20889_ > 0)) {
++                for (ItemEntity drop : drops) {
++                    this.f_19853_.m_7967_(drop);
++                }
++            }
++        }
 +
 +        // CraftBukkit - Get our scores instead
 +        this.f_19853_.getCraftServer().getScoreboardManager().getScoreboardScores(ObjectiveCriteria.f_83590_, this.m_6302_(), Score::m_83392_);
@@ -1559,8 +1591,12 @@
 +                }
 +                ServerLevel[] exitLevel = new ServerLevel[]{p_9180_}; // CatServer
 +                LevelData leveldata = p_9180_.m_6106_();
-+                this.f_8906_.m_141995_(new ClientboundRespawnPacket(p_9180_.m_204156_(), p_9180_.m_46472_(), BiomeManager.m_47877_(p_9180_.m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), p_9180_.m_46659_(), p_9180_.m_8584_(), true));
-+                this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(leveldata.m_5472_(), leveldata.m_5474_()));
++                // CraftBukkit start
++                /*
++                this.connection.send(new ClientboundRespawnPacket(p_9180_.dimensionTypeRegistration(), p_9180_.dimension(), BiomeManager.obfuscateSeed(p_9180_.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), p_9180_.isDebug(), p_9180_.isFlat(), true));
++                this.connection.send(new ClientboundChangeDifficultyPacket(leveldata.getDifficulty(), leveldata.isDifficultyLocked()));
++                */
++                // CraftBukkit end
 +                PlayerList playerlist = this.f_8924_.m_6846_();
 +                playerlist.m_11289_(this);
 +                serverlevel.m_143261_(this, Entity.RemovalReason.CHANGED_DIMENSION);
@@ -1574,6 +1610,11 @@
 +                            this.m_9006_(exitLevel[0], new BlockPos(portalinfo.f_77676_));
 +                        }
 +                    }
++                    // CraftBukkit start
++                    else {
++                        return null;
++                    }
++
 +                    Location enter = this.getBukkitEntity().getLocation();
 +                    Location exit = (exitLevel[0] == null) ? null : new Location(exitLevel[0].getWorld(), portalinfo.f_77676_.f_82479_, portalinfo.f_77676_.f_82480_, portalinfo.f_77676_.f_82481_, portalinfo.f_77678_, portalinfo.f_77679_);
 +                    PlayerTeleportEvent tpEvent = new PlayerTeleportEvent(this.getBukkitEntity(), enter, exit, CatServerCaptures.getCatServerCaptures().getCaptureChangeDimCause());
@@ -1582,18 +1623,17 @@
 +                        return null;
 +                    }
 +                    exit = tpEvent.getTo();
-+                    // CraftBukkit end
++                    exitLevel[0] = ((CraftWorld) exit.getWorld()).getHandle();
++
 +                    serverlevel.m_46473_().m_7238_();
 +                    serverlevel.m_46473_().m_6180_("placing");
 +
 +                    this.f_8927_ = true;
-+                    ServerLevel newLevel = ((CraftWorld) exit.getWorld()).getHandle();
-+                    if (newLevel != exitLevel[0]) {
-+                        exitLevel[0] = newLevel;
-+                        LevelData newLevelData = exitLevel[0].m_6106_();
-+                        this.f_8906_.m_141995_(new ClientboundRespawnPacket(exitLevel[0].m_204156_(), exitLevel[0].m_46472_(), BiomeManager.m_47877_(exitLevel[0].m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), exitLevel[0].m_46659_(), exitLevel[0].m_8584_(), true));
-+                        this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(newLevelData.m_5472_(), newLevelData.m_5474_()));
-+                    }
++
++                    LevelData newLevelData = exitLevel[0].m_6106_();
++                    this.f_8906_.m_141995_(new ClientboundRespawnPacket(exitLevel[0].m_204156_(), exitLevel[0].m_46472_(), BiomeManager.m_47877_(exitLevel[0].m_7328_()), this.f_8941_.m_9290_(), this.f_8941_.m_9293_(), exitLevel[0].m_46659_(), exitLevel[0].m_8584_(), true));
++                    this.f_8906_.m_141995_(new ClientboundChangeDifficultyPacket(newLevelData.m_5472_(), newLevelData.m_5474_()));
++                    // CraftBukkit end
 +                    this.m_143425_(exitLevel[0]);
 +                    exitLevel[0].m_8817_(this);
 +                    this.f_8906_.teleport(exit);
@@ -2763,6 +2803,25 @@
 +            this.f_36080_ = p_9016_.f_36080_;
 +            this.m_36397_(p_9016_.m_36344_());
 +        }
++        // CatServer start
++        else {
++            this.m_150109_().m_36006_(p_9016_.m_150109_());
++
++            if (p_9016_.keepLevel) {
++                this.newLevel = p_9016_.f_36078_;
++                this.newTotalExp = p_9016_.f_36079_;
++            }
++
++            this.f_36078_ = this.newLevel;
++            this.f_36079_ = this.newTotalExp;
++
++            if (p_9016_.keepLevel) {
++                this.f_36080_ = p_9016_.f_36080_;
++            } else {
++                this.m_6749_(p_9016_.newExp);
++            }
++        }
++        // CatServer end
 +
 +        this.f_36081_ = p_9016_.f_36081_;
 +        this.f_36094_ = p_9016_.f_36094_;
@@ -2770,7 +2829,7 @@
 +        this.f_8920_ = -1;
 +        this.f_8917_ = -1.0F;
 +        this.f_8918_ = -1;
-+        // this.recipeBook.copyOverData(p_9016_.recipeBook);
++        this.f_8929_.m_12685_(p_9016_.f_8929_); // CatServer - Keep Forge logic
 +        this.f_8928_ = p_9016_.f_8928_;
 +        this.f_8933_ = p_9016_.f_8933_;
 +        this.m_36362_(p_9016_.m_36331_());

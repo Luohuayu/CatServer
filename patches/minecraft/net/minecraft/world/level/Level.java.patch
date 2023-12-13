@@ -41,7 +41,7 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.crafting.RecipeManager;
-@@ -45,859 +_,1234 @@
+@@ -45,859 +_,1243 @@
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.entity.TickingBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -290,8 +290,8 @@
 +    public Map<BlockPos, CapturedBlockState> capturedBlockStates = new java.util.LinkedHashMap<>();
 +    public Map<BlockPos, BlockEntity> capturedTileEntities = new HashMap<>();
 +    public List<ItemEntity> captureDrops;
-+    public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
-+    public final SpigotTimings.WorldTimingsHandler timings; // Spigot
++    public org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
++    public SpigotTimings.WorldTimingsHandler timings; // Spigot
 +    protected final ResourceKey<Level> typeKey;
 +
 +    public ResourceKey<LevelStem> getTypeKey() {
@@ -301,8 +301,8 @@
 +    public final it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap<SpawnCategory> ticksPerSpawnCategory = new it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap<>();
 +    public boolean populating;
 +    public static BlockPos lastPhysicsProblem; // Spigot
-+    private org.spigotmc.TickLimiter entityLimiter;
-+    private org.spigotmc.TickLimiter tileLimiter;
++    protected org.spigotmc.TickLimiter entityLimiter;
++    protected org.spigotmc.TickLimiter tileLimiter;
 +    private int tileTickPosition;
 +
 +    protected Level(WritableLevelData p_204149_, ResourceKey<Level> p_204150_, Holder<DimensionType> p_204151_, Supplier<ProfilerFiller> p_204152_, boolean p_204153_, boolean p_204154_, long p_204155_) {
@@ -315,7 +315,6 @@
 +        }
 +        // CraftBukkit end
 +        this.typeKey = p_204150_;
-+        this.spigotConfig = new org.spigotmc.SpigotWorldConfig(MinecraftServer.getServer().f_129744_.m_197394_(p_204150_).toFile().getName()); // Spigot // CatServer
 +        if (generator == null && p_204149_ != null) {
 +            generator = getCraftServer().getGenerator(((ServerLevelData) p_204149_).m_5462_());
 +        }
@@ -383,9 +382,6 @@
 +            }
 +        });
 +        // CraftBukkit end
-+        this.entityLimiter = new org.spigotmc.TickLimiter(spigotConfig.entityMaxTickTime);
-+        this.tileLimiter = new org.spigotmc.TickLimiter(spigotConfig.tileMaxTickTime);
-+        this.timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
 +    }
 +
 +    protected Level(WritableLevelData p_204149_, ResourceKey<Level> p_204150_, Holder<DimensionType> p_204151_, Supplier<ProfilerFiller> p_204152_, boolean p_204153_, boolean p_204154_, long p_204155_, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env) {
@@ -401,7 +397,6 @@
 +        }
 +        // CraftBukkit end
 +        this.typeKey = p_204150_;
-+        this.spigotConfig = new org.spigotmc.SpigotWorldConfig(MinecraftServer.getServer().f_129744_.m_197394_(p_204150_).toFile().getName()); // Spigot // CatServer
 +        if (generator == null && p_204149_ != null) {
 +            generator = getCraftServer().getGenerator(((ServerLevelData) p_204149_).m_5462_());
 +        }
@@ -469,9 +464,6 @@
 +            }
 +        });
 +        // CraftBukkit end
-+        this.entityLimiter = new org.spigotmc.TickLimiter(spigotConfig.entityMaxTickTime);
-+        this.tileLimiter = new org.spigotmc.TickLimiter(spigotConfig.tileMaxTickTime);
-+        this.timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
 +    }
 +
 +    public CraftWorld getWorld() {
@@ -1003,6 +995,18 @@
 +                    if ((p_46607_ & 16) == 0 && p_46608_ > 0) {
 +                        int i = p_46607_ & -34;
 +                        blockstate.m_60762_(this, p_46605_, i, p_46608_ - 1);
++
++                        // CraftBukkit start
++                        CraftWorld world = ((ServerLevel) this).getWorld();
++                        if (world != null) {
++                            BlockPhysicsEvent event = new BlockPhysicsEvent(world.getBlockAt(p_46605_.m_123341_(), p_46605_.m_123342_(), p_46605_.m_123343_()), CraftBlockData.fromData(p_46606_));
++                            this.getCraftServer().getPluginManager().callEvent(event);
++                            if (event.isCancelled()) {
++                                return;
++                            }
++                        }
++                        // CraftBukkit end
++
 +                        p_46606_.m_60705_(this, p_46605_, i, p_46608_ - 1);
 +                        p_46606_.m_60762_(this, p_46605_, i, p_46608_ - 1);
 +                    }
@@ -1459,11 +1463,16 @@
 +    @Nullable
 +    public abstract Entity m_6815_(int p_46492_);
 +
-+    public void m_151543_(BlockPos p_151544_) {
++    public void blockEntityChangedWithoutNeighborUpdates(BlockPos p_151544_) {
 +        if (this.m_46805_(p_151544_)) {
 +            this.m_46745_(p_151544_).m_8092_(true);
 +        }
++    }
 +
++    /** @deprecated Call {@link #blockEntityChangedWithoutNeighborUpdates(BlockPos)} instead. See <a href="https://github.com/MinecraftForge/MinecraftForge/pull/9235">#9235</a> for details. */
++    @Deprecated
++    public void m_151543_(BlockPos p_151544_) {
++        this.blockEntityChangedWithoutNeighborUpdates(p_151544_);
 +        this.m_46717_(p_151544_, m_8055_(p_151544_).m_60734_()); //Notify neighbors of changes
 +    }
 +
@@ -2108,7 +2117,7 @@
 +        return (long) (this.f_186455_++);
 +    }
 +
-+    // CatServer TODO
 +    public void notifyAndUpdatePhysics(BlockPos newblockposition, Object o, BlockState oldBlock, BlockState block, BlockState blockState, int updateFlag, int i) {
++        markAndNotifyBlock(newblockposition, (LevelChunk) o, oldBlock, block, updateFlag, i);
 +    }
  }

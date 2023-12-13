@@ -1,18 +1,23 @@
 package catserver.server.entity;
 
+import catserver.server.BukkitInjector;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import org.apache.logging.log4j.util.Strings;
 import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftEntity;
 import org.bukkit.entity.EntityType;
+import org.jetbrains.annotations.NotNull;
 
 public class CraftCustomEntity extends CraftEntity {
     private String entityName;
 
     public CraftCustomEntity(CraftServer server, net.minecraft.world.entity.Entity entity) {
         super(server, entity);
-        this.entityName = entity.getName().toString();
+        this.entityName = BukkitInjector.entityTypeMap.get(entity.getType());
+        if (entityName == null) {
+            entityName = entity.getName().getString();
+        }
     }
 
     @Override
@@ -25,8 +30,14 @@ public class CraftCustomEntity extends CraftEntity {
         return this.entityName;
     }
 
-    public EntityType getType() {
-        return EntityType.MOD_CUSTOM;
+    @Override
+    public @NotNull EntityType getType() {
+        EntityType type = EntityType.fromName(this.entityName);
+        if (type != null) {
+            return type;
+        } else {
+            return EntityType.MOD_CUSTOM;
+        }
     }
 
     public String getCustomName() {

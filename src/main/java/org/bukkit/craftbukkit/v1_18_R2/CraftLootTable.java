@@ -128,6 +128,7 @@ public class CraftLootTable implements org.bukkit.loot.LootTable {
     public static LootContext convertContext(net.minecraft.world.level.storage.loot.LootContext info) {
         Vec3 position = info.getParamOrNull(LootContextParams.ORIGIN);
         if (position == null) {
+            if (!info.hasParam(LootContextParams.THIS_ENTITY)) position = new Vec3(0, 0, 0); else // CatServer - prevent npe
             position = info.getParamOrNull(LootContextParams.THIS_ENTITY).position(); // Every vanilla context has origin or this_entity, see LootContextParameterSets
         }
         Location location = new Location(info.getLevel().getWorld(), position.x(), position.y(), position.z());

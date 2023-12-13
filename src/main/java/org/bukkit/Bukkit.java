@@ -1710,6 +1710,37 @@ public final class Bukkit {
         return server.getEntity(uuid);
     }
 
+    // Paper start
+    /**
+     * Gets the ccurrent server TPS
+     * @return current server TPS (1m, 5m, 15m in CatServer)
+     */
+    @NotNull
+    public static double[] getTPS() {
+        return server.getTPS();
+    }
+    // Paper end
+
+    /**
+     * Get a sample of the servers last tick times (in nanos)
+     *
+     * @return A sample of the servers last tick times (in nanos)
+     */
+    @NotNull
+    public static long[] getTickTimes() {
+        return server.getTickTimes();
+    }
+
+    /**
+     * Get the average tick time (in millis)
+     *
+     * @return Average tick time (in millis)
+     */
+    public static double getAverageTickTime() {
+        return server == null ? 0D : server.getAverageTickTime();
+    }
+    // Paper end
+
     /**
      * Get the advancement specified by this key.
      *

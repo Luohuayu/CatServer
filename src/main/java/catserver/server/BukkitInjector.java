@@ -18,6 +18,7 @@ import net.minecraft.stats.Stats;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.decoration.Motive;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -58,10 +59,10 @@ import java.util.Objects;
 public class BukkitInjector {
 
     public static BiMap<ResourceKey<LevelStem>, World.Environment> environments = HashBiMap.create(ImmutableMap.<ResourceKey<LevelStem>, World.Environment>builder().put(LevelStem.OVERWORLD, World.Environment.NORMAL).put(LevelStem.NETHER, World.Environment.NETHER).put(LevelStem.END, World.Environment.THE_END).build());
-
     public static Map<Villager.Profession, ResourceLocation> professionMap = new HashMap<>();
     public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributeToNameMap = new HashMap<>();
     public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
+    public static Map<net.minecraft.world.entity.EntityType<?>, String> entityTypeMap = new HashMap<>();
     public static Map<Motive, Art> artMap = new HashMap<>();
 
     public static void registerAll() {
@@ -75,6 +76,7 @@ public class BukkitInjector {
         registerSpawnCategory();
         registerArts();
         registerAttribute();
+        registerPose();
         try {
             for (var field : org.bukkit.Registry.class.getFields()) {
                 if (Modifier.isStatic(field.getModifiers()) && field.get(null) instanceof org.bukkit.Registry.SimpleRegistry<?> registry) {
@@ -83,6 +85,20 @@ public class BukkitInjector {
             }
         } catch (Throwable ignored) {
         }
+    }
+
+    private static void registerPose() {
+        int length = org.bukkit.entity.Pose.values().length;
+        List<org.bukkit.entity.Pose> poses = Lists.newArrayList();
+        for (Pose nmsPose : Pose.values()) {
+            if (nmsPose.ordinal() > 8) {
+                org.bukkit.entity.Pose bukkitPose = EnumHelper.makeEnum(org.bukkit.entity.Pose.class, nmsPose.name(), length++, ImmutableList.of(), ImmutableList.of());
+                poses.add(bukkitPose);
+                CatServer.LOGGER.debug("Save-Pose: {} - {}", nmsPose.name(), bukkitPose);
+            }
+        }
+        EnumHelper.addEnums(org.bukkit.entity.Pose.class, poses);
+        CatServer.LOGGER.info("Registered {} Pose into Bukkit", poses.size());
     }
 
     private static void registerAttribute() {
@@ -253,6 +269,7 @@ public class BukkitInjector {
             EntityType entityType = EnumHelper.makeEnum(EntityType.class, entityName, i++, List.of(String.class, Class.class, Integer.TYPE, Boolean.TYPE), List.of(entityName.toLowerCase(), CraftCustomEntity.class, typeId, false));
             NAME_MAP.put(entityName.toLowerCase(), entityType);
             ID_MAP.put((short) typeId, entityType);
+            BukkitInjector.entityTypeMap.put(entry.getValue(), entityName);
             entityTypes.add(entityType);
             CatServer.LOGGER.debug("Save-EntityType: {} - {}", location, entityType);
         }

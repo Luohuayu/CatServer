@@ -30,6 +30,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ConsoleInput;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.server.bossevents.CustomBossEvent;
 import net.minecraft.server.commands.ReloadCommand;
@@ -2220,6 +2221,25 @@ public final class CraftServer implements Server {
     public UnsafeValues getUnsafe() {
         return CraftMagicNumbers.INSTANCE;
     }
+
+    // CatServer start
+    @Override
+    public double[] getTPS() {
+        return MinecraftServer.getServer().recentTps;
+    }
+    // CatServer end
+
+    // Paper start
+    @Override
+    public long[] getTickTimes() {
+        return getServer().tickTimes5s.getTimes();
+    }
+
+    @Override
+    public double getAverageTickTime() {
+        return getServer().tickTimes5s.getAverage();
+    }
+    // Paper end
 
     // Spigot start
     private final org.bukkit.Server.Spigot spigot = new org.bukkit.Server.Spigot() {

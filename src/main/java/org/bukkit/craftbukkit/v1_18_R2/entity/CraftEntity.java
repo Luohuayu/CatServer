@@ -283,7 +283,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                     } else if (entity instanceof Zoglin) {
                         return new CraftZoglin(server, (Zoglin) entity);
                     } else {
-                        return new CraftMonster(server, (Monster) entity);
+                        return new CraftCustomMonster(server, (Monster) entity); // CatServer
                     }
                 } else if (entity instanceof AbstractGolem) {
                     if (entity instanceof SnowGolem) {
