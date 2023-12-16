@@ -46,6 +46,7 @@ public class ActivationRange {
     }
 
     public static boolean initializeEntityActivationState(Entity entity, SpigotWorldConfig config) {
+        if (config == null) return false;
         if ((entity.activationType == ActivationType.MISC && config.miscActivationRange == 0)
                 || (entity.activationType == ActivationType.RAIDER && config.raiderActivationRange == 0)
                 || (entity.activationType == ActivationType.ANIMAL && config.animalActivationRange == 0)
