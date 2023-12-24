@@ -795,7 +795,7 @@ public class CraftEventFactory {
 
     public static EntityDeathEvent callEntityDeathEvent(net.minecraft.world.entity.LivingEntity victim, List<org.bukkit.inventory.ItemStack> drops) {
         CraftLivingEntity entity = (CraftLivingEntity) victim.getBukkitEntity();
-        EntityDeathEvent event = new EntityDeathEvent(entity, drops, victim.getExpReward());
+        EntityDeathEvent event = new EntityDeathEvent(entity, drops, victim.expToDrop);
         CraftWorld world = (CraftWorld) entity.getWorld();
         Bukkit.getServer().getPluginManager().callEvent(event);
 
