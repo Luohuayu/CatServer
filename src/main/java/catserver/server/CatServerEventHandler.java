@@ -4,7 +4,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraftforge.common.util.BlockSnapshot;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.AdvancementEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
@@ -15,8 +19,10 @@ import org.bukkit.block.BlockState;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
 import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockState;
 import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
+import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerGameModeChangeEvent;
 
@@ -25,6 +31,29 @@ import java.util.List;
 
 public class CatServerEventHandler {
     public static boolean isDropItems;
+
+    @SubscribeEvent(receiveCanceled = true)
+    public void onLivingDropsEvent(LivingDropsEvent event) {
+        if (!(event.getEntityLiving() instanceof ServerPlayer)) {
+            LivingEntity livingEntity = event.getEntityLiving();
+            livingEntity.expToDrop = livingEntity.getExpReward();
+
+            List<org.bukkit.inventory.ItemStack> bukkitDrops = new ArrayList<>();
+            for (ItemEntity forgeDrop : event.getDrops()) {
+                bukkitDrops.add(CraftItemStack.asCraftMirror(forgeDrop.getItem()));
+            }
+
+            // CatServer - handle ArmorStand
+            if (livingEntity instanceof net.minecraft.world.entity.decoration.ArmorStand armorStand) {
+                bukkitDrops.addAll(armorStand.drops);
+                armorStand.drops.clear();
+            }
+            // CatServer end
+
+            CraftEventFactory.callEntityDeathEvent(livingEntity, bukkitDrops);
+            livingEntity.dropExperience();
+        }
+    }
 
     @SubscribeEvent(receiveCanceled = true)
     public void onBlockPlaceEvent(BlockEvent.EntityPlaceEvent event) {
