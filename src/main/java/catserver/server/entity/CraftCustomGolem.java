@@ -30,6 +30,6 @@ public class CraftCustomGolem extends CraftGolem {
 
     @Override
     public String toString() {
-        return "CraftCustomMonster";
+        return "CraftCustomGolem";
     }
 }
