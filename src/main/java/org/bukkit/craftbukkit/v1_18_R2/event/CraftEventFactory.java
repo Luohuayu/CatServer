@@ -801,11 +801,11 @@ public class CraftEventFactory {
 
         victim.expToDrop = event.getDroppedExp();
 
-        for (org.bukkit.inventory.ItemStack stack : event.getDrops()) {
-            if (stack == null || stack.getType() == Material.AIR || stack.getAmount() == 0) continue;
-
-            world.dropItem(entity.getLocation(), stack);
-        }
+//        for (org.bukkit.inventory.ItemStack stack : event.getDrops()) {
+//            if (stack == null || stack.getType() == Material.AIR || stack.getAmount() == 0) continue;
+//
+//            world.dropItem(entity.getLocation(), stack);
+//        }
 
         return event;
     }

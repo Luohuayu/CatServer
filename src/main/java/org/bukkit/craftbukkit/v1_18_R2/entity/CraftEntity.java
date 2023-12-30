@@ -292,6 +292,8 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
                         return new CraftIronGolem(server, (IronGolem) entity);
                     } else if (entity instanceof Shulker) {
                         return new CraftShulker(server, (Shulker) entity);
+                    } else {
+                        return new CraftCustomGolem(server, (AbstractGolem) entity); // CatServer
                     }
                 } else if (entity instanceof AbstractVillager) {
                     if (entity instanceof Villager) {
@@ -445,8 +447,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
         } else return new CraftCustomEntity(server, entity);
         // CatServer end
         // CHECKSTYLE:ON
-
-        throw new AssertionError("Unknown entity " + (entity == null ? null : entity.getClass()));
+        // throw new AssertionError("Unknown entity " + (entity == null ? null : entity.getClass()));
     }
 
     @Override
