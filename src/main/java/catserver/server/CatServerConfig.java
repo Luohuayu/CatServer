@@ -48,6 +48,7 @@ public class CatServerConfig {
     public int itemNBTThrottle = 200;
     public boolean limitFastClickGUI = false;
     public int clickGUIThrottle = 50;
+    public int releaseUseItemThrottle = 20;
 
     public boolean disableUpdateGameProfile = false;
     public boolean disableFMLHandshake = false;
@@ -99,6 +100,7 @@ public class CatServerConfig {
         itemNBTThrottle = getOrWriteIntConfig("network.packetLimit.itemNBTThrottle", itemNBTThrottle);
         limitFastClickGUI = getOrWriteBooleanConfig("network.packetLimit.fastClickGUI", config.getBoolean("vanilla.limitFastClickGUI", limitFastClickGUI));
         clickGUIThrottle = getOrWriteIntConfig("network.packetLimit.clickGUIThrottle", clickGUIThrottle);
+        releaseUseItemThrottle = getOrWriteIntConfig("network.packetLimit.releaseUseItemThrottle", releaseUseItemThrottle);
         disableFMLHandshake = getOrWriteBooleanConfig("network.fml.disableHandshake", config.getBoolean("disableFMLHandshake", disableFMLHandshake));
         disableFMLStatusModInfo = getOrWriteBooleanConfig("network.fml.disableStatusModInfo", config.getBoolean("disableFMLStatusModInfo", disableFMLStatusModInfo));
         // general
