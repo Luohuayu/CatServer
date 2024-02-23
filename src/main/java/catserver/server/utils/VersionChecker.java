@@ -20,8 +20,9 @@ public class VersionChecker {
         new Timer(true).scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                // TODO CatServerConfig
-                versionCheck();
+                if (catserver.server.CatServer.getConfig().versionCheck) {
+                    versionCheck();
+                }
             }
         }, 60 * 1000 , 6 * 3600 * 1000);
     }

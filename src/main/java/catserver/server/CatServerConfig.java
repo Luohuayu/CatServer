@@ -10,7 +10,9 @@ import java.util.List;
 public class CatServerConfig {
     private final File configFile;
     private YamlConfiguration config;
+
     public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
+    public boolean versionCheck = true;
 
     public CatServerConfig(String file) {
         this.configFile = new File(file);
@@ -18,8 +20,10 @@ public class CatServerConfig {
 
     public void loadConfig() {
         config = YamlConfiguration.loadConfiguration(configFile);
-        // options
+        // fakeplayer
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
+        // general
+        versionCheck = getOrWriteBooleanConfig("versionCheck", versionCheck);
         try {
             config.save(configFile);
         } catch (IOException e) {
