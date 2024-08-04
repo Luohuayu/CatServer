@@ -18,10 +18,9 @@ public class CraftArt {
         for (ResourceLocation key : Registry.MOTIVE.keySet()) {
             if (key.getNamespace().equals(NamespacedKey.MINECRAFT)) {
                 artworkBuilder.put(Registry.MOTIVE.get(key), Art.getByName(key.getPath()));
-            } else {
-                BukkitInjector.artMap.forEach(artworkBuilder::put);
             }
         }
+        BukkitInjector.artMap.forEach(artworkBuilder::put);
 
         artwork = artworkBuilder.build();
     }
