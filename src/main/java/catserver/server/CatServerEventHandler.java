@@ -79,6 +79,7 @@ public class CatServerEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onExplode(ExplosionEvent.Detonate event) {
+        if (!CatServer.getConfig().bridgeForgeExplosionEventToBukkit) return;
         Explosion explosion = event.getExplosion();
         if (explosion.getClass() != Explosion.class) {
             Entity exploder = explosion.exploder;

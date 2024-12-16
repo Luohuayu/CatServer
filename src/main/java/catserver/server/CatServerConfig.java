@@ -44,6 +44,8 @@ public class CatServerConfig {
 
     public boolean waitForgeServerChatEvent = false;
 
+    public boolean bridgeForgeExplosionEventToBukkit = true;
+
     public int craftRequestThrottle = 20;
     public int itemNBTThrottle = 200;
     public boolean limitFastClickGUI = false;
@@ -103,6 +105,8 @@ public class CatServerConfig {
         releaseUseItemThrottle = getOrWriteIntConfig("network.packetLimit.releaseUseItemThrottle", releaseUseItemThrottle);
         disableFMLHandshake = getOrWriteBooleanConfig("network.fml.disableHandshake", config.getBoolean("disableFMLHandshake", disableFMLHandshake));
         disableFMLStatusModInfo = getOrWriteBooleanConfig("network.fml.disableStatusModInfo", config.getBoolean("disableFMLStatusModInfo", disableFMLStatusModInfo));
+        // Event bridge
+        bridgeForgeExplosionEventToBukkit = getOrWriteBooleanConfig("event-bridge.bridgeForgeExplosionEventToBukkit", bridgeForgeExplosionEventToBukkit);
         // general
         disableUpdateGameProfile = getOrWriteBooleanConfig("disableUpdateGameProfile", disableUpdateGameProfile);
         disableAsyncCatchWarn = getOrWriteBooleanConfig("disableAsyncCatchWarn", disableAsyncCatchWarn);
