@@ -90,7 +90,7 @@
              long i = ChunkPos.asLong(x, z);
  
              try
-@@ -126,7 +163,8 @@
+@@ -126,12 +163,52 @@
  
              this.id2ChunkMap.put(i, chunk);
              chunk.onLoad();
@@ -100,7 +100,51 @@
          }
  
          return chunk;
-@@ -218,36 +256,91 @@
+     }
+ 
++    // CatServer start
++    public Chunk provideChunk(int x, int z, Runnable runnable)
++    {
++        return provideChunk(x, z, runnable, true);
++    }
++
++    public Chunk provideChunk(int x, int z, Runnable runnable, boolean generate)
++    {
++        Chunk chunk = this.loadChunk(x, z, runnable);
++
++        if (chunk == null && generate)
++        {
++            world.timings.syncChunkLoadTimer.startTiming(); // Spigot
++            long i = ChunkPos.asLong(x, z);
++
++            try
++            {
++                chunk = this.chunkGenerator.generateChunk(x, z);
++            }
++            catch (Throwable throwable)
++            {
++                CrashReport crashreport = CrashReport.makeCrashReport(throwable, "Exception generating new chunk");
++                CrashReportCategory crashreportcategory = crashreport.makeCategory("Chunk to be generated");
++                crashreportcategory.addCrashSection("Location", String.format("%d,%d", x, z));
++                crashreportcategory.addCrashSection("Position hash", Long.valueOf(i));
++                crashreportcategory.addCrashSection("Generator", this.chunkGenerator);
++                throw new ReportedException(crashreport);
++            }
++
++            this.id2ChunkMap.put(i, chunk);
++            chunk.onLoad();
++            chunk.populateCB(this, this.chunkGenerator, true);
++            world.timings.syncChunkLoadTimer.stopTiming(); // Spigot
++        }
++
++        return chunk;
++    }
++    // CatServer end
++
+     @Nullable
+     private Chunk loadChunkFromFile(int x, int z)
+     {
+@@ -218,36 +295,91 @@
          this.chunkLoader.flush();
      }
  
