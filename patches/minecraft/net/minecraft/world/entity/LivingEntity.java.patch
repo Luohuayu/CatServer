@@ -190,9 +190,9 @@
 +            if (!p_20992_.addLandingEffects((ServerLevel)this.f_19853_, p_20993_, p_20992_, this, i))
 +               // CraftBukkit start - visiblity api
 +               if (this instanceof ServerPlayer) {
-+                  ((ServerLevel) this.f_19853_).sendParticles((ServerPlayer) this, new BlockParticleOption(ParticleTypes.f_123794_, p_20992_), this.m_20185_(), this.m_20186_(), this.m_20189_(), i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D, false);
++                  ((ServerLevel) this.f_19853_).sendParticles((ServerPlayer) this, new BlockParticleOption(ParticleTypes.f_123794_, p_20992_).setPos(p_20993_), this.m_20185_(), this.m_20186_(), this.m_20189_(), i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D, false);
 +               } else {
-+                  ((ServerLevel) this.f_19853_).m_8767_(new BlockParticleOption(ParticleTypes.f_123794_, p_20992_), this.m_20185_(), this.m_20186_(), this.m_20189_(), i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D);
++                  ((ServerLevel) this.f_19853_).m_8767_(new BlockParticleOption(ParticleTypes.f_123794_, p_20992_).setPos(p_20993_), this.m_20185_(), this.m_20186_(), this.m_20189_(), i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D);
 +               }
 +            // CraftBukkit end
           }
@@ -364,14 +364,14 @@
     }
  
 +   // CatServer start - Fix mixin conflict with respiteful Mod
-+   @Nullable
-+   private EntityPotionEffectEvent.Cause potionEffectCause;
++   @javax.annotation.Nonnull
++   private EntityPotionEffectEvent.Cause potionEffectCause = EntityPotionEffectEvent.Cause.UNKNOWN;
 +
-+   private void potionEffectCause(EntityPotionEffectEvent.Cause cause) {
++   private void potionEffectCause(@javax.annotation.Nonnull EntityPotionEffectEvent.Cause cause) {
 +      this.potionEffectCause = cause;
 +   }
 +
-+   @Nullable
++   @javax.annotation.Nonnull
 +   private EntityPotionEffectEvent.Cause potionEffectCause() {
 +      return potionEffectCause;
 +   }
@@ -487,7 +487,7 @@
  
     protected void m_142540_(MobEffectInstance p_147190_, @Nullable Entity p_147191_) {
        this.f_20948_ = true;
-@@ -963,19 +_,71 @@
+@@ -963,19 +_,74 @@
  
     }
  
@@ -503,8 +503,12 @@
 +   }
 +
 +   public void heal(float p_21116_, EntityRegainHealthEvent.RegainReason regainReason) {
-+      this.setRegainReason(regainReason);
-+      this.m_5634_(p_21116_);
++      try {
++         this.setRegainReason(regainReason);
++         this.m_5634_(p_21116_);
++      } finally {
++         this.resetRegainReason();
++      }
 +   }
 +
     public void m_5634_(float p_21116_) {
@@ -514,7 +518,6 @@
        if (f > 0.0F) {
 -         this.m_21153_(f + p_21116_);
 +         EntityRegainHealthEvent.RegainReason reason = this.regainReason;
-+         this.resetRegainReason();
 +
 +         if (reason == null) {
 +            reason = EntityRegainHealthEvent.RegainReason.CUSTOM;
@@ -1038,7 +1041,7 @@
 +
 +         float originalDamage = f;
 +         Function<Double, Double> hardHat = f12 -> {
-+            if ((damagesource == DamageSource.f_19321_ || damagesource == DamageSource.f_19322_) && !this.m_6844_(EquipmentSlot.HEAD).m_41619_()) {
++            if (damagesource.m_146705_() && !this.m_6844_(EquipmentSlot.HEAD).m_41619_()) {
 +               return -(f12 - (f12 * 0.75F));
 +            }
 +            return -0.0;
@@ -1531,13 +1534,11 @@
     public boolean m_20984_(double p_20985_, double p_20986_, double p_20987_, boolean p_20988_) {
        double d0 = this.m_20185_();
        double d1 = this.m_20186_();
-@@ -2998,16 +_,40 @@
-             }
+@@ -2999,15 +_,39 @@
           }
  
--         if (flag1) {
+          if (flag1) {
 -            this.m_6021_(p_20985_, d3, p_20987_);
-+         if (flag) {
 +            var cause = CatServerCaptures.getCatServerCaptures().getCaptureTeleportCause();
 +            // CraftBukkit start - Teleport event
 +            // this.teleportTo(p_20985_, d3, p_20987_);
@@ -1548,7 +1549,7 @@
              }
 +            // now revert and call event if the teleport place is valid
 +            this.m_6034_(d0, d1, d2);
-+            if (flag1) {
++            if (flag) {
 +               if (!(this instanceof ServerPlayer)) {
 +                  EntityTeleportEvent teleport = new EntityTeleportEvent(this.getBukkitEntity(), new Location(this.f_19853_.getWorld(), d0, d1, d2), new Location(this.f_19853_.getWorld(), p_20985_, d3, p_20987_));
 +                  this.f_19853_.getCraftServer().getPluginManager().callEvent(teleport);
@@ -1625,16 +1626,21 @@
     }
  
     public ItemStack m_5584_(Level p_21067_, ItemStack p_21068_) {
-@@ -3160,9 +_,12 @@
+@@ -3160,9 +_,16 @@
     private void m_21063_(ItemStack p_21064_, Level p_21065_, LivingEntity p_21066_) {
        Item item = p_21064_.m_41720_();
        if (item.m_41472_()) {
 -         for(Pair<MobEffectInstance, Float> pair : item.m_41473_().m_38749_()) {
 +         for(Pair<MobEffectInstance, Float> pair : p_21064_.getFoodProperties(this).m_38749_()) {
              if (!p_21065_.f_46443_ && pair.getFirst() != null && p_21065_.f_46441_.nextFloat() < pair.getSecond()) {
+-               p_21066_.m_7292_(new MobEffectInstance(pair.getFirst()));
 +               // CatServer start - Fix mixin conflict with respiteful Mod
-+               p_21066_.potionEffectCause(EntityPotionEffectEvent.Cause.FOOD);
-                p_21066_.m_7292_(new MobEffectInstance(pair.getFirst()));
++               try {
++                  p_21066_.potionEffectCause(EntityPotionEffectEvent.Cause.FOOD);
++                  p_21066_.m_7292_(new MobEffectInstance(pair.getFirst()));
++               } finally {
++                  p_21066_.potionEffectCause(EntityPotionEffectEvent.Cause.UNKNOWN);
++               }
 +               // CatServer end
              }
           }
