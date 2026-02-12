@@ -6,6 +6,7 @@
 package net.minecraftforge.event;
 
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.MinecraftServer;
 
 import java.util.function.BooleanSupplier;
 
@@ -17,7 +18,7 @@ import net.minecraftforge.fml.LogicalSide;
 public class TickEvent extends Event
 {
     public enum Type {
-        WORLD, PLAYER, CLIENT, SERVER, RENDER;
+        LEVEL, PLAYER, CLIENT, SERVER, RENDER;
     }
 
     public enum Phase {
@@ -34,24 +35,14 @@ public class TickEvent extends Event
     }
 
     public static class ServerTickEvent extends TickEvent {
-
         private final BooleanSupplier haveTime;
+        private final MinecraftServer server;
 
-        /**
-         * TODO: Remove in 1.19
-         * 
-         * @deprecated Use {@link ServerTickEvent#ServerTickEvent(Phase, BooleanSupplier)}
-         */
-        @Deprecated(forRemoval = true, since = "1.18.1")
-        public ServerTickEvent(Phase phase)
-        {
-            this(phase, () -> false);
-        }
-
-        public ServerTickEvent(Phase phase, BooleanSupplier haveTime)
+        public ServerTickEvent(Phase phase, BooleanSupplier haveTime, MinecraftServer server)
         {
             super(Type.SERVER, LogicalSide.SERVER, phase);
             this.haveTime = haveTime;
+            this.server = server;
         }
 
         /**
@@ -63,6 +54,14 @@ public class TickEvent extends Event
         {
             return this.haveTime.getAsBoolean();
         }
+        
+        /**
+         * {@return the server instance}
+         */
+        public MinecraftServer getServer()
+        {
+            return server;
+        }
     }
 
     public static class ClientTickEvent extends TickEvent {
@@ -72,25 +71,14 @@ public class TickEvent extends Event
         }
     }
 
-    public static class WorldTickEvent extends TickEvent {
-        public final Level world;
+    public static class LevelTickEvent extends TickEvent {
+        public final Level level;
         private final BooleanSupplier haveTime;
 
-        /**
-         * TODO: Remove in 1.19
-         * 
-         * @deprecated Use {@link WorldTickEvent#WorldTickEvent(LogicalSide, Phase, Level, BooleanSupplier)}
-         */
-        @Deprecated(forRemoval = true, since = "1.18.1")
-        public WorldTickEvent(LogicalSide side, Phase phase, Level world)
+        public LevelTickEvent(LogicalSide side, Phase phase, Level level, BooleanSupplier haveTime)
         {
-            this(side, phase, world, () -> false);
-        }
-
-        public WorldTickEvent(LogicalSide side, Phase phase, Level world, BooleanSupplier haveTime)
-        {
-            super(Type.WORLD, side, phase);
-            this.world = world;
+            super(Type.LEVEL, side, phase);
+            this.level = level;
             this.haveTime = haveTime;
         }
 
@@ -98,7 +86,7 @@ public class TickEvent extends Event
          * @return {@code true} whether the server has enough time to perform any
          *         additional tasks (usually IO related) during the current tick,
          *         otherwise {@code false}
-         * 
+         *
          * @see ServerTickEvent#haveTime()
          */
         public boolean haveTime()

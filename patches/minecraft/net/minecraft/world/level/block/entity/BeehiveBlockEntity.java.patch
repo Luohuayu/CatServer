@@ -1,24 +1,16 @@
 --- a/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
-@@ -4,6 +_,7 @@
- import java.util.Arrays;
- import java.util.Iterator;
- import java.util.List;
-+import java.util.concurrent.atomic.AtomicBoolean;
- import javax.annotation.Nullable;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.Direction;
-@@ -40,7 +_,8 @@
+@@ -41,7 +_,8 @@
     public static final int f_155128_ = 600;
     private final List<BeehiveBlockEntity.BeeData> f_58732_ = Lists.newArrayList();
     @Nullable
 -   private BlockPos f_58733_;
-+   public BlockPos f_58733_;
++   public BlockPos f_58733_; // CatServer - private -> public
 +   public int maxBees = 3; // CraftBukkit - allow setting max amount of bees a hive can hold
  
     public BeehiveBlockEntity(BlockPos p_155134_, BlockState p_155135_) {
        super(BlockEntityType.f_58912_, p_155134_, p_155135_);
-@@ -73,7 +_,7 @@
+@@ -74,7 +_,7 @@
     }
  
     public boolean m_58775_() {
@@ -27,7 +19,7 @@
     }
  
     public void m_58748_(@Nullable Player p_58749_, BlockState p_58750_, BeehiveBlockEntity.BeeReleaseStatus p_58751_) {
-@@ -84,7 +_,7 @@
+@@ -85,7 +_,7 @@
                 Bee bee = (Bee)entity;
                 if (p_58749_.m_20182_().m_82557_(entity.m_20182_()) <= 16.0D) {
                    if (!this.m_58777_()) {
@@ -36,10 +28,11 @@
                    } else {
                       bee.m_27915_(400);
                    }
-@@ -95,10 +_,20 @@
+@@ -96,10 +_,21 @@
  
     }
  
++   // CatServer start - This allows us to bypass the night/rain/emergency check
 +   private boolean catserver$isForceReleaseAllOccupants = false;
 +   public List<Entity> releaseBees(BlockState p_58760_, BeehiveBlockEntity.BeeReleaseStatus p_58761_, boolean force) {
 +      try {
@@ -52,13 +45,21 @@
 +
     private List<Entity> m_58759_(BlockState p_58760_, BeehiveBlockEntity.BeeReleaseStatus p_58761_) {
        List<Entity> list = Lists.newArrayList();
-       this.f_58732_.removeIf((p_58766_) -> {
--         return m_155136_(this.f_58857_, this.f_58858_, p_58760_, p_58766_, list, p_58761_, this.f_58733_);
-+         return releaseBee(this.f_58857_, this.f_58858_, p_58760_, p_58766_, list, p_58761_, this.f_58733_, this.catserver$isForceReleaseAllOccupants); // CatServer
+       this.f_58732_.removeIf((p_272556_) -> {
+-         return m_155136_(this.f_58857_, this.f_58858_, p_58760_, p_272556_, list, p_58761_, this.f_58733_);
++         return releaseBee(this.f_58857_, this.f_58858_, p_58760_, p_272556_, list, p_58761_, this.f_58733_, this.catserver$isForceReleaseAllOccupants); // CatServer
        });
        if (!list.isEmpty()) {
           super.m_6596_();
-@@ -126,7 +_,19 @@
+@@ -107,6 +_,7 @@
+ 
+       return list;
+    }
++   // CatServer end
+ 
+    public void m_58741_(Entity p_58742_, boolean p_58743_) {
+       this.m_58744_(p_58742_, p_58743_, 0);
+@@ -127,7 +_,19 @@
     }
  
     public void m_58744_(Entity p_58745_, boolean p_58746_, int p_58747_) {
@@ -66,7 +67,7 @@
 +      if (this.f_58732_.size() < this.maxBees) { // CraftBukkit
 +         // CraftBukkit start
 +         if (this.f_58857_ != null) {
-+            org.bukkit.event.entity.EntityEnterBlockEvent event = new org.bukkit.event.entity.EntityEnterBlockEvent(p_58745_.getBukkitEntity(), org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock.at(f_58857_, m_58899_()));
++            org.bukkit.event.entity.EntityEnterBlockEvent event = new org.bukkit.event.entity.EntityEnterBlockEvent(p_58745_.getBukkitEntity(), org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock.at(this.f_58857_, this.m_58899_()));
 +            org.bukkit.Bukkit.getPluginManager().callEvent(event);
 +            if (event.isCancelled()) {
 +               if (p_58745_ instanceof Bee) {
@@ -79,7 +80,7 @@
           p_58745_.m_8127_();
           p_58745_.m_20153_();
           CompoundTag compoundtag = new CompoundTag();
-@@ -153,8 +_,19 @@
+@@ -155,8 +_,19 @@
        this.f_58732_.add(new BeehiveBlockEntity.BeeData(p_155158_, p_155159_, p_155160_ ? 2400 : 600));
     }
  
@@ -96,11 +97,11 @@
 +
     private static boolean m_155136_(Level p_155137_, BlockPos p_155138_, BlockState p_155139_, BeehiveBlockEntity.BeeData p_155140_, @Nullable List<Entity> p_155141_, BeehiveBlockEntity.BeeReleaseStatus p_155142_, @Nullable BlockPos p_155143_) {
 -      if ((p_155137_.m_46462_() || p_155137_.m_46471_()) && p_155142_ != BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY) {
-+      if (!catserver$isForceReleaseOccupant && (p_155137_.m_46462_() || p_155137_.m_46471_()) && p_155142_ != BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY) {
++      if (!BeehiveBlockEntity.catserver$isForceReleaseOccupant && (p_155137_.m_46462_() || p_155137_.m_46471_()) && p_155142_ != BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY) {
           return false;
        } else {
           CompoundTag compoundtag = p_155140_.f_58782_.m_6426_();
-@@ -174,6 +_,17 @@
+@@ -176,6 +_,17 @@
                 if (!entity.m_6095_().m_204039_(EntityTypeTags.f_13122_)) {
                    return false;
                 } else {
@@ -117,8 +118,8 @@
 +                  // CraftBukkit end
                    if (entity instanceof Bee) {
                       Bee bee = (Bee)entity;
-                      if (p_155143_ != null && !bee.m_27852_() && p_155137_.f_46441_.nextFloat() < 0.9F) {
-@@ -202,16 +_,18 @@
+                      if (p_155143_ != null && !bee.m_27852_() && p_155137_.f_46441_.m_188501_() < 0.9F) {
+@@ -204,17 +_,19 @@
                          p_155141_.add(bee);
                       }
  
@@ -134,16 +135,17 @@
 +                     double d1 = (double)p_155138_.getY() + 0.5D - (double)(entity.getBbHeight() / 2.0F);
 +                     double d2 = (double)p_155138_.getZ() + 0.5D + d3 * (double)direction.getStepZ();
 +                     entity.moveTo(d0, d1, d2, entity.getYRot(), entity.getXRot());
-+                      */ // CraftBukkit end
++                     */ // CraftBukkit end
                    }
  
                    p_155137_.m_5594_((Player)null, p_155138_, SoundEvents.f_11696_, SoundSource.BLOCKS, 1.0F, 1.0F);
+                   p_155137_.m_220407_(GameEvent.f_157792_, p_155138_, GameEvent.Context.m_223719_(entity, p_155137_.m_8055_(p_155138_)));
 -                  return p_155137_.m_7967_(entity);
-+                  return true; // return this.world.addFreshEntity(entity); // CraftBukkit - moved up
++                  return true; // return p_155137_.addFreshEntity(entity); // CraftBukkit - moved up
                 }
              } else {
                 return false;
-@@ -219,6 +_,7 @@
+@@ -222,6 +_,7 @@
           }
        }
     }
@@ -151,19 +153,18 @@
  
     static void m_155161_(CompoundTag p_155162_) {
        for(String s : f_155129_) {
-@@ -253,7 +_,11 @@
+@@ -256,6 +_,10 @@
              if (m_155136_(p_155150_, p_155151_, p_155152_, beehiveblockentity$beedata, (List<Entity>)null, beehiveblockentity$beereleasestatus, p_155154_)) {
                 flag = true;
                 iterator.remove();
 +               // CraftBukkit start
 +            } else {
 +               beehiveblockentity$beedata.f_58783_ = beehiveblockentity$beedata.f_58784_ / 2; // Not strictly Vanilla behaviour in cases where bees cannot spawn but still reasonable
++               // CraftBukkit end
              }
-+            // CraftBukkit end
           }
        }
- 
-@@ -291,6 +_,11 @@
+@@ -294,6 +_,11 @@
           this.f_58733_ = NbtUtils.m_129239_(p_155156_.m_128469_("FlowerPos"));
        }
  
@@ -175,7 +176,7 @@
     }
  
     protected void m_183515_(CompoundTag p_187467_) {
-@@ -299,7 +_,7 @@
+@@ -302,7 +_,7 @@
        if (this.m_58780_()) {
           p_187467_.m_128365_("FlowerPos", NbtUtils.m_129224_(this.f_58733_));
        }

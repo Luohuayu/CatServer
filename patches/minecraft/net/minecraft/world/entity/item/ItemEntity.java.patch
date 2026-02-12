@@ -1,52 +1,58 @@
 --- a/net/minecraft/world/entity/item/ItemEntity.java
 +++ b/net/minecraft/world/entity/item/ItemEntity.java
-@@ -12,6 +_,7 @@
- import net.minecraft.network.syncher.EntityDataAccessor;
- import net.minecraft.network.syncher.EntityDataSerializers;
- import net.minecraft.network.syncher.SynchedEntityData;
-+import net.minecraft.server.MinecraftServer;
- import net.minecraft.server.level.ServerLevel;
- import net.minecraft.sounds.SoundSource;
- import net.minecraft.stats.Stats;
-@@ -29,20 +_,27 @@
- import net.minecraft.world.level.Level;
+@@ -29,19 +_,31 @@
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.phys.Vec3;
+ 
++// CraftBukkit start
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
 +import org.bukkit.event.entity.EntityPickupItemEvent;
 +import org.bukkit.event.player.PlayerPickupItemEvent;
- 
- public class ItemEntity extends Entity {
++// CraftBukkit end
++
+ public class ItemEntity extends Entity implements TraceableEntity {
     private static final EntityDataAccessor<ItemStack> f_31984_ = SynchedEntityData.m_135353_(ItemEntity.class, EntityDataSerializers.f_135033_);
     private static final int f_149659_ = 6000;
     private static final int f_149660_ = 32767;
     private static final int f_149661_ = -32768;
 -   private int f_31985_;
 -   private int f_31986_;
-+   public int f_31985_;
-+   public int f_31986_;
++   public int f_31985_; // CatServer - private -> public
++   public int f_31986_; // CatServer - private -> public
     private int f_31987_ = 5;
     @Nullable
-    private UUID f_31988_;
+-   private UUID f_31988_;
++   public UUID f_31988_; // CatServer - private -> public
     @Nullable
-    private UUID f_31982_;
+-   private UUID f_265881_;
++   public UUID f_265881_; // CatServer - private -> public
     public final float f_31983_;
 +   /**
 +    * The maximum age of this EntityItem.  The item is expired once this is reached.
 +    */
-+   public int lifespan = 6000;
++   public int lifespan = ItemEntity.f_149659_;
 +   private int lastTick = MinecraftServer.currentTick - 1; // CraftBukkit
  
     public ItemEntity(EntityType<? extends ItemEntity> p_31991_, Level p_31992_) {
        super(p_31991_, p_31992_);
-@@ -59,6 +_,7 @@
+@@ -58,6 +_,7 @@
        this.m_6034_(p_149664_, p_149665_, p_149666_);
        this.m_20334_(p_149668_, p_149669_, p_149670_);
        this.m_32045_(p_149667_);
-+      this.lifespan = (p_149667_.m_41720_() == null ? 6000 : p_149667_.getEntityLifespan(p_149663_));
++      this.lifespan = (p_149667_.m_41720_() == null ? ItemEntity.f_149659_ : p_149667_.getEntityLifespan(p_149663_));
     }
  
     private ItemEntity(ItemEntity p_31994_) {
-@@ -82,13 +_,17 @@
+@@ -66,6 +_,7 @@
+       this.m_20359_(p_31994_);
+       this.f_31985_ = p_31994_.f_31985_;
+       this.f_31983_ = p_31994_.f_31983_;
++      this.lifespan = p_31994_.lifespan;
+    }
+ 
+    public boolean m_213854_() {
+@@ -94,19 +_,26 @@
     }
  
     public void m_8119_() {
@@ -67,16 +73,26 @@
  
           this.f_19854_ = this.m_20185_();
           this.f_19855_ = this.m_20186_();
-@@ -116,7 +_,7 @@
+          this.f_19856_ = this.m_20189_();
+          Vec3 vec3 = this.m_20184_();
+          float f = this.m_20192_() - 0.11111111F;
++         net.minecraftforge.fluids.FluidType fluidType = this.getMaxHeightFluidType();
++         if (!fluidType.isAir() && !fluidType.isVanilla() && this.getFluidTypeHeight(fluidType) > (double)f) fluidType.setItemMovement(this);
++         else
+          if (this.m_20069_() && this.m_204036_(FluidTags.f_13131_) > (double)f) {
+             this.m_32067_();
+          } else if (this.m_20077_() && this.m_204036_(FluidTags.f_13132_) > (double)f) {
+@@ -128,7 +_,8 @@
              this.m_6478_(MoverType.SELF, this.m_20184_());
              float f1 = 0.98F;
-             if (this.f_19861_) {
--               f1 = this.f_19853_.m_8055_(new BlockPos(this.m_20185_(), this.m_20186_() - 1.0D, this.m_20189_())).m_60734_().m_49958_() * 0.98F;
-+               f1 = this.f_19853_.m_8055_(new BlockPos(this.m_20185_(), this.m_20186_() - 1.0D, this.m_20189_())).getFriction(f_19853_, new BlockPos(this.m_20185_(), this.m_20186_() - 1.0D, this.m_20189_()), this) * 0.98F;
+             if (this.m_20096_()) {
+-               f1 = this.m_9236_().m_8055_(this.m_20099_()).m_60734_().m_49958_() * 0.98F;
++               BlockPos groundPos = m_20099_();
++               f1 = this.m_9236_().m_8055_(groundPos).getFriction(m_9236_(), groundPos, this) * 0.98F;
              }
  
              this.m_20256_(this.m_20184_().m_82542_((double)f1, 0.98D, (double)f1));
-@@ -134,9 +_,11 @@
+@@ -146,9 +_,11 @@
              this.m_32069_();
           }
  
@@ -89,18 +105,18 @@
 +         // CraftBukkit end */
  
           this.f_19812_ |= this.m_20073_();
-          if (!this.f_19853_.f_46443_) {
-@@ -146,7 +_,23 @@
+          if (!this.m_9236_().f_46443_) {
+@@ -158,7 +_,22 @@
              }
           }
  
--         if (!this.f_19853_.f_46443_ && this.f_31985_ >= 6000) {
+-         if (!this.m_9236_().f_46443_ && this.f_31985_ >= 6000) {
 +         ItemStack item = this.m_32055_();
-+         if (!this.f_19853_.f_46443_ && this.f_31985_ >= /*lifespan*/f_19853_.spigotConfig.itemDespawnRate) { // Spigot
++         if (!this.m_9236_().f_46443_ && this.f_31985_ >= /*lifespan*/ this.m_9236_().spigotConfig.itemDespawnRate) { // Spigot
 +             int hook = net.minecraftforge.event.ForgeEventFactory.onItemExpire(this, item);
 +             if (hook < 0) {
 +                // CraftBukkit start - fire ItemDespawnEvent
-+                if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
++                if (org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
 +                   this.f_31985_ = 0;
 +                   return;
 +                }
@@ -110,33 +126,32 @@
 +                this.lifespan += hook;
 +             }
 +         }
-+
-+         if (item.m_41619_()) {
++         if (item.m_41619_() && !this.m_213877_()) {
              this.m_146870_();
           }
  
-@@ -165,7 +_,10 @@
+@@ -181,7 +_,10 @@
  
     private void m_32069_() {
        if (this.m_32070_()) {
--         for(ItemEntity itementity : this.f_19853_.m_6443_(ItemEntity.class, this.m_142469_().m_82377_(0.5D, 0.0D, 0.5D), (p_186268_) -> {
+-         for(ItemEntity itementity : this.m_9236_().m_6443_(ItemEntity.class, this.m_20191_().m_82377_(0.5D, 0.0D, 0.5D), (p_186268_) -> {
 +         // Spigot start
-+         double radius = f_19853_.spigotConfig.itemMerge;
-+         for(ItemEntity itementity : this.f_19853_.m_6443_(ItemEntity.class, this.m_142469_().m_82377_(radius, radius - 0.5D, radius), (p_186268_) -> {
++         double radius = this.m_9236_().spigotConfig.itemMerge;
++         for(ItemEntity itementity : this.m_9236_().m_6443_(ItemEntity.class, this.m_20191_().m_82377_(radius, radius - 0.5D, radius), (p_186268_) -> {
 +            // Spigot end
              return p_186268_ != this && p_186268_.m_32070_();
           })) {
              if (itementity.m_32070_()) {
-@@ -188,7 +_,7 @@
+@@ -204,7 +_,7 @@
        ItemStack itemstack = this.m_32055_();
        ItemStack itemstack1 = p_32016_.m_32055_();
-       if (Objects.equals(this.m_32056_(), p_32016_.m_32056_()) && m_32026_(itemstack, itemstack1)) {
+       if (Objects.equals(this.f_265881_, p_32016_.f_265881_) && m_32026_(itemstack, itemstack1)) {
 -         if (itemstack1.m_41613_() < itemstack.m_41613_()) {
 +         if (true || itemstack1.m_41613_() < itemstack.m_41613_()) { // Spigot
              m_32017_(this, itemstack, p_32016_, itemstack1);
           } else {
              m_32017_(p_32016_, itemstack1, this, itemstack);
-@@ -204,6 +_,8 @@
+@@ -220,6 +_,8 @@
           return false;
        } else if (p_32028_.m_41782_() ^ p_32027_.m_41782_()) {
           return false;
@@ -145,7 +160,7 @@
        } else {
           return !p_32028_.m_41782_() || p_32028_.m_41783_().equals(p_32027_.m_41783_());
        }
-@@ -219,10 +_,11 @@
+@@ -234,10 +_,15 @@
  
     private static void m_32022_(ItemEntity p_32023_, ItemStack p_32024_, ItemStack p_32025_) {
        ItemStack itemstack = m_32029_(p_32024_, p_32025_, 64);
@@ -154,61 +169,59 @@
     }
  
     private static void m_32017_(ItemEntity p_32018_, ItemStack p_32019_, ItemEntity p_32020_, ItemStack p_32021_) {
-+      if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callItemMergeEvent(p_32020_, p_32018_).isCancelled()) return; // CraftBukkit
++      // CraftBukkit start
++      if (!CraftEventFactory.callItemMergeEvent(p_32020_, p_32018_)) {
++         return;
++      }
++      // CraftBukkit end
        m_32022_(p_32018_, p_32019_, p_32021_);
        p_32018_.f_31986_ = Math.max(p_32018_.f_31986_, p_32020_.f_31986_);
        p_32018_.f_31985_ = Math.min(p_32018_.f_31985_, p_32020_.f_31985_);
-@@ -237,6 +_,7 @@
-    }
- 
-    public boolean m_6469_(DamageSource p_32013_, float p_32014_) {
-+      if (this.f_19853_.f_46443_ || this.m_146910_()) return false; //Forge: Fixes MC-53850
-       if (this.m_6673_(p_32013_)) {
-          return false;
-       } else if (!this.m_32055_().m_41619_() && this.m_32055_().m_150930_(Items.f_42686_) && p_32013_.m_19372_()) {
-@@ -246,11 +_,16 @@
-       } else if (this.f_19853_.f_46443_) {
+@@ -261,11 +_,16 @@
+       } else if (this.m_9236_().f_46443_) {
           return true;
        } else {
 +         // CraftBukkit start
-+         if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_32013_, p_32014_)) {
++         if (org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory.handleNonLivingEntityDamageEvent(this, p_32013_, p_32014_)) {
 +            return false;
 +         }
 +         // CraftBukkit end
           this.m_5834_();
           this.f_31987_ = (int)((float)this.f_31987_ - p_32014_);
-          this.m_146852_(GameEvent.f_157808_, p_32013_.m_7639_());
+          this.m_146852_(GameEvent.f_223706_, p_32013_.m_7639_());
           if (this.f_31987_ <= 0) {
 -            this.m_32055_().m_150924_(this);
 +            this.m_32055_().onDestroyed(this, p_32013_);
              this.m_146870_();
           }
  
-@@ -262,6 +_,7 @@
+@@ -277,6 +_,7 @@
        p_32050_.m_128376_("Health", (short)this.f_31987_);
        p_32050_.m_128376_("Age", (short)this.f_31985_);
        p_32050_.m_128376_("PickupDelay", (short)this.f_31986_);
-+      p_32050_.m_128405_("Lifespan", lifespan);
-       if (this.m_32057_() != null) {
-          p_32050_.m_128362_("Thrower", this.m_32057_());
++      p_32050_.m_128405_("Lifespan", this.lifespan);
+       if (this.f_31988_ != null) {
+          p_32050_.m_128362_("Thrower", this.f_31988_);
        }
-@@ -282,6 +_,7 @@
+@@ -297,6 +_,9 @@
        if (p_32034_.m_128441_("PickupDelay")) {
           this.f_31986_ = p_32034_.m_128448_("PickupDelay");
        }
-+      if (p_32034_.m_128441_("Lifespan")) lifespan = p_32034_.m_128451_("Lifespan");
++      if (p_32034_.m_128441_("Lifespan")) {
++         this.lifespan = p_32034_.m_128451_("Lifespan");
++      }
  
        if (p_32034_.m_128403_("Owner")) {
-          this.f_31982_ = p_32034_.m_128342_("Owner");
-@@ -301,10 +_,58 @@
+          this.f_265881_ = p_32034_.m_128342_("Owner");
+@@ -316,10 +_,58 @@
  
     public void m_6123_(Player p_32040_) {
-       if (!this.f_19853_.f_46443_) {
+       if (!this.m_9236_().f_46443_) {
 +         if (this.f_31986_ > 0) return;
           ItemStack itemstack = this.m_32055_();
           Item item = itemstack.m_41720_();
           int i = itemstack.m_41613_();
--         if (this.f_31986_ == 0 && (this.f_31982_ == null || this.f_31982_.equals(p_32040_.m_142081_())) && p_32040_.m_150109_().m_36054_(itemstack)) {
+-         if (this.f_31986_ == 0 && (this.f_265881_ == null || this.f_265881_.equals(p_32040_.m_20148_())) && p_32040_.m_150109_().m_36054_(itemstack)) {
 +
 +         // CraftBukkit start - fire PlayerPickupItemEvent
 +         int canHold = p_32040_.m_150109_().canHold(itemstack);
@@ -219,7 +232,7 @@
 +            // Call legacy event
 +            PlayerPickupItemEvent playerEvent = new PlayerPickupItemEvent((org.bukkit.entity.Player) p_32040_.getBukkitEntity(), (org.bukkit.entity.Item) this.getBukkitEntity(), remaining);
 +            playerEvent.setCancelled(!playerEvent.getPlayer().getCanPickupItems());
-+            this.f_19853_.getCraftServer().getPluginManager().callEvent(playerEvent);
++            this.m_9236_().getCraftServer().getPluginManager().callEvent(playerEvent);
 +            if (playerEvent.isCancelled()) {
 +               itemstack.m_41764_(i); // SPIGOT-5294 - restore count
 +               return;
@@ -228,7 +241,7 @@
 +            // Call newer event afterwards
 +            EntityPickupItemEvent entityEvent = new EntityPickupItemEvent((org.bukkit.entity.Player) p_32040_.getBukkitEntity(), (org.bukkit.entity.Item) this.getBukkitEntity(), remaining);
 +            entityEvent.setCancelled(!entityEvent.getEntity().getCanPickupItems());
-+            this.f_19853_.getCraftServer().getPluginManager().callEvent(entityEvent);
++            this.m_9236_().getCraftServer().getPluginManager().callEvent(entityEvent);
 +            if (entityEvent.isCancelled()) {
 +               itemstack.m_41764_(i); // SPIGOT-5294 - restore count
 +               return;
@@ -252,15 +265,15 @@
 +
 +         int hook = net.minecraftforge.event.ForgeEventFactory.onItemPickup(this, p_32040_);
 +         if (hook < 0) return;
-+
 +         ItemStack copy = itemstack.m_41777_();
-+         if (this.f_31986_ == 0 && (this.f_31982_ == null || lifespan - this.f_31985_ <= 200 || this.f_31982_.equals(p_32040_.m_142081_())) && (hook == 1 || i <= 0 || p_32040_.m_150109_().m_36054_(itemstack))) {
-+            copy.m_41764_(copy.m_41613_() - m_32055_().m_41613_());
++         if (this.f_31986_ == 0 && (this.f_265881_ == null || this.f_265881_.equals(p_32040_.m_20148_())) && (hook == 1 || i <= 0 || p_32040_.m_150109_().m_36054_(itemstack))) {
++            i = copy.m_41613_() - itemstack.m_41613_();
++            copy.m_41764_(i);
 +            net.minecraftforge.event.ForgeEventFactory.firePlayerItemPickupEvent(p_32040_, this, copy);
              p_32040_.m_7938_(this, i);
              if (itemstack.m_41619_()) {
                 this.m_146870_();
-@@ -328,8 +_,8 @@
+@@ -343,8 +_,8 @@
     }
  
     @Nullable
@@ -268,25 +281,17 @@
 -      Entity entity = super.m_5489_(p_32042_);
 +   public Entity changeDimension(ServerLevel p_32042_, net.minecraftforge.common.util.ITeleporter teleporter) {
 +      Entity entity = super.changeDimension(p_32042_, teleporter);
-       if (!this.f_19853_.f_46443_ && entity instanceof ItemEntity) {
+       if (!this.m_9236_().f_46443_ && entity instanceof ItemEntity) {
           ((ItemEntity)entity).m_32069_();
        }
-@@ -343,6 +_,7 @@
- 
-    public void m_32045_(ItemStack p_32046_) {
-       this.m_20088_().m_135381_(f_31984_, p_32046_);
-+      this.m_20088_().markDirty(f_31984_); // CraftBukkit - SPIGOT-4591, must mark dirty
-    }
- 
-    public void m_7350_(EntityDataAccessor<?> p_32036_) {
-@@ -405,8 +_,31 @@
+@@ -410,8 +_,31 @@
  
     public void m_32065_() {
        this.m_32062_();
 -      this.f_31985_ = 5999;
 -   }
-+      // this.age = getItem().getEntityLifespan(level) - 1;
-+      this.f_31985_ = f_19853_.spigotConfig.itemDespawnRate - 1; // Spigot
++      // this.age = getItem().getEntityLifespan(this.level()) - 1;
++      this.f_31985_ = this.m_9236_().spigotConfig.itemDespawnRate - 1; // Spigot
 +   }
 +
 +   // Spigot start - copied from above
@@ -299,9 +304,9 @@
 +      this.lastTick = MinecraftServer.currentTick;
 +      // CraftBukkit end
 +
-+      if (!this.f_19853_.f_46443_ && this.f_31985_ >= f_19853_.spigotConfig.itemDespawnRate) { // Spigot
++      if (!this.m_9236_().f_46443_ && this.f_31985_ >= this.m_9236_().spigotConfig.itemDespawnRate) { // Spigot
 +         // CraftBukkit start - fire ItemDespawnEvent
-+         if (org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
++         if (org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
 +            this.f_31985_ = 0;
 +            return;
 +         }

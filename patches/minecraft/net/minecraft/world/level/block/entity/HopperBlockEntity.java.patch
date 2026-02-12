@@ -1,47 +1,26 @@
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -5,21 +_,22 @@
- import java.util.stream.Collectors;
- import java.util.stream.IntStream;
- import javax.annotation.Nullable;
-+
-+import catserver.server.inventory.CatCustomInventory;
-+import catserver.server.inventory.CatInventoryUtils;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.Direction;
- import net.minecraft.core.NonNullList;
- import net.minecraft.nbt.CompoundTag;
- import net.minecraft.network.chat.Component;
- import net.minecraft.network.chat.TranslatableComponent;
--import net.minecraft.world.Container;
--import net.minecraft.world.ContainerHelper;
--import net.minecraft.world.WorldlyContainer;
--import net.minecraft.world.WorldlyContainerHolder;
-+import net.minecraft.world.*;
- import net.minecraft.world.entity.Entity;
- import net.minecraft.world.entity.EntitySelector;
- import net.minecraft.world.entity.item.ItemEntity;
- import net.minecraft.world.entity.player.Inventory;
- import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.entity.vehicle.MinecartHopper;
- import net.minecraft.world.inventory.AbstractContainerMenu;
- import net.minecraft.world.inventory.HopperMenu;
- import net.minecraft.world.item.ItemStack;
-@@ -31,6 +_,13 @@
- import net.minecraft.world.phys.AABB;
+@@ -31,6 +_,19 @@
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
+ 
++// CraftBukkit start
++import net.minecraft.world.CompoundContainer;
 +import org.bukkit.Bukkit;
-+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
-+import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_20_R1.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventory;
++import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 +import org.bukkit.entity.HumanEntity;
++import org.bukkit.event.inventory.HopperInventorySearchEvent;
 +import org.bukkit.event.inventory.InventoryMoveItemEvent;
 +import org.bukkit.event.inventory.InventoryPickupItemEvent;
-+import org.bukkit.inventory.InventoryHolder;
- 
++// CraftBukkit end
++
  public class HopperBlockEntity extends RandomizableContainerBlockEntity implements Hopper {
     public static final int f_155547_ = 8;
-@@ -39,6 +_,31 @@
+    public static final int f_155548_ = 5;
+@@ -38,6 +_,32 @@
     private int f_59302_ = -1;
     private long f_59303_;
  
@@ -68,12 +47,13 @@
 +   }
 +   public void setMaxStackSize(int size) {
 +      maxStack = size;
-+   }    // CraftBukkit end
++   }
++   // CraftBukkit end
 +
     public HopperBlockEntity(BlockPos p_155550_, BlockState p_155551_) {
        super(BlockEntityType.f_58933_, p_155550_, p_155551_);
     }
-@@ -89,9 +_,14 @@
+@@ -88,9 +_,14 @@
        p_155577_.f_59303_ = p_155574_.m_46467_();
        if (!p_155577_.m_59407_()) {
           p_155577_.m_59395_(0);
@@ -89,16 +69,16 @@
        }
  
     }
-@@ -103,7 +_,7 @@
+@@ -102,7 +_,7 @@
           if (!p_155582_.m_59407_() && p_155581_.m_61143_(HopperBlock.f_54022_)) {
              boolean flag = false;
              if (!p_155582_.m_7983_()) {
 -               flag = m_155562_(p_155579_, p_155580_, p_155581_, p_155582_);
-+               flag = ejectItems(p_155579_, p_155580_, p_155581_, p_155582_);
++               flag = ejectItems(p_155579_, p_155580_, p_155581_, p_155582_); // CraftBukkit // CatServer - recover
              }
  
              if (!p_155582_.m_59404_()) {
-@@ -111,7 +_,7 @@
+@@ -110,7 +_,7 @@
              }
  
              if (flag) {
@@ -107,45 +87,51 @@
                 m_155232_(p_155579_, p_155580_, p_155581_);
                 return true;
              }
-@@ -131,7 +_,8 @@
+@@ -130,7 +_,8 @@
        return true;
     }
  
 -   private static boolean m_155562_(Level p_155563_, BlockPos p_155564_, BlockState p_155565_, Container p_155566_) {
-+   private static boolean ejectItems(Level p_155563_, BlockPos p_155564_, BlockState p_155565_, HopperBlockEntity p_155566_) {
++   private static boolean ejectItems(Level p_155563_, BlockPos p_155564_, BlockState p_155565_, HopperBlockEntity p_155566_) { // CraftBukkit // CatServer - forge patched
 +      if (net.minecraftforge.items.VanillaInventoryCodeHooks.insertHook(p_155566_)) return true;
        Container container = m_155592_(p_155563_, p_155564_, p_155565_);
        if (container == null) {
           return false;
-@@ -143,12 +_,36 @@
+@@ -142,12 +_,42 @@
              for(int i = 0; i < p_155566_.m_6643_(); ++i) {
                 if (!p_155566_.m_8020_(i).m_41619_()) {
                    ItemStack itemstack = p_155566_.m_8020_(i).m_41777_();
 -                  ItemStack itemstack1 = m_59326_(p_155566_, container, p_155566_.m_7407_(i, 1), direction);
++                  // ItemStack itemstack1 = addItem(p_155566_, container, p_155566_.removeItem(i, 1), direction);
++
 +                  // CraftBukkit start - Call event when pushing items into other inventories
 +                  CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_155566_.m_7407_(i, p_155563_.spigotConfig.hopperAmount)); // Spigot
++
 +                  org.bukkit.inventory.Inventory destinationInventory;
 +                  // Have to special case large chests as they work oddly
 +                  if (container instanceof CompoundContainer) {
-+                     destinationInventory = new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryDoubleChest((CompoundContainer) container);
++                     destinationInventory = new org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryDoubleChest((CompoundContainer) container);
++                  } else if (container.getOwner() != null) {
++                     destinationInventory = container.getOwner().getInventory();
 +                  } else {
-+                     // CatServer start
-+                     destinationInventory = CatInventoryUtils.getBukkitInventory(container);
++                     destinationInventory = new CraftInventory(container); // CatServer - 1.20.1 fixed a bukkit bug: iinventory -> iinventory1, bukkit has fixed it in higher versions
 +                  }
-+                  InventoryHolder owner = CatInventoryUtils.getOwner((BlockEntity) p_155566_); // TODO : p_155566_
-+                  org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new CatCustomInventory(p_155566_).getInventory()); // TODO : p_155566_
++                  // CatServer start
++                  org.bukkit.inventory.InventoryHolder owner = catserver.server.inventory.CatInventoryUtils.getOwner((BlockEntity) p_155566_); // TODO : p_155566_
++                  org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new catserver.server.inventory.CatCustomInventory(p_155566_).getInventory()); // TODO : p_155566_
 +
 +                  InventoryMoveItemEvent event = new InventoryMoveItemEvent(hopperOwner, oitemstack.clone(), destinationInventory, true);
 +                  // CatServer end
 +                  p_155563_.getCraftServer().getPluginManager().callEvent(event);
 +                  if (event.isCancelled()) {
 +                     p_155566_.m_6836_(i, itemstack);
-+                     p_155566_.m_59395_(p_155563_.spigotConfig.hopperTransfer); // Spigot
++                     p_155566_.m_59395_(p_155563_.spigotConfig.hopperTransfer); // Delay hopper checks // Spigot
 +                     return false;
 +                  }
 +                  int origCount = event.getItem().getAmount(); // Spigot
 +                  ItemStack itemstack1 = m_59326_(p_155566_, container, CraftItemStack.asNMSCopy(event.getItem()), direction);
 +                  // CraftBukkit end
++
                    if (itemstack1.m_41619_()) {
                       container.m_6596_();
                       return true;
@@ -155,7 +141,7 @@
                    p_155566_.m_6836_(i, itemstack);
                 }
              }
-@@ -176,11 +_,13 @@
+@@ -175,11 +_,13 @@
     }
  
     public static boolean m_155552_(Level p_155553_, Hopper p_155554_) {
@@ -170,7 +156,7 @@
           });
        } else {
           for(ItemEntity itementity : m_155589_(p_155553_, p_155554_)) {
-@@ -194,15 +_,56 @@
+@@ -193,15 +_,63 @@
     }
  
     private static boolean m_59354_(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_) {
@@ -179,7 +165,7 @@
 +      if (p_59355_ instanceof net.minecraft.world.level.block.entity.BlockEntity) {
 +         level = ((net.minecraft.world.level.block.entity.BlockEntity) p_59355_).f_58857_;
 +      } else if (p_59355_ instanceof net.minecraft.world.entity.Entity) {
-+         level = ((net.minecraft.world.entity.Entity) p_59355_).f_19853_;
++         level = ((net.minecraft.world.entity.Entity) p_59355_).m_9236_();
 +      } else {
 +         level = net.minecraft.server.MinecraftServer.getServer().m_129783_();
 +      }
@@ -187,38 +173,45 @@
 +      // CatServer end
 +   }
 +
-+   private static boolean tryTakeInItemFromSlot(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_, Level level) {
++   private static boolean tryTakeInItemFromSlot(Hopper p_59355_, Container p_59356_, int p_59357_, Direction p_59358_, Level world) { // Spigot
        ItemStack itemstack = p_59356_.m_8020_(p_59357_);
-       if (!itemstack.m_41619_() && m_59380_(p_59356_, itemstack, p_59357_, p_59358_)) {
+       if (!itemstack.m_41619_() && m_271906_(p_59355_, p_59356_, itemstack, p_59357_, p_59358_)) {
           ItemStack itemstack1 = itemstack.m_41777_();
 -         ItemStack itemstack2 = m_59326_(p_59356_, p_59355_, p_59356_.m_7407_(p_59357_, 1), (Direction)null);
++         // ItemStack itemstack2 = addItem(p_59356_, p_59355_, p_59356_.removeItem(p_59357_, 1), (Direction)null);
 +         // CraftBukkit start - Call event on collection of items from inventories into the hopper
-+         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_59356_.m_7407_(p_59357_, level.spigotConfig.hopperAmount));
++         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(p_59356_.m_7407_(p_59357_, world.spigotConfig.hopperAmount)); // Spigot
++
 +         org.bukkit.inventory.Inventory sourceInventory;
 +         // Have to special case large chests as they work oddly
 +         if (p_59356_ instanceof CompoundContainer) {
-+            sourceInventory = new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryDoubleChest((CompoundContainer) p_59356_);
++            sourceInventory = new org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryDoubleChest((CompoundContainer) p_59356_);
++         } else if (p_59356_.getOwner() != null) {
++            sourceInventory = p_59356_.getOwner().getInventory();
 +         } else {
-+            // CatServer start
-+            sourceInventory = CatInventoryUtils.getOwner(p_59356_).getInventory();
++            sourceInventory = new CraftInventory(p_59356_);
 +         }
-+         InventoryHolder owner = CatInventoryUtils.getOwner(p_59355_);
-+         org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new CatCustomInventory(p_59355_).getInventory());
++
++         // CatServer start
++         org.bukkit.inventory.InventoryHolder owner = catserver.server.inventory.CatInventoryUtils.getOwner(p_59355_);
++         org.bukkit.inventory.Inventory hopperOwner = (owner != null ? owner.getInventory() : new catserver.server.inventory.CatCustomInventory(p_59355_).getInventory());
 +         InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, oitemstack.clone(), hopperOwner, false);
 +         // CatServer end
++
 +         Bukkit.getServer().getPluginManager().callEvent(event);
 +         if (event.isCancelled()) {
 +            p_59356_.m_6836_(p_59357_, itemstack1);
++
 +            if (p_59355_ instanceof HopperBlockEntity) {
-+               ((HopperBlockEntity) p_59355_).m_59395_(level.spigotConfig.hopperTransfer); // Spigot
-+            } else if (p_59355_ instanceof MinecartHopper) {
-+               ((MinecartHopper) p_59355_).m_38610_(level.spigotConfig.hopperTransfer / 2); // Spigot
++               ((HopperBlockEntity) p_59355_).m_59395_(world.spigotConfig.hopperTransfer); // Delay hopper checks // Spigot
 +            }
++
 +            return false;
 +         }
 +         int origCount = event.getItem().getAmount(); // Spigot
 +         ItemStack itemstack2 = m_59326_(p_59356_, p_59355_, CraftItemStack.asNMSCopy(event.getItem()), null);
 +         // CraftBukkit end
++
           if (itemstack2.m_41619_()) {
              p_59356_.m_6596_();
              return true;
@@ -228,17 +221,17 @@
           p_59356_.m_6836_(p_59357_, itemstack1);
        }
  
-@@ -211,6 +_,17 @@
+@@ -210,6 +_,17 @@
  
     public static boolean m_59331_(Container p_59332_, ItemEntity p_59333_) {
        boolean flag = false;
 +      // CraftBukkit start
 +      // CatServer start
-+      InventoryHolder owner = CatInventoryUtils.getOwner(p_59332_);
-+      org.bukkit.inventory.Inventory sourceInventory = owner != null ? owner.getInventory() : new CatCustomInventory(p_59332_).getInventory();
++      org.bukkit.inventory.InventoryHolder owner = catserver.server.inventory.CatInventoryUtils.getOwner(p_59332_);
++      org.bukkit.inventory.Inventory sourceInventory = owner != null ? owner.getInventory() : new catserver.server.inventory.CatCustomInventory(p_59332_).getInventory();
 +      // CatServer end
 +      InventoryPickupItemEvent event = new InventoryPickupItemEvent(sourceInventory, (org.bukkit.entity.Item) p_59333_.getBukkitEntity());
-+      p_59333_.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++      p_59333_.m_9236_().getCraftServer().getPluginManager().callEvent(event);
 +      if (event.isCancelled()) {
 +         return false;
 +      }
@@ -246,7 +239,7 @@
        ItemStack itemstack = p_59333_.m_32055_().m_41777_();
        ItemStack itemstack1 = m_59326_((Container)null, p_59332_, itemstack, (Direction)null);
        if (itemstack1.m_41619_()) {
-@@ -260,6 +_,11 @@
+@@ -280,6 +_,11 @@
           boolean flag = false;
           boolean flag1 = p_59322_.m_7983_();
           if (itemstack.m_41619_()) {
@@ -258,7 +251,7 @@
              p_59322_.m_6836_(p_59324_, p_59323_);
              p_59323_ = ItemStack.f_41583_;
              flag = true;
-@@ -283,7 +_,7 @@
+@@ -303,7 +_,7 @@
                       }
                    }
  
@@ -267,15 +260,57 @@
                 }
              }
  
-@@ -320,6 +_,7 @@
+@@ -314,15 +_,39 @@
+       return p_59323_;
+    }
+ 
++   // CraftBukkit start - 1.20.1
++   @Nullable
++   private static Container runHopperInventorySearchEvent(Container inventory, CraftBlock hopper, CraftBlock searchLocation, HopperInventorySearchEvent.ContainerType containerType) {
++      HopperInventorySearchEvent event = new HopperInventorySearchEvent((inventory != null) ? new CraftInventory(inventory) : null, containerType, hopper, searchLocation);
++      Bukkit.getServer().getPluginManager().callEvent(event);
++      CraftInventory craftInventory = (CraftInventory) event.getInventory();
++      return (craftInventory != null) ? craftInventory.getInventory() : null;
++   }
++   // CraftBukkit end
++
+    @Nullable
+    private static Container m_155592_(Level p_155593_, BlockPos p_155594_, BlockState p_155595_) {
+       Direction direction = p_155595_.m_61143_(HopperBlock.f_54021_);
+-      return m_59390_(p_155593_, p_155594_.m_121945_(direction));
++      // CraftBukkit start - 1.20.1
++      BlockPos searchPosition = p_155594_.m_121945_(direction);
++      Container inventory = m_59390_(p_155593_, p_155594_.m_121945_(direction));
++
++      CraftBlock hopper = CraftBlock.at(p_155593_, p_155594_);
++      CraftBlock searchBlock = CraftBlock.at(p_155593_, searchPosition);
++      return runHopperInventorySearchEvent(inventory, hopper, searchBlock, HopperInventorySearchEvent.ContainerType.DESTINATION);
++      // CraftBukkit end
+    }
+ 
+    @Nullable
+    private static Container m_155596_(Level p_155597_, Hopper p_155598_) {
+-      return m_59347_(p_155597_, p_155598_.m_6343_(), p_155598_.m_6358_() + 1.0D, p_155598_.m_6446_());
++      // CraftBukkit start - 1.20.1
++      Container inventory = m_59347_(p_155597_, p_155598_.m_6343_(), p_155598_.m_6358_() + 1.0D, p_155598_.m_6446_());
++
++      BlockPos blockPosition = BlockPos.m_274561_(p_155598_.m_6343_(), p_155598_.m_6358_(), p_155598_.m_6446_());
++      CraftBlock hopper = CraftBlock.at(p_155597_, blockPosition);
++      CraftBlock container = CraftBlock.at(p_155597_, blockPosition.m_7494_());
++      return runHopperInventorySearchEvent(inventory, hopper, container, HopperInventorySearchEvent.ContainerType.SOURCE);
++      // CraftBukkit end
+    }
+ 
+    public static List<ItemEntity> m_155589_(Level p_155590_, Hopper p_155591_) {
+@@ -340,6 +_,7 @@
     private static Container m_59347_(Level p_59348_, double p_59349_, double p_59350_, double p_59351_) {
        Container container = null;
-       BlockPos blockpos = new BlockPos(p_59349_, p_59350_, p_59351_);
-+      if ( !p_59348_.m_46805_( blockpos ) ) return null; // Spigot
+       BlockPos blockpos = BlockPos.m_274561_(p_59349_, p_59350_, p_59351_);
++      if ( !p_59348_.spigotConfig.hopperCanLoadChunks && !p_59348_.m_46805_( blockpos ) ) return null; // Spigot
        BlockState blockstate = p_59348_.m_8055_(blockpos);
        Block block = blockstate.m_60734_();
        if (block instanceof WorldlyContainerHolder) {
-@@ -399,5 +_,14 @@
+@@ -411,5 +_,14 @@
  
     protected AbstractContainerMenu m_6555_(int p_59312_, Inventory p_59313_) {
        return new HopperMenu(p_59312_, p_59313_, this);

@@ -5,9 +5,10 @@
 
 package net.minecraftforge.client.gui.widget;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
@@ -47,7 +48,7 @@ public class ForgeSlider extends AbstractSliderButton
      */
     public ForgeSlider(int x, int y, int width, int height, Component prefix, Component suffix, double minValue, double maxValue, double currentValue, double stepSize, int precision, boolean drawString)
     {
-        super(x, y, width, height, TextComponent.EMPTY, 0D);
+        super(x, y, width, height, Component.empty(), 0D);
         this.prefix = prefix;
         this.suffix = suffix;
         this.minValue = minValue;
@@ -161,7 +162,7 @@ public class ForgeSlider extends AbstractSliderButton
 
     private void setValueFromMouse(double mouseX)
     {
-        this.setSliderValue((mouseX - (this.x + 4)) / (this.width - 8));
+        this.setSliderValue((mouseX - (this.getX() + 4)) / (this.width - 8));
     }
 
     /**
@@ -207,14 +208,25 @@ public class ForgeSlider extends AbstractSliderButton
     {
         if (this.drawString)
         {
-            this.setMessage(new TextComponent("").append(prefix).append(this.getValueString()).append(suffix));
+            this.setMessage(Component.literal("").append(prefix).append(this.getValueString()).append(suffix));
         }
         else
         {
-            this.setMessage(TextComponent.EMPTY);
+            this.setMessage(Component.empty());
         }
     }
 
     @Override
     protected void applyValue() {}
+
+    @Override
+    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick)
+    {
+        final Minecraft mc = Minecraft.getInstance();
+        guiGraphics.blitWithBorder(SLIDER_LOCATION, this.getX(), this.getY(), 0, getTextureY(), this.width, this.height, 200, 20, 2, 3, 2, 2);
+
+        guiGraphics.blitWithBorder(SLIDER_LOCATION, this.getX() + (int)(this.value * (double)(this.width - 8)), this.getY(), 0, getHandleTextureY(), 8, this.height, 200, 20 , 2, 3, 2, 2);
+
+        renderScrollingString(guiGraphics, mc.font, 2, getFGColor() | Mth.ceil(this.alpha * 255.0F) << 24);
+    }
 }

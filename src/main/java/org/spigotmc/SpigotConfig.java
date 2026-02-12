@@ -1,7 +1,7 @@
 package org.spigotmc;
 
 import com.google.common.base.Throwables;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -25,6 +25,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 public class SpigotConfig {
+
     private static File CONFIG_FILE;
     private static final String HEADER = "This is the main configuration file for Spigot.\n"
             + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n"
@@ -37,12 +38,12 @@ public class SpigotConfig {
             + "\n"
             + "Discord: https://www.spigotmc.org/go/discord\n"
             + "Forums: http://www.spigotmc.org/\n";
-
     /*========================================================================*/
     public static YamlConfiguration config;
     static int version;
     static Map<String, Command> commands;
     /*========================================================================*/
+    // private static Metrics metrics; // CatServer - remove
 
     public static void init(File configFile) {
         CONFIG_FILE = configFile;
@@ -54,10 +55,13 @@ public class SpigotConfig {
             Bukkit.getLogger().log(Level.SEVERE, "Could not load spigot.yml, please correct your syntax errors", ex);
             throw Throwables.propagate(ex);
         }
+
         config.options().header(HEADER);
         config.options().copyDefaults(true);
+
         commands = new HashMap<String, Command>();
         commands.put("spigot", new SpigotCommand("spigot"));
+
         version = getInt("config-version", 12);
         set("config-version", 12);
         readConfig(SpigotConfig.class, null);
@@ -67,9 +71,20 @@ public class SpigotConfig {
         for (Map.Entry<String, Command> entry : commands.entrySet()) {
             MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Spigot", entry.getValue());
         }
+
+        /* // CatServer - remove
+        if (metrics == null) {
+            try {
+                metrics = new Metrics();
+                metrics.start();
+            } catch (IOException ex) {
+                Bukkit.getServer().getLogger().log(Level.SEVERE, "Could not start metrics service", ex);
+            }
+        }
+        */
     }
 
-    static void readConfig(Class<?> clazz, Object instance) {
+    public static void readConfig(Class<?> clazz, Object instance) { // Paper - package-private -> public
         for (Method method : clazz.getDeclaredMethods()) {
             if (Modifier.isPrivate(method.getModifiers())) {
                 if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
@@ -84,6 +99,7 @@ public class SpigotConfig {
                 }
             }
         }
+
         try {
             config.save(CONFIG_FILE);
         } catch (IOException ex) {
@@ -210,7 +226,7 @@ public class SpigotConfig {
             if (section.isInt(name)) {
                 try {
                     ResourceLocation key = new ResourceLocation(name);
-                    if (Registry.CUSTOM_STAT.get(key) == null) {
+                    if (BuiltInRegistries.CUSTOM_STAT.get(key) == null) {
                         Bukkit.getLogger().log(Level.WARNING, "Ignoring non existent stats.forced-stats " + name);
                         continue;
                     }

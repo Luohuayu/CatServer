@@ -11,8 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * This event is called when a player attempts to use Bonemeal on a block.
@@ -28,23 +27,23 @@ import javax.annotation.Nonnull;
 public class BonemealEvent extends PlayerEvent
 {
 
-    private final Level world;
+    private final Level level;
     private final BlockPos pos;
     private final BlockState block;
     private final ItemStack stack;
 
-    public BonemealEvent(@Nonnull Player player, @Nonnull Level world, @Nonnull BlockPos pos, @Nonnull BlockState block, @Nonnull ItemStack stack)
+    public BonemealEvent(@NotNull Player player, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState block, @NotNull ItemStack stack)
     {
         super(player);
-        this.world = world;
+        this.level = level;
         this.pos = pos;
         this.block = block;
         this.stack = stack;
     }
 
-    public Level getWorld()
+    public Level getLevel()
     {
-        return world;
+        return level;
     }
 
     public BlockPos getPos()
@@ -57,7 +56,7 @@ public class BonemealEvent extends PlayerEvent
         return block;
     }
 
-    @Nonnull
+    @NotNull
     public ItemStack getStack()
     {
         return stack;

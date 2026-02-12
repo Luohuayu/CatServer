@@ -1,6 +1,6 @@
 --- a/net/minecraft/client/renderer/chunk/ChunkRenderDispatcher.java
 +++ b/net/minecraft/client/renderer/chunk/ChunkRenderDispatcher.java
-@@ -73,12 +_,15 @@
+@@ -79,12 +_,15 @@
     private Vec3 f_112683_ = Vec3.f_82478_;
  
     public ChunkRenderDispatcher(ClientLevel p_194405_, LevelRenderer p_194406_, Executor p_194407_, boolean p_194408_, ChunkBufferBuilderPack p_194409_) {
@@ -18,7 +18,7 @@
        List<ChunkBufferBuilderPack> list = Lists.newArrayListWithExpectedSize(l);
  
 @@ -420,7 +_,7 @@
-          if (!chunkrenderdispatcher$compiledchunk.f_112750_.contains(p_112810_)) {
+          if (!chunkrenderdispatcher$compiledchunk.f_112749_.contains(p_112810_)) {
              return false;
           } else {
 -            this.f_112788_ = new ChunkRenderDispatcher.RenderChunk.ResortTransparencyTask(this.m_112832_(), chunkrenderdispatcher$compiledchunk);
@@ -39,7 +39,7 @@
           protected final double f_112847_;
           protected final AtomicBoolean f_112848_ = new AtomicBoolean(false);
           protected final boolean f_194420_;
-+         protected java.util.Map<net.minecraft.core.BlockPos, net.minecraftforge.client.model.data.IModelData> modelData;
++         protected java.util.Map<net.minecraft.core.BlockPos, net.minecraftforge.client.model.data.ModelData> modelData;
  
           public ChunkCompileTask(double p_194423_, boolean p_194424_) {
 +            this(null, p_194423_, p_194424_);
@@ -51,7 +51,7 @@
 +            if (pos == null) {
 +               this.modelData = java.util.Collections.emptyMap();
 +            } else {
-+               this.modelData = net.minecraftforge.client.model.ModelDataManager.getModelData(net.minecraft.client.Minecraft.m_91087_().f_91073_, pos);
++               this.modelData = net.minecraft.client.Minecraft.m_91087_().f_91073_.getModelDataManager().getAt(pos);
 +            }
           }
  
@@ -61,8 +61,8 @@
              return Doubles.compare(this.f_112847_, p_112855_.f_112847_);
           }
 +
-+         public net.minecraftforge.client.model.data.IModelData getModelData(net.minecraft.core.BlockPos pos) {
-+            return modelData.getOrDefault(pos, net.minecraftforge.client.model.data.EmptyModelData.INSTANCE);
++         public net.minecraftforge.client.model.data.ModelData getModelData(net.minecraft.core.BlockPos pos) {
++            return modelData.getOrDefault(pos, net.minecraftforge.client.model.data.ModelData.EMPTY);
 +         }
        }
  
@@ -72,7 +72,7 @@
           protected RenderChunkRegion f_112858_;
  
 +         @Deprecated
-          public RebuildTask(@Nullable double p_194427_, RenderChunkRegion p_194428_, boolean p_194429_) {
+          public RebuildTask(double p_194427_, @Nullable RenderChunkRegion p_194428_, boolean p_194429_) {
 -            super(p_194427_, p_194429_);
 +            this(null, p_194427_, p_194428_, p_194429_);
 +         }
@@ -82,61 +82,42 @@
              this.f_112858_ = p_194428_;
           }
  
-@@ -591,8 +_,10 @@
- 
-                   BlockState blockstate1 = renderchunkregion.m_8055_(blockpos2);
-                   FluidState fluidstate = blockstate1.m_60819_();
--                  if (!fluidstate.m_76178_()) {
--                     RenderType rendertype = ItemBlockRenderTypes.m_109287_(fluidstate);
-+                  net.minecraftforge.client.model.data.IModelData modelData = getModelData(blockpos2);
-+                  for (RenderType rendertype : RenderType.m_110506_()) {
-+                     net.minecraftforge.client.ForgeHooksClient.setRenderType(rendertype);
-+                  if (!fluidstate.m_76178_() && ItemBlockRenderTypes.canRenderInLayer(fluidstate, rendertype)) {
-                      BufferBuilder bufferbuilder = p_112870_.m_108839_(rendertype);
-                      if (p_112869_.f_112750_.add(rendertype)) {
-                         RenderChunk.this.m_112805_(bufferbuilder);
-@@ -604,8 +_,8 @@
-                      }
+@@ -605,7 +_,10 @@
                    }
  
--                  if (blockstate.m_60799_() != RenderShape.INVISIBLE) {
--                     RenderType rendertype1 = ItemBlockRenderTypes.m_109282_(blockstate);
-+                  if (blockstate.m_60799_() != RenderShape.INVISIBLE && ItemBlockRenderTypes.canRenderInLayer(blockstate, rendertype)) {
-+                     RenderType rendertype1 = rendertype;
-                      BufferBuilder bufferbuilder2 = p_112870_.m_108839_(rendertype1);
-                      if (p_112869_.f_112750_.add(rendertype1)) {
+                   if (blockstate.m_60799_() != RenderShape.INVISIBLE) {
+-                     RenderType rendertype2 = ItemBlockRenderTypes.m_109282_(blockstate);
++                     var model = blockrenderdispatcher.m_110910_(blockstate);
++                     var modelData = model.getModelData(renderchunkregion, blockpos2, blockstate, getModelData(blockpos2));
++                     randomsource.m_188584_(blockstate.m_60726_(blockpos2));
++                     for (RenderType rendertype2 : model.getRenderTypes(blockstate, randomsource, modelData)) {
+                      BufferBuilder bufferbuilder2 = p_234471_.m_108839_(rendertype2);
+                      if (set.add(rendertype2)) {
                          RenderChunk.this.m_112805_(bufferbuilder2);
-@@ -613,14 +_,16 @@
+@@ -613,8 +_,9 @@
  
                       posestack.m_85836_();
-                      posestack.m_85837_((double)(blockpos2.m_123341_() & 15), (double)(blockpos2.m_123342_() & 15), (double)(blockpos2.m_123343_() & 15));
--                     if (blockrenderdispatcher.m_110924_(blockstate, blockpos2, renderchunkregion, posestack, bufferbuilder2, true, random)) {
-+                     if (blockrenderdispatcher.renderBatched(blockstate, blockpos2, renderchunkregion, posestack, bufferbuilder2, true, random, modelData)) {
-                         p_112869_.f_112751_ = false;
-                         p_112869_.f_112749_.add(rendertype1);
-                      }
- 
+                      posestack.m_252880_((float)(blockpos2.m_123341_() & 15), (float)(blockpos2.m_123342_() & 15), (float)(blockpos2.m_123343_() & 15));
+-                     blockrenderdispatcher.m_234355_(blockstate, blockpos2, renderchunkregion, posestack, bufferbuilder2, true, randomsource);
++                     blockrenderdispatcher.renderBatched(blockstate, blockpos2, renderchunkregion, posestack, bufferbuilder2, true, randomsource, modelData, rendertype2);
                       posestack.m_85849_();
++                     }
                    }
-+                  }
                 }
-+               net.minecraftforge.client.ForgeHooksClient.setRenderType(null);
  
-                if (p_112869_.f_112749_.contains(RenderType.m_110466_())) {
-                   BufferBuilder bufferbuilder1 = p_112870_.m_108839_(RenderType.m_110466_());
-@@ -639,10 +_,10 @@
-          private <E extends BlockEntity> void m_112877_(ChunkRenderDispatcher.CompiledChunk p_112878_, Set<BlockEntity> p_112879_, E p_112880_) {
-             BlockEntityRenderer<E> blockentityrenderer = Minecraft.m_91087_().m_167982_().m_112265_(p_112880_);
+@@ -643,10 +_,10 @@
+          private <E extends BlockEntity> void m_234476_(ChunkRenderDispatcher.RenderChunk.RebuildTask.CompileResults p_234477_, E p_234478_) {
+             BlockEntityRenderer<E> blockentityrenderer = Minecraft.m_91087_().m_167982_().m_112265_(p_234478_);
              if (blockentityrenderer != null) {
--               p_112878_.f_112752_.add(p_112880_);
-                if (blockentityrenderer.m_5932_(p_112880_)) {
-                   p_112879_.add(p_112880_);
+-               p_234477_.f_234485_.add(p_234478_);
+                if (blockentityrenderer.m_5932_(p_234478_)) {
+                   p_234477_.f_234484_.add(p_234478_);
                 }
-+               else p_112878_.f_112752_.add(p_112880_); //FORGE: Fix MC-112730
++               else p_234477_.f_234485_.add(p_234478_); //FORGE: Fix MC-112730
              }
  
           }
-@@ -660,8 +_,13 @@
+@@ -674,8 +_,13 @@
        class ResortTransparencyTask extends ChunkRenderDispatcher.RenderChunk.ChunkCompileTask {
           private final ChunkRenderDispatcher.CompiledChunk f_112886_;
  

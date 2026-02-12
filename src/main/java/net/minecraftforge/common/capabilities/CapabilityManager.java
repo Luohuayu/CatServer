@@ -5,15 +5,16 @@
 
 package net.minecraftforge.common.capabilities;
 
+import net.minecraftforge.fml.Logging;
 import net.minecraftforge.fml.ModLoader;
 import net.minecraftforge.forgespi.language.ModFileScanData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.objectweb.asm.Type;
 
+import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
-
-import static net.minecraftforge.fml.Logging.CAPABILITIES;
 
 public enum CapabilityManager
 {
@@ -35,7 +36,6 @@ public enum CapabilityManager
         {
             realName = realName.intern();
             cap = (Capability<T>)providers.computeIfAbsent(realName, Capability::new);
-
         }
 
 
@@ -45,7 +45,7 @@ public enum CapabilityManager
             {
                 if (cap.isRegistered())
                 {
-                    LOGGER.error(CAPABILITIES, "Cannot register capability implementation multiple times : {}", realName);
+                    LOGGER.error(Logging.CAPABILITIES, "Cannot register capability implementation multiple times : {}", realName);
                     throw new IllegalArgumentException("Cannot register a capability implementation multiple times : "+ realName);
                 }
                 else
@@ -59,9 +59,24 @@ public enum CapabilityManager
     }
 
     // INTERNAL
+    private static final Type AUTO_REGISTER = Type.getType(AutoRegisterCapability.class);
     private final IdentityHashMap<String, Capability<?>> providers = new IdentityHashMap<>();
     public void injectCapabilities(List<ModFileScanData> data)
     {
+        var autos = data.stream()
+            .flatMap(e -> e.getAnnotations().stream())
+            .filter(a -> AUTO_REGISTER.equals(a.annotationType()))
+            .map(a -> a.clazz())
+            .distinct()
+            .sorted(Comparator.comparing(Type::toString))
+            .toList();
+
+        for (var auto : autos)
+        {
+            LOGGER.debug(Logging.CAPABILITIES, "Attempting to automatically register: " + auto);
+            get(auto.getInternalName(), true);
+        }
+
         var event = new RegisterCapabilitiesEvent();
         ModLoader.get().postEvent(event);
     }

@@ -1,84 +1,130 @@
 --- a/net/minecraft/world/level/block/entity/SignBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/SignBlockEntity.java
-@@ -23,13 +_,13 @@
- import net.minecraft.world.phys.Vec2;
+@@ -3,6 +_,7 @@
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import com.mojang.logging.LogUtils;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.UUID;
+ import java.util.function.UnaryOperator;
+ import javax.annotation.Nullable;
+@@ -29,7 +_,16 @@
  import net.minecraft.world.phys.Vec3;
+ import org.slf4j.Logger;
  
 -public class SignBlockEntity extends BlockEntity {
++// CraftBukkit start
++import net.minecraft.nbt.Tag;
++import net.minecraft.server.level.ServerPlayer;
++import org.bukkit.block.sign.Side;
++import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
++import org.bukkit.craftbukkit.v1_20_R1.util.CraftChatMessage;
++import org.bukkit.event.block.SignChangeEvent;
++// CraftBukkit end
++
 +public class SignBlockEntity extends BlockEntity implements CommandSource { // CraftBukkit - implements
-    public static final int f_155692_ = 4;
-    private static final String[] f_155693_ = new String[]{"Text1", "Text2", "Text3", "Text4"};
-    private static final String[] f_155694_ = new String[]{"FilteredText1", "FilteredText2", "FilteredText3", "FilteredText4"};
--   private final Component[] f_59720_ = new Component[]{TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_};
-+   public final Component[] f_59720_ = new Component[]{TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_};
-    private final Component[] f_155695_ = new Component[]{TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_, TextComponent.f_131282_};
--   private boolean f_59721_ = true;
-+   public boolean f_59721_ = true;
-    @Nullable
-    private UUID f_59722_;
-    @Nullable
-@@ -55,6 +_,12 @@
+    private static final Logger f_276608_ = LogUtils.getLogger();
+    private static final int f_243840_ = 90;
+    private static final int f_243968_ = 10;
+@@ -131,7 +_,7 @@
+       Level level = this.f_58857_;
+       if (level instanceof ServerLevel serverlevel) {
+          try {
+-            return ComponentUtils.m_130731_(m_278808_((Player)null, serverlevel, this.f_58858_), p_278307_, (Entity)null, 0);
++            return ComponentUtils.m_130731_(this.createCommandSourceStackCB((Player)null, serverlevel, this.f_58858_), p_278307_, (Entity)null, 0); // CatServer
+          } catch (CommandSyntaxException commandsyntaxexception) {
+          }
+       }
+@@ -142,12 +_,13 @@
+    public void m_277134_(Player p_278048_, boolean p_278103_, List<FilteredText> p_277990_) {
+       if (!this.m_277118_() && p_278048_.m_20148_().equals(this.m_155726_()) && this.f_58857_ != null) {
+          this.m_277073_((p_277776_) -> {
+-            return this.m_276929_(p_278048_, p_277990_, p_277776_);
++            return this.setMessages(p_278048_, p_277990_, p_277776_, p_278103_); // CraftBukkit
+          }, p_278103_);
+          this.m_155713_((UUID)null);
+          this.f_58857_.m_7260_(this.m_58899_(), this.m_58900_(), this.m_58900_(), 3);
+       } else {
+          f_276608_.warn("Player {} just tried to change non-editable sign", (Object)p_278048_.m_7755_().getString());
++         ((ServerPlayer) p_278048_).f_8906_.m_9829_(this.m_58483_()); // CraftBukkit
+       }
+    }
+ 
+@@ -156,7 +_,19 @@
+       return this.m_276956_(p_277877_.apply(signtext), p_277426_);
+    }
+ 
++   // CatServer start - 1.20.1
++   private final ThreadLocal<Boolean> catserver$setMessagesFront = ThreadLocal.withInitial(() -> true);
++   private SignText setMessages(Player p_277396_, List<FilteredText> p_277744_, SignText p_277359_, boolean front) { // CraftBukkit
++      try {
++         this.catserver$setMessagesFront.set(front);
++         return this.m_276929_(p_277396_, p_277744_, p_277359_);
++      } finally {
++         this.catserver$setMessagesFront.remove();
++      }
++   }
++
+    private SignText m_276929_(Player p_277396_, List<FilteredText> p_277744_, SignText p_277359_) {
++      SignText originalText = p_277359_; // CraftBukkit
+       for(int i = 0; i < p_277744_.size(); ++i) {
+          FilteredText filteredtext = p_277744_.get(i);
+          Style style = p_277359_.m_277138_(i, p_277396_.m_143387_()).m_7383_();
+@@ -167,8 +_,34 @@
           }
        }
  
 +      // CraftBukkit start
-+      if (Boolean.getBoolean("convertLegacySigns")) {
-+         p_187515_.m_128379_("Bukkit.isConverted", true);
++      org.bukkit.entity.Player player = ((ServerPlayer) p_277396_).getBukkitEntity();
++      String[] lines = new String[4];
++
++      for (int i = 0; i < p_277744_.size(); ++i) {
++         lines[i] = CraftChatMessage.fromComponent(p_277359_.m_277138_(i, p_277396_.m_143387_()));
++      }
++
++      boolean front = this.catserver$setMessagesFront.get(); // CatServer
++      this.catserver$setMessagesFront.remove(); // CatServer
++      SignChangeEvent event = new SignChangeEvent(CraftBlock.at(this.f_58857_, this.f_58858_), player, lines.clone(), (front) ? Side.FRONT : Side.BACK);
++      p_277396_.m_9236_().getCraftServer().getPluginManager().callEvent(event);
++
++      if (event.isCancelled()) {
++         return originalText;
++      }
++
++      Component[] components = org.bukkit.craftbukkit.v1_20_R1.block.CraftSign.sanitizeLines(event.getLines());
++      for (int i = 0; i < components.length; i++) {
++         if (!Objects.equals(lines[i], event.getLine(i))) {
++            p_277359_ = p_277359_.m_276913_(i, components[i]);
++         }
 +      }
 +      // CraftBukkit end
 +
-       p_187515_.m_128359_("Color", this.f_59724_.m_41065_());
-       p_187515_.m_128379_("GlowingText", this.f_155697_);
+       return p_277359_;
     }
-@@ -64,8 +_,23 @@
-       super.m_142466_(p_155716_);
-       this.f_59724_ = DyeColor.m_41057_(p_155716_.m_128461_("Color"), DyeColor.BLACK);
++   // CatServer end
  
-+      // CraftBukkit start - Add an option to convert signs correctly
-+      // This is done with a flag instead of all the time because
-+      // we have no way to tell whether a sign is from 1.7.10 or 1.8
-+      boolean oldSign = Boolean.getBoolean("convertLegacySigns") && !p_155716_.m_128471_("Bukkit.isConverted");
-+      // CraftBukkit end
-+
-       for(int i = 0; i < 4; ++i) {
-          String s = p_155716_.m_128461_(f_155693_[i]);
-+         // CraftBukkit start
-+         if (s != null && s.length() > 2048) {
-+            s = "\"\"";
-+         }
-+         if (oldSign) {
-+            f_59720_[i] = org.bukkit.craftbukkit.v1_18_R2.util.CraftChatMessage.fromString(s)[0];
-+            continue;
-+         }
-+         // CraftBukkit end
-          Component component = this.m_155711_(s);
-          this.f_59720_[i] = component;
-          String s1 = f_155694_[i];
-@@ -98,8 +_,11 @@
-          if (component != null) {
-             return component;
+    public boolean m_276956_(SignText p_277733_, boolean p_277720_) {
+       return p_277720_ ? this.m_276964_(p_277733_) : this.m_277170_(p_277733_);
+@@ -205,7 +_,7 @@
+          Style style = component.m_7383_();
+          ClickEvent clickevent = style.m_131182_();
+          if (clickevent != null && clickevent.m_130622_() == ClickEvent.Action.RUN_COMMAND) {
+-            p_279304_.m_20194_().m_129892_().m_230957_(m_278808_(p_279304_, p_279201_, p_278282_), clickevent.m_130623_());
++            p_279304_.m_20194_().m_129892_().m_230957_(this.createCommandSourceStackCB(p_279304_, p_279201_, p_278282_), clickevent.m_130623_()); // CatServer
+             flag = true;
           }
--      } catch (Exception exception) {
--      }
-+         // CraftBukkit start
-+      } catch (com.google.gson.JsonParseException jsonparseexception) {
-+         return new TextComponent(p_155721_);
-+         // CraftBukkit end
-+      } catch (Exception exception) {}
- 
-       return TextComponent.f_131282_;
-    }
-@@ -180,10 +_,37 @@
-       return true;
+       }
+@@ -213,6 +_,39 @@
+       return flag;
     }
  
 +   // CraftBukkit start
 +   @Override
-+   public void m_6352_(Component ichatbasecomponent, java.util.UUID uuid) {}
++   public void m_213846_(Component ichatbasecomponent) {}
 +
 +   @Override
 +   public org.bukkit.command.CommandSender getBukkitSender(CommandSourceStack wrapper) {
-+      return wrapper.m_81373_() != null ? wrapper.m_81373_().getBukkitSender(wrapper) : new org.bukkit.craftbukkit.v1_18_R2.command.CraftBlockCommandSender(wrapper, this);
++      return wrapper.m_81373_() != null ? wrapper.m_81373_().getBukkitSender(wrapper) : new org.bukkit.craftbukkit.v1_20_R1.command.CraftBlockCommandSender(wrapper, this);
 +   }
 +
 +   @Override
@@ -97,21 +143,34 @@
 +   }
 +   // CraftBukkit end
 +
++   // CatServer start - 1.20.1
++   private CommandSourceStack createCommandSourceStackCB(@Nullable Player p_279428_, Level p_279359_, BlockPos p_279430_) { // CraftBukkit - 1.20.1
++      CommandSourceStack ret = SignBlockEntity.m_278808_(p_279428_, p_279359_, p_279430_);
++      ret.f_81288_ = this;
++      return ret;
++   }
++   // CatServer end
 +
-    public CommandSourceStack m_59735_(@Nullable ServerPlayer p_59736_) {
-       String s = p_59736_ == null ? "Sign" : p_59736_.m_7755_().getString();
-       Component component = (Component)(p_59736_ == null ? new TextComponent("Sign") : p_59736_.m_5446_());
--      return new CommandSourceStack(CommandSource.f_80164_, Vec3.m_82512_(this.f_58858_), Vec2.f_82462_, (ServerLevel)this.f_58857_, 2, s, component, this.f_58857_.m_142572_(), p_59736_);
-+      // CraftBukkit - this
-+      return new CommandSourceStack(this, Vec3.m_82512_(this.f_58858_), Vec2.f_82462_, (ServerLevel) this.f_58857_, 2, s, component, this.f_58857_.m_142572_(), p_59736_);
-    }
- 
-    public DyeColor m_59753_() {
-@@ -216,6 +_,6 @@
+    private static CommandSourceStack m_278808_(@Nullable Player p_279428_, Level p_279359_, BlockPos p_279430_) {
+       String s = p_279428_ == null ? "Sign" : p_279428_.m_7755_().getString();
+       Component component = (Component)(p_279428_ == null ? Component.m_237113_("Sign") : p_279428_.m_5446_());
+@@ -242,7 +_,7 @@
  
     private void m_155728_() {
        this.m_6596_();
 -      this.f_58857_.m_7260_(this.m_58899_(), this.m_58900_(), this.m_58900_(), 3);
 +      if (this.f_58857_ != null) this.f_58857_.m_7260_(this.m_58899_(), this.m_58900_(), this.m_58900_(), 3); // CraftBukkit - skip notify if world is null (SPIGOT-5122)
+    }
+ 
+    public boolean m_277118_() {
+@@ -277,5 +_,10 @@
+          p_277656_.m_155713_((UUID)null);
+       }
+ 
++   }
++
++   @Override
++   public net.minecraft.world.phys.AABB getRenderBoundingBox() {
++      return new net.minecraft.world.phys.AABB(this.m_58899_(), this.m_58899_().m_7918_(1, 1, 1));
     }
  }

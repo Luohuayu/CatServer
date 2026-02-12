@@ -1,7 +1,11 @@
 package org.spigotmc;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ambient.AmbientCreature;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.Sheep;
@@ -15,13 +19,18 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.*;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.AbstractHurtingProjectile;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.entity.projectile.ThrownTrident;
 import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
-import org.bukkit.craftbukkit.v1_18_R2.SpigotTimings;
+import org.bukkit.craftbukkit.v1_20_R1.SpigotTimings;
 
 public class ActivationRange {
+
     public enum ActivationType {
         MONSTER,
         ANIMAL,
@@ -33,6 +42,13 @@ public class ActivationRange {
 
     static AABB maxBB = new AABB(0, 0, 0, 0, 0, 0);
 
+    /**
+     * Initializes an entities type on construction to specify what group this
+     * entity is in for activation ranges.
+     *
+     * @param entity
+     * @return group id
+     */
     public static ActivationType initializeEntityActivationType(Entity entity) {
         if (entity instanceof Raider) {
             return ActivationType.RAIDER;
@@ -45,8 +61,15 @@ public class ActivationRange {
         }
     }
 
+    /**
+     * These entities are excluded from Activation range checks.
+     *
+     * @param entity
+     * @param config
+     * @return boolean If it should always tick.
+     */
     public static boolean initializeEntityActivationState(Entity entity, SpigotWorldConfig config) {
-        if (config == null) return false;
+        if (config == null) return false; // CatServer
         if ((entity.activationType == ActivationType.MISC && config.miscActivationRange == 0)
                 || (entity.activationType == ActivationType.RAIDER && config.raiderActivationRange == 0)
                 || (entity.activationType == ActivationType.ANIMAL && config.animalActivationRange == 0)
@@ -68,6 +91,12 @@ public class ActivationRange {
         return false;
     }
 
+    /**
+     * Find what entities are in range of the players in the world and set
+     * active if in range.
+     *
+     * @param world
+     */
     public static void activateEntities(Level world) {
         SpigotTimings.entityActivationCheckTimer.startTiming();
         final int miscActivationRange = world.spigotConfig.miscActivationRange;
@@ -97,6 +126,11 @@ public class ActivationRange {
         SpigotTimings.entityActivationCheckTimer.stopTiming();
     }
 
+    /**
+     * Checks for the activation state of all entities in this chunk.
+     *
+     * @param chunk
+     */
     private static void activateEntity(Entity entity) {
         if (MinecraftServer.currentTick > entity.activatedTick) {
             if (entity.defaultActivationState) {
@@ -109,13 +143,20 @@ public class ActivationRange {
         }
     }
 
+    /**
+     * If an entity is not in range, do some more checks to see if we should
+     * give it a shot.
+     *
+     * @param entity
+     * @return
+     */
     public static boolean checkEntityImmunities(Entity entity) {
         // quick checks.
-        if (entity.wasTouchingWater || entity.remainingFireTicks > 0) {
+        if (entity.wasTouchingWater || entity.getRemainingFireTicks() > 0) {
             return true;
         }
         if (!(entity instanceof AbstractArrow)) {
-            if (!entity.isOnGround() || !entity.passengers.isEmpty() || entity.isPassenger()) {
+            if (!entity.onGround() || !entity.passengers.isEmpty() || entity.isPassenger()) {
                 return true;
             }
         } else if (!((AbstractArrow) entity).inGround) {
@@ -153,6 +194,12 @@ public class ActivationRange {
         return false;
     }
 
+    /**
+     * Checks if the entity is active for this tick.
+     *
+     * @param entity
+     * @return
+     */
     public static boolean checkIfActive(Entity entity) {
         SpigotTimings.checkIfActiveTimer.startTiming();
         // Never safe to skip fireworks or entities not yet added to chunk

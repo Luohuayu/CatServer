@@ -32,13 +32,13 @@ public class LegacyLauncher {
     }
 
     public static void loadJars() throws Exception {
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm/9.5/asm-9.5.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-tree/9.5/asm-tree-9.5.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-analysis/9.5/asm-analysis-9.5.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-util/9.5/asm-util-9.5.jar");
-        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-commons/9.5/asm-commons-9.5.jar");
-        JVMHack.addModuleDynamic("libraries/cpw/mods/securejarhandler/1.0.8/securejarhandler-1.0.8.jar");
-        JVMHack.addModuleDynamic("libraries/cpw/mods/bootstraplauncher/1.0.0/bootstraplauncher-1.0.0.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm/9.8/asm-9.8.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-tree/9.8/asm-tree-9.8.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-analysis/9.8/asm-analysis-9.8.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-util/9.8/asm-util-9.8.jar");
+        JVMHack.addModuleDynamic("libraries/org/ow2/asm/asm-commons/9.8/asm-commons-9.8.jar");
+        JVMHack.addModuleDynamic("libraries/cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar");
+        JVMHack.addModuleDynamic("libraries/cpw/mods/bootstraplauncher/1.1.2/bootstraplauncher-1.1.2.jar");
         JVMHack.addModuleDynamic("libraries/net/minecraftforge/JarJarFileSystems/0.3.19/JarJarFileSystems-0.3.19.jar");
 
         JVMHack.addModuleOptionDynamic("addExportsToAllUnnamed", "cpw.mods.bootstraplauncher", "cpw.mods.bootstraplauncher", null);
@@ -48,6 +48,7 @@ public class LegacyLauncher {
 
         JarLoader.loadJar(new File("libraries/commons-lang/commons-lang/2.6/commons-lang-2.6.jar"));
         JarLoader.loadJar(new File("libraries/commons-codec/commons-codec/1.10/commons-codec-1.10.jar"));
+
     }
 
     static class JVMHack {

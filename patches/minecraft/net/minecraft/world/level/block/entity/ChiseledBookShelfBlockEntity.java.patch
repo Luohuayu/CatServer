@@ -1,0 +1,122 @@
+--- a/net/minecraft/world/level/block/entity/ChiseledBookShelfBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/ChiseledBookShelfBlockEntity.java
+@@ -16,11 +_,53 @@
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
+ import org.slf4j.Logger;
+ 
++// CraftBukkit start
++import java.util.List;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.v1_20_R1.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
++// CraftBukkit end
++
+ public class ChiseledBookShelfBlockEntity extends BlockEntity implements Container {
+    public static final int f_244647_ = 6;
+    private static final Logger f_254661_ = LogUtils.getLogger();
+    private final NonNullList<ItemStack> f_260576_ = NonNullList.m_122780_(6, ItemStack.f_41583_);
+-   private int f_262317_ = -1;
++   public int f_262317_ = -1; // CatServer - private -> public
++   // CraftBukkit start - 1.20.1 add fields and methods
++   public List<HumanEntity> transaction = new java.util.ArrayList<>();
++   private int maxStack = 1;
++
++   @Override
++   public List<ItemStack> getContents() {
++      return this.f_260576_;
++   }
++
++   @Override
++   public void onOpen(CraftHumanEntity who) {
++      transaction.add(who);
++   }
++
++   @Override
++   public void onClose(CraftHumanEntity who) {
++      transaction.remove(who);
++   }
++
++   @Override
++   public List<HumanEntity> getViewers() {
++      return transaction;
++   }
++
++   @Override
++   public void setMaxStackSize(int size) {
++      maxStack = size;
++   }
++
++   @Override
++   public Location getLocation() {
++      if (f_58857_ == null) return null;
++      return new org.bukkit.Location(f_58857_.getWorld(), f_58858_.m_123341_(), f_58858_.m_123342_(), f_58858_.m_123343_());
++   }
++   // CraftBukkit end
+ 
+    public ChiseledBookShelfBlockEntity(BlockPos p_249541_, BlockState p_251752_) {
+       super(BlockEntityType.f_244310_, p_249541_, p_251752_);
+@@ -44,6 +_,7 @@
+    }
+ 
+    public void m_142466_(CompoundTag p_249911_) {
++      super.m_142466_(p_249911_); // CraftBukkit - 1.20.1 SPIGOT-7393: Load super Bukkit data
+       this.f_260576_.clear();
+       ContainerHelper.m_18980_(p_249911_, this.f_260576_);
+       this.f_262317_ = p_249911_.m_128451_("last_interacted_slot");
+@@ -78,7 +_,7 @@
+       ItemStack itemstack = Objects.requireNonNullElse(this.f_260576_.get(p_255828_), ItemStack.f_41583_);
+       this.f_260576_.set(p_255828_, ItemStack.f_41583_);
+       if (!itemstack.m_41619_()) {
+-         this.m_261204_(p_255828_);
++         if (f_58857_ != null) this.m_261204_(p_255828_); // CraftBukkit - 1.20.1 SPIGOT-7381: check for null world
+       }
+ 
+       return itemstack;
+@@ -91,7 +_,7 @@
+    public void m_6836_(int p_256610_, ItemStack p_255789_) {
+       if (p_255789_.m_204117_(ItemTags.f_244646_)) {
+          this.f_260576_.set(p_256610_, p_255789_);
+-         this.m_261204_(p_256610_);
++         if (f_58857_ != null) this.m_261204_(p_256610_); // CraftBukkit - 1.20.1 SPIGOT-7381: check for null world
+       }
+ 
+    }
+@@ -107,7 +_,7 @@
+    }
+ 
+    public int m_6893_() {
+-      return 1;
++      return maxStack; // CraftBukkit - 1.20.1
+    }
+ 
+    public boolean m_6542_(Player p_256481_) {
+@@ -120,5 +_,29 @@
+ 
+    public int m_262444_() {
+       return this.f_262317_;
++   }
++
++   private net.minecraftforge.common.util.LazyOptional<?> itemHandler = net.minecraftforge.common.util.LazyOptional.of(this::createUnSidedHandler);
++   protected net.minecraftforge.items.IItemHandler createUnSidedHandler() {
++      return new net.minecraftforge.items.wrapper.InvWrapper(this);
++   }
++
++   @Override
++   public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> cap, @org.jetbrains.annotations.Nullable net.minecraft.core.Direction side) {
++      if (cap == net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER && !this.f_58859_)
++         return itemHandler.cast();
++      return super.getCapability(cap, side);
++   }
++
++   @Override
++   public void invalidateCaps() {
++      super.invalidateCaps();
++      itemHandler.invalidate();
++   }
++
++   @Override
++   public void reviveCaps() {
++      super.reviveCaps();
++      itemHandler = net.minecraftforge.common.util.LazyOptional.of(this::createUnSidedHandler);
+    }
+ }

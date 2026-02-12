@@ -7,15 +7,16 @@ package net.minecraftforge.fml.loading.moddiscovery;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.mojang.logging.LogUtils;
 import net.minecraftforge.fml.loading.EarlyLoadingException;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.minecraftforge.forgespi.locating.IModFile;
+import net.minecraftforge.forgespi.locating.ModFileLoadingException;
 import net.minecraftforge.jarjar.selection.JarSelector;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.VersionRange;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -31,7 +32,7 @@ import java.util.stream.Stream;
 
 public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
 {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Override
     public String name()
@@ -44,7 +45,6 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     {
         final List<IModFile> sources = Lists.newArrayList();
         loadedMods.forEach(sources::add);
-
 
         final List<IModFile> dependenciesToLoad = JarSelector.detectAndSelect(sources, this::loadResourceFromModFile, this::loadModFileFrom, this::identifyMod, this::exception);
 
@@ -81,13 +81,22 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
             final Map<String, ?> outerFsArgs = ImmutableMap.of("packagePath", pathInModFile);
             final FileSystem zipFS = FileSystems.newFileSystem(filePathUri, outerFsArgs);
             final Path pathInFS = zipFS.getPath("/");
-            return createMod(pathInFS);
+            final IModFile.Type parentType = file.getType();
+            final String modType;
+            if (parentType == IModFile.Type.LIBRARY || parentType == IModFile.Type.LANGPROVIDER) {
+                modType = IModFile.Type.LIBRARY.name();
+            } else {
+                modType = IModFile.Type.GAMELIBRARY.name();
+            }
+            return Optional.of(createMod(modType, pathInFS).file());
         }
         catch (Exception e)
         {
             LOGGER.error("Failed to load mod file {} from {}", path, file.getFileName());
+            final RuntimeException exception = new ModFileLoadingException("Failed to load mod file " + file.getFileName());
+            exception.initCause(e);
 
-            throw new RuntimeException("Failed to load mod file " + file.getFileName(), e);
+            throw exception;
         }
     }
 
@@ -95,9 +104,9 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     {
 
         final List<EarlyLoadingException.ExceptionData> errors = failedDependencies.stream()
-                .filter(entry -> !entry.sources().isEmpty()) //Should never be the case, but just to be sure
-                .map(this::buildExceptionData)
-                .toList();
+               .filter(entry -> !entry.sources().isEmpty()) //Should never be the case, but just to be sure
+               .map(this::buildExceptionData)
+               .toList();
 
         return new EarlyLoadingException(failedDependencies.size() + " Dependency restrictions were not met.", null, errors);
     }
@@ -109,10 +118,10 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
                 getErrorTranslationKey(entry),
                 entry.identifier().group() + ":" + entry.identifier().artifact(),
                 entry.sources()
-                        .stream()
-                        .flatMap(this::getModWithVersionRangeStream)
-                        .map(this::formatError)
-                        .collect(Collectors.joining(", "))
+                     .stream()
+                     .flatMap(this::getModWithVersionRangeStream)
+                     .map(this::formatError)
+                     .collect(Collectors.joining(", "))
         );
     }
 
@@ -120,18 +129,18 @@ public class JarInJarDependencyLocator extends AbstractJarFileDependencyLocator
     private String getErrorTranslationKey(final JarSelector.ResolutionFailureInformation<IModFile> entry)
     {
         return entry.failureReason() == JarSelector.FailureReason.VERSION_RESOLUTION_FAILED ?
-                "fml.dependencyloading.conflictingdependencies" :
-                "fml.dependencyloading.mismatchedcontaineddependencies";
+                       "fml.dependencyloading.conflictingdependencies" :
+                       "fml.dependencyloading.mismatchedcontaineddependencies";
     }
 
     @NotNull
     private Stream<ModWithVersionRange> getModWithVersionRangeStream(final JarSelector.SourceWithRequestedVersionRange<IModFile> file)
     {
         return file.sources()
-                .stream()
-                .map(IModFile::getModFileInfo)
-                .flatMap(modFileInfo -> modFileInfo.getMods().stream())
-                .map(modInfo -> new ModWithVersionRange(modInfo, file.requestedVersionRange(), file.includedVersion()));
+                   .stream()
+                   .map(IModFile::getModFileInfo)
+                   .flatMap(modFileInfo -> modFileInfo.getMods().stream())
+                   .map(modInfo -> new ModWithVersionRange(modInfo, file.requestedVersionRange(), file.includedVersion()));
     }
 
     @NotNull

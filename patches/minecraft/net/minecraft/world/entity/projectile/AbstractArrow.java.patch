@@ -1,43 +1,42 @@
 --- a/net/minecraft/world/entity/projectile/AbstractArrow.java
 +++ b/net/minecraft/world/entity/projectile/AbstractArrow.java
-@@ -27,6 +_,7 @@
- import net.minecraft.world.entity.LivingEntity;
- import net.minecraft.world.entity.MoverType;
- import net.minecraft.world.entity.Pose;
-+import net.minecraft.world.entity.item.ItemEntity;
- import net.minecraft.world.entity.player.Player;
- import net.minecraft.world.item.ItemStack;
- import net.minecraft.world.item.enchantment.EnchantmentHelper;
-@@ -41,6 +_,8 @@
- import net.minecraft.world.phys.HitResult;
+@@ -44,6 +_,12 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.VoxelShape;
+ 
++// CraftBukkit start
++import net.minecraft.world.entity.item.ItemEntity;
 +import org.bukkit.event.entity.EntityCombustByEntityEvent;
 +import org.bukkit.event.player.PlayerPickupArrowEvent;
- 
++// CraftBukkit end
++
  public abstract class AbstractArrow extends Projectile {
     private static final double f_150120_ = 2.0D;
-@@ -51,11 +_,11 @@
+    private static final EntityDataAccessor<Byte> f_36707_ = SynchedEntityData.m_135353_(AbstractArrow.class, EntityDataSerializers.f_135027_);
+@@ -53,11 +_,11 @@
     private static final int f_150119_ = 4;
     @Nullable
     private BlockState f_36696_;
 -   protected boolean f_36703_;
-+   public boolean f_36703_;
++   public boolean f_36703_; // CatServer - protected -> public
     protected int f_36704_;
     public AbstractArrow.Pickup f_36705_ = AbstractArrow.Pickup.DISALLOWED;
     public int f_36706_;
 -   private int f_36697_;
-+   public int f_36697_;
++   public int f_36697_; // CatServer - private -> public
     private double f_36698_ = 2.0D;
     private int f_36699_;
     private SoundEvent f_36700_ = this.m_7239_();
-@@ -64,6 +_,17 @@
+@@ -66,6 +_,20 @@
     @Nullable
     private List<Entity> f_36702_;
  
++   private final IntOpenHashSet ignoredEntities = new IntOpenHashSet();
++
 +   // Spigot Start
 +   @Override
-+   public void inactiveTick() {
++   public void inactiveTick()
++   {
 +      if ( this.f_36703_ )
 +      {
 +         this.f_36697_ += 1;
@@ -49,35 +48,74 @@
     protected AbstractArrow(EntityType<? extends AbstractArrow> p_36721_, Level p_36722_) {
        super(p_36721_, p_36722_);
     }
-@@ -79,7 +_,6 @@
-       if (p_36718_ instanceof Player) {
-          this.f_36705_ = AbstractArrow.Pickup.ALLOWED;
+@@ -150,7 +_,7 @@
+          --this.f_36706_;
        }
--
-    }
  
-    public void m_36740_(SoundEvent p_36741_) {
-@@ -184,8 +_,8 @@
+-      if (this.m_20070_() || blockstate.m_60713_(Blocks.f_152499_)) {
++      if (this.m_20070_() || blockstate.m_60713_(Blocks.f_152499_) || this.isInFluidType((fluidType, height) -> this.canFluidExtinguish(fluidType))) {
+          this.m_20095_();
+       }
+ 
+@@ -186,9 +_,35 @@
                 }
              }
  
 -            if (hitresult != null && !flag) {
 -               this.m_6532_(hitresult);
-+            if (hitresult != null && hitresult.m_6662_() != HitResult.Type.MISS && !flag && !net.minecraftforge.event.ForgeEventFactory.onProjectileImpact(this, hitresult)) {
-+               this.preOnHit(hitresult); // CraftBukkit - projectile hit event
-                this.f_19812_ = true;
+-               this.f_19812_ = true;
++            if (hitresult != null && hitresult.m_6662_() != HitResult.Type.MISS && !flag) {
++               var result = net.minecraftforge.event.ForgeEventFactory.onProjectileImpactResultNullable(this, hitresult);
++               if (result == null) {
++                  if (hitresult.m_6662_() != HitResult.Type.ENTITY)
++                     break;
++
++                  result = net.minecraftforge.event.entity.ProjectileImpactEvent.ImpactResult.SKIP_ENTITY;
++               }
++               switch (result) {
++                  case SKIP_ENTITY:
++                     if (hitresult.m_6662_() != HitResult.Type.ENTITY) { // If there is no entity, we just return default behaviour
++                        this.preOnHit(hitresult); // CraftBukkit - projectile hit event
++                        this.f_19812_ = true;
++                        break;
++                     }
++                     ignoredEntities.add(entityhitresult.m_82443_().m_19879_());
++                     entityhitresult = null; // Don't process any further
++                     break;
++                  case STOP_AT_CURRENT_NO_DAMAGE:
++                     this.m_146870_();
++                     entityhitresult = null; // Don't process any further
++                     break;
++                  case STOP_AT_CURRENT:
++                     this.m_36767_((byte) 0);
++                  case DEFAULT:
++                     this.preOnHit(hitresult); // CraftBukkit - projectile hit event
++                     this.f_19812_ = true;
++                     break;
++               }
              }
  
-@@ -262,7 +_,7 @@
+             if (entityhitresult == null || this.m_36796_() <= 0) {
+@@ -198,6 +_,9 @@
+             hitresult = null;
+          }
+ 
++         if (this.m_213877_())
++            return;
++
+          vec3 = this.m_20184_();
+          double d5 = vec3.f_82479_;
+          double d6 = vec3.f_82480_;
+@@ -264,7 +_,7 @@
  
     protected void m_6901_() {
        ++this.f_36697_;
 -      if (this.f_36697_ >= 1200) {
-+      if (this.f_36697_ >= ((this instanceof ThrownTrident) ? f_19853_.spigotConfig.tridentDespawnRate : f_19853_.spigotConfig.arrowDespawnRate)) { // Spigot
++      if (this.f_36697_ >= ((this instanceof ThrownTrident) ? this.m_9236_().spigotConfig.tridentDespawnRate : this.m_9236_().spigotConfig.arrowDespawnRate)) { // Spigot
           this.m_146870_();
        }
  
-@@ -320,7 +_,13 @@
+@@ -322,7 +_,13 @@
        boolean flag = entity.m_6095_() == EntityType.f_20566_;
        int k = entity.m_20094_();
        if (this.m_6060_() && !flag) {
@@ -92,18 +130,27 @@
        }
  
        if (entity.m_6469_(damagesource, (float)i)) {
-@@ -472,7 +_,20 @@
+@@ -422,7 +_,7 @@
+    }
+ 
+    protected boolean m_5603_(Entity p_36743_) {
+-      return super.m_5603_(p_36743_) && (this.f_36701_ == null || !this.f_36701_.contains(p_36743_.m_19879_()));
++      return super.m_5603_(p_36743_) && (this.f_36701_ == null || !this.f_36701_.contains(p_36743_.m_19879_())) && !this.ignoredEntities.contains(p_36743_.m_19879_());
+    }
+ 
+    public void m_7380_(CompoundTag p_36772_) {
+@@ -475,7 +_,20 @@
  
     public void m_6123_(Player p_36766_) {
-       if (!this.f_19853_.f_46443_ && (this.f_36703_ || this.m_36797_()) && this.f_36706_ <= 0) {
+       if (!this.m_9236_().f_46443_ && (this.f_36703_ || this.m_36797_()) && this.f_36706_ <= 0) {
 -         if (this.m_142470_(p_36766_)) {
 +         // CraftBukkit start
 +         ItemStack itemstack = this.m_7941_();
 +         if (this.f_36705_ == Pickup.ALLOWED && !itemstack.m_41619_() && p_36766_.m_150109_().canHold(itemstack) > 0) {
-+            ItemEntity item = new ItemEntity(this.f_19853_, this.m_20185_(), this.m_20186_(), this.m_20189_(), itemstack);
-+            PlayerPickupArrowEvent event = new PlayerPickupArrowEvent((org.bukkit.entity.Player) p_36766_.getBukkitEntity(), new org.bukkit.craftbukkit.v1_18_R2.entity.CraftItem(this.f_19853_.getCraftServer(), this, item), (org.bukkit.entity.AbstractArrow) this.getBukkitEntity());
++            ItemEntity item = new ItemEntity(this.m_9236_(), this.m_20185_(), this.m_20186_(), this.m_20189_(), itemstack);
++            PlayerPickupArrowEvent event = new PlayerPickupArrowEvent((org.bukkit.entity.Player) p_36766_.getBukkitEntity(), new org.bukkit.craftbukkit.v1_20_R1.entity.CraftItem(this.m_9236_().getCraftServer(), this, item), (org.bukkit.entity.AbstractArrow) this.getBukkitEntity());
 +            // event.setCancelled(!entityhuman.canPickUpLoot); TODO
-+            this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++            this.m_9236_().getCraftServer().getPluginManager().callEvent(event);
 +            if (event.isCancelled()) {
 +               return;
 +            }

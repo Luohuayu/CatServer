@@ -6,9 +6,10 @@
 package net.minecraftforge.common.extensions;
 
 import java.util.Optional;
-import javax.annotation.Nullable;
+import java.util.function.BiConsumer;
 
 import net.minecraft.client.Camera;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.LivingEntity;
@@ -18,6 +19,8 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.SignalGetter;
+import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
@@ -39,6 +42,8 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.ToolActions;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public interface IForgeBlockState
 {
@@ -273,6 +278,29 @@ public interface IForgeBlockState
         return self().getBlock().canSustainPlant(self(), level, pos, facing, plantable);
     }
 
+    /**
+     * Called when a tree grows on top of this block and tries to set it to dirt by the trunk placer.
+     * An override that returns true is responsible for using the place function to
+     * set blocks in the world properly during generation. A modded grass block might override this method
+     * to ensure it turns into the corresponding modded dirt instead of regular dirt when a tree grows on it.
+     * For modded grass blocks, returning true from this method is NOT a substitute for adding your block
+     * to the #minecraft:dirt tag, rather for changing the behaviour to something other than setting to dirt.
+     *
+     * NOTE: This happens DURING world generation, the generation may be incomplete when this is called.
+     * Use the placeFunction when modifying the level.
+     *
+     * @param level The current level
+     * @param placeFunction Function to set blocks in the level for the tree, use this instead of the level directly
+     * @param randomSource The random source
+     * @param pos Position of the block to be set to dirt
+     * @param config Configuration of the trunk placer. Consider azalea trees, which should place rooted dirt instead of regular dirt.
+     * @return True to ignore vanilla behaviour
+     */
+    default boolean onTreeGrow(LevelReader level, BiConsumer<BlockPos, BlockState> placeFunction, RandomSource randomSource, BlockPos pos, TreeConfiguration config)
+    {
+        return self().getBlock().onTreeGrow(self(), level, placeFunction, randomSource, pos, config);
+    }
+
    /**
     * Checks if this soil is fertile, typically this means that growth rates
     * of plants on this soil will be slightly sped up.
@@ -316,14 +344,15 @@ public interface IForgeBlockState
     * Gathers how much experience this block drops when broken.
     *
     * @param level The level
+    * @param randomSource Random source to use for experience randomness
     * @param pos Block position
     * @param fortuneLevel fortune enchantment level of tool being used
     * @param silkTouchLevel silk touch enchantment level of tool being used
     * @return Amount of XP from breaking this block.
     */
-    default int getExpDrop(LevelReader level, BlockPos pos, int fortuneLevel, int silkTouchLevel)
+    default int getExpDrop(LevelReader level, RandomSource randomSource, BlockPos pos, int fortuneLevel, int silkTouchLevel)
     {
-        return self().getBlock().getExpDrop(self(), level, pos, fortuneLevel, silkTouchLevel);
+        return self().getBlock().getExpDrop(self(), level, randomSource, pos, fortuneLevel, silkTouchLevel);
     }
 
     default BlockState rotate(LevelAccessor level, BlockPos pos, Rotation direction)
@@ -354,13 +383,13 @@ public interface IForgeBlockState
     }
 
    /**
-    * Called to determine whether to allow the a block to handle its own indirect power rather than using the default rules.
+    * Called to determine whether to allow the block to handle its own indirect power rather than using the default rules.
     * @param level The level
     * @param pos Block position in level
     * @param side The INPUT side of the block to be powered - ie the opposite of this block's output side
     * @return Whether Block#isProvidingWeakPower should be called when determining indirect power
     */
-    default boolean shouldCheckWeakPower(LevelReader level, BlockPos pos, Direction side)
+    default boolean shouldCheckWeakPower(SignalGetter level, BlockPos pos, Direction side)
     {
         return self().getBlock().shouldCheckWeakPower(self(), level, pos, side);
     }
@@ -439,7 +468,7 @@ public interface IForgeBlockState
      * @param other Other block
      * @return True to link blocks
      */
-    default boolean canStickTo(BlockState other)
+    default boolean canStickTo(@NotNull BlockState other)
     {
         return self().getBlock().canStickTo(self(), other);
     }
@@ -539,25 +568,36 @@ public interface IForgeBlockState
     }
 
     /**
-     * Get the {@code BlockPathTypes} for this block. Return {@code null} for vanilla behavior.
+     * Gets the path type of this block when an entity is pathfinding. When
+     * {@code null}, uses vanilla behavior.
      *
-     * @return the PathNodeType
-     */
-    @Nullable
-    default BlockPathTypes getBlockPathType(BlockGetter level, BlockPos pos)
-    {
-        return getBlockPathType(level, pos, null);
-    }
-
-    /**
-     * Get the {@code PathNodeType} for this block. Return {@code null} for vanilla behavior.
-     *
-     * @return the PathNodeType
+     * @param level the level which contains this block
+     * @param pos the position of the block
+     * @param mob the mob currently pathfinding, may be {@code null}
+     * @return the path type of this block
      */
     @Nullable
     default BlockPathTypes getBlockPathType(BlockGetter level, BlockPos pos, @Nullable Mob mob)
     {
-        return self().getBlock().getAiPathNodeType(self(), level, pos, mob);
+        return self().getBlock().getBlockPathType(self(), level, pos, mob);
+    }
+
+    /**
+     * Gets the path type of the adjacent block to a pathfinding entity.
+     * Path types with a negative malus are not traversable for the entity.
+     * Pathfinding entities will favor paths consisting of a lower malus.
+     * When {@code null}, uses vanilla behavior.
+     *
+     * @param level the level which contains this block
+     * @param pos the position of the block
+     * @param mob the mob currently pathfinding, may be {@code null}
+     * @param originalType the path type of the source the entity is on
+     * @return the path type of this block
+     */
+    @Nullable
+    default BlockPathTypes getAdjacentBlockPathType(BlockGetter level, BlockPos pos, @Nullable Mob mob, BlockPathTypes originalType)
+    {
+        return self().getBlock().getAdjacentBlockPathType(self(), level, pos, mob, originalType);
     }
 
     /**
@@ -623,28 +663,6 @@ public interface IForgeBlockState
     }
 
     /**
-     * Returns the state that this block should transform into when right-clicked by a tool.
-     * For example: Used to determine if {@link ToolActions#AXE_STRIP an axe can strip} or {@link ToolActions#SHOVEL_FLATTEN a shovel can path}.
-     * Returns {@code null} if nothing should happen.
-     *
-     * @param level The level
-     * @param pos The block position in level
-     * @param player The player clicking the block
-     * @param stack The stack being used by the player
-     * @param toolAction The tool type to be considered when performing the action
-     * @return The resulting state after the action has been performed
-     * @deprecated Use {@link #getToolModifiedState(UseOnContext, ToolAction, boolean)} instead
-     */
-    @Nullable
-    // TODO 1.19: Remove
-    @Deprecated(forRemoval = true, since = "1.18.2")
-    default BlockState getToolModifiedState(Level level, BlockPos pos, Player player, ItemStack stack, ToolAction toolAction)
-    {
-        BlockState eventState = net.minecraftforge.event.ForgeEventFactory.onToolUse(self(), level, pos, player, stack, toolAction);
-        return eventState != self() ? eventState : self().getBlock().getToolModifiedState(self(), level, pos, player, stack, toolAction);
-    }
-
-    /**
      * Checks if a player or entity handles movement on this block like scaffolding.
      *
      * @param entity The entity on the scaffolding
@@ -652,7 +670,7 @@ public interface IForgeBlockState
      */
     default boolean isScaffolding(LivingEntity entity)
     {
-        return self().getBlock().isScaffolding(self(), entity.level, entity.blockPosition(), entity);
+        return self().getBlock().isScaffolding(self(), entity.level(), entity.blockPosition(), entity);
     }
 
     /**
@@ -710,5 +728,42 @@ public interface IForgeBlockState
     default void onBlockStateChange(LevelReader level, BlockPos pos, BlockState oldState)
     {
         self().getBlock().onBlockStateChange(level, pos, oldState, self());
+    }
+
+    /**
+     * Returns whether the block can be hydrated by a fluid.
+     *
+     * <p>Hydration is an arbitrary word which depends on the block.
+     * <ul>
+     *     <li>A farmland has moisture</li>
+     *     <li>A sponge can soak up the liquid</li>
+     *     <li>A coral can live</li>
+     * </ul>
+     *
+     * @param getter the getter which can get the block
+     * @param pos the position of the block being hydrated
+     * @param fluid the state of the fluid
+     * @param fluidPos the position of the fluid
+     * @return {@code true} if the block can be hydrated, {@code false} otherwise
+     */
+    default boolean canBeHydrated(BlockGetter getter, BlockPos pos, FluidState fluid, BlockPos fluidPos)
+    {
+        return self().getBlock().canBeHydrated(self(), getter, pos, fluid, fluidPos);
+    }
+
+    /**
+     * Returns the {@link BlockState} that this state reports to look like on the given side for querying by other mods.
+     *
+     * @param level      The level this block is in
+     * @param pos        The block's position in the level
+     * @param side       The side of the block that is being queried
+     * @param queryState The state of the block that is querying the appearance, or {@code null} if not applicable
+     * @param queryPos   The position of the block that is querying the appearance, or {@code null} if not applicable
+     * @return The appearance of this block from the given side
+     * @see IForgeBlock#getAppearance(BlockState, BlockAndTintGetter, BlockPos, Direction, BlockState, BlockPos)
+     */
+    default BlockState getAppearance(BlockAndTintGetter level, BlockPos pos, Direction side, @Nullable BlockState queryState, @Nullable BlockPos queryPos)
+    {
+        return self().getBlock().getAppearance(self(), level, pos, side, queryState, queryPos);
     }
 }

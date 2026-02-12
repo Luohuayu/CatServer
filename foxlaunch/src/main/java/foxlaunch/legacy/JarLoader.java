@@ -22,7 +22,7 @@ public class JarLoader {
 
     protected static void loadJar(File path) throws Exception {
         ClassLoader cl = ClassLoader.getSystemClassLoader();
-        if (!path.getName().equals("minecraft_server.1.18.2.jar")) {
+        if (!path.getName().equals("minecraft_server.1.20.1.jar")) {
             if (!(cl instanceof URLClassLoader)) {
                 // If Java 9 or higher use Instrumentation
                 inst.appendToSystemClassLoaderSearch(new JarFile(path));

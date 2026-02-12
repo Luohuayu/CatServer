@@ -8,7 +8,8 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Called when a player interacts with an armor stand and will either swap, retrieve or place an item.
+ * Called when a player interacts with an armor stand and will either swap, retrieve or
+ * place an item.
  */
 public class PlayerArmorStandManipulateEvent extends PlayerInteractEntityEvent {
 
@@ -18,20 +19,27 @@ public class PlayerArmorStandManipulateEvent extends PlayerInteractEntityEvent {
     private final ItemStack armorStandItem;
     private final EquipmentSlot slot;
 
-    public PlayerArmorStandManipulateEvent(@NotNull final Player who, @NotNull final ArmorStand clickedEntity, @NotNull final ItemStack playerItem, @NotNull final ItemStack armorStandItem, @NotNull final EquipmentSlot slot) {
-        super(who, clickedEntity);
+    public PlayerArmorStandManipulateEvent(@NotNull final Player who, @NotNull final ArmorStand clickedEntity, @NotNull final ItemStack playerItem, @NotNull final ItemStack armorStandItem, @NotNull final EquipmentSlot slot, @NotNull EquipmentSlot hand) {
+        super(who, clickedEntity, hand);
         this.playerItem = playerItem;
         this.armorStandItem = armorStandItem;
         this.slot = slot;
     }
 
+    @Deprecated
+    public PlayerArmorStandManipulateEvent(@NotNull final Player who, @NotNull final ArmorStand clickedEntity, @NotNull final ItemStack playerItem, @NotNull final ItemStack armorStandItem, @NotNull final EquipmentSlot slot) {
+        this(who, clickedEntity, playerItem, armorStandItem, slot, EquipmentSlot.HAND);
+    }
+
     /**
-     * Returns the item held by the player. If this Item is null and the armor stand Item is also null,
-     * there will be no transaction between the player and the armor stand.
-     * If the Player's item is null, but the armor stand item is not then the player will obtain the armor stand item.
-     * In the case that the Player's item is not null, but the armor stand item is null, the players item will be placed on the armor stand.
-     * If both items are not null, the items will be swapped.
-     * In the case that the event is cancelled the original items will remain the same.
+     * Returns the item held by the player.
+     * <p>
+     * If this item is empty and the armor stand item is also empty, there will be no
+     * transaction between the player and the armor stand. If the player's item is empty
+     * but the armor stand item is not, the player's item will be placed on the armor
+     * stand. If both items are not empty, the items will be swapped.
+     * <p>
+     * In the case that this event is cancelled, the original items will remain the same.
      * @return the item held by the player.
      */
     @NotNull
@@ -41,10 +49,14 @@ public class PlayerArmorStandManipulateEvent extends PlayerInteractEntityEvent {
 
     /**
      * Returns the item held by the armor stand.
-     * If this Item is null and the player's Item is also null, there will be no transaction between the player and the armor stand.
-     * If the Player's item is null, but the armor stand item is not then the player will obtain the armor stand item.
-     * In the case that the Player's item is not null, but the armor stand item is null, the players item will be placed on the armor stand.
-     * If both items are not null, the items will be swapped.
+     * <p>
+     * If this item is empty and the player's item is also empty, there will be no
+     * transaction between the player and the armor stand. If the player's item is empty
+     * but the armor stand item is not, then the player will obtain the armor stand item.
+     * In the case that the player's item is not empty but the armor stand item is empty,
+     * the player's item will be placed on the armor stand. If both items are not empty,
+     * the items will be swapped.
+     * <p>
      * In the case that the event is cancelled the original items will remain the same.
      * @return the item held by the armor stand.
      */
@@ -61,6 +73,18 @@ public class PlayerArmorStandManipulateEvent extends PlayerInteractEntityEvent {
     @NotNull
     public EquipmentSlot getSlot() {
         return this.slot;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Note that this is not the hand of the armor stand that was changed, but rather
+     * the hand used by the player to swap items with the armor stand.
+     */
+    @NotNull
+    @Override
+    public EquipmentSlot getHand() {
+        return super.getHand();
     }
 
     @NotNull

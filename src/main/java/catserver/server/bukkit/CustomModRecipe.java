@@ -3,8 +3,8 @@ package catserver.server.bukkit;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.Keyed;
 import org.bukkit.NamespacedKey;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_20_R1.util.CraftNamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 
@@ -19,7 +19,7 @@ public class CustomModRecipe implements Recipe, Keyed {
 
     public CustomModRecipe(net.minecraft.world.item.crafting.Recipe iRecipe, ResourceLocation key){
         this.iRecipe = iRecipe;
-        this.output = CraftItemStack.asCraftMirror(iRecipe.getResultItem());
+        this.output = CraftItemStack.asCraftMirror(iRecipe.getResultItem(net.minecraft.core.RegistryAccess.EMPTY));
         try {
             this.key = (key != null ? CraftNamespacedKey.fromMinecraft(key) : NamespacedKey.randomKey());
         } catch (Exception e) {

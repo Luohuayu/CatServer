@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
@@ -23,6 +24,8 @@ import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
+import org.bukkit.generator.structure.Structure;
+import org.bukkit.generator.structure.StructureType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
 import org.bukkit.metadata.Metadatable;
@@ -32,6 +35,7 @@ import org.bukkit.plugin.messaging.PluginMessageRecipient;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Consumer;
 import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.StructureSearchResult;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -63,25 +67,6 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
     public Block getBlockAt(@NotNull Location location);
 
     /**
-     * Gets the highest non-empty (impassable) coordinate at the given
-     * coordinates.
-     *
-     * @param x X-coordinate of the blocks
-     * @param z Z-coordinate of the blocks
-     * @return Y-coordinate of the highest non-empty block
-     */
-    public int getHighestBlockYAt(int x, int z);
-
-    /**
-     * Gets the highest non-empty (impassable) coordinate at the given
-     * {@link Location}.
-     *
-     * @param location Location of the blocks
-     * @return Y-coordinate of the highest non-empty block
-     */
-    public int getHighestBlockYAt(@NotNull Location location);
-
-    /**
      * Gets the highest non-empty (impassable) block at the given coordinates.
      *
      * @param x X-coordinate of the block
@@ -99,32 +84,6 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      */
     @NotNull
     public Block getHighestBlockAt(@NotNull Location location);
-
-    /**
-     * Gets the highest coordinate corresponding to the {@link HeightMap} at the
-     * given coordinates.
-     *
-     * @param x X-coordinate of the blocks
-     * @param z Z-coordinate of the blocks
-     * @param heightMap the heightMap that is used to determine the highest
-     * point
-     *
-     * @return Y-coordinate of the highest block corresponding to the
-     * {@link HeightMap}
-     */
-    public int getHighestBlockYAt(int x, int z, @NotNull HeightMap heightMap);
-
-    /**
-     * Gets the highest coordinate corresponding to the {@link HeightMap} at the
-     * given {@link Location}.
-     *
-     * @param location Location of the blocks
-     * @param heightMap the heightMap that is used to determine the highest
-     * point
-     * @return Y-coordinate of the highest block corresponding to the
-     * {@link HeightMap}
-     */
-    public int getHighestBlockYAt(@NotNull Location location, @NotNull HeightMap heightMap);
 
     /**
      * Gets the highest block corresponding to the {@link HeightMap} at the
@@ -160,6 +119,17 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      */
     @NotNull
     public Chunk getChunkAt(int x, int z);
+
+    /**
+     * Gets the {@link Chunk} at the given coordinates
+     *
+     * @param x X-coordinate of the chunk
+     * @param z Z-coordinate of the chunk
+     * @param generate Whether the chunk should be fully generated or not
+     * @return Chunk at the given coordinates
+     */
+    @NotNull
+    public Chunk getChunkAt(int x, int z, boolean generate);
 
     /**
      * Gets the {@link Chunk} at the given {@link Location}
@@ -1203,11 +1173,11 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
 
     /**
      * Spawn a {@link FallingBlock} entity at the given {@link Location} of
-     * the specified {@link Material}. The material dictates what is falling.
+     * the specified {@link MaterialData}. The MaterialData dictates what is falling.
      * When the FallingBlock hits the ground, it will place that block.
      * <p>
      * The Material must be a block type, check with {@link Material#isBlock()
-     * material.isBlock()}. The Material may not be air.
+     * data.getItemType().isBlock()}. The Material may not be air.
      *
      * @param location The {@link Location} to spawn the FallingBlock
      * @param data The block data
@@ -1220,14 +1190,11 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
 
     /**
      * Spawn a {@link FallingBlock} entity at the given {@link Location} of
-     * the specified {@link Material}. The material dictates what is falling.
+     * the specified {@link BlockData}. The BlockData dictates what is falling.
      * When the FallingBlock hits the ground, it will place that block.
-     * <p>
-     * The Material must be a block type, check with {@link Material#isBlock()
-     * material.isBlock()}. The Material may not be air.
      *
      * @param location The {@link Location} to spawn the FallingBlock
-     * @param data The block data
+     * @param data The {@link BlockData} of the FallingBlock to spawn
      * @return The spawned {@link FallingBlock} instance
      * @throws IllegalArgumentException if {@link Location} or {@link
      *     BlockData} are null
@@ -1806,7 +1773,7 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      * <ul>
      * <li>A value of 1 will mean the server will attempt to spawn water ambient mobs in
      *     this world on every tick.
-     * <li>A value of 400 will mean the server will attempt to spawn weater ambient mobs
+     * <li>A value of 400 will mean the server will attempt to spawn water ambient mobs
      *     in this world every 400th tick.
      * <li>A value below 0 will be reset back to Minecraft's default.
      * </ul>
@@ -2154,10 +2121,10 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      * sound will be heard by the players if their clients do not have the
      * respective sound for the value passed.
      *
-     * @param location the location to play the sound
-     * @param sound the internal sound name to play
-     * @param volume the volume of the sound
-     * @param pitch the pitch of the sound
+     * @param location The location to play the sound
+     * @param sound The internal sound name to play
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
      */
     void playSound(@NotNull Location location, @NotNull String sound, float volume, float pitch);
 
@@ -2181,11 +2148,11 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      * will be heard by the players if their clients do not have the respective
      * sound for the value passed.
      *
-     * @param location the location to play the sound
-     * @param sound the internal sound name to play
-     * @param category the category of the sound
-     * @param volume the volume of the sound
-     * @param pitch the pitch of the sound
+     * @param location The location to play the sound
+     * @param sound The internal sound name to play
+     * @param category The category of the sound
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
      */
     void playSound(@NotNull Location location, @NotNull String sound, @NotNull SoundCategory category, float volume, float pitch);
 
@@ -2208,11 +2175,36 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      *
      * @param entity The entity to play the sound
      * @param sound The sound to play
-     * @param category the category of the sound
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
+     */
+    void playSound(@NotNull Entity entity, @NotNull String sound, float volume, float pitch);
+
+    /**
+     * Play a Sound at the location of the provided entity in the World.
+     * <p>
+     * This function will fail silently if Entity or Sound are null.
+     *
+     * @param entity The entity to play the sound
+     * @param sound The sound to play
+     * @param category The category of the sound
      * @param volume The volume of the sound
      * @param pitch The pitch of the sound
      */
     void playSound(@NotNull Entity entity, @NotNull Sound sound, @NotNull SoundCategory category, float volume, float pitch);
+
+    /**
+     * Play a Sound at the location of the provided entity in the World.
+     * <p>
+     * This function will fail silently if Entity or Sound are null.
+     *
+     * @param entity The entity to play the sound
+     * @param sound The sound to play
+     * @param category The category of the sound
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
+     */
+    void playSound(@NotNull Entity entity, @NotNull String sound, @NotNull SoundCategory category, float volume, float pitch);
 
     /**
      * Get an array containing the names of all the {@link GameRule}s.
@@ -2569,21 +2561,121 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      * @param findUnexplored true to only find unexplored structures
      * @return the closest {@link Location}, or null if no structure of the
      * specified type exists.
+     * @see #locateNearestStructure(Location, Structure, int, boolean)
+     * @see #locateNearestStructure(Location, StructureType, int, boolean)
+     * @deprecated Use
+     * {@link #locateNearestStructure(Location, Structure, int, boolean)} or
+     * {@link #locateNearestStructure(Location, StructureType, int, boolean)}
+     * instead.
      */
     @Nullable
-    public Location locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
+    @Deprecated
+    public Location locateNearestStructure(@NotNull Location origin, @NotNull org.bukkit.StructureType structureType, int radius, boolean findUnexplored);
 
+    /**
+     * Find the closest nearby structure of a given {@link StructureType}.
+     * Finding unexplored structures can, and will, block if the world is
+     * looking in chunks that gave not generated yet. This can lead to the world
+     * temporarily freezing while locating an unexplored structure.
+     * <p>
+     * The {@code radius} is not a rigid square radius. Each structure may alter
+     * how many chunks to check for each iteration. Do not assume that only a
+     * radius x radius chunk area will be checked. For example,
+     * {@link StructureType#WOODLAND_MANSION} can potentially check up to 20,000
+     * blocks away (or more) regardless of the radius used.
+     * <p>
+     * This will <i>not</i> load or generate chunks. This can also lead to
+     * instances where the server can hang if you are only looking for
+     * unexplored structures. This is because it will keep looking further and
+     * further out in order to find the structure.
+     * <p>
+     * The difference between searching for a {@link StructureType} and a
+     * {@link Structure} is, that a {@link StructureType} can refer to multiple
+     * {@link Structure Structures} while searching for a {@link Structure}
+     * while only search for the given {@link Structure}.
+     *
+     * @param origin where to start looking for a structure
+     * @param structureType the type of structure to find
+     * @param radius the radius, in chunks, around which to search
+     * @param findUnexplored true to only find unexplored structures
+     * @return the closest {@link Location} and {@link Structure}, or null if no
+     * structure of the specified type exists.
+     * @see #locateNearestStructure(Location, Structure, int, boolean)
+     */
+    @Nullable
+    StructureSearchResult locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
+
+    /**
+     * Find the closest nearby structure of a given {@link Structure}. Finding
+     * unexplored structures can, and will, block if the world is looking in
+     * chunks that gave not generated yet. This can lead to the world
+     * temporarily freezing while locating an unexplored structure.
+     * <p>
+     * The {@code radius} is not a rigid square radius. Each structure may alter
+     * how many chunks to check for each iteration. Do not assume that only a
+     * radius x radius chunk area will be checked. For example,
+     * {@link Structure#MANSION} can potentially check up to 20,000 blocks away
+     * (or more) regardless of the radius used.
+     * <p>
+     * This will <i>not</i> load or generate chunks. This can also lead to
+     * instances where the server can hang if you are only looking for
+     * unexplored structures. This is because it will keep looking further and
+     * further out in order to find the structure.
+     * <p>
+     * The difference between searching for a {@link StructureType} and a
+     * {@link Structure} is, that a {@link StructureType} can refer to multiple
+     * {@link Structure Structures} while searching for a {@link Structure}
+     * while only search for the given {@link Structure}.
+     *
+     * @param origin where to start looking for a structure
+     * @param structure the structure to find
+     * @param radius the radius, in chunks, around which to search
+     * @param findUnexplored true to only find unexplored structures
+     * @return the closest {@link Location} and {@link Structure}, or null if no
+     * structure was found.
+     * @see #locateNearestStructure(Location, StructureType, int, boolean)
+     */
+    @Nullable
+    StructureSearchResult locateNearestStructure(@NotNull Location origin, @NotNull Structure structure, int radius, boolean findUnexplored);
+
+    // Spigot start
+    /**
+     * Returns the view distance used for this world.
+     *
+     * @return the view distance used for this world
+     */
     int getViewDistance();
 
+    /**
+     * Returns the simulation distance used for this world.
+     *
+     * @return the simulation distance used for this world
+     */
     int getSimulationDistance();
+    // Spigot end
 
     // Spigot start
     public class Spigot {
+
+        /**
+         * Strikes lightning at the given {@link Location} and possibly without sound
+         *
+         * @param loc The location to strike lightning
+         * @param isSilent Whether this strike makes no sound
+         * @return The lightning entity.
+         */
         @NotNull
         public LightningStrike strikeLightning(@NotNull Location loc, boolean isSilent) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Strikes lightning at the given {@link Location} without doing damage and possibly without sound
+         *
+         * @param loc The location to strike lightning
+         * @param isSilent Whether this strike makes no sound
+         * @return The lightning entity.
+         */
         @NotNull
         public LightningStrike strikeLightningEffect(@NotNull Location loc, boolean isSilent) {
             throw new UnsupportedOperationException("Not supported yet.");
@@ -2626,6 +2718,14 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      */
     @Nullable
     public DragonBattle getEnderDragonBattle();
+
+    /**
+     * Get all {@link FeatureFlag} enabled in this world.
+     *
+     * @return all enabled {@link FeatureFlag}
+     */
+    @NotNull
+    public Set<FeatureFlag> getFeatureFlags();
 
     /**
      * Represents various map environment types that a world may be

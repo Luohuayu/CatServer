@@ -6,6 +6,7 @@
 package net.minecraftforge.fml.loading.moddiscovery;
 
 import com.google.common.base.Strings;
+import com.mojang.logging.LogUtils;
 import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
 import net.minecraftforge.fml.loading.LogMarkers;
 import net.minecraftforge.fml.loading.StringUtils;
@@ -13,8 +14,7 @@ import net.minecraftforge.forgespi.language.IConfigurable;
 import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.minecraftforge.forgespi.language.MavenVersionAdapter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import javax.security.auth.x500.X500Principal;
 import java.net.URL;
 import java.security.CodeSigner;
@@ -26,13 +26,21 @@ import java.security.SignatureException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ModFileInfo implements IModFileInfo, IConfigurable
 {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final IConfigurable config;
     private final ModFile modFile;
     private final URL issueURL;
@@ -43,39 +51,68 @@ public class ModFileInfo implements IModFileInfo, IConfigurable
     private final String license;
     private final List<String> usesServices;
 
-    ModFileInfo(final ModFile modFile, final IConfigurable config)
+    public static final String CLIENT_SIDE_ONLY_PROP = "__FORGE_clientSideOnly";
+
+    private static final Map<String, Object> CLIENT_SIDE_ONLY_MAP = Map.of(CLIENT_SIDE_ONLY_PROP, Boolean.TRUE);
+
+    ModFileInfo(final ModFile modFile, final IConfigurable config, Consumer<IModFileInfo> configFileConsumer)
     {
         this.modFile = modFile;
         this.config = config;
+        configFileConsumer.accept(this);
+        // modloader is essential
         var modLoader = config.<String>getConfigElement("modLoader")
                 .orElseThrow(()->new InvalidModFileException("Missing ModLoader in file", this));
+        // as is modloader version
         var modLoaderVersion = config.<String>getConfigElement("loaderVersion")
                 .map(MavenVersionAdapter::createFromVersionSpec)
                 .orElseThrow(()->new InvalidModFileException("Missing ModLoader version in file", this));
         this.languageSpecs = new ArrayList<>(List.of(new LanguageSpec(modLoader, modLoaderVersion)));
+        // the remaining properties are optional with sensible defaults
         this.license = config.<String>getConfigElement("license")
-            .orElse("");
-        this.showAsResourcePack = config.<Boolean>getConfigElement("showAsResourcePack").orElse(false);
-        this.usesServices = config.<List<String>>getConfigElement("services").orElse(List.of());
-        this.properties = config.<Map<String, Object>>getConfigElement("properties").orElse(Collections.emptyMap());
+                .orElse("");
+        this.showAsResourcePack = config.<Boolean>getConfigElement("showAsResourcePack")
+                .orElse(false);
+        boolean clientSideOnly = config.<Boolean>getConfigElement("clientSideOnly")
+                .orElse(false);
+        this.usesServices = config.<List<String>>getConfigElement("services")
+                .orElse(List.of());
+
+        var maybeProps = config.<Map<String, Object>>getConfigElement("properties");
+        if (clientSideOnly) {
+            if (maybeProps.isPresent()) {
+                this.properties = new HashMap<>(maybeProps.get());
+                this.properties.put(CLIENT_SIDE_ONLY_PROP, Boolean.TRUE);
+            } else {
+                this.properties = CLIENT_SIDE_ONLY_MAP;
+            }
+        } else {
+            this.properties = maybeProps.orElse(Collections.emptyMap());
+        }
+
         this.modFile.setFileProperties(this.properties);
-        this.issueURL = config.<String>getConfigElement("issueTrackerURL").map(StringUtils::toURL).orElse(null);
+        this.issueURL = config.<String>getConfigElement("issueTrackerURL")
+                .map(StringUtils::toURL)
+                .orElse(null);
         final List<? extends IConfigurable> modConfigs = config.getConfigList("mods");
         if (modConfigs.isEmpty())
         {
             throw new InvalidModFileException("Missing mods list", this);
         }
         this.mods = modConfigs.stream()
-                .map(mi-> new ModInfo(this, mi))
-                .collect(Collectors.toList());
-        LOGGER.debug(LogMarkers.LOADING, "Found valid mod file {} with {} mods - versions {}",
-                this.modFile::getFileName,
-                () -> this.mods.stream().map(IModInfo::getModId).collect(Collectors.joining(",", "{", "}")),
-                () -> this.mods.stream().map(IModInfo::getVersion).map(Objects::toString).collect(Collectors.joining(",", "{", "}")));
+                .map(mi-> (IModInfo)new ModInfo(this, mi))
+                .toList();
+        if (LOGGER.isDebugEnabled(LogMarkers.LOADING))
+        {
+            LOGGER.debug(LogMarkers.LOADING, "Found valid mod file {} with {} mods - versions {}",
+                    this.modFile.getFileName(),
+                    this.mods.stream().map(IModInfo::getModId).collect(Collectors.joining(",", "{", "}")),
+                    this.mods.stream().map(IModInfo::getVersion).map(Objects::toString).collect(Collectors.joining(",", "{", "}")));
+        }
     }
 
-    public ModFileInfo(final ModFile file, final IConfigurable config, final List<LanguageSpec> languageSpecs) {
-        this(file, config);
+    public ModFileInfo(final ModFile file, final IConfigurable config, Consumer<IModFileInfo> configFileConsumer, final List<LanguageSpec> languageSpecs) {
+        this(file, config, configFileConsumer);
         this.languageSpecs.addAll(languageSpecs);
     }
 

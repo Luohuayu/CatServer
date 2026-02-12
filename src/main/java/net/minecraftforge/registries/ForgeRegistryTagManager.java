@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-class ForgeRegistryTagManager<V extends IForgeRegistryEntry<V>> implements ITagManager<V>
+class ForgeRegistryTagManager<V> implements ITagManager<V>
 {
     private final ForgeRegistry<V> owner;
     private volatile Map<TagKey<V>, ITag<V>> tags = new IdentityHashMap<>();
@@ -133,6 +133,8 @@ class ForgeRegistryTagManager<V extends IForgeRegistryEntry<V>> implements ITagM
         Objects.requireNonNull(name);
         Objects.requireNonNull(defaults);
 
-        this.owner.getHolderHelper().ifPresent(h -> h.addOptionalTag(name, defaults));
+        NamespacedWrapper<V> wrapper = this.owner.getWrapper();
+        if (wrapper != null)
+            wrapper.addOptionalTag(name, defaults);
     }
 }

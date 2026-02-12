@@ -23,8 +23,9 @@ public class ModWorkManager {
 
         default void drive(Runnable ticker) {
             if (!selfDriven()) {
-                while (driveOne()) {
-                    ticker.run();
+                ticker.run();
+                while (true) {
+                    if (!driveOne()) break;
                 }
             } else {
                 // park for a bit so other threads can schedule
@@ -93,7 +94,7 @@ public class ModWorkManager {
     private static ForkJoinPool parallelThreadPool;
     public static Executor parallelExecutor() {
         if (parallelThreadPool == null) {
-            final int loadingThreadCount = FMLConfig.loadingThreadCount();
+            final int loadingThreadCount = FMLConfig.getIntConfigValue(FMLConfig.ConfigValue.MAX_THREADS);
             LOGGER.debug(LOADING, "Using {} threads for parallel mod-loading", loadingThreadCount);
             parallelThreadPool = new ForkJoinPool(loadingThreadCount, ModWorkManager::newForkJoinWorkerThread, null, false);
         }

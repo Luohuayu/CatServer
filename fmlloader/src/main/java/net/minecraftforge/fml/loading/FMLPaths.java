@@ -5,10 +5,12 @@
 
 package net.minecraftforge.fml.loading;
 
+import com.mojang.logging.LogUtils;
 import cpw.mods.modlauncher.api.IEnvironment;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -22,7 +24,7 @@ public enum FMLPaths
     CONFIGDIR("config"),
     FMLCONFIG(false, CONFIGDIR, "fml.toml");
 
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final Path relativePath;
     private final boolean isDirectory;
     private Path absolutePath;
@@ -57,16 +59,33 @@ public enum FMLPaths
         for (FMLPaths path : FMLPaths.values())
         {
             path.absolutePath = rootPath.resolve(path.relativePath).toAbsolutePath().normalize();
-            if (path.isDirectory)
+            if (path.isDirectory && !Files.isDirectory(path.absolutePath))
             {
-                FileUtils.getOrCreateDirectory(path.absolutePath, path.name());
+                try {
+                   Files.createDirectories(path.absolutePath);
+                } catch (IOException e) {
+                   throw new RuntimeException(e);
+                }
             }
-            LOGGER.debug(CORE,"Path {} is {}", ()-> path, ()-> path.absolutePath);
+            if (LOGGER.isDebugEnabled(CORE))
+            {
+                LOGGER.debug(CORE, "Path {} is {}", path, path.absolutePath);
+            }
         }
     }
 
-    public static Path getOrCreateGameRelativePath(Path path, String name) {
-        return FileUtils.getOrCreateDirectory(FMLPaths.GAMEDIR.get().resolve(path), name);
+    public static Path getOrCreateGameRelativePath(Path path) {
+        Path gameFolderPath = FMLPaths.GAMEDIR.get().resolve(path);
+
+        if (!Files.isDirectory(gameFolderPath)) {
+            try {
+                Files.createDirectories(gameFolderPath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return gameFolderPath;
     }
 
     public Path relative() {

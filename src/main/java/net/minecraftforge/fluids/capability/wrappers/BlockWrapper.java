@@ -10,12 +10,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.LiquidBlockContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fluids.FluidAttributes;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidType;
 import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.templates.VoidFluidHandler;
-
-import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 
 /**
  * Wrapper around any block, only accounts for fluid placement, otherwise the block acts a void.
@@ -39,7 +37,7 @@ public class BlockWrapper extends VoidFluidHandler
     public int fill(FluidStack resource, FluidAction action)
     {
         // NOTE: "Filling" means placement in this context!
-        if (resource.getAmount() < FluidAttributes.BUCKET_VOLUME)
+        if (resource.getAmount() < FluidType.BUCKET_VOLUME)
         {
             return 0;
         }
@@ -48,7 +46,7 @@ public class BlockWrapper extends VoidFluidHandler
             FluidUtil.destroyBlockOnFluidPlacement(world, blockPos);
             world.setBlock(blockPos, state, Block.UPDATE_ALL_IMMEDIATE);
         }
-        return FluidAttributes.BUCKET_VOLUME;
+        return FluidType.BUCKET_VOLUME;
     }
 
     public static class LiquidContainerBlockWrapper extends VoidFluidHandler
@@ -68,16 +66,16 @@ public class BlockWrapper extends VoidFluidHandler
         public int fill(FluidStack resource, FluidAction action)
         {
             // NOTE: "Filling" means placement in this context!
-            if (resource.getAmount() >= FluidAttributes.BUCKET_VOLUME)
+            if (resource.getAmount() >= FluidType.BUCKET_VOLUME)
             {
                 BlockState state = world.getBlockState(blockPos);
                 if (liquidContainer.canPlaceLiquid(world, blockPos, state, resource.getFluid()))
                 {
-                    //If we are executing try to actually fill the container, if it failed return that we failed
-                    if (action.simulate() || liquidContainer.placeLiquid(world, blockPos, state, resource.getFluid().getAttributes().getStateForPlacement(world, blockPos, resource)))
+                    if (action.execute())
                     {
-                        return FluidAttributes.BUCKET_VOLUME;
+                        liquidContainer.placeLiquid(world, blockPos, state, resource.getFluid().getFluidType().getStateForPlacement(world, blockPos, resource));
                     }
+                    return FluidType.BUCKET_VOLUME;
                 }
             }
             return 0;

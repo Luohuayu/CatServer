@@ -6,19 +6,19 @@
 package net.minecraftforge.common.extensions;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.google.common.collect.Multimap;
 
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.block.Blocks;
@@ -36,14 +36,15 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.ToolActions;
-import net.minecraftforge.registries.IForgeRegistryEntry;
+import net.minecraftforge.items.wrapper.ShulkerItemStackInvWrapper;
+import net.minecraftforge.registries.IForgeRegistry;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 // TODO systemic review of all extension functions. lots of unused -C
 public interface IForgeItem
@@ -189,14 +190,24 @@ public interface IForgeItem
     }
 
     /**
-     * Called each tick while using an item.
+     * Called when an entity stops using an item for any reason, notably when selecting another item without releasing or finishing.
+     * This method is called in addition to any other hooks called when an item is finished using; when another hook is also called it will be called before this method.
+     *
+     * Note that if you break an item while using it (that is, it becomes empty without swapping the stack instance), this hook may not be called on the serverside as you are
+     * technically still using the empty item (thus this hook is called on air instead). It is necessary to call {@link LivingEntity#stopUsingItem()} as part of your
+     * {@link ItemStack#hurtAndBreak(int, LivingEntity, Consumer)} callback to prevent this issue.
+     *
+     * For most uses, you likely want one of the following:
+     * <ul>
+     *   <li>{@link Item#finishUsingItem(ItemStack, Level, LivingEntity)} for when the player releases and enough ticks have passed
+     *   <li>{@link Item#releaseUsing(ItemStack, Level, LivingEntity, int)} (ItemStack, Level, LivingEntity)} for when the player releases but the full timer has not passed
+     * </ul>
      *
      * @param stack  The Item being used
-     * @param player The Player using the item
-     * @param count  The amount of time in tick the item has been used for
-     *               continuously
+     * @param entity The entity using the item, typically a player
+     * @param count  The amount of time in tick the item has been used for continuously
      */
-    default void onUsingTick(ItemStack stack, LivingEntity player, int count)
+    default void onStopUsing(ItemStack stack, LivingEntity entity, int count)
     {
     }
 
@@ -216,16 +227,16 @@ public interface IForgeItem
     }
 
     /**
-     * ItemStack sensitive version of getContainerItem. Returns a full ItemStack
-     * instance of the result.
+     * ItemStack sensitive version of {@link Item#getCraftingRemainingItem()}.
+     * Returns a full ItemStack instance of the result.
      *
      * @param itemStack The current ItemStack
      * @return The resulting ItemStack
      */
     @SuppressWarnings("deprecation")
-    default ItemStack getContainerItem(ItemStack itemStack)
+    default ItemStack getCraftingRemainingItem(ItemStack itemStack)
     {
-        if (!hasContainerItem(itemStack))
+        if (!hasCraftingRemainingItem(itemStack))
         {
             return ItemStack.EMPTY;
         }
@@ -233,13 +244,13 @@ public interface IForgeItem
     }
 
     /**
-     * ItemStack sensitive version of hasContainerItem
+     * ItemStack sensitive version of {@link Item#hasCraftingRemainingItem()}.
      *
      * @param stack The current item stack
-     * @return True if this item has a 'container'
+     * @return True if this item has a crafting remaining item
      */
     @SuppressWarnings("deprecation")
-    default boolean hasContainerItem(ItemStack stack)
+    default boolean hasCraftingRemainingItem(ItemStack stack)
     {
         return self().hasCraftingRemainingItem();
     }
@@ -303,18 +314,6 @@ public interface IForgeItem
     }
 
     /**
-     * Gets a list of tabs that items belonging to this class can display on,
-     * combined properly with getSubItems allows for a single item to span many
-     * sub-items across many tabs.
-     *
-     * @return A list of all tabs that this item could possibly be one.
-     */
-    default java.util.Collection<CreativeModeTab> getCreativeTabs()
-    {
-        return java.util.Collections.singletonList(self().getItemCategory());
-    }
-
-    /**
      *
      * Should this item, when held, allow sneak-clicks to pass through to the
      * underlying block?
@@ -331,8 +330,27 @@ public interface IForgeItem
     /**
      * Called to tick armor in the armor slot. Override to do something
      */
+    @Deprecated(forRemoval = true, since = "1.20.1") // Use onInventoryTick
     default void onArmorTick(ItemStack stack, Level level, Player player)
     {
+    }
+
+    /**
+     * Called to tick this items in a players inventory, the indexes are the global slot index.
+     */
+    default void onInventoryTick(ItemStack stack, Level level, Player player, int slotIndex, int selectedIndex)
+    {
+        // For compatibility reasons we have to use non-local index values, I think this is a vanilla bug but lets maintain compatibility
+        var inv = player.getInventory();
+        int vanillaIndex = slotIndex;
+        if (slotIndex >= inv.items.size()) {
+            vanillaIndex -= inv.items.size();
+            if (vanillaIndex >= inv.armor.size())
+                vanillaIndex -= inv.armor.size();
+            else
+                onArmorTick(stack, level, player);
+        }
+        stack.inventoryTick(level, player, vanillaIndex, selectedIndex == vanillaIndex);
     }
 
     /**
@@ -482,24 +500,24 @@ public interface IForgeItem
 
     /**
      * Gets the maximum number of items that this stack should be able to hold. This
-     * is a ItemStack (and thus NBT) sensitive version of Item.getItemStackLimit()
+     * is a ItemStack (and thus NBT) sensitive version of {@link Item#getMaxStackSize()}.
      *
      * @param stack The ItemStack
-     * @return The maximum number this item can be stacked to
+     * @return The maximum size this item can be stacked to
      */
     @SuppressWarnings("deprecation")
-    default int getItemStackLimit(ItemStack stack)
+    default int getMaxStackSize(ItemStack stack)
     {
         return self().getMaxStackSize();
     }
 
     /**
-     * ItemStack sensitive version of getItemEnchantability
+     * ItemStack sensitive version of {@link Item#getEnchantmentValue()}.
      *
      * @param stack The ItemStack
-     * @return the item echantability value
+     * @return the enchantment value
      */
-    default int getItemEnchantability(ItemStack stack)
+    default int getEnchantmentValue(ItemStack stack)
     {
         return self().getEnchantmentValue();
     }
@@ -520,6 +538,35 @@ public interface IForgeItem
     default boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment)
     {
         return enchantment.category.canEnchant(stack.getItem());
+    }
+
+    /**
+     * Gets the level of the enchantment currently present on the stack. By default, returns the enchantment level present in NBT.
+     * Most enchantment implementations rely upon this method.
+     * For consistency, results of this method should be the same as getting the enchantment from {@link #getAllEnchantments(ItemStack)}
+     *
+     * @param stack        the item stack being checked
+     * @param enchantment  the enchantment being checked for
+     * @return  Level of the enchantment, or 0 if not present
+     * @see #getAllEnchantments(ItemStack)
+     */
+    default int getEnchantmentLevel(ItemStack stack, Enchantment enchantment)
+    {
+        return EnchantmentHelper.getTagEnchantmentLevel(enchantment, stack);
+    }
+
+    /**
+     * Gets a map of all enchantments present on the stack. By default, returns the enchantments present in NBT.
+     * Used in several places in code including armor enchantment hooks.
+     * For consistency, any enchantments in the returned map should include the same level in {@link #getEnchantmentLevel(ItemStack, Enchantment)}
+     *
+     * @param stack        the item stack being checked
+     * @return  Map of all enchantments on the stack, empty if no enchantments are present
+     * @see #getEnchantmentLevel(ItemStack, Enchantment)
+     */
+    default Map<Enchantment, Integer> getAllEnchantments(ItemStack stack)
+    {
+        return EnchantmentHelper.deserializeEnchantments(stack.getEnchantmentTags());
     }
 
     /**
@@ -553,7 +600,7 @@ public interface IForgeItem
             return true;
 
         if (!newStack.isDamageableItem() || !oldStack.isDamageableItem())
-            return !ItemStack.tagMatches(newStack, oldStack);
+            return !ItemStack.isSameItemSameTags(newStack, oldStack);
 
         CompoundTag newTag = newStack.getTag();
         CompoundTag oldTag = oldStack.getTag();
@@ -586,7 +633,11 @@ public interface IForgeItem
      */
     default boolean canContinueUsing(ItemStack oldStack, ItemStack newStack)
     {
-        return ItemStack.isSameIgnoreDurability(oldStack, newStack);
+        if (oldStack == newStack) {
+            return true;
+        } else {
+            return !oldStack.isEmpty() && !newStack.isEmpty() && ItemStack.isSameItem(newStack, oldStack);
+        }
     }
 
     /**
@@ -601,7 +652,7 @@ public interface IForgeItem
      *
      * @param itemStack the ItemStack to check
      * @return the Mod ID for the ItemStack, or null when there is no specially
-     *         associated mod and {@link IForgeRegistryEntry#getRegistryName()} would return null.
+     *         associated mod and {@link IForgeRegistry#getKey(Object)} would return null.
      */
     @Nullable
     default String getCreatorModId(ItemStack itemStack)
@@ -626,7 +677,8 @@ public interface IForgeItem
     @Nullable
     default net.minecraftforge.common.capabilities.ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt)
     {
-        return null;
+        var ret = ShulkerItemStackInvWrapper.createDefaultProvider(stack);
+        return ret;
     }
 
     /**
@@ -640,7 +692,7 @@ public interface IForgeItem
      */
     default boolean canDisableShield(ItemStack stack, ItemStack shield, LivingEntity entity, LivingEntity attacker)
     {
-        return this instanceof AxeItem;
+        return attacker.canDisableShield();
     }
 
     /**
@@ -757,17 +809,17 @@ public interface IForgeItem
     {
         return self().canBeDepleted();
     }
-    
+
     /**
      * Get a bounding box ({@link AABB}) of a sweep attack.
-     * 
+     *
      * @param stack the stack held by the player.
      * @param player the performing the attack the attack.
      * @param target the entity targeted by the attack.
      * @return the bounding box.
      */
-    @Nonnull
-    default AABB getSweepHitBox(@Nonnull ItemStack stack, @Nonnull Player player, @Nonnull Entity target)
+    @NotNull
+    default AABB getSweepHitBox(@NotNull ItemStack stack, @NotNull Player player, @NotNull Entity target)
     {
         return target.getBoundingBox().inflate(1.0D, 0.25D, 1.0D);
     }
@@ -778,7 +830,7 @@ public interface IForgeItem
      * @param stack the stack
      * @return the default hide flags
      */
-    default int getDefaultTooltipHideFlags(@Nonnull ItemStack stack)
+    default int getDefaultTooltipHideFlags(@NotNull ItemStack stack)
     {
         return 0;
     }
@@ -800,4 +852,25 @@ public interface IForgeItem
         return self().getFoodProperties();
     }
 
+    /**
+     * Whether the given ItemStack should be excluded (if possible) when selecting the target hotbar slot of a "pick" action.
+     * By default, this returns true for enchanted stacks.
+     *
+     * @see Inventory#getSuitableHotbarSlot()
+     * @param player the player performing the picking
+     * @param inventorySlot the inventory slot of the item being up for replacement
+     * @return true to leave this stack in the hotbar if possible
+     */
+    default boolean isNotReplaceableByPickAction(ItemStack stack, Player player, int inventorySlot)
+    {
+        return stack.isEnchanted();
+    }
+
+    /**
+     * {@return true if the given ItemStack can be put into a grindstone to be repaired and/or stripped of its enchantments}
+     */
+    default boolean canGrindstoneRepair(ItemStack stack)
+    {
+        return false;
+    }
 }

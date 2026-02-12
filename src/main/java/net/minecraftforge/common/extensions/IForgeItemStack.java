@@ -5,12 +5,11 @@
 
 package net.minecraftforge.common.extensions;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
@@ -35,6 +34,11 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.ToolActions;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
+import java.util.Objects;
 
 /*
  * Extension added to ItemStack that bounces to ItemSack sensitive Item methods. Typically this is just for convince.
@@ -48,24 +52,24 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     }
 
     /**
-     * ItemStack sensitive version of getContainerItem. Returns a full ItemStack
-     * instance of the result.
+     * ItemStack sensitive version of {@link Item#getCraftingRemainingItem()}.
+     * Returns a full ItemStack instance of the result.
      *
      * @return The resulting ItemStack
      */
-    default ItemStack getContainerItem()
+    default ItemStack getCraftingRemainingItem()
     {
-        return self().getItem().getContainerItem(self());
+        return self().getItem().getCraftingRemainingItem(self());
     }
 
     /**
-     * ItemStack sensitive version of hasContainerItem
+     * ItemStack sensitive version of {@link Item#hasCraftingRemainingItem()}.
      *
-     * @return True if this item has a 'container'
+     * @return True if this item has a crafting remaining item
      */
-    default boolean hasContainerItem()
+    default boolean hasCraftingRemainingItem()
     {
-        return self().getItem().hasContainerItem(self());
+        return self().getItem().hasCraftingRemainingItem(self());
     }
 
     /**
@@ -83,7 +87,7 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
        Player entityplayer = context.getPlayer();
        BlockPos blockpos = context.getClickedPos();
        BlockInWorld blockworldstate = new BlockInWorld(context.getLevel(), blockpos, false);
-       Registry<Block> registry = entityplayer.level.registryAccess().registryOrThrow(Registry.BLOCK_REGISTRY);
+       Registry<Block> registry = entityplayer.level().registryAccess().registryOrThrow(Registries.BLOCK);
        if (entityplayer != null && !entityplayer.getAbilities().mayBuild && !self().hasAdventureModePlaceTagForBlock(registry, blockworldstate)) {
           return InteractionResult.PASS;
        } else {
@@ -160,13 +164,45 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     }
 
     /**
-     * ItemStack sensitive version of getItemEnchantability
+     * Gets the level of the enchantment currently present on the stack. By default, returns the enchantment level present in NBT.
      *
-     * @return the item echantability value
+     * Equivalent to calling {@link net.minecraft.world.item.enchantment.EnchantmentHelper#getItemEnchantmentLevel(Enchantment, ItemStack)}
+     * Use in place of {@link net.minecraft.world.item.enchantment.EnchantmentHelper#getTagEnchantmentLevel(Enchantment, ItemStack)} for checking presence of an enchantment in logic implementing the enchantment behavior.
+     * Use {@link net.minecraft.world.item.enchantment.EnchantmentHelper#getTagEnchantmentLevel(Enchantment, ItemStack)} instead when modifying an item's enchantments.
+     *
+     * @param enchantment  the enchantment being checked for
+     * @return  Level of the enchantment, or 0 if not present
+     * @see #getAllEnchantments()
+     * @see net.minecraft.world.item.enchantment.EnchantmentHelper#getTagEnchantmentLevel(Enchantment, ItemStack)
      */
-    default int getItemEnchantability()
+    default int getEnchantmentLevel(Enchantment enchantment)
     {
-        return self().getItem().getItemEnchantability(self());
+        return self().getItem().getEnchantmentLevel(self(), enchantment);
+    }
+
+    /**
+     * Gets a map of all enchantments present on the stack. By default, returns the enchantments present in NBT, ignoring book enchantments.
+     *
+     * Use in place of {@link net.minecraft.world.item.enchantment.EnchantmentHelper#getEnchantments(ItemStack)} for checking presence of an enchantment in logic implementing the enchantment behavior.
+     * Use {@link net.minecraft.world.item.enchantment.EnchantmentHelper#getEnchantments(ItemStack)} instead when modifying an item's enchantments.
+     *
+     * @return  Map of all enchantments on the stack, empty if no enchantments are present
+     * @see #getEnchantmentLevel(Enchantment)
+     * @see net.minecraft.world.item.enchantment.EnchantmentHelper#getEnchantments(ItemStack)
+     */
+    default Map<Enchantment, Integer> getAllEnchantments()
+    {
+        return self().getItem().getAllEnchantments(self());
+    }
+
+    /**
+     * ItemStack sensitive version of {@link Item#getEnchantmentValue()}.
+     *
+     * @return the enchantment value of this ItemStack
+     */
+    default int getEnchantmentValue()
+    {
+        return self().getItem().getEnchantmentValue(self());
     }
 
     /**
@@ -209,15 +245,14 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     }
 
     /**
-     * Called each tick while using an item.
+     * Called when an entity stops using an item item for any reason.
      *
-     * @param player The Player using the item
-     * @param count  The amount of time in tick the item has been used for
-     *               continuously
+     * @param entity The entity using the item, typically a player
+     * @param count  The amount of time in tick the item has been used for continuously
      */
-    default void onUsingTick(LivingEntity player, int count)
+    default void onStopUsing(LivingEntity entity, int count)
     {
-        self().getItem().onUsingTick(self(), player, count);
+        self().getItem().onStopUsing(self(), entity, count);
     }
 
     /**
@@ -257,10 +292,20 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     /**
      * Called to tick armor in the armor slot. Override to do something
      */
+    @Deprecated(forRemoval = true, since = "1.20.1") // Use onInventoryTick
     default void onArmorTick(Level level, Player player)
     {
         self().getItem().onArmorTick(self(), level, player);
     }
+
+    /**
+     * Called to tick this items in a players inventory, the indexes are the global slot index.
+     */
+    default void onInventoryTick(Level level, Player player, int slotIndex, int selectedIndex)
+    {
+    	self().getItem().onInventoryTick(self(), level, player, slotIndex, selectedIndex);
+    }
+
 
     /**
      * Called every tick from {@code Horse#playGallopSound(SoundEvent)} on the item in the
@@ -395,7 +440,7 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
             return other.isEmpty();
         else
             return !other.isEmpty() && self().getCount() == other.getCount() && self().getItem() == other.getItem() &&
-            (limitTags ? self().areShareTagsEqual(other) : ItemStack.tagMatches(self(), other));
+            (limitTags ? self().areShareTagsEqual(other) : Objects.equals(self().getTag(), other.getTag()));
     }
 
     /**
@@ -483,16 +528,16 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     {
         return self().getItem().canWalkOnPowderedSnow(self(), wearer);
     }
-    
+
     /**
      * Get a bounding box ({@link AABB}) of a sweep attack.
-     * 
+     *
      * @param player the performing the attack the attack.
      * @param target the entity targeted by the attack.
      * @return the bounding box.
      */
-    @Nonnull
-    default AABB getSweepHitBox(@Nonnull Player player, @Nonnull Entity target)
+    @NotNull
+    default AABB getSweepHitBox(@NotNull Player player, @NotNull Entity target)
     {
         return self().getItem().getSweepHitBox(self(), player, target);
     }
@@ -522,5 +567,27 @@ public interface IForgeItemStack extends ICapabilitySerializable<CompoundTag>
     default FoodProperties getFoodProperties(@Nullable LivingEntity entity)
     {
         return self().getItem().getFoodProperties(self(), entity);
+    }
+
+    /**
+     * Whether this stack should be excluded (if possible) when selecting the target hotbar slot of a "pick" action.
+     * By default, this returns true for enchanted stacks.
+     *
+     * @see Inventory#getSuitableHotbarSlot()
+     * @param player the player performing the picking
+     * @param inventorySlot the inventory slot of the item being up for replacement
+     * @return true to leave this stack in the hotbar if possible
+     */
+    default boolean isNotReplaceableByPickAction(Player player, int inventorySlot)
+    {
+        return self().getItem().isNotReplaceableByPickAction(self(), player, inventorySlot);
+    }
+
+    /**
+     * {@return true if the given ItemStack can be put into a grindstone to be repaired and/or stripped of its enchantments}
+     */
+    default boolean canGrindstoneRepair()
+    {
+        return self().getItem().canGrindstoneRepair(self());
     }
 }

@@ -1,0 +1,54 @@
+--- a/net/minecraft/world/level/storage/loot/LootDataManager.java
++++ b/net/minecraft/world/level/storage/loot/LootDataManager.java
+@@ -33,6 +_,30 @@
+    public static final LootDataId<LootTable> f_278474_ = new LootDataId<>(LootDataType.f_278413_, BuiltInLootTables.f_78712_);
+    private Map<LootDataId<?>, ?> f_278415_ = Map.of();
+    private Multimap<LootDataType<?>, ResourceLocation> f_278404_ = ImmutableMultimap.of();
++   public Map<?, ResourceLocation> lootTableToKey = ImmutableMap.of(); // CraftBukkit
++
++   // CatServer start
++   public ResourceLocation getKey(LootTable loot) {
++      for (Map.Entry<?, ResourceLocation> tableEntry : lootTableToKey.entrySet()) {
++         if (loot.equals(tableEntry.getKey())) {
++            return tableEntry.getValue();
++         }
++      }
++      // compat:mod:lootr-forge-1.20-0.7.35.94
++      // if mod added loot tables after LootDataManager created, the mod tables will not be added to lootTableToKey
++      for (Map.Entry<LootDataId<?>, ?> tableEntry : f_278415_.entrySet()) {
++         if (loot == tableEntry.getValue()) {
++            ResourceLocation rl = tableEntry.getKey().f_278500_();
++            // rebuild lootTableToKey
++            ImmutableMap.Builder<Object, ResourceLocation> lootTableToKeyBuilder = ImmutableMap.builder();
++            this.f_278415_.forEach((key, lootTable) -> lootTableToKeyBuilder.put((Object)lootTable, key.f_278500_()));
++            this.lootTableToKey = lootTableToKeyBuilder.build();
++            return rl;
++         }
++      }
++      return new ResourceLocation("catserver", "unknown");
++   }
++   // CatServer end
+ 
+    public final CompletableFuture<Void> m_5540_(PreparableReloadListener.PreparationBarrier p_279240_, ResourceManager p_279377_, ProfilerFiller p_279135_, ProfilerFiller p_279088_, Executor p_279148_, Executor p_279169_) {
+       Map<LootDataType<?>, Map<ResourceLocation, ?>> map = new HashMap<>();
+@@ -53,7 +_,7 @@
+          Map<ResourceLocation, JsonElement> map1 = new HashMap<>();
+          SimpleJsonResourceReloadListener.m_278771_(p_279441_, p_279205_.m_278624_(), p_279205_.m_278857_(), map1);
+          map1.forEach((p_279416_, p_279151_) -> {
+-            p_279205_.m_278763_(p_279416_, p_279151_).ifPresent((p_279295_) -> {
++            p_279205_.deserialize(p_279416_, p_279151_, p_279441_).ifPresent((p_279295_) -> {
+                map.put(p_279416_, p_279295_);
+             });
+          });
+@@ -90,6 +_,11 @@
+       });
+       this.f_278415_ = map;
+       this.f_278404_ = builder1.build();
++      // CraftBukkit start - build a reversed registry map
++      ImmutableMap.Builder<Object, ResourceLocation> lootTableToKeyBuilder = ImmutableMap.builder();
++      this.f_278415_.forEach((key, lootTable) -> lootTableToKeyBuilder.put((Object)lootTable, key.f_278500_()));
++      this.lootTableToKey = lootTableToKeyBuilder.build();
++      // CraftBukkit end
+    }
+ 
+    private static <T> void m_278621_(ValidationContext p_279270_, LootDataId<T> p_279249_, Object p_279342_) {

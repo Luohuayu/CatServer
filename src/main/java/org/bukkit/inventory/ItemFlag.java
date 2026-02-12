@@ -27,11 +27,15 @@ public enum ItemFlag {
     HIDE_PLACED_ON,
     /**
      * Setting to show/hide potion effects, book and firework information, map
-     * tooltips, and enchantments of enchanted books.
+     * tooltips, patterns of banners, and enchantments of enchanted books.
      */
     HIDE_POTION_EFFECTS,
     /**
-     * Setting to show/hide dyes from coloured leather armour
+     * Setting to show/hide dyes from colored leather armor.
      */
-    HIDE_DYE;
+    HIDE_DYE,
+    /**
+     * Setting to show/hide armor trim from leather armor.
+     */
+    HIDE_ARMOR_TRIM;
 }

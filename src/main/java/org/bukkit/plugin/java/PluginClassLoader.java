@@ -1,5 +1,32 @@
 package org.bukkit.plugin.java;
 
+import com.google.common.base.Preconditions;
+import com.google.common.io.ByteStreams;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.security.CodeSigner;
+import java.security.CodeSource;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
+import java.util.logging.Level;
+import org.bukkit.plugin.InvalidPluginException;
+import org.bukkit.plugin.PluginDescriptionFile;
+import org.bukkit.plugin.SimplePluginManager;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+// CatServer start
 import catserver.server.patcher.IPatcher;
 import catserver.server.patcher.PatcherManager;
 import catserver.server.remapper.ClassInheritanceProvider;
@@ -8,39 +35,18 @@ import catserver.server.remapper.MappingLoader;
 import catserver.server.remapper.ReflectionTransformer;
 import catserver.server.remapper.RemapRules;
 import cpw.mods.modlauncher.TransformingClassLoader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.JarURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.CodeSigner;
-import java.security.CodeSource;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
-import java.util.logging.Level;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.provider.ClassLoaderProvider;
 import net.md_5.specialsource.provider.JointProvider;
 import net.md_5.specialsource.repo.RuntimeRepo;
 import net.minecraft.server.MinecraftServer;
-import org.apache.commons.lang3.Validate;
-import org.bukkit.plugin.InvalidPluginException;
-import org.bukkit.plugin.PluginDescriptionFile;
-import org.bukkit.plugin.SimplePluginManager;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+// CatServer end
 
 /**
  * A ClassLoader for plugins, to allow shared classes across multiple plugins
  */
-public final class PluginClassLoader extends URLClassLoader {
+public final class PluginClassLoader extends URLClassLoader { // CatServer - public
     private final JavaPluginLoader loader;
     private final Map<String, Class<?>> classes = new ConcurrentHashMap<String, Class<?>>();
     private final PluginDescriptionFile description;
@@ -49,11 +55,13 @@ public final class PluginClassLoader extends URLClassLoader {
     private final JarFile jar;
     private final Manifest manifest;
     private final URL url;
+    // private final ClassLoader libraryLoader; // CatServer - remove
     final JavaPlugin plugin;
     private JavaPlugin pluginInit;
     private IllegalStateException pluginState;
     private final Set<String> seenIllegalAccess = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+    // CatServer start
     private TransformingClassLoader launchClassLoader;
     private CatServerRemapper remapper;
     private JarMapping jarMapping;
@@ -63,14 +71,15 @@ public final class PluginClassLoader extends URLClassLoader {
     private CatServerRemapper preRemapper;
 
     private IPatcher patcher; // CatServer
+    // CatServer end
 
     static {
         ClassLoader.registerAsParallelCapable();
     }
 
-    PluginClassLoader(@NotNull final JavaPluginLoader loader, @Nullable final ClassLoader parent, @NotNull final PluginDescriptionFile description, @NotNull final File dataFolder, @NotNull final File file) throws IOException, InvalidPluginException, MalformedURLException {
-        super(new URL[]{file.toURI().toURL()}, parent);
-        Validate.notNull(loader, "Loader cannot be null");
+    PluginClassLoader(@NotNull final JavaPluginLoader loader, @Nullable final ClassLoader parent, @NotNull final PluginDescriptionFile description, @NotNull final File dataFolder, @NotNull final File file) throws IOException, InvalidPluginException, MalformedURLException { // CatServer - remove libraryLoader
+        super(new URL[] {file.toURI().toURL()}, parent);
+        Preconditions.checkArgument(loader != null, "Loader cannot be null");
 
         this.loader = loader;
         this.description = description;
@@ -79,7 +88,9 @@ public final class PluginClassLoader extends URLClassLoader {
         this.jar = new JarFile(file);
         this.manifest = jar.getManifest();
         this.url = file.toURI().toURL();
+        // this.libraryLoader = libraryLoader; // CatServer - remove
 
+        // CatServer start
         this.launchClassLoader = parent instanceof TransformingClassLoader ? (TransformingClassLoader) parent : (TransformingClassLoader) MinecraftServer.getServer().getClass().getClassLoader();
         this.jarMapping = MappingLoader.loadMapping();
         JointProvider provider = new JointProvider();
@@ -93,6 +104,7 @@ public final class PluginClassLoader extends URLClassLoader {
         this.preRemapper = new CatServerRemapper(preJarMapping);
 
         this.patcher = PatcherManager.getPluginPatcher(description.getName());
+        // CatServer end
 
         try {
             Class<?> jarClass;
@@ -132,6 +144,7 @@ public final class PluginClassLoader extends URLClassLoader {
         return findClass(name, true);
     }
 
+    // CatServer start
     Class<?> findClass(@NotNull String name, boolean checkGlobal) throws ClassNotFoundException {
         if (RemapRules.isNMSPackage(name)) {
             String remappedClass = jarMapping.classes.getOrDefault(name.replace(".", "/"), name).replace('/', '.');
@@ -202,6 +215,7 @@ public final class PluginClassLoader extends URLClassLoader {
         }
         return result;
     }
+    // CatServer end
 
     @Override
     public void close() throws IOException {
@@ -212,14 +226,16 @@ public final class PluginClassLoader extends URLClassLoader {
         }
     }
 
+    // CatServer start
     @NotNull
     Set<String> getClasses() {
         return classes.keySet();
     }
+    // CatServer end
 
-    synchronized void initialize(@NotNull JavaPlugin javaPlugin) {
-        Validate.notNull(javaPlugin, "Initializing plugin cannot be null");
-        Validate.isTrue(javaPlugin.getClass().getClassLoader() == this, "Cannot initialize plugin outside of this class loader");
+    public synchronized void initialize(@NotNull JavaPlugin javaPlugin) { // Paper
+        Preconditions.checkArgument(javaPlugin != null, "Initializing plugin cannot be null");
+        Preconditions.checkArgument(javaPlugin.getClass().getClassLoader() == this, "Cannot initialize plugin outside of this class loader");
         if (this.plugin != null || this.pluginInit != null) {
             throw new IllegalArgumentException("Plugin already initialized!", pluginState);
         }
@@ -230,6 +246,7 @@ public final class PluginClassLoader extends URLClassLoader {
         javaPlugin.init(loader, loader.server, description, dataFolder, file, this);
     }
 
+    // CatServer start
     private Class<?> remappedFindClass(String name) throws ClassNotFoundException {
         Class<?> result = null;
 
@@ -238,38 +255,46 @@ public final class PluginClassLoader extends URLClassLoader {
             String path = name.replace('.', '/').concat(".class");
             URL url = this.findResource(path);
             if (url != null) {
-                InputStream stream = url.openStream();
-                if (stream != null) {
-                    JarURLConnection jarURLConnection = (JarURLConnection) url.openConnection(); // parses only
-                    URL jarURL = jarURLConnection.getJarFileURL();
+                try (InputStream stream = url.openStream()) {
+                    if (stream != null) {
+                        JarURLConnection jarURLConnection = (JarURLConnection) url.openConnection(); // parses only
+                        URL jarURL = jarURLConnection.getJarFileURL();
 
-                    // Remap the classes
-                    byte[] bytecode = remapper.remapClassFile(preRemapper.remapClassFile(stream, RuntimeRepo.getInstance()), RuntimeRepo.getInstance());
-                    if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
-                    bytecode = ReflectionTransformer.transform(bytecode);
+                        // Process legacy in plugin classes
+                        byte[] classBytes = ByteStreams.toByteArray(stream);
+                        classBytes = this.loader.server.getUnsafe().processClass(description, path, classBytes);
 
-                    // Fix the package
-                    int dot = name.lastIndexOf('.');
-                    if (dot != -1) {
-                        String pkgName = name.substring(0, dot);
-                        if (getPackage(pkgName) == null) {
-                            try {
-                                if (manifest != null) {
-                                    definePackage(pkgName, manifest, url);
-                                } else {
-                                    definePackage(pkgName, null, null, null, null, null, null, null);
+                        // CatServer - Process CompletableFuture#runAsync(Runnable)
+                        classBytes = catserver.server.utils.PluginBytecodeHandler.processPluginClass(path, classBytes);
+
+                        // Remap the classes
+                        byte[] bytecode = remapper.remapClassFile(preRemapper.remapClassFile(classBytes, RuntimeRepo.getInstance()), RuntimeRepo.getInstance());
+                        if (this.patcher != null) bytecode = this.patcher.transform(name.replace("/", "."), bytecode);
+                        bytecode = ReflectionTransformer.transform(bytecode);
+
+                        // Fix the package
+                        int dot = name.lastIndexOf('.');
+                        if (dot != -1) {
+                            String pkgName = name.substring(0, dot);
+                            if (getPackage(pkgName) == null) {
+                                try {
+                                    if (manifest != null) {
+                                        definePackage(pkgName, manifest, url);
+                                    } else {
+                                        definePackage(pkgName, null, null, null, null, null, null, null);
+                                    }
+                                } catch (IllegalArgumentException ignored) {
                                 }
-                            } catch (IllegalArgumentException ignored) {
                             }
                         }
-                    }
 
-                    // Define the classes
-                    CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
-                    result = this.defineClass(name, bytecode, 0, bytecode.length, codeSource);
-                    if (result != null) {
-                        // Resolve it - sets the class loader of the class
-                        this.resolveClass(result);
+                        // Define the classes
+                        CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
+                        result = this.defineClass(name, bytecode, 0, bytecode.length, codeSource);
+                        if (result != null) {
+                            // Resolve it - sets the class loader of the class
+                            this.resolveClass(result);
+                        }
                     }
                 }
             }
@@ -279,4 +304,5 @@ public final class PluginClassLoader extends URLClassLoader {
 
         return result;
     }
+    // CatServer end
 }

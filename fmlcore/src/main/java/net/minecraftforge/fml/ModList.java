@@ -7,6 +7,7 @@ package net.minecraftforge.fml;
 
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.event.IModBusEvent;
+import net.minecraftforge.fml.loading.progress.ProgressMeter;
 import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.minecraftforge.forgespi.language.ModFileScanData;
@@ -21,7 +22,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +55,7 @@ public class ModList
     private List<ModContainer> mods;
     private Map<String, ModContainer> indexedMods;
     private List<ModFileScanData> modFileScanData;
+    private List<ModContainer> sortedContainers;
 
     private ModList(final List<ModFile> modFiles, final List<ModInfo> sortedList)
     {
@@ -111,21 +113,22 @@ public class ModList
         return this.fileById.get(modid);
     }
 
-    <T extends Event & IModBusEvent> Function<Executor, CompletableFuture<List<Throwable>>> futureVisitor(
+    <T extends Event & IModBusEvent> Function<Executor, CompletableFuture<Void>> futureVisitor(
             final IModStateTransition.EventGenerator<T> eventGenerator,
+            final ProgressMeter progressBar,
             final BiFunction<ModLoadingStage, Throwable, ModLoadingStage> stateChange) {
         return executor -> gather(
                 this.mods.stream()
-                .map(mod -> ModContainer.buildTransitionHandler(mod, eventGenerator, stateChange, executor))
+                .map(mod -> ModContainer.buildTransitionHandler(mod, eventGenerator, progressBar, stateChange, executor))
                 .collect(Collectors.toList()))
             .thenComposeAsync(ModList::completableFutureFromExceptionList, executor);
     }
-    static CompletionStage<List<Throwable>> completableFutureFromExceptionList(List<? extends Map.Entry<?, Throwable>> t) {
+    static CompletionStage<Void> completableFutureFromExceptionList(List<? extends Map.Entry<?, Throwable>> t) {
         if (t.stream().noneMatch(e->e.getValue()!=null)) {
-            return CompletableFuture.completedFuture(Collections.emptyList());
+            return CompletableFuture.completedFuture(null);
         } else {
             final List<Throwable> throwables = t.stream().filter(e -> e.getValue() != null).map(Map.Entry::getValue).collect(Collectors.toList());
-            CompletableFuture<List<Throwable>> cf = new CompletableFuture<>();
+            CompletableFuture<Void> cf = new CompletableFuture<>();
             final RuntimeException accumulator = new RuntimeException();
             cf.completeExceptionally(accumulator);
             throwables.forEach(exception -> {
@@ -156,6 +159,7 @@ public class ModList
     void setLoadedMods(final List<ModContainer> modContainers)
     {
         this.mods = modContainers;
+        this.sortedContainers = modContainers.stream().sorted(Comparator.comparingInt(c->sortedList.indexOf(c.getModInfo()))).toList();
         this.indexedMods = modContainers.stream().collect(Collectors.toMap(ModContainer::getModId, Function.identity()));
     }
 
@@ -217,6 +221,10 @@ public class ModList
 
     public void forEachModContainer(BiConsumer<String, ModContainer> modContainerConsumer) {
         indexedMods.forEach(modContainerConsumer);
+    }
+
+    public void forEachModInOrder(Consumer<ModContainer> containerConsumer) {
+        this.sortedContainers.forEach(containerConsumer);
     }
 
     public <T> Stream<T> applyForEachModContainer(Function<ModContainer, T> function) {

@@ -5,12 +5,12 @@
 
 package net.minecraftforge.fml.loading.moddiscovery;
 
+import com.mojang.logging.LogUtils;
 import net.minecraftforge.fml.loading.LogMarkers;
 import net.minecraftforge.forgespi.language.IModLanguageProvider;
 import net.minecraftforge.forgespi.language.ModFileScanData;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.objectweb.asm.ClassReader;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class Scanner {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final ModFile fileToScan;
 
     public Scanner(final ModFile fileToScan) {
@@ -45,7 +45,7 @@ public class Scanner {
         try (InputStream in = Files.newInputStream(path)){
             ModClassVisitor mcv = new ModClassVisitor();
             ClassReader cr = new ClassReader(in);
-            cr.accept(mcv, 0);
+            cr.accept(mcv, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
             mcv.buildData(result.getClasses(), result.getAnnotations());
         } catch (IOException | IllegalArgumentException e) {
             // mark path bad

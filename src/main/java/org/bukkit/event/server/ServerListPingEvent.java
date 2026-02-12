@@ -1,8 +1,8 @@
 package org.bukkit.event.server;
 
+import com.google.common.base.Preconditions;
 import java.net.InetAddress;
 import java.util.Iterator;
-import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.UndefinedNullability;
 import org.bukkit.entity.Player;
@@ -20,14 +20,16 @@ import org.jetbrains.annotations.NotNull;
 public class ServerListPingEvent extends ServerEvent implements Iterable<Player> {
     private static final int MAGIC_PLAYER_COUNT = Integer.MIN_VALUE;
     private static final HandlerList handlers = new HandlerList();
+    private final String hostname;
     private final InetAddress address;
     private String motd;
     private final int numPlayers;
     private int maxPlayers;
 
-    public ServerListPingEvent(@NotNull final InetAddress address, @NotNull final String motd, final int numPlayers, final int maxPlayers) {
+    public ServerListPingEvent(@NotNull final String hostname, @NotNull final InetAddress address, @NotNull final String motd, final int numPlayers, final int maxPlayers) {
         super(true);
-        Validate.isTrue(numPlayers >= 0, "Cannot have negative number of players online", numPlayers);
+        Preconditions.checkArgument(numPlayers >= 0, "Cannot have negative number of players online", numPlayers);
+        this.hostname = hostname;
         this.address = address;
         this.motd = motd;
         this.numPlayers = numPlayers;
@@ -39,16 +41,29 @@ public class ServerListPingEvent extends ServerEvent implements Iterable<Player>
      * {@link #iterator()} method, thus provided the {@link #getNumPlayers()}
      * count.
      *
+     * @param hostname The hostname that was used to connect to the server
      * @param address the address of the pinger
      * @param motd the message of the day
      * @param maxPlayers the max number of players
      */
-    protected ServerListPingEvent(@NotNull final InetAddress address, @NotNull final String motd, final int maxPlayers) {
+    protected ServerListPingEvent(@NotNull final String hostname, @NotNull final InetAddress address, @NotNull final String motd, final int maxPlayers) {
         super(true);
         this.numPlayers = MAGIC_PLAYER_COUNT;
+        this.hostname = hostname;
         this.address = address;
         this.motd = motd;
         this.maxPlayers = maxPlayers;
+    }
+
+    /**
+     * Gets the hostname that the player used to connect to the server, or
+     * blank if unknown
+     *
+     * @return The hostname
+     */
+    @NotNull
+    public String getHostname() {
+        return hostname;
     }
 
     /**
@@ -103,6 +118,18 @@ public class ServerListPingEvent extends ServerEvent implements Iterable<Player>
      */
     public int getMaxPlayers() {
         return maxPlayers;
+    }
+
+    /**
+     * Gets whether the server needs to send a preview of the chat to the
+     * client.
+     *
+     * @return true if chat preview is enabled, false otherwise
+     * @deprecated chat previews have been removed
+     */
+    @Deprecated
+    public boolean shouldSendChatPreviews() {
+        return false;
     }
 
     /**

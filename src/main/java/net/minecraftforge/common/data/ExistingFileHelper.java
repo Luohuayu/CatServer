@@ -6,24 +6,21 @@
 package net.minecraftforge.common.data;
 
 import java.io.File;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
 import net.minecraft.client.resources.ClientPackSource;
-import net.minecraft.client.resources.AssetIndex;
-import net.minecraft.client.resources.DefaultClientPackResources;
+import net.minecraft.client.resources.IndexedAssetSource;
 import net.minecraft.data.DataProvider;
-import net.minecraft.data.HashCache;
 import net.minecraft.server.packs.FilePackResources;
-import net.minecraft.server.packs.FolderPackResources;
+import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
 import net.minecraft.server.packs.resources.Resource;
@@ -33,12 +30,12 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.VanillaPackResources;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.model.generators.ModelBuilder;
+import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
 import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.resource.ResourcePackLoader;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 
 /**
  * Enables data providers to check if other data files currently exist. The
@@ -99,15 +96,14 @@ public class ExistingFileHelper {
         List<PackResources> candidateClientResources = new ArrayList<>();
         List<PackResources> candidateServerResources = new ArrayList<>();
 
-        candidateClientResources.add(new VanillaPackResources(ClientPackSource.BUILT_IN, "minecraft", "realms"));
-        if (assetIndex != null && assetsDir != null)
+        if (assetIndex != null && assetsDir != null && assetsDir.exists())
         {
-            candidateClientResources.add(new DefaultClientPackResources(ClientPackSource.BUILT_IN, new AssetIndex(assetsDir, assetIndex)));
+            candidateClientResources.add(ClientPackSource.createVanillaPackSource(IndexedAssetSource.createIndexFs(assetsDir.toPath(), assetIndex)));
         }
-        candidateServerResources.add(new VanillaPackResources(ServerPacksSource.BUILT_IN_METADATA, "minecraft"));
+        candidateServerResources.add(ServerPacksSource.createVanillaPackSource());
         for (Path existing : existingPacks) {
             File file = existing.toFile();
-            PackResources pack = file.isDirectory() ? new FolderPackResources(file) : new FilePackResources(file);
+            PackResources pack = file.isDirectory() ? new PathPackResources(file.getName(), file.toPath(), false) : new FilePackResources(file.getName(), file, false);
             candidateClientResources.add(pack);
             candidateServerResources.add(pack);
         }
@@ -147,7 +143,7 @@ public class ExistingFileHelper {
         if (!enable) {
             return true;
         }
-        return generated.get(packType).contains(loc) || getManager(packType).hasResource(loc);
+        return generated.get(packType).contains(loc) || getManager(packType).getResource(loc).isPresent();
     }
 
     /**
@@ -155,7 +151,7 @@ public class ExistingFileHelper {
      * convenience method to avoid repeating type/prefix/suffix and instead use the
      * common definitions in {@link ResourceType}, or a custom {@link IResourceType}
      * definition.
-     * 
+     *
      * @param loc  the base location of the resource, e.g.
      *             {@code "minecraft:block/stone"}
      * @param type a {@link IResourceType} describing how to form the path to the
@@ -169,7 +165,7 @@ public class ExistingFileHelper {
 
     /**
      * Check if a given resource exists in the known resource packs.
-     * 
+     *
      * @param loc        the base location of the resource, e.g.
      *                   {@code "minecraft:block/stone"}
      * @param packType   the type of resources to check
@@ -190,13 +186,13 @@ public class ExistingFileHelper {
      * <p>
      * This should be called by data providers immediately when a new data object is
      * created, i.e. not during
-     * {@link DataProvider#run(net.minecraft.data.HashCache) run} but instead
+     * {@link DataProvider#run(net.minecraft.data.CachedOutput) run} but instead
      * when the "builder" (or whatever intermediate object) is created, such as a
      * {@link ModelBuilder}.
      * <p>
      * This represents a <em>promise</em> to generate the file later, since other
      * datagen may rely on this file existing.
-     * 
+     *
      * @param loc  the base location of the resource, e.g.
      *             {@code "minecraft:block/stone"}
      * @param type a {@link IResourceType} describing how to form the path to the
@@ -211,13 +207,13 @@ public class ExistingFileHelper {
      * <p>
      * This should be called by data providers immediately when a new data object is
      * created, i.e. not during
-     * {@link DataProvider#run(HashCache) run} but instead
+     * {@link DataProvider#run(net.minecraft.data.CachedOutput) run} but instead
      * when the "builder" (or whatever intermediate object) is created, such as a
      * {@link ModelBuilder}.
      * <p>
      * This represents a <em>promise</em> to generate the file later, since other
      * datagen may rely on this file existing.
-     * 
+     *
      * @param loc        the base location of the resource, e.g.
      *                   {@code "minecraft:block/stone"}
      * @param packType   the type of resources to check
@@ -230,13 +226,18 @@ public class ExistingFileHelper {
     }
 
     @VisibleForTesting
-    public Resource getResource(ResourceLocation loc, PackType packType, String pathSuffix, String pathPrefix) throws IOException {
+    public Resource getResource(ResourceLocation loc, PackType packType, String pathSuffix, String pathPrefix) throws FileNotFoundException {
         return getResource(getLocation(loc, pathSuffix, pathPrefix), packType);
     }
 
     @VisibleForTesting
-    public Resource getResource(ResourceLocation loc, PackType packType) throws IOException {
-        return getManager(packType).getResource(loc);
+    public Resource getResource(ResourceLocation loc, PackType packType) throws FileNotFoundException {
+        return getManager(packType).getResourceOrThrow(loc);
+    }
+
+    @VisibleForTesting
+    public List<Resource> getResourceStack(ResourceLocation loc, PackType packType) {
+        return getManager(packType).getResourceStack(loc);
     }
 
     /**

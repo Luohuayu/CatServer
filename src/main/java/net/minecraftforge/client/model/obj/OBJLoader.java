@@ -5,26 +5,34 @@
 
 package net.minecraftforge.client.model.obj;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.GsonHelper;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.client.model.IModelLoader;
+import net.minecraftforge.client.model.geometry.IGeometryLoader;
 
-import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
-import java.util.*;
+import java.util.Map;
 
-public class OBJLoader implements IModelLoader<OBJModel>
+/**
+ * A loader for {@link ObjModel OBJ models}.
+ * <p>
+ * Allows the user to enable automatic face culling, toggle quad shading, flip UVs, render emissively and specify a
+ * {@link ObjMaterialLibrary material library} override.
+ */
+public class ObjLoader implements IGeometryLoader<ObjModel>, ResourceManagerReloadListener
 {
-    public static OBJLoader INSTANCE = new OBJLoader();
+    public static ObjLoader INSTANCE = new ObjLoader();
 
-    private final Map<OBJModel.ModelSettings, OBJModel> modelCache = Maps.newHashMap();
-    private final Map<ResourceLocation, MaterialLibrary> materialCache = Maps.newHashMap();
+    private final Map<ObjModel.ModelSettings, ObjModel> modelCache = Maps.newConcurrentMap();
+    private final Map<ResourceLocation, ObjMaterialLibrary> materialCache = Maps.newConcurrentMap();
 
     private ResourceManager manager = Minecraft.getInstance().getResourceManager();
 
@@ -37,56 +45,50 @@ public class OBJLoader implements IModelLoader<OBJModel>
     }
 
     @Override
-    public OBJModel read(JsonDeserializationContext deserializationContext, JsonObject modelContents)
+    public ObjModel read(JsonObject jsonObject, JsonDeserializationContext deserializationContext)
     {
-        if (!modelContents.has("model"))
-            throw new RuntimeException("OBJ Loader requires a 'model' key that points to a valid .OBJ model.");
+        if (!jsonObject.has("model"))
+            throw new JsonParseException("OBJ Loader requires a 'model' key that points to a valid .OBJ model.");
 
-        String modelLocation = modelContents.get("model").getAsString();
+        String modelLocation = jsonObject.get("model").getAsString();
 
-        boolean detectCullableFaces = GsonHelper.getAsBoolean(modelContents, "detectCullableFaces", true);
-        boolean diffuseLighting = GsonHelper.getAsBoolean(modelContents, "diffuseLighting", false);
-        boolean flipV = GsonHelper.getAsBoolean(modelContents, "flip-v", false);
-        boolean ambientToFullbright = GsonHelper.getAsBoolean(modelContents, "ambientToFullbright", true);
-        @Nullable
-        String materialLibraryOverrideLocation = modelContents.has("materialLibraryOverride") ? GsonHelper.getAsString(modelContents, "materialLibraryOverride") : null;
+        boolean automaticCulling = GsonHelper.getAsBoolean(jsonObject, "automatic_culling", true);
+        boolean shadeQuads = GsonHelper.getAsBoolean(jsonObject, "shade_quads", true);
+        boolean flipV = GsonHelper.getAsBoolean(jsonObject, "flip_v", false);
+        boolean emissiveAmbient = GsonHelper.getAsBoolean(jsonObject, "emissive_ambient", true);
+        String mtlOverride = GsonHelper.getAsString(jsonObject, "mtl_override", null);
 
-        return loadModel(new OBJModel.ModelSettings(new ResourceLocation(modelLocation), detectCullableFaces, diffuseLighting, flipV, ambientToFullbright, materialLibraryOverrideLocation));
+        return loadModel(new ObjModel.ModelSettings(new ResourceLocation(modelLocation), automaticCulling, shadeQuads, flipV, emissiveAmbient, mtlOverride));
     }
 
-    public OBJModel loadModel(OBJModel.ModelSettings settings)
+    public ObjModel loadModel(ObjModel.ModelSettings settings)
     {
         return modelCache.computeIfAbsent(settings, (data) -> {
-
-            try(Resource resource = manager.getResource(settings.modelLocation());
-                LineReader rdr = new LineReader(resource))
+            Resource resource = manager.getResource(settings.modelLocation()).orElseThrow();
+            try (ObjTokenizer tokenizer = new ObjTokenizer(resource.open()))
             {
-                return new OBJModel(rdr, settings);
-            }
-            catch (FileNotFoundException e)
+                return ObjModel.parse(tokenizer, settings);
+            } catch (FileNotFoundException e)
             {
                 throw new RuntimeException("Could not find OBJ model", e);
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 throw new RuntimeException("Could not read OBJ model", e);
             }
         });
     }
 
-    public MaterialLibrary loadMaterialLibrary(ResourceLocation materialLocation)
+    public ObjMaterialLibrary loadMaterialLibrary(ResourceLocation materialLocation)
     {
         return materialCache.computeIfAbsent(materialLocation, (location) -> {
-            try(Resource resource = manager.getResource(location);
-                LineReader rdr = new LineReader(resource))
+            Resource resource = manager.getResource(location).orElseThrow();
+            try (ObjTokenizer rdr = new ObjTokenizer(resource.open()))
             {
-                return new MaterialLibrary(rdr);
-            }
-            catch (FileNotFoundException e)
+                return new ObjMaterialLibrary(rdr);
+            } catch (FileNotFoundException e)
             {
                 throw new RuntimeException("Could not find OBJ material library", e);
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 throw new RuntimeException("Could not read OBJ material library", e);
             }

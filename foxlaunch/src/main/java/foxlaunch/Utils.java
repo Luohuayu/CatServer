@@ -43,52 +43,70 @@ public class Utils {
 
     public static String getMissingSHA256(String filename) {
         switch (filename) {
-            case "minecraft_server.1.18.2.jar":
-                return "57BE9D1E35AA91CFDFA246ADB63A0EA11A946081E0464D08BC3D36651718A343";
-            case "server-1.18.2-mappings.txt":
-                return "2A674D9721824BEB424337DAB39A2EC3553BABF0FA4C75FDE66706C73C17539A";
-            case "mcp_config-1.18.2-20220404.173914.zip": // 重要: Update it when updating MCP version
-                return "F60527297DD4E81E3DA93DC95981E426A81D3B03457CF2F94AF8281E2DB5A8F2";
-            case "authlib-3.3.39.jar":
-                return "21132E3BDE5EEAC556437DA9580221931BB00DBF350B453F100526C9AA232FEE";
-            case "brigadier-1.0.18.jar":
-                return "EDC4926AA4B49010F6E7AC46EFD623FB38F9517344D26F6251D79A26A9738C0B";
+            case "minecraft_server.1.20.1.jar":
+                return "3AF73A9DC5A102E38147946360DD27D4D70BAE7055BF91CF2151CD5D121B79E0";
+            case "server-1.20.1-mappings.txt":
+                return "DCA153D20DEFB32CFAC3F069C3BF77B3E13C30AE63847637479D3137E099BB72";
+            case "mcp_config-1.20.1-20230612.114412.zip": // 重要: Update it when updating MCP version
+                return "F46D1050D8BED9046886B90A0D2FB80B4C6B5120FC35D32E5D37498DBE0A6D2A";
+            case "authlib-4.0.43.jar":
+                return "697043D19E0B84B04F011DBEC1BEC3D80C04D8C468E7E4C6B221C0183BC1C0EF";
+            case "brigadier-1.1.8.jar":
+                return "CF65AFA612FFFBE4DC976115DAC0312F48B9C84B3DDAF58BEC8018A9454440D7";
             case "commons-io-2.11.0.jar":
                 return "961B2F6D87DBACC5D54ABF45AB7A6E2495F89B75598962D8C723CEA9BC210908";
-            case "datafixerupper-4.1.27.jar":
-                return "FEF342ED9E0BC30DE8BD900559E719EAC3585EE10C2961A4EBF19FC49A83054F";
+            case "datafixerupper-6.0.8.jar":
+                return "6E38E9FC5404BE7E45189AA14CA6058BC85DF20D6760A212B6D48E666ABF0FEF";
             case "failureaccess-1.0.1.jar":
                 return "A171EE4C734DD2DA837E4B16BE9DF4661AFAB72A41ADAF31EB84DFDAF936CA26";
-            case "fastutil-8.5.6.jar":
-                return "5021369BDC72E2CA24222D036C9B35C9733DC9C082A0891C4DBA5A583663F30B";
-            case "gson-2.8.9.jar":
-                return "D3999291855DE495C94C743761B8AB5176CFEABE281A5AB0D8E8D45326FD703E";
-            case "guava-31.0.1-jre.jar":
-                return "D5BE94D65E87BD219FB3193AD1517BAA55A3B88FC91D21CF735826AB5AF087B9";
+            case "fastutil-8.5.9.jar":
+                return "9578BF2A1700CF20D21746A2EE89E57BA1ABBD37FA9FEDA68FF5E9A28473A7F9";
+            case "gson-2.10.1.jar":
+                return "4241C14A7727C34FEEA6507EC801318A3D4A90F070E4525681079FB94EE4C593";
+            case "guava-31.1-jre.jar":
+                return "A42EDC9CAB792E39FE39BB94F3FCA655ED157FF87A8AF78E1D6BA5B07C4A00AB";
             case "javabridge-1.2.24.jar":
                 return "B5F8871A1799B36E27A5F2AD8A4B47DB39210031C967B794707B92E9E3F8598E";
-            case "jna-5.10.0.jar":
-                return "E335C10679F743207D822C5F7948E930319835492575A9DBA6B94F8A3B96FCC8";
-            case "jna-platform-5.10.0.jar":
-                return "1F71AFD977051BF0109EF5E3767D4E2AFD777BE894D89788CC0F38AD68F6A16F";
+            case "jna-5.12.1.jar":
+                return "91A814AC4F40D60DEE91D842E1A8AD874C62197984403D0E3C30D39E55CF53B3";
+            case "jna-platform-5.12.1.jar":
+                return "8CE969116CAC95BD61B07A8D5E07174B352E63301473CAAC72C395E3C08488D2";
             case "jopt-simple-5.0.4.jar":
                 return "DF26CC58F235F477DB07F753BA5A3AB243EBE5789D9F89ECF68DD62EA9A66C28";
-            case "log4j-api-2.17.0.jar":
-                return "AB9CADC80E234580E3F3C8C18644314FCCD4B3CD3F7085D4E934866CB561B95D";
-            case "log4j-core-2.17.0.jar":
-                return "65C33DC9B24A5E5F6CACAE62680641582894749C7BF16C951032EF92F3E12A60";
-            case "log4j-slf4j18-impl-2.17.0.jar":
-                return "40BB460CE600AABF832BE01141D07ED439FE288140AAFAE4FDC391D682E9CF43";
-            case "logging-1.0.0.jar":
-                return "B2F5D129244F7A90973623CB683BECFCCD0E23B2AC3ADEC028F259F27B0A5400";
-            case "netty-all-4.1.68.Final.jar":
-                return "21E9D45194EE99B1415CC85463555417E494BAF87C5D285877A7584328122F02";
-            case "oshi-core-5.8.5.jar":
-                return "FE16BD8836EECF3D152585C2151322273B68237D13F223E662E0DB959DD13680";
-            case "slf4j-api-1.8.0-beta4.jar":
-                return "602B712329C84B4A83C40464F4FDFD0FE4238C53EF397139A867064739DBF4E0";
-            case "bootstraplauncher-1.0.0.jar":
-                return "BF09102181B8D9B03B536D3388463CC08C4044E4234D233515DAE84BD39920E4";
+            case "log4j-api-2.19.0.jar":
+                return "5CCB24AD9F92E768D0BC456D3061A737951262DF803E004D2CAD096B75A88D60";
+            case "log4j-core-2.19.0.jar":
+                return "B4A1796FAB7BFC36DF015C1B4052459147997E8D215A7199D71D05F9E747E4F4";
+            case "log4j-slf4j2-impl-2.19.0.jar":
+                return "825605EACB2D5605B105C53D4108C18125E0F82F62960D0BE583278B9C524F3C";
+            case "logging-1.1.1.jar":
+                return "C1756EAF0685DA94142BACC84309BB7CCDDF65E004638C3299AB645710B5938C";
+            case "netty-buffer-4.1.82.Final.jar":
+                return "A7CE7F6D8C1E82B044CD56765DAB4338251596416DE03B1F9A05D7402429C29D";
+            case "netty-codec-4.1.82.Final.jar":
+                return "170C0CE091C2E1CC1D952D87A6A30DEB773922507BBC609B962B539F03F53407";
+            case "netty-common-4.1.82.Final.jar":
+                return "D5923DB1CC68B26BAF5368F1F76EC2C6100D12DB8406C6DE00EB6DBC08052550";
+            case "netty-handler-4.1.82.Final.jar":
+                return "31015505983DC57EEC491AD4873411BA51F0F3BEB24D22D509336C72511019CB";
+            case "netty-resolver-4.1.82.Final.jar":
+                return "4CFEBA7EC535964A35722178AEECC87EC186DBA0203D04389A850E8E62575383";
+            case "netty-transport-4.1.82.Final.jar":
+                return "C210069BE4AB4120F5AC7CB5E4A126D3A007E78A64FD44C9971220E013DBAEF1";
+            case "netty-transport-classes-epoll-4.1.82.Final.jar":
+                return "73F827FCA18870959B9581C6875130576E5DE684CFB4E6F346F8C1C266840BA3";
+            case "netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar":
+                return "C9551F4622B4C44C9E7DC8C6DC17874B4DDB953A943F402740E64126180EE85E";
+            case "netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar":
+                return "D4651F6082FB60F4218F100322DE33E350184F5287900D163698298CF72DDBE7";
+            case "netty-transport-native-unix-common-4.1.82.Final.jar":
+                return "1096F16527A51DD5F44CED90636110A429CC7359A9A8A91DB25000B747793429";
+            case "oshi-core-6.2.2.jar":
+                return "EFBCA93DF18F3EB16964A92D8342F0674DD5D90DA575EF8E04EF2E4EABEC6910";
+            case "slf4j-api-2.0.1.jar":
+                return "B36B99B8D99EA7857554D9B25DFDBD1FB25378C926F7B9E0249983C99335B2C4";
+            case "bootstraplauncher-1.1.2.jar":
+                return "853B61FD165CAF4103B5B969AFBC5B2B037ABC310ED644518CD967B50D5189A4";
             default:
                 return null;
         }

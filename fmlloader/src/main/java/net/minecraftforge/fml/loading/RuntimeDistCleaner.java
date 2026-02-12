@@ -16,14 +16,11 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Streams;
+import com.mojang.logging.LogUtils;
 import cpw.mods.modlauncher.serviceapi.ILaunchPluginService;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.api.distmarker.OnlyIns;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -33,11 +30,14 @@ import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 public class RuntimeDistCleaner implements ILaunchPluginService
 {
-    private static final Logger LOGGER = LogManager.getLogger();
-    private static final Marker DISTXFORM = MarkerManager.getMarker("DISTXFORM");
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Marker DISTXFORM = MarkerFactory.getMarker("DISTXFORM");
     private static String DIST;
     private static final String ONLYIN = Type.getDescriptor(OnlyIn.class);
     private static final String ONLYINS = Type.getDescriptor(OnlyIns.class);
@@ -53,7 +53,7 @@ public class RuntimeDistCleaner implements ILaunchPluginService
         AtomicBoolean changes = new AtomicBoolean();
         if (remove(classNode.visibleAnnotations, DIST))
         {
-            LOGGER.fatal(DISTXFORM, "Attempted to load class {} for invalid dist {}", classNode.name, DIST);
+            LOGGER.error(DISTXFORM, "Attempted to load class {} for invalid dist {}", classNode.name, DIST);
             throw new RuntimeException("Attempted to load class "+ classNode.name  + " for invalid dist "+ DIST);
         }
 
@@ -147,7 +147,7 @@ public class RuntimeDistCleaner implements ILaunchPluginService
         return ret;
     }
 
-    private boolean remove(final List<AnnotationNode> anns, final String side)
+    private static boolean remove(final List<AnnotationNode> anns, final String side)
     {
         return unpack(anns).stream().
                 filter(ann->Objects.equals(ann.desc, ONLYIN)).
@@ -169,9 +169,15 @@ public class RuntimeDistCleaner implements ILaunchPluginService
     private static final EnumSet<Phase> NAY = EnumSet.noneOf(Phase.class);
 
     @Override
-    public EnumSet<Phase> handlesClass(Type classType, boolean isEmpty)
-    {
-        return isEmpty ? NAY : YAY;
+    public EnumSet<Phase> handlesClass(Type classType, boolean isEmpty) {
+        if (isEmpty)
+            return NAY;
+
+        String internalName = classType.getInternalName();
+        if (internalName.startsWith("net/minecraftforge/"))
+            return NAY;
+
+        return YAY;
     }
 
     private static class LambdaGatherer extends MethodVisitor {

@@ -5,10 +5,9 @@
 
 package net.minecraftforge.client.model.generators;
 
-import javax.annotation.Nonnull;
-
-import net.minecraft.data.DataGenerator;
+import net.minecraft.data.PackOutput;
 import net.minecraftforge.common.data.ExistingFileHelper;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Stub class to extend for block model data providers, eliminates some
@@ -16,11 +15,11 @@ import net.minecraftforge.common.data.ExistingFileHelper;
  */
 public abstract class BlockModelProvider extends ModelProvider<BlockModelBuilder> {
 
-    public BlockModelProvider(DataGenerator generator, String modid, ExistingFileHelper existingFileHelper) {
-        super(generator, modid, BLOCK_FOLDER, BlockModelBuilder::new, existingFileHelper);
+    public BlockModelProvider(PackOutput output, String modid, ExistingFileHelper existingFileHelper) {
+        super(output, modid, BLOCK_FOLDER, BlockModelBuilder::new, existingFileHelper);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public String getName() {
         return "Block Models: " + modid;

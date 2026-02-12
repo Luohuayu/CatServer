@@ -1,10 +1,9 @@
 package org.bukkit.potion;
 
+import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-
-import org.apache.commons.lang3.Validate;
 import org.bukkit.Color;
 import org.bukkit.Keyed;
 import org.bukkit.NamespacedKey;
@@ -181,6 +180,11 @@ public abstract class PotionEffectType implements Keyed {
      */
     public static final PotionEffectType HERO_OF_THE_VILLAGE = new PotionEffectTypeWrapper(32, "hero_of_the_village");
 
+    /**
+     * Causes the player's vision to dim occasionally.
+     */
+    public static final PotionEffectType DARKNESS = new PotionEffectTypeWrapper(33, "darkness");
+
     private final int id;
     private final NamespacedKey key;
 
@@ -193,7 +197,7 @@ public abstract class PotionEffectType implements Keyed {
      * Creates a PotionEffect from this PotionEffectType, applying duration
      * modifiers and checks.
      *
-     * @param duration  time in ticks
+     * @param duration time in ticks
      * @param amplifier the effect's amplifier
      * @return a resulting potion effect
      * @see PotionBrewer#createEffect(PotionEffectType, int, int)
@@ -226,7 +230,7 @@ public abstract class PotionEffectType implements Keyed {
     @NotNull
     @Override
     public NamespacedKey getKey() {
-        return key;
+       return key;
     }
 
     /**
@@ -316,7 +320,7 @@ public abstract class PotionEffectType implements Keyed {
      */
     @Nullable
     public static PotionEffectType getByName(@NotNull String name) {
-        Validate.notNull(name, "name cannot be null");
+        Preconditions.checkArgument(name != null, "name cannot be null");
         return byName.get(name.toLowerCase(java.util.Locale.ENGLISH));
     }
 

@@ -12,8 +12,7 @@ import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * ArrowLooseEvent is fired when a player stops using a bow.<br>
@@ -35,22 +34,22 @@ import javax.annotation.Nonnull;
 public class ArrowLooseEvent extends PlayerEvent
 {
     private final ItemStack bow;
-    private final Level world;
+    private final Level level;
     private final boolean hasAmmo;
     private int charge;
 
-    public ArrowLooseEvent(Player player, @Nonnull ItemStack bow, Level world, int charge, boolean hasAmmo)
+    public ArrowLooseEvent(Player player, @NotNull ItemStack bow, Level level, int charge, boolean hasAmmo)
     {
         super(player);
         this.bow = bow;
-        this.world = world;
+        this.level = level;
         this.charge = charge;
         this.hasAmmo = hasAmmo;
     }
 
-    @Nonnull
+    @NotNull
     public ItemStack getBow() { return this.bow; }
-    public Level getWorld() { return this.world; }
+    public Level getLevel() { return this.level; }
     public boolean hasAmmo() { return this.hasAmmo; }
     public int getCharge() { return this.charge; }
     public void setCharge(int charge) { this.charge = charge; }

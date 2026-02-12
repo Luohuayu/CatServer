@@ -10,9 +10,9 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-import org.bukkit.craftbukkit.v1_18_R2.command.BukkitCommandWrapper;
-import org.bukkit.craftbukkit.v1_18_R2.command.VanillaCommandWrapper;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.command.BukkitCommandWrapper;
+import org.bukkit.craftbukkit.v1_20_R1.command.VanillaCommandWrapper;
 
 public class CatServerCommandDispatcher extends CommandDispatcher<CommandSourceStack> {
 

@@ -1,5 +1,6 @@
 package org.bukkit.plugin.java;
 
+import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -7,18 +8,17 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
-import org.apache.commons.lang3.Validate;
 import org.bukkit.Server;
 import org.bukkit.Warning;
 import org.bukkit.Warning.WarningState;
@@ -38,11 +38,12 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginLoader;
 import org.bukkit.plugin.RegisteredListener;
+import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.TimedRegisteredListener;
 import org.bukkit.plugin.UnknownDependencyException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.spigotmc.CustomTimingsHandler;
+import org.spigotmc.CustomTimingsHandler; // Spigot
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
@@ -51,9 +52,11 @@ import org.yaml.snakeyaml.error.YAMLException;
 public final class JavaPluginLoader implements PluginLoader {
     final Server server;
     private final Pattern[] fileFilters = new Pattern[]{Pattern.compile("\\.jar$")};
-    private final Map<String, Class<?>> classes = new ConcurrentHashMap<String, Class<?>>();
+    private final Map<String, Class<?>> classes = new java.util.concurrent.ConcurrentHashMap<String, Class<?>>(); // CatServer
     private final List<PluginClassLoader> loaders = new CopyOnWriteArrayList<PluginClassLoader>();
+    // private final LibraryLoader libraryLoader; // CatServer - remove
     public static final CustomTimingsHandler pluginParentTimer = new CustomTimingsHandler("** Plugins"); // Spigot
+    private final java.net.URLClassLoader urlClassLoader; // CatServer - [compat:plugin:UltimateTimber:3.0.1:com.craftaro.ultimatetimber.core.third_party.com.georgev22.api.libraryloader.ClassLoaderAccess#<init>] some plugins require a URLClassLoader as a parent classloader to load libraries
 
     /**
      * This class was not meant to be constructed explicitly
@@ -62,14 +65,38 @@ public final class JavaPluginLoader implements PluginLoader {
      */
     @Deprecated
     public JavaPluginLoader(@NotNull Server instance) {
-        Validate.notNull(instance, "Server cannot be null");
+        Preconditions.checkArgument(instance != null, "Server cannot be null");
         server = instance;
+
+        /* // CatServer - remove
+        LibraryLoader libraryLoader = null;
+        try {
+            libraryLoader = new LibraryLoader(server.getLogger());
+        } catch (NoClassDefFoundError ex) {
+            // Provided depends were not added back
+            server.getLogger().warning("Could not initialize LibraryLoader (missing dependencies?)");
+        }
+        this.libraryLoader = libraryLoader;
+        */
+
+        // CatServer start - 1.20.1
+        try {
+            String[] dependencies = System.getProperty("pluginOnlyDependencyClassPath").split(File.pathSeparator);
+            java.net.URL[] dependencyUrls = new java.net.URL[dependencies.length];
+            for (int i = 0; i < dependencies.length; i++) {
+                dependencyUrls[i] = new File(dependencies[i]).toURI().toURL();
+            }
+            this.urlClassLoader = new java.net.URLClassLoader(dependencyUrls, getClass().getClassLoader()); // CatServer - 1.20.1
+        } catch (java.net.MalformedURLException e) {
+            throw new RuntimeException("Failed to initialize the urlClassLoader of JavaPluginLoader. Something wrong with the library paths:\n" + System.getProperty("pluginOnlyDependencyClassPath"), e);
+        }
+        // CatServer end
     }
 
     @Override
     @NotNull
     public Plugin loadPlugin(@NotNull final File file) throws InvalidPluginException {
-        Validate.notNull(file, "File cannot be null");
+        Preconditions.checkArgument(file != null, "File cannot be null");
 
         if (!file.exists()) {
             throw new InvalidPluginException(new FileNotFoundException(file.getPath() + " does not exist"));
@@ -92,31 +119,31 @@ public final class JavaPluginLoader implements PluginLoader {
             // They are equal -- nothing needs to be done!
         } else if (dataFolder.isDirectory() && oldDataFolder.isDirectory()) {
             server.getLogger().warning(String.format(
-                    "While loading %s (%s) found old-data folder: `%s' next to the new one `%s'",
-                    description.getFullName(),
-                    file,
-                    oldDataFolder,
-                    dataFolder
+                "While loading %s (%s) found old-data folder: `%s' next to the new one `%s'",
+                description.getFullName(),
+                file,
+                oldDataFolder,
+                dataFolder
             ));
         } else if (oldDataFolder.isDirectory() && !dataFolder.exists()) {
             if (!oldDataFolder.renameTo(dataFolder)) {
                 throw new InvalidPluginException("Unable to rename old data folder: `" + oldDataFolder + "' to: `" + dataFolder + "'");
             }
             server.getLogger().log(Level.INFO, String.format(
-                    "While loading %s (%s) renamed data folder: `%s' to `%s'",
-                    description.getFullName(),
-                    file,
-                    oldDataFolder,
-                    dataFolder
+                "While loading %s (%s) renamed data folder: `%s' to `%s'",
+                description.getFullName(),
+                file,
+                oldDataFolder,
+                dataFolder
             ));
         }
 
         if (dataFolder.exists() && !dataFolder.isDirectory()) {
             throw new InvalidPluginException(String.format(
-                    "Projected datafolder: `%s' for %s (%s) exists and is not a directory",
-                    dataFolder,
-                    description.getFullName(),
-                    file
+                "Projected datafolder: `%s' for %s (%s) exists and is not a directory",
+                dataFolder,
+                description.getFullName(),
+                file
             ));
         }
 
@@ -132,7 +159,7 @@ public final class JavaPluginLoader implements PluginLoader {
 
         final PluginClassLoader loader;
         try {
-            loader = new PluginClassLoader(this, getClass().getClassLoader(), description, dataFolder, file);
+            loader = new PluginClassLoader(this, this.urlClassLoader, description, dataFolder, file); // CatServer
         } catch (InvalidPluginException ex) {
             throw ex;
         } catch (Throwable ex) {
@@ -147,7 +174,7 @@ public final class JavaPluginLoader implements PluginLoader {
     @Override
     @NotNull
     public PluginDescriptionFile getPluginDescription(@NotNull File file) throws InvalidDescriptionException {
-        Validate.notNull(file, "File cannot be null");
+        Preconditions.checkArgument(file != null, "File cannot be null");
 
         JarFile jar = null;
         InputStream stream = null;
@@ -190,6 +217,7 @@ public final class JavaPluginLoader implements PluginLoader {
         return fileFilters.clone();
     }
 
+    // CatServer start
     @Nullable
     Class<?> getClassByName(final String name) {
         Class<?> cachedClass = classes.get(name);
@@ -208,8 +236,10 @@ public final class JavaPluginLoader implements PluginLoader {
         }
         return null;
     }
+    // CatServer end
 
     void setClass(@NotNull final String name, @NotNull final Class<?> clazz) {
+        // CatServer start
         if (!classes.containsKey(name)) {
             classes.put(name, clazz);
 
@@ -218,13 +248,15 @@ public final class JavaPluginLoader implements PluginLoader {
                 ConfigurationSerialization.registerClass(serializable);
             }
         }
+        // CatServer end
     }
 
+    // CatServer start
     private void removeClass(@NotNull String name) {
         Class<?> clazz = classes.remove(name);
 
         try {
-            if ((clazz != null) && (ConfigurationSerializable.class.isAssignableFrom(clazz))) {
+            if ((clazz != null) && ConfigurationSerializable.class.isAssignableFrom(clazz)) {
                 Class<? extends ConfigurationSerializable> serializable = clazz.asSubclass(ConfigurationSerializable.class);
                 ConfigurationSerialization.unregisterClass(serializable);
             }
@@ -233,12 +265,13 @@ public final class JavaPluginLoader implements PluginLoader {
             // (Native methods throwing NPEs is not fun when you can't stop it before-hand)
         }
     }
+    // CatServer end
 
     @Override
     @NotNull
     public Map<Class<? extends Event>, Set<RegisteredListener>> createRegisteredListeners(@NotNull Listener listener, @NotNull final Plugin plugin) {
-        Validate.notNull(plugin, "Plugin can not be null");
-        Validate.notNull(listener, "Listener can not be null");
+        Preconditions.checkArgument(plugin != null, "Plugin can not be null");
+        Preconditions.checkArgument(listener != null, "Listener can not be null");
 
         boolean useTimings = server.getPluginManager().useTimings();
         Map<Class<? extends Event>, Set<RegisteredListener>> ret = new HashMap<Class<? extends Event>, Set<RegisteredListener>>();
@@ -333,7 +366,7 @@ public final class JavaPluginLoader implements PluginLoader {
 
     @Override
     public void enablePlugin(@NotNull final Plugin plugin) {
-        Validate.isTrue(plugin instanceof JavaPlugin, "Plugin is not associated with this PluginLoader");
+        Preconditions.checkArgument(plugin instanceof JavaPlugin, "Plugin is not associated with this PluginLoader");
 
         if (!plugin.isEnabled()) {
             plugin.getLogger().info("Enabling " + plugin.getDescription().getFullName());
@@ -361,7 +394,7 @@ public final class JavaPluginLoader implements PluginLoader {
 
     @Override
     public void disablePlugin(@NotNull Plugin plugin) {
-        Validate.isTrue(plugin instanceof JavaPlugin, "Plugin is not associated with this PluginLoader");
+        Preconditions.checkArgument(plugin instanceof JavaPlugin, "Plugin is not associated with this PluginLoader");
 
         if (plugin.isEnabled()) {
             String message = String.format("Disabling %s", plugin.getDescription().getFullName());
@@ -382,11 +415,13 @@ public final class JavaPluginLoader implements PluginLoader {
                 PluginClassLoader loader = (PluginClassLoader) cloader;
                 loaders.remove(loader);
 
+                // CatServer start
                 Set<String> names = loader.getClasses();
 
                 for (String name : names) {
                     removeClass(name);
                 }
+                // CatServer end
             }
         }
     }

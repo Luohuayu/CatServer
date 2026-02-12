@@ -16,13 +16,20 @@ public class ForgeDeferredRegistriesSetup
      */
     public static void setup(IEventBus modEventBus)
     {
-        if (setup)
-            throw new IllegalStateException("Setup has already been called!");
+        synchronized (ForgeDeferredRegistriesSetup.class)
+        {
+            if (setup)
+                throw new IllegalStateException("Setup has already been called!");
 
-        ForgeRegistries.DEFERRED_DATA_SERIALIZERS.register(modEventBus);
-        ForgeRegistries.DEFERRED_LOOT_MODIFIER_SERIALIZERS.register(modEventBus);
-        ForgeRegistries.DEFERRED_WORLD_TYPES.register(modEventBus);
+            setup = true;
+        }
 
-        setup = true;
+        ForgeRegistries.DEFERRED_ENTITY_DATA_SERIALIZERS.register(modEventBus);
+        ForgeRegistries.DEFERRED_GLOBAL_LOOT_MODIFIER_SERIALIZERS.register(modEventBus);
+        ForgeRegistries.DEFERRED_BIOME_MODIFIER_SERIALIZERS.register(modEventBus);
+        ForgeRegistries.DEFERRED_FLUID_TYPES.register(modEventBus);
+        ForgeRegistries.DEFERRED_STRUCTURE_MODIFIER_SERIALIZERS.register(modEventBus);
+        ForgeRegistries.DEFERRED_HOLDER_SET_TYPES.register(modEventBus);
+        ForgeRegistries.DEFERRED_DISPLAY_CONTEXTS.register(modEventBus);
     }
 }

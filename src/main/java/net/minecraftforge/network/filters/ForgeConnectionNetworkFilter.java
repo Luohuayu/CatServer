@@ -9,18 +9,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import javax.annotation.Nullable;
-
 import io.netty.channel.ChannelHandler;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.ConnectionProtocol;
+import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateTagsPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
 
 import com.google.common.collect.ImmutableMap;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Network filter for forge-forge connections.
@@ -44,7 +44,8 @@ public class ForgeConnectionNetworkFilter extends VanillaPacketFilter
         ImmutableMap.Builder<Class<? extends Packet<?>>, BiConsumer<Packet<?>, List<? super Packet<?>>>> builder = ImmutableMap.<Class<? extends Packet<?>>, BiConsumer<Packet<?>, List<? super Packet<?>>>>builder()
                 .put(ClientboundUpdateRecipesPacket.class, ForgeConnectionNetworkFilter::splitPacket)
                 .put(ClientboundUpdateTagsPacket.class, ForgeConnectionNetworkFilter::splitPacket)
-                .put(ClientboundUpdateAdvancementsPacket.class, ForgeConnectionNetworkFilter::splitPacket);
+                .put(ClientboundUpdateAdvancementsPacket.class, ForgeConnectionNetworkFilter::splitPacket)
+                .put(ClientboundLoginPacket.class, ForgeConnectionNetworkFilter::splitPacket); // When there are many dynamic registry entries that packet is BIG
 
         return builder.build();
     }

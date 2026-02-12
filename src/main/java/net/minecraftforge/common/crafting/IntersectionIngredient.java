@@ -17,8 +17,8 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -152,7 +152,12 @@ public class IntersectionIngredient extends AbstractIngredient
             JsonArray children = GsonHelper.getAsJsonArray(json, "children");
             if (children.size() < 2)
                 throw new JsonSyntaxException("Must have at least two children for an intersection ingredient");
-            return new IntersectionIngredient(IntStream.range(0, children.size()).mapToObj(i -> Ingredient.fromJson(children.get(i))).toList());
+
+            return new IntersectionIngredient(
+                    IntStream.range(0, children.size())
+                            .mapToObj(i -> Ingredient.fromJson(children.get(i), false))
+                            .toList()
+            );
         }
 
         @Override

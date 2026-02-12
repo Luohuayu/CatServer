@@ -1,20 +1,30 @@
 package org.bukkit;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Biome;
 import org.bukkit.boss.KeyedBossBar;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Frog;
 import org.bukkit.entity.Villager;
 import org.bukkit.entity.memory.MemoryKey;
+import org.bukkit.generator.structure.Structure;
+import org.bukkit.generator.structure.StructureType;
+import org.bukkit.inventory.meta.trim.TrimMaterial;
+import org.bukkit.inventory.meta.trim.TrimPattern;
 import org.bukkit.loot.LootTables;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,6 +48,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
         @Override
         public Advancement get(@NotNull NamespacedKey key) {
             return Bukkit.getAdvancement(key);
+        }
+
+        @NotNull
+        @Override
+        public Stream<Advancement> stream() {
+            return StreamSupport.stream(spliterator(), false);
         }
 
         @NotNull
@@ -80,6 +96,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
 
         @NotNull
         @Override
+        public Stream<KeyedBossBar> stream() {
+            return StreamSupport.stream(spliterator(), false);
+        }
+
+        @NotNull
+        @Override
         public Iterator<KeyedBossBar> iterator() {
             return Bukkit.getBossBars();
         }
@@ -99,6 +121,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
 
         @NotNull
         @Override
+        public Stream<Enchantment> stream() {
+            return StreamSupport.stream(spliterator(), false);
+        }
+
+        @NotNull
+        @Override
         public Iterator<Enchantment> iterator() {
             return Arrays.asList(Enchantment.values()).iterator();
         }
@@ -109,6 +137,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
      * @see EntityType
      */
     Registry<EntityType> ENTITY_TYPE = new SimpleRegistry<>(EntityType.class, (entity) -> entity != EntityType.UNKNOWN);
+    /**
+     * Server instruments.
+     *
+     * @see MusicInstrument
+     */
+    Registry<MusicInstrument> INSTRUMENT = Objects.requireNonNull(Bukkit.getRegistry(MusicInstrument.class), "No registry present for MusicInstrument. This is a bug.");
     /**
      * Default server loot tables.
      *
@@ -128,11 +162,37 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
      */
     Registry<Statistic> STATISTIC = new SimpleRegistry<>(Statistic.class);
     /**
+     * Server structures.
+     *
+     * @see Structure
+     */
+    Registry<Structure> STRUCTURE = Bukkit.getRegistry(Structure.class);
+    /**
+     * Server structure types.
+     *
+     * @see StructureType
+     */
+    Registry<StructureType> STRUCTURE_TYPE = Bukkit.getRegistry(StructureType.class);
+    /**
      * Sound keys.
      *
      * @see Sound
      */
     Registry<Sound> SOUNDS = new SimpleRegistry<>(Sound.class);
+    /**
+     * Trim materials.
+     *
+     * @see TrimMaterial
+     */
+    @ApiStatus.Experimental
+    Registry<TrimMaterial> TRIM_MATERIAL = Bukkit.getRegistry(TrimMaterial.class);
+    /**
+     * Trim patterns.
+     *
+     * @see TrimPattern
+     */
+    @ApiStatus.Experimental
+    Registry<TrimPattern> TRIM_PATTERN = Bukkit.getRegistry(TrimPattern.class);
     /**
      * Villager profession.
      *
@@ -163,6 +223,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
         public MemoryKey get(@NotNull NamespacedKey key) {
             return MemoryKey.getByKey(key);
         }
+
+        @NotNull
+        @Override
+        public Stream<MemoryKey> stream() {
+            return StreamSupport.stream(spliterator(), false);
+        }
     };
     /**
      * Server fluids.
@@ -171,25 +237,17 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
      */
     Registry<Fluid> FLUID = new SimpleRegistry<>(Fluid.class);
     /**
+     * Frog variants.
+     *
+     * @see Frog.Variant
+     */
+    Registry<Frog.Variant> FROG_VARIANT = new SimpleRegistry<>(Frog.Variant.class);
+    /**
      * Game events.
      *
      * @see GameEvent
      */
-    Registry<GameEvent> GAME_EVENT = new Registry<GameEvent>() {
-
-        @NotNull
-        @Override
-        public Iterator iterator() {
-            return GameEvent.values().iterator();
-        }
-
-        @Nullable
-        @Override
-        public GameEvent get(@NotNull NamespacedKey key) {
-            return GameEvent.getByKey(key);
-        }
-    };
-
+    Registry<GameEvent> GAME_EVENT = Objects.requireNonNull(Bukkit.getRegistry(GameEvent.class), "No registry present for GameEvent. This is a bug.");
     /**
      * Get the object by its key.
      *
@@ -199,10 +257,36 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
     @Nullable
     T get(@NotNull NamespacedKey key);
 
+    /**
+     * Returns a new stream, which contains all registry items, which are registered to the registry.
+     *
+     * @return a stream of all registry items
+     */
+    @NotNull
+    Stream<T> stream();
+
+    /**
+     * Attempts to match the registered object with the given key.
+     * <p>
+     * This will attempt to find a reasonable match based on the provided input
+     * and may do so through unspecified means.
+     *
+     * @param input non-null input
+     * @return registered object or null if does not exist
+     */
+    @Nullable
+    default T match(@NotNull String input) {
+        Preconditions.checkArgument(input != null, "input must not be null");
+
+        String filtered = input.toLowerCase().replaceAll("\\s+", "_");
+        NamespacedKey namespacedKey = NamespacedKey.fromString(filtered);
+        return (namespacedKey != null) ? get(namespacedKey) : null;
+    }
+
     // https://github.com/IzzelAliz/Arclight/blob/1.18/arclight-common/src/main/java/io/izzel/arclight/common/mixin/bukkit/Registry_SimpleRegistryMixin.java
     static final class SimpleRegistry<T extends Enum<T> & Keyed> implements Registry<T> {
 
-        private Map<NamespacedKey, T> map;
+        private Map<NamespacedKey, T> map; // CatServer - remove final
         private Runnable reloadCallback; // CatServer
 
         protected SimpleRegistry(@NotNull Class<T> type) {
@@ -234,6 +318,12 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
         @Override
         public T get(@NotNull NamespacedKey key) {
             return map.get(key);
+        }
+
+        @NotNull
+        @Override
+        public Stream<T> stream() {
+            return StreamSupport.stream(spliterator(), false);
         }
 
         @NotNull

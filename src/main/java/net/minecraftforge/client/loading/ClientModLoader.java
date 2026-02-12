@@ -5,15 +5,15 @@
 
 package net.minecraftforge.client.loading;
 
-import static net.minecraftforge.fml.Logging.CORE;
-import static net.minecraftforge.fml.Logging.LOADING;
-
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.RepositorySource;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.repository.PackSource;
@@ -24,35 +24,28 @@ import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.level.DataPackConfig;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.fml.*;
+import net.minecraftforge.fml.loading.ImmediateWindowHandler;
 import net.minecraftforge.internal.BrandingControl;
 import net.minecraftforge.logging.CrashReportExtender;
 import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.forgespi.locating.IModFile;
-import net.minecraftforge.resource.PathResourcePack;
+import net.minecraftforge.resource.PathPackResources;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.ClientPackSource;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.common.ForgeConfig;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.gui.LoadingErrorScreen;
-import net.minecraftforge.resource.DelegatingResourcePack;
+import net.minecraftforge.resource.DelegatingPackResources;
 import net.minecraftforge.resource.ResourcePackLoader;
 import net.minecraftforge.server.LanguageHook;
 import net.minecraftforge.forgespi.language.IModInfo;
 
-@OnlyIn(Dist.CLIENT)
 public class ClientModLoader
 {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -60,36 +53,17 @@ public class ClientModLoader
     private static Minecraft mc;
     private static boolean loadingComplete;
     private static LoadingFailedException error;
-    private static EarlyLoaderGUI earlyLoaderGUI;
 
-    private static class SpacedRunnable implements Runnable {
-        static final long NANO_SLEEP_TIME = TimeUnit.MILLISECONDS.toNanos(50);
-        private final Runnable wrapped;
-        private long lastRun;
-
-        private SpacedRunnable(final Runnable wrapped) {
-            this.wrapped = wrapped;
-            this.lastRun = System.nanoTime() - NANO_SLEEP_TIME;
-        }
-
-        @Override
-        public void run() {
-            if (System.nanoTime() - this.lastRun > NANO_SLEEP_TIME) {
-                wrapped.run();
-                this.lastRun = System.nanoTime();
-            }
-        }
-    }
-    public static void begin(final Minecraft minecraft, final PackRepository defaultResourcePacks, final ReloadableResourceManager mcResourceManager, ClientPackSource metadataSerializer)
+    public static void begin(final Minecraft minecraft, final PackRepository defaultResourcePacks, final ReloadableResourceManager mcResourceManager)
     {
         // force log4j to shutdown logging in a shutdown hook. This is because we disable default shutdown hook so the server properly logs it's shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(LogManager::shutdown));
+        ImmediateWindowHandler.updateProgress("Loading mods");
         loading = true;
         ClientModLoader.mc = minecraft;
         LogicalSidedProvider.setClient(()->minecraft);
         LanguageHook.loadForgeAndMCLangs();
-        earlyLoaderGUI = new EarlyLoaderGUI(minecraft);
-        createRunnableWithCatch(()->ModLoader.get().gatherAndInitializeMods(ModWorkManager.syncExecutor(), ModWorkManager.parallelExecutor(), new SpacedRunnable(earlyLoaderGUI::renderTick))).run();
+        createRunnableWithCatch(()->ModLoader.get().gatherAndInitializeMods(ModWorkManager.syncExecutor(), ModWorkManager.parallelExecutor(), ImmediateWindowHandler::renderTick)).run();
         if (error == null) {
             ResourcePackLoader.loadResourcePacks(defaultResourcePacks, ClientModLoader::buildPackFinder);
             ModLoader.get().postEvent(new AddPackFindersEvent(PackType.CLIENT_RESOURCES, defaultResourcePacks::addPackFinder));
@@ -117,44 +91,37 @@ public class ClientModLoader
     }
 
     private static void startModLoading(ModWorkManager.DrivenExecutor syncExecutor, Executor parallelExecutor) {
-        earlyLoaderGUI.handleElsewhere();
-        createRunnableWithCatch(() -> ModLoader.get().loadMods(syncExecutor, parallelExecutor, new SpacedRunnable(earlyLoaderGUI::renderTick))).run();
+        createRunnableWithCatch(() -> ModLoader.get().loadMods(syncExecutor, parallelExecutor, ImmediateWindowHandler::renderTick)).run();
     }
 
     private static void finishModLoading(ModWorkManager.DrivenExecutor syncExecutor, Executor parallelExecutor)
     {
-        createRunnableWithCatch(() -> ModLoader.get().finishMods(syncExecutor, parallelExecutor, new SpacedRunnable(earlyLoaderGUI::renderTick))).run();
+        createRunnableWithCatch(() -> ModLoader.get().finishMods(syncExecutor, parallelExecutor, ImmediateWindowHandler::renderTick)).run();
         loading = false;
         loadingComplete = true;
         // reload game settings on main thread
-        syncExecutor.execute(()->mc.options.load());
+        syncExecutor.execute(()->mc.options.load(true));
     }
 
     public static VersionChecker.Status checkForUpdates()
     {
         boolean anyOutdated = ModList.get().getMods().stream()
                 .map(VersionChecker::getResult)
-                .map(result -> result.status())
-                .anyMatch(status -> status == VersionChecker.Status.OUTDATED || status == VersionChecker.Status.BETA_OUTDATED);
+                .map(VersionChecker.CheckResult::status)
+                .anyMatch(VersionChecker.Status::isOutdated);
         return anyOutdated ? VersionChecker.Status.OUTDATED : null;
     }
 
     public static boolean completeModLoading()
     {
-        RenderSystem.disableTexture();
-        RenderSystem.enableTexture();
-        List<ModLoadingWarning> warnings = ModLoader.get().getWarnings();
-        boolean showWarnings = true;
-        try {
-            showWarnings = ForgeConfig.CLIENT.showLoadWarnings.get();
-        } catch (NullPointerException e) {
-            // We're in an early error state, config is not available. Assume true.
-        }
+        var warnings = ModLoader.get().getWarnings();
+        boolean showWarnings = ForgeConfig.CLIENT.showLoadWarnings();
+
         if (!showWarnings) {
             //User disabled warning screen, as least log them
             if (!warnings.isEmpty()) {
-                LOGGER.warn(LOADING, "Mods loaded with {} warning(s)", warnings.size());
-                warnings.forEach(warning -> LOGGER.warn(LOADING, warning.formatToString()));
+                LOGGER.warn(Logging.LOADING, "Mods loaded with {} warning(s)", warnings.size());
+                warnings.forEach(warning -> LOGGER.warn(Logging.LOADING, warning.formatToString()));
             }
             warnings = Collections.emptyList(); //Clear warnings, as the user does not want to see them
         }
@@ -162,8 +129,6 @@ public class ClientModLoader
         if (error == null) {
             // We can finally start the forge eventbus up
             MinecraftForge.EVENT_BUS.start();
-            // allow the ModelLoaderRegistry to register loaders as reload listeners
-            ModelLoaderRegistry.afterFirstReload();
         } else {
             // Double check we have the langs loaded for forge
             LanguageHook.loadForgeAndMCLangs();
@@ -177,40 +142,40 @@ public class ClientModLoader
         }
     }
 
-    public static void renderProgressText() {
-        earlyLoaderGUI.renderFromGUI();
-    }
     public static boolean isLoading()
     {
         return loading;
     }
 
-    private static RepositorySource buildPackFinder(Map<IModFile, ? extends PathResourcePack> modResourcePacks) {
-        return (packList, factory) -> clientPackFinder(modResourcePacks, packList, factory);
+    private static RepositorySource buildPackFinder(Map<IModFile, ? extends PathPackResources> modResourcePacks) {
+        return packAcceptor -> clientPackFinder(modResourcePacks, packAcceptor);
     }
 
-    private static void clientPackFinder(Map<IModFile, ? extends PathResourcePack> modResourcePacks, Consumer<Pack> consumer, Pack.PackConstructor factory) {
-        List<PathResourcePack> hiddenPacks = new ArrayList<>();
-        for (Entry<IModFile, ? extends PathResourcePack> e : modResourcePacks.entrySet())
+    private static void clientPackFinder(Map<IModFile, ? extends PathPackResources> modResourcePacks, Consumer<Pack> packAcceptor) {
+        var hiddenPacks = new ArrayList<PathPackResources>();
+        for (Entry<IModFile, ? extends PathPackResources> e : modResourcePacks.entrySet())
         {
             IModInfo mod = e.getKey().getModInfos().get(0);
             final String name = "mod:" + mod.getModId();
-            final Pack packInfo = Pack.create(name, false, e::getValue, factory, Pack.Position.BOTTOM, PackSource.DEFAULT);
-            if (packInfo == null) {
+            final Pack modPack = Pack.readMetaAndCreate(name, Component.literal(e.getValue().packId()), false, id -> e.getValue(), PackType.CLIENT_RESOURCES, Pack.Position.BOTTOM, PackSource.DEFAULT);
+            if (modPack == null) {
                 // Vanilla only logs an error, instead of propagating, so handle null and warn that something went wrong
                 ModLoader.get().addWarning(new ModLoadingWarning(mod, ModLoadingStage.ERROR, "fml.modloading.brokenresources", e.getKey()));
                 continue;
             }
-            LOGGER.debug(CORE, "Generating PackInfo named {} for mod file {}", name, e.getKey().getFilePath());
+            LOGGER.debug(Logging.CORE, "Generating PackInfo named {} for mod file {}", name, e.getKey().getFilePath());
             if (mod.getOwningFile().showAsResourcePack()) {
-                consumer.accept(packInfo);
+                packAcceptor.accept(modPack);
             } else {
                 hiddenPacks.add(e.getValue());
             }
         }
-        final Pack packInfo = Pack.create("mod_resources", true, () -> new DelegatingResourcePack("mod_resources", "Mod Resources",
-                new PackMetadataSection(new TranslatableComponent("fml.resources.modresources", hiddenPacks.size()), PackType.CLIENT_RESOURCES.getVersion(SharedConstants.getCurrentVersion())),
-                hiddenPacks), factory, Pack.Position.BOTTOM, PackSource.DEFAULT);
-        consumer.accept(packInfo);
+
+        // Create a resource pack merging all mod resources that should be hidden
+        final Pack modResourcesPack = Pack.readMetaAndCreate("mod_resources", Component.literal("Mod Resources"), true,
+                id -> new DelegatingPackResources(id, false, new PackMetadataSection(Component.translatable("fml.resources.modresources", hiddenPacks.size()),
+                        SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES)), hiddenPacks),
+                PackType.CLIENT_RESOURCES, Pack.Position.BOTTOM, PackSource.DEFAULT);
+        packAcceptor.accept(modResourcesPack);
     }
 }

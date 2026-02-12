@@ -49,11 +49,11 @@ public class DataManager {
                 throw new RuntimeException("Installer Class-Path is empty!");
             }
 
-            librariesWithoutLaunchMap.put("minecraft_server.1.18.2.jar", new File("foxlaunch-data/"));
+            librariesWithoutLaunchMap.put("minecraft_server.1.20.1.jar", new File("foxlaunch-data/"));
             librariesWithoutLaunchMap.put("commons-lang-2.6.jar", new File("libraries/commons-lang/commons-lang/2.6/"));
             librariesWithoutLaunchMap.put("commons-codec-1.10.jar", new File("libraries/commons-codec/commons-codec/1.10/"));
 
-            librariesMap.put("bootstraplauncher-1.0.0.jar", new File("libraries/cpw/mods/bootstraplauncher/1.0.0/"));
+            librariesMap.put("bootstraplauncher-1.1.2.jar", new File("libraries/cpw/mods/bootstraplauncher/1.1.2/"));
             librariesMap.put("JarJarFileSystems-0.3.19.jar", new File("libraries/net/minecraftforge/JarJarFileSystems/0.3.19/"));
 
             versionData.put("minecraft", Objects.requireNonNull(serverJar.getManifest().getAttributes("net/minecraftforge/versions/mcp/").getValue(Attributes.Name.SPECIFICATION_VERSION)));

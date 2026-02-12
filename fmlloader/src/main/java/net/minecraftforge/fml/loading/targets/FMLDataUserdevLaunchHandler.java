@@ -7,8 +7,6 @@ package net.minecraftforge.fml.loading.targets;
 
 import net.minecraftforge.api.distmarker.Dist;
 
-import java.util.concurrent.Callable;
-
 public class FMLDataUserdevLaunchHandler extends FMLUserdevLaunchHandler {
     @Override
     public String name() { return "fmldatauserdev"; }
@@ -20,12 +18,7 @@ public class FMLDataUserdevLaunchHandler extends FMLUserdevLaunchHandler {
     public boolean isData() { return true; }
 
     @Override
-    public Callable<Void> launchService(String[] arguments, ModuleLayer layer) {
-        return () -> {
-            var args = preLaunch(arguments, layer);
-
-            Class.forName(layer.findModule("minecraft").orElseThrow(), "net.minecraft.data.Main").getMethod("main", String[].class).invoke(null, (Object) args);
-            return null;
-        };
+    public void devService(String[] arguments, ModuleLayer layer) throws Throwable {
+        dataService(arguments, layer);
     }
 }

@@ -1,12 +1,14 @@
 package org.bukkit.entity;
 
-import catserver.server.entity.CraftCustomEntity;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import org.bukkit.Bukkit;
 import org.bukkit.Keyed;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Translatable;
 import org.bukkit.World;
 import org.bukkit.entity.minecart.CommandMinecart;
 import org.bukkit.entity.minecart.ExplosiveMinecart;
@@ -21,7 +23,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public enum EntityType implements Keyed {
+public enum EntityType implements Keyed, Translatable {
 
     // These strings MUST match the strings in nms.EntityTypes and are case sensitive.
     /**
@@ -30,10 +32,12 @@ public enum EntityType implements Keyed {
      * Spawn with {@link World#dropItem(Location, ItemStack)} or {@link
      * World#dropItemNaturally(Location, ItemStack)}
      */
+    // CatServer start
     /**
      * Mod Custom
      */
-    MOD_CUSTOM("mod_custom", CraftCustomEntity.class, -1, false),
+    MOD_CUSTOM("mod_custom", catserver.server.entity.CraftCustomEntity.class, -1, false),
+    // CatServer end
     DROPPED_ITEM("item", Item.class, 1, false),
     /**
      * An experience orb.
@@ -276,6 +280,17 @@ public enum EntityType implements Keyed {
     GLOW_SQUID("glow_squid", GlowSquid.class, -1),
     GOAT("goat", Goat.class, -1),
     MARKER("marker", Marker.class, -1),
+    ALLAY("allay", Allay.class, -1),
+    CHEST_BOAT("chest_boat", ChestBoat.class, -1),
+    FROG("frog", Frog.class, -1),
+    TADPOLE("tadpole", Tadpole.class, -1),
+    WARDEN("warden", Warden.class, -1),
+    CAMEL("camel", Camel.class, -1),
+    BLOCK_DISPLAY("block_display", BlockDisplay.class, -1),
+    INTERACTION("interaction", Interaction.class, -1),
+    ITEM_DISPLAY("item_display", ItemDisplay.class, -1),
+    SNIFFER("sniffer", Sniffer.class, -1),
+    TEXT_DISPLAY("text_display", TextDisplay.class, -1),
     /**
      * A fishing line and bobber.
      */
@@ -339,6 +354,17 @@ public enum EntityType implements Keyed {
         this.living = clazz != null && LivingEntity.class.isAssignableFrom(clazz);
         this.key = (name == null) ? null : NamespacedKey.minecraft(name);
     }
+
+    // CatServer start
+    private EntityType(/*@Nullable*/ String name, /*@Nullable*/ Class<? extends Entity> clazz, int typeId, boolean independent, NamespacedKey key) {
+        this.name = name;
+        this.clazz = clazz;
+        this.typeId = (short) typeId;
+        this.independent = independent;
+        this.living = clazz != null && LivingEntity.class.isAssignableFrom(clazz);
+        this.key = key == null ? NamespacedKey.minecraft(name) : key;
+    }
+    // CatServer end
 
     /**
      * Gets the entity type name.
@@ -423,5 +449,21 @@ public enum EntityType implements Keyed {
 
     public boolean isAlive() {
         return living;
+    }
+
+    @Override
+    @NotNull
+    public String getTranslationKey() {
+        return Bukkit.getUnsafe().getTranslationKey(this);
+    }
+
+    /**
+     * Gets if this EntityType is enabled by feature in a world.
+     *
+     * @param world the world to check
+     * @return true if this EntityType can be used to spawn an Entity for this World.
+     */
+    public boolean isEnabledByFeature(@NotNull World world) {
+        return Bukkit.getDataPackManager().isEnabledByFeature(this, world);
     }
 }

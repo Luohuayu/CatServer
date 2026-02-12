@@ -15,9 +15,10 @@ import java.util.stream.Collectors;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.fml.util.thread.EffectiveSide;
-import net.minecraftforge.client.ConfigGuiHandler.ConfigGuiFactory;
 import net.minecraftforge.network.ConnectionData.ModMismatchData;
 import net.minecraftforge.network.filters.NetworkFilters;
 import org.apache.commons.lang3.tuple.Pair;
@@ -40,12 +41,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.fml.config.ConfigTracker;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class NetworkHooks
 {
     private static final Logger LOGGER = LogManager.getLogger();
+
+    public static void init()
+    {
+        LOGGER.debug("Loading Network data for FML net version: {}", NetworkConstants.init());
+    }
 
     public static String getFMLVersion(final String ip)
     {
@@ -67,9 +72,11 @@ public class NetworkHooks
         return ConnectionType.forVersionFlag(channel.attr(NetworkConstants.FML_NETVERSION).get());
     }
 
-    public static Packet<?> getEntitySpawningPacket(Entity entity)
+    @SuppressWarnings("unchecked")
+    public static Packet<ClientGamePacketListener> getEntitySpawningPacket(Entity entity)
     {
-        return NetworkConstants.playChannel.toVanillaPacket(new PlayMessages.SpawnEntity(entity), NetworkDirection.PLAY_TO_CLIENT);
+        // ClientboundCustomPayloadPacket is an instance of Packet<ClientGamePacketListener>
+        return (Packet<ClientGamePacketListener>) NetworkConstants.playChannel.toVanillaPacket(new PlayMessages.SpawnEntity(entity), NetworkDirection.PLAY_TO_CLIENT);
     }
 
     public static boolean onCustomPayload(final ICustomPacket<?> packet, final Connection manager) {
@@ -80,7 +87,7 @@ public class NetworkHooks
 
     private static boolean validateSideForProcessing(final ICustomPacket<?> packet, final NetworkInstance ni, final Connection manager) {
         if (packet.getDirection().getReceptionSide() != EffectiveSide.get()) {
-            manager.disconnect(new TextComponent("Illegal packet received, terminating connection"));
+            manager.disconnect(Component.literal("Illegal packet received, terminating connection"));
             return false;
         }
         return true;
@@ -88,7 +95,7 @@ public class NetworkHooks
 
     public static void validatePacketDirection(final NetworkDirection packetDirection, final Optional<NetworkDirection> expectedDirection, final Connection connection) {
         if (packetDirection != expectedDirection.orElse(packetDirection)) {
-            connection.disconnect(new TextComponent("Illegal packet received, terminating connection"));
+            connection.disconnect(Component.literal("Illegal packet received, terminating connection"));
             throw new IllegalStateException("Invalid packet received, aborting connection");
         }
     }
@@ -145,35 +152,35 @@ public class NetworkHooks
     /**
      * Request to open a GUI on the client, from the server
      *
-     * Refer to {@link ConfigGuiFactory} for how to provide a function to consume
+     * Refer to {@link ConfigScreenHandler.ConfigScreenFactory} for how to provide a function to consume
      * these GUI requests on the client.
      *
      * @param player The player to open the GUI for
      * @param containerSupplier A supplier of container properties including the registry name of the container
      */
-    public static void openGui(ServerPlayer player, MenuProvider containerSupplier)
+    public static void openScreen(ServerPlayer player, MenuProvider containerSupplier)
     {
-        openGui(player, containerSupplier, buf -> {});
+        openScreen(player, containerSupplier, buf -> {});
     }
 
     /**
      * Request to open a GUI on the client, from the server
      *
-     * Refer to {@link ConfigGuiFactory} for how to provide a function to consume
+     * Refer to {@link ConfigScreenHandler.ConfigScreenFactory} for how to provide a function to consume
      * these GUI requests on the client.
      *
      * @param player The player to open the GUI for
      * @param containerSupplier A supplier of container properties including the registry name of the container
      * @param pos A block pos, which will be encoded into the auxillary data for this request
      */
-    public static void openGui(ServerPlayer player, MenuProvider containerSupplier, BlockPos pos)
+    public static void openScreen(ServerPlayer player, MenuProvider containerSupplier, BlockPos pos)
     {
-        openGui(player, containerSupplier.setBlockPosForEvent(pos), buf -> buf.writeBlockPos(pos));
+        openScreen(player, containerSupplier.setBlockPosForEvent(pos), buf -> buf.writeBlockPos(pos)); // CatServer - containerSupplier -> containerSupplier.setBlockPosForEvent(pos)
     }
     /**
      * Request to open a GUI on the client, from the server
      *
-     * Refer to {@link ConfigGuiFactory} for how to provide a function to consume
+     * Refer to {@link ConfigScreenHandler.ConfigScreenFactory} for how to provide a function to consume
      * these GUI requests on the client.
      *
      * The maximum size for #extraDataWriter is 32600 bytes.
@@ -182,9 +189,9 @@ public class NetworkHooks
      * @param containerSupplier A supplier of container properties including the registry name of the container
      * @param extraDataWriter Consumer to write any additional data the GUI needs
      */
-    public static void openGui(ServerPlayer player, MenuProvider containerSupplier, Consumer<FriendlyByteBuf> extraDataWriter)
+    public static void openScreen(ServerPlayer player, MenuProvider containerSupplier, Consumer<FriendlyByteBuf> extraDataWriter)
     {
-        if (player.level.isClientSide) return;
+        if (player.level().isClientSide) return;
         player.doCloseContainer();
         player.nextContainerCounter();
         int openContainerId = player.containerCounter;
@@ -199,24 +206,24 @@ public class NetworkHooks
         if (output.readableBytes() > 32600 || output.readableBytes() < 1) {
             throw new IllegalArgumentException("Invalid PacketBuffer for openGui, found "+ output.readableBytes()+ " bytes");
         }
-        AbstractContainerMenu c = containerSupplier.createMenu(openContainerId, player.getInventory(), player);
+        var c = containerSupplier.createMenu(openContainerId, player.getInventory(), player);
         // CatServer start
         if (c.getBukkitView() == null) {
-            net.minecraft.world.level.block.entity.BlockEntity te = containerSupplier.blockPosForEvent[0] != null ? player.level.getBlockEntity(containerSupplier.blockPosForEvent[0]) : null;
+            net.minecraft.world.level.block.entity.BlockEntity te = containerSupplier.blockPosForEvent[0] != null ? player.level().getBlockEntity(containerSupplier.blockPosForEvent[0]) : null;
             if (te instanceof net.minecraft.world.Container) {
-                c.setBukkitView(new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryView(player.getBukkitEntity(), new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventory((net.minecraft.world.Container) te), c));
+                c.setBukkitView(new org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryView(player.getBukkitEntity(), new org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventory((net.minecraft.world.Container) te), c));
             } else {
-                c.setBukkitView(new org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryView(player.getBukkitEntity(), org.bukkit.Bukkit.createInventory(player.getBukkitEntity(), org.bukkit.event.inventory.InventoryType.CHEST), c));
+                c.setBukkitView(new org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryView(player.getBukkitEntity(), org.bukkit.Bukkit.createInventory(player.getBukkitEntity(), org.bukkit.event.inventory.InventoryType.CHEST), c));
             }
         }
-        c = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callInventoryOpenEvent(player, c, false);
+        c = org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory.callInventoryOpenEvent(player, c, false);
+        // CatServer end
         if (c == null) {
             return;
         }
-        // CatServer end
         MenuType<?> type = c.getType();
         PlayMessages.OpenContainer msg = new PlayMessages.OpenContainer(type, openContainerId, containerSupplier.getDisplayName(), output);
-        NetworkConstants.playChannel.sendTo(msg, player.connection.getConnection(), NetworkDirection.PLAY_TO_CLIENT);
+        NetworkConstants.playChannel.sendTo(msg, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
 
         player.containerMenu = c;
         player.initMenu(player.containerMenu);

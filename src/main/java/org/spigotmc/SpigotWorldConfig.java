@@ -6,6 +6,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.util.List;
 
 public class SpigotWorldConfig {
+
     private final String worldName;
     private final YamlConfiguration config;
     private boolean verbose;
@@ -18,6 +19,7 @@ public class SpigotWorldConfig {
 
     public void init() {
         this.verbose = getBoolean("verbose", true);
+
         log("-------- World Settings For [" + worldName + "] --------");
         SpigotConfig.readConfig(SpigotWorldConfig.class, this);
     }
@@ -47,8 +49,14 @@ public class SpigotWorldConfig {
     }
 
     private int getInt(String path, int def) {
-        config.addDefault("world-settings.default." + path, def);
-        return config.getInt("world-settings." + worldName + "." + path, config.getInt("world-settings.default." + path));
+        // Paper start - get int without setting default
+        return this.getInt(path, def, true);
+    }
+
+    public int getInt(String path, int def, boolean setDef) {
+        if (setDef) this.config.addDefault( "world-settings.default." + path, def );
+        return this.config.getInt( "world-settings." + this.worldName + "." + path, this.config.getInt( "world-settings.default." + path, def ) );
+        // Paper end
     }
 
     private <T> List getList(String path, T def) {
@@ -83,6 +91,9 @@ public class SpigotWorldConfig {
     public int bambooModifier;
     public int sweetBerryModifier;
     public int kelpModifier;
+    public int twistingVinesModifier;
+    public int weepingVinesModifier;
+    public int caveVinesModifier;
 
     private int getAndValidateGrowth(String crop) {
         int modifier = getInt("growth." + crop.toLowerCase(java.util.Locale.ENGLISH) + "-modifier", 100);
@@ -112,6 +123,9 @@ public class SpigotWorldConfig {
         bambooModifier = getAndValidateGrowth("Bamboo");
         sweetBerryModifier = getAndValidateGrowth("SweetBerry");
         kelpModifier = getAndValidateGrowth("Kelp");
+        twistingVinesModifier = getAndValidateGrowth("TwistingVines");
+        weepingVinesModifier = getAndValidateGrowth("WeepingVines");
+        caveVinesModifier = getAndValidateGrowth("CaveVines");
     }
 
     public double itemMerge;
@@ -171,7 +185,6 @@ public class SpigotWorldConfig {
         log("Item Despawn Rate: " + itemDespawnRate);
     }
 
-
     public int animalActivationRange = 32;
     public int monsterActivationRange = 32;
     public int raiderActivationRange = 48;
@@ -193,6 +206,7 @@ public class SpigotWorldConfig {
     public int animalTrackingRange = 48;
     public int monsterTrackingRange = 48;
     public int miscTrackingRange = 32;
+    public int displayTrackingRange = 128;
     public int otherTrackingRange = 64;
 
     private void trackingRange() {
@@ -200,13 +214,15 @@ public class SpigotWorldConfig {
         animalTrackingRange = getInt("entity-tracking-range.animals", animalTrackingRange);
         monsterTrackingRange = getInt("entity-tracking-range.monsters", monsterTrackingRange);
         miscTrackingRange = getInt("entity-tracking-range.misc", miscTrackingRange);
+        displayTrackingRange = getInt("entity-tracking-range.display", displayTrackingRange);
         otherTrackingRange = getInt("entity-tracking-range.other", otherTrackingRange);
-        log("Entity Tracking Range: Pl " + playerTrackingRange + " / An " + animalTrackingRange + " / Mo " + monsterTrackingRange + " / Mi " + miscTrackingRange + " / Other " + otherTrackingRange);
+        log("Entity Tracking Range: Pl " + playerTrackingRange + " / An " + animalTrackingRange + " / Mo " + monsterTrackingRange + " / Mi " + miscTrackingRange + " / Di " + displayTrackingRange + " / Other " + otherTrackingRange);
     }
 
     public int hopperTransfer;
     public int hopperCheck;
     public int hopperAmount;
+    public boolean hopperCanLoadChunks;
 
     private void hoppers() {
         // Set the tick delay between hopper item movements
@@ -216,7 +232,8 @@ public class SpigotWorldConfig {
         }
         hopperCheck = getInt("ticks-per.hopper-check", 1);
         hopperAmount = getInt("hopper-amount", 1);
-        log("Hopper Transfer: " + hopperTransfer + " Hopper Check: " + hopperCheck + " Hopper Amount: " + hopperAmount);
+        hopperCanLoadChunks = getBoolean("hopper-can-load-chunks", false);
+        log("Hopper Transfer: " + hopperTransfer + " Hopper Check: " + hopperCheck + " Hopper Amount: " + hopperAmount + " Hopper Can Load Chunks: " + hopperCanLoadChunks);
     }
 
     public int arrowDespawnRate;

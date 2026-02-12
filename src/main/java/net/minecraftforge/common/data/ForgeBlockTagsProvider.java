@@ -5,40 +5,44 @@
 
 package net.minecraftforge.common.data;
 
-import net.minecraft.data.DataGenerator;
-import net.minecraft.data.tags.BlockTagsProvider;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.Tag;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+// We typically don't do static imports as S2S can't remap them {as they are not qualified}, however this conflicts with vanilla and our tag class names, and our tags don't get obfed so its one line of warning.
 import static net.minecraftforge.common.Tags.Blocks.*;
 
 public final class ForgeBlockTagsProvider extends BlockTagsProvider
 {
-    public ForgeBlockTagsProvider(DataGenerator gen, ExistingFileHelper existingFileHelper)
+    public ForgeBlockTagsProvider(PackOutput output, CompletableFuture<HolderLookup.Provider> lookupProvider, @Nullable ExistingFileHelper existingFileHelper)
     {
-        super(gen, "forge", existingFileHelper);
+        super(output, lookupProvider, "forge", existingFileHelper);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public void addTags()
+    public void addTags(HolderLookup.Provider p_256380_)
     {
         tag(BARRELS).addTag(BARRELS_WOODEN);
         tag(BARRELS_WOODEN).add(Blocks.BARREL);
+        tag(BOOKSHELVES).add(Blocks.BOOKSHELF);
         tag(CHESTS).addTags(CHESTS_ENDER, CHESTS_TRAPPED, CHESTS_WOODEN);
         tag(CHESTS_ENDER).add(Blocks.ENDER_CHEST);
         tag(CHESTS_TRAPPED).add(Blocks.TRAPPED_CHEST);
         tag(CHESTS_WOODEN).add(Blocks.CHEST, Blocks.TRAPPED_CHEST);
+        tag(CHORUS_ADDITIONALLY_GROWS_ON).addTags(END_STONES);
         tag(COBBLESTONE).addTags(COBBLESTONE_NORMAL, COBBLESTONE_INFESTED, COBBLESTONE_MOSSY, COBBLESTONE_DEEPSLATE);
         tag(COBBLESTONE_NORMAL).add(Blocks.COBBLESTONE);
         tag(COBBLESTONE_INFESTED).add(Blocks.INFESTED_COBBLESTONE);
@@ -47,7 +51,7 @@ public final class ForgeBlockTagsProvider extends BlockTagsProvider
         tag(END_STONES).add(Blocks.END_STONE);
         tag(ENDERMAN_PLACE_ON_BLACKLIST);
         tag(FENCE_GATES).addTags(FENCE_GATES_WOODEN);
-        tag(FENCE_GATES_WOODEN).add(Blocks.OAK_FENCE_GATE, Blocks.SPRUCE_FENCE_GATE, Blocks.BIRCH_FENCE_GATE, Blocks.JUNGLE_FENCE_GATE, Blocks.ACACIA_FENCE_GATE, Blocks.DARK_OAK_FENCE_GATE, Blocks.CRIMSON_FENCE_GATE, Blocks.WARPED_FENCE_GATE);
+        tag(FENCE_GATES_WOODEN).add(Blocks.OAK_FENCE_GATE, Blocks.SPRUCE_FENCE_GATE, Blocks.BIRCH_FENCE_GATE, Blocks.JUNGLE_FENCE_GATE, Blocks.ACACIA_FENCE_GATE, Blocks.DARK_OAK_FENCE_GATE, Blocks.CRIMSON_FENCE_GATE, Blocks.WARPED_FENCE_GATE, Blocks.MANGROVE_FENCE_GATE, Blocks.BAMBOO_FENCE_GATE, Blocks.CHERRY_FENCE_GATE);
         tag(FENCES).addTags(FENCES_NETHER_BRICK, FENCES_WOODEN);
         tag(FENCES_NETHER_BRICK).add(Blocks.NETHER_BRICK_FENCE);
         tag(FENCES_WOODEN).addTag(BlockTags.WOODEN_FENCES);

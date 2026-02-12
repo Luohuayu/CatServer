@@ -1,7 +1,9 @@
 package org.bukkit.map;
 
+import java.awt.Color;
 import java.awt.Image;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Represents a canvas for drawing to a map. Each canvas is associated with a
@@ -37,10 +39,52 @@ public interface MapCanvas {
 
     /**
      * Draw a pixel to the canvas.
+     * <p>
+     * The provided color might be converted to another color,
+     * which is in the map color range. This means, that
+     * {@link #getPixelColor(int, int)} might return another
+     * color than set.
+     *
+     * If null is used as color, then the color returned by
+     * {@link #getBasePixelColor(int, int)} is shown on the map.
+     *
+     * @param x The x coordinate, from 0 to 127.
+     * @param y The y coordinate, from 0 to 127.
+     * @param color The color.
+     */
+    void setPixelColor(int x, int y, @Nullable Color color);
+
+    /**
+     * Get a pixel from the canvas.
+     *
+     * If no color is set at the given position for this canvas, then null is
+     * returned and the color returned by {@link #getBasePixelColor(int, int)}
+     * is shown on the map.
+     *
+     * @param x The x coordinate, from 0 to 127.
+     * @param y The y coordinate, from 0 to 127.
+     * @return The color, or null if no color is set.
+     */
+    @Nullable
+    Color getPixelColor(int x, int y);
+
+    /**
+     * Get a pixel from the layers below this canvas.
+     *
+     * @param x The x coordinate, from 0 to 127.
+     * @param y The y coordinate, from 0 to 127.
+     * @return The color.
+     */
+    @NotNull
+    Color getBasePixelColor(int x, int y);
+
+    /**
+     * Draw a pixel to the canvas.
      *
      * @param x The x coordinate, from 0 to 127.
      * @param y The y coordinate, from 0 to 127.
      * @param color The color. See {@link MapPalette}.
+     * @deprecated Magic value, use {@link #setPixelColor(int, int, Color)}
      */
     public void setPixel(int x, int y, byte color);
 
@@ -50,7 +94,9 @@ public interface MapCanvas {
      * @param x The x coordinate, from 0 to 127.
      * @param y The y coordinate, from 0 to 127.
      * @return The color. See {@link MapPalette}.
+     * @deprecated Magic value, use {@link #getPixelColor(int, int)}
      */
+    @Deprecated
     public byte getPixel(int x, int y);
 
     /**
@@ -59,7 +105,9 @@ public interface MapCanvas {
      * @param x The x coordinate, from 0 to 127.
      * @param y The y coordinate, from 0 to 127.
      * @return The color. See {@link MapPalette}.
+     * @deprecated Magic value, use {@link #getBasePixelColor(int, int)}
      */
+    @Deprecated
     public byte getBasePixel(int x, int y);
 
     /**

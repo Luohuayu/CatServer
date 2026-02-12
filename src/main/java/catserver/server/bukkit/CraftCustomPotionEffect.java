@@ -1,7 +1,7 @@
 package catserver.server.bukkit;
 
 import net.minecraft.world.effect.MobEffect;
-import org.bukkit.craftbukkit.v1_18_R2.potion.CraftPotionEffectType;
+import org.bukkit.craftbukkit.v1_20_R1.potion.CraftPotionEffectType;
 import org.jetbrains.annotations.NotNull;
 
 public class CraftCustomPotionEffect extends CraftPotionEffectType {

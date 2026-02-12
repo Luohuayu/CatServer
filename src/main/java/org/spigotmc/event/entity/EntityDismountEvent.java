@@ -6,7 +6,11 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.entity.EntityEvent;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Called when an entity stops riding another entity.
+ */
 public class EntityDismountEvent extends EntityEvent implements Cancellable {
+
     private static final HandlerList handlers = new HandlerList();
     private boolean cancelled;
     private final Entity dismounted;

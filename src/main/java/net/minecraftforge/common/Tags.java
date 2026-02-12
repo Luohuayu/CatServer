@@ -5,9 +5,8 @@
 
 package net.minecraftforge.common;
 
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.ItemTags;
@@ -18,21 +17,16 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraftforge.registries.ForgeRegistries;
-
-import javax.annotation.Nullable;
-import java.util.Set;
-import java.util.function.Supplier;
 
 public class Tags
 {
     public static void init ()
     {
         Blocks.init();
+        EntityTypes.init();
         Items.init();
         Fluids.init();
         Biomes.init();
-        EntityTypes.init();
     }
 
     public static class Blocks
@@ -41,10 +35,12 @@ public class Tags
 
         public static final TagKey<Block> BARRELS = tag("barrels");
         public static final TagKey<Block> BARRELS_WOODEN = tag("barrels/wooden");
+        public static final TagKey<Block> BOOKSHELVES = tag("bookshelves");
         public static final TagKey<Block> CHESTS = tag("chests");
         public static final TagKey<Block> CHESTS_ENDER = tag("chests/ender");
         public static final TagKey<Block> CHESTS_TRAPPED = tag("chests/trapped");
         public static final TagKey<Block> CHESTS_WOODEN = tag("chests/wooden");
+        public static final TagKey<Block> CHORUS_ADDITIONALLY_GROWS_ON = tag("chorus_additionally_grows_on");
         public static final TagKey<Block> COBBLESTONE = tag("cobblestone");
         public static final TagKey<Block> COBBLESTONE_NORMAL = tag("cobblestone/normal");
         public static final TagKey<Block> COBBLESTONE_INFESTED = tag("cobblestone/infested");
@@ -183,6 +179,18 @@ public class Tags
         private static TagKey<Block> tag(String name)
         {
             return BlockTags.create(new ResourceLocation("forge", name));
+        }
+    }
+
+    public static class EntityTypes
+    {
+        private static void init() {}
+
+        public static final TagKey<EntityType<?>> BOSSES = tag("bosses");
+
+        private static TagKey<EntityType<?>> tag(String name)
+        {
+            return TagKey.create(Registries.ENTITY_TYPE, new ResourceLocation("forge", name));
         }
     }
 
@@ -400,6 +408,80 @@ public class Tags
         public static final TagKey<Item> STORAGE_BLOCKS_RAW_IRON = tag("storage_blocks/raw_iron");
         public static final TagKey<Item> STORAGE_BLOCKS_REDSTONE = tag("storage_blocks/redstone");
         public static final TagKey<Item> STRING                  = tag("string");
+        /**
+         * A tag containing all existing tools.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS = tag("tools");
+        /**
+         * A tag containing all existing shields.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS_SHIELDS = tag("tools/shields");
+        /**
+         * A tag containing all existing bows.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS_BOWS = tag("tools/bows");
+        /**
+         * A tag containing all existing crossbows.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS_CROSSBOWS = tag("tools/crossbows");
+        /**
+         * A tag containing all existing fishing rods.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS_FISHING_RODS = tag("tools/fishing_rods");
+        /**
+         * A tag containing all existing tridents.
+         *
+         * Note: This tag is not an alternative or a substitute to {@link net.minecraftforge.common.ToolActions}.
+         *
+         * @see net.minecraftforge.common.ToolAction
+         * @see net.minecraftforge.common.ToolActions
+         */
+        public static final TagKey<Item> TOOLS_TRIDENTS = tag("tools/tridents");
+        /**
+         * A tag containing all existing armors.
+         */
+        public static final TagKey<Item> ARMORS = tag("armors");
+        /**
+         * A tag containing all existing helmets.
+         */
+        public static final TagKey<Item> ARMORS_HELMETS = tag("armors/helmets");
+        /**
+         * A tag containing all chestplates.
+         */
+        public static final TagKey<Item> ARMORS_CHESTPLATES = tag("armors/chestplates");
+        /**
+         * A tag containing all existing leggings.
+         */
+        public static final TagKey<Item> ARMORS_LEGGINGS = tag("armors/leggings");
+        /**
+         * A tag containing all existing boots.
+         */
+        public static final TagKey<Item> ARMORS_BOOTS = tag("armors/boots");
 
         private static TagKey<Item> tag(String name)
         {
@@ -411,7 +493,14 @@ public class Tags
     {
         private static void init() {}
 
+        /**
+         * Holds all fluids related to milk.
+         */
         public static final TagKey<Fluid> MILK = tag("milk");
+        /**
+         * Holds all fluids that are gaseous at room temperature.
+         */
+        public static final TagKey<Fluid> GASEOUS = tag("gaseous");
 
         private static TagKey<Fluid> tag(String name)
         {
@@ -451,7 +540,6 @@ public class Tags
         public static final TagKey<Biome> IS_DRY_NETHER = tag("is_dry/nether");
         public static final TagKey<Biome> IS_DRY_END = tag("is_dry/end");
 
-        public static final TagKey<Biome> IS_SAVANNA = tag("is_savanna");
         public static final TagKey<Biome> IS_CONIFEROUS = tag("is_coniferous");
 
         public static final TagKey<Biome> IS_SPOOKY = tag("is_spooky");
@@ -464,37 +552,23 @@ public class Tags
         public static final TagKey<Biome> IS_MODIFIED = tag("is_modified");
 
         public static final TagKey<Biome> IS_WATER = tag("is_water");
-
+        public static final TagKey<Biome> IS_DESERT = tag("is_desert");
         public static final TagKey<Biome> IS_PLAINS = tag("is_plains");
         public static final TagKey<Biome> IS_SWAMP = tag("is_swamp");
         public static final TagKey<Biome> IS_SANDY = tag("is_sandy");
         public static final TagKey<Biome> IS_SNOWY = tag("is_snowy");
         public static final TagKey<Biome> IS_WASTELAND = tag("is_wasteland");
-        public static final TagKey<Biome> IS_BEACH = tag("is_beach");
         public static final TagKey<Biome> IS_VOID = tag("is_void");
         public static final TagKey<Biome> IS_UNDERGROUND = tag("is_underground");
 
+        public static final TagKey<Biome> IS_CAVE = tag("is_cave");
         public static final TagKey<Biome> IS_PEAK = tag("is_peak");
         public static final TagKey<Biome> IS_SLOPE = tag("is_slope");
-
-        public static final TagKey<Biome> IS_OVERWORLD = tag("is_overworld");
-        public static final TagKey<Biome> IS_END = tag("is_end");
+        public static final TagKey<Biome> IS_MOUNTAIN = tag("is_mountain");
 
         private static TagKey<Biome> tag(String name)
         {
-            return TagKey.create(Registry.BIOME_REGISTRY, new ResourceLocation("forge", name));
-        }
-    }
-
-    public static class EntityTypes
-    {
-        private static void init() {}
-
-        public static final TagKey<EntityType<?>> BOSSES = tag("bosses");
-
-        private static TagKey<EntityType<?>> tag(String name)
-        {
-            return TagKey.create(Registry.ENTITY_TYPE_REGISTRY, new ResourceLocation("forge", name));
+            return TagKey.create(Registries.BIOME, new ResourceLocation("forge", name));
         }
     }
 }

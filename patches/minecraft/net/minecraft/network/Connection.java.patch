@@ -1,81 +1,95 @@
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
-@@ -75,8 +_,8 @@
+@@ -72,8 +_,13 @@
     });
     private final PacketFlow f_129466_;
     private final Queue<Connection.PacketHolder> f_129467_ = Queues.newConcurrentLinkedQueue();
 -   private Channel f_129468_;
 -   private SocketAddress f_129469_;
 +   public Channel f_129468_; // CatServer - private -> public
-+   public SocketAddress f_129469_;
-    private PacketListener f_129470_;
-    private Component f_129471_;
-    private boolean f_129472_;
-@@ -87,15 +_,27 @@
-    private float f_129477_;
-    private int f_129478_;
-    private boolean f_129479_;
-+   private java.util.function.Consumer<Connection> activationHandler;
++   public SocketAddress f_129469_; // CatServer - private -> public
 +   // Spigot Start
 +   public java.util.UUID spoofedUUID;
 +   public com.mojang.authlib.properties.Property[] spoofedProfile;
++   public boolean preparing = true;
 +   // Spigot End
+    private PacketListener f_129470_;
+    private Component f_129471_;
+    private boolean f_129472_;
+@@ -86,6 +_,8 @@
+    private boolean f_129479_;
+    @Nullable
+    private volatile Component f_290021_;
++   public String hostname = ""; // CraftBukkit - 1.20.1 add field
++   private java.util.function.Consumer<Connection> activationHandler;
  
     public Connection(PacketFlow p_129482_) {
        this.f_129466_ = p_129482_;
-    }
- 
-+   // Spigot Start
-+   public SocketAddress getRawAddress() {
-+      return this.f_129468_.remoteAddress();
-+   }
-+   // Spigot End
-+
-    public void channelActive(ChannelHandlerContext p_129525_) throws Exception {
+@@ -95,6 +_,10 @@
        super.channelActive(p_129525_);
        this.f_129468_ = p_129525_.channel();
        this.f_129469_ = this.f_129468_.remoteAddress();
++      // Spigot Start
++      this.preparing = false;
++      // Spigot End
 +      if (activationHandler != null) activationHandler.accept(this);
  
        try {
           this.m_129498_(ConnectionProtocol.HANDSHAKING);
-@@ -191,7 +_,7 @@
-       ++this.f_129475_;
-       if (connectionprotocol1 != connectionprotocol) {
-          f_129465_.debug("Disabled auto read");
--         this.f_129468_.config().setAutoRead(false);
-+         this.f_129468_.eventLoop().execute(()->this.f_129468_.config().setAutoRead(false));
-       }
+@@ -111,8 +_,10 @@
+    public void m_129498_(ConnectionProtocol p_129499_) {
+       this.f_129468_.attr(f_129461_).set(p_129499_);
+       this.f_129468_.attr(BundlerInfo.f_263730_).set(p_129499_);
++      this.f_129468_.eventLoop().execute(()-> {
+       this.f_129468_.config().setAutoRead(true);
+       f_129465_.debug("Enabled auto read");
++      });
+    }
  
-       if (this.f_129468_.eventLoop().inEventLoop()) {
-@@ -270,7 +_,7 @@
+    public void channelInactive(ChannelHandlerContext p_129527_) {
+@@ -147,6 +_,7 @@
+ 
+          }
+       }
++      if (net.minecraft.server.MinecraftServer.getServer().isDebugging()) p_129534_.printStackTrace(); // Spigot
+    }
+ 
+    protected void channelRead0(ChannelHandlerContext p_129487_, Packet<?> p_129488_) {
+@@ -285,12 +_,15 @@
+    }
  
     public void m_129507_(Component p_129508_) {
-       if (this.f_129468_.isOpen()) {
++      // Spigot Start
++      this.preparing = false;
++      // Spigot End
+       if (this.f_129468_ == null) {
+          this.f_290021_ = p_129508_;
+       }
+ 
+       if (this.m_129536_()) {
 -         this.f_129468_.close().awaitUninterruptibly();
-+         this.f_129468_.close(); // We can't wait as this may be called from an event loop.
++         this.f_129468_.close(); // CraftBukkit - We can't wait as this may be called from an event loop.
           this.f_129471_ = p_129508_;
        }
  
-@@ -289,7 +_,9 @@
+@@ -316,6 +_,8 @@
     }
  
-    public static Connection m_178300_(InetSocketAddress p_178301_, boolean p_178302_) {
-+      net.minecraftforge.network.DualStackUtils.checkIPv6(p_178301_.getAddress());
-       final Connection connection = new Connection(PacketFlow.CLIENTBOUND);
-+      connection.activationHandler = net.minecraftforge.network.NetworkHooks::registerClientLoginChannel;
+    public static ChannelFuture m_290025_(InetSocketAddress p_290034_, boolean p_290035_, final Connection p_290031_) {
++      net.minecraftforge.network.DualStackUtils.checkIPv6(p_290034_.getAddress());
++      p_290031_.activationHandler = net.minecraftforge.network.NetworkHooks::registerClientLoginChannel;
        Class<? extends SocketChannel> oclass;
        LazyLoadedValue<? extends EventLoopGroup> lazyloadedvalue;
-       if (Epoll.isAvailable() && p_178302_) {
-@@ -315,6 +_,7 @@
+       if (Epoll.isAvailable() && p_290035_) {
+@@ -347,6 +_,7 @@
  
     public static Connection m_129493_(SocketAddress p_129494_) {
        final Connection connection = new Connection(PacketFlow.CLIENTBOUND);
 +      connection.activationHandler = net.minecraftforge.network.NetworkHooks::registerClientLoginChannel;
        (new Bootstrap()).group(f_129464_.m_13971_()).handler(new ChannelInitializer<Channel>() {
           protected void initChannel(Channel p_129557_) {
-             p_129557_.pipeline().addLast("packet_handler", connection);
-@@ -359,7 +_,7 @@
+             ChannelPipeline channelpipeline = p_129557_.pipeline();
+@@ -395,7 +_,7 @@
           if (this.f_129468_.pipeline().get("decompress") instanceof CompressionDecoder) {
              ((CompressionDecoder)this.f_129468_.pipeline().get("decompress")).m_182677_(p_129485_, p_182682_);
           } else {
@@ -84,14 +98,22 @@
           }
  
           if (this.f_129468_.pipeline().get("compress") instanceof CompressionEncoder) {
-@@ -401,6 +_,14 @@
+@@ -426,6 +_,7 @@
+             } else if (this.m_129538_() != null) {
+                this.m_129538_().m_7026_(Component.m_237115_("multiplayer.disconnect.generic"));
+             }
++            this.f_129467_.clear(); // Spigot - Free up packet queue.
+          }
+ 
+       }
+@@ -437,6 +_,14 @@
  
     public float m_129543_() {
        return this.f_129477_;
 +   }
 +
 +   public Channel channel() {
-+      return f_129468_;
++      return this.f_129468_;
 +   }
 +
 +   public PacketFlow getDirection() {

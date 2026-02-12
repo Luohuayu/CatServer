@@ -1,39 +1,43 @@
 --- a/net/minecraft/commands/arguments/EntityArgument.java
 +++ b/net/minecraft/commands/arguments/EntityArgument.java
-@@ -13,6 +_,8 @@
- import java.util.Collection;
- import java.util.List;
- import java.util.concurrent.CompletableFuture;
-+import java.util.concurrent.atomic.AtomicBoolean;
-+
- import net.minecraft.commands.CommandSourceStack;
- import net.minecraft.commands.SharedSuggestionProvider;
- import net.minecraft.commands.arguments.selector.EntitySelector;
-@@ -91,10 +_,18 @@
+@@ -90,10 +_,23 @@
        }
     }
  
 +   // CatServer start
-+   private AtomicBoolean catserver$isOverride = new AtomicBoolean(false);
++   private final ThreadLocal<Boolean> catserver$isOverride = ThreadLocal.withInitial(() -> false);
 +   public EntitySelector parse(StringReader p_91451_, boolean override) throws CommandSyntaxException {
-+      this.catserver$isOverride.set(override);
-+      return this.parse(p_91451_);
++      try {
++         this.catserver$isOverride.set(override);
++         return this.parse(p_91451_);
++      } finally {
++         this.catserver$isOverride.remove();
++      }
 +   }
 +
     public EntitySelector parse(StringReader p_91451_) throws CommandSyntaxException {
        int i = 0;
-+      var overridePermessions = this.catserver$isOverride.getAndSet(false); // CatServer
        EntitySelectorParser entityselectorparser = new EntitySelectorParser(p_91451_);
 -      EntitySelector entityselector = entityselectorparser.m_121377_();
-+      EntitySelector entityselector = entityselectorparser.parse(overridePermessions);
++      var overridePermessions = this.catserver$isOverride.get(); // CatServer
++      this.catserver$isOverride.remove(); // CatServer
++      EntitySelector entityselector = entityselectorparser.parse(overridePermessions); // CatServer - entityselectorparser.parse() -> entityselectorparser.parse(overridePermessions)
        if (entityselector.m_121138_() > 1 && this.f_91443_) {
           if (this.f_91444_) {
              p_91451_.setCursor(0);
-@@ -110,6 +_,7 @@
+@@ -109,13 +_,14 @@
           return entityselector;
        }
     }
 +   // CatServer end
  
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> p_91482_, SuggestionsBuilder p_91483_) {
-       if (p_91482_.getSource() instanceof SharedSuggestionProvider) {
+       S s = p_91482_.getSource();
+       if (s instanceof SharedSuggestionProvider sharedsuggestionprovider) {
+          StringReader stringreader = new StringReader(p_91483_.getInput());
+          stringreader.setCursor(p_91483_.getStart());
+-         EntitySelectorParser entityselectorparser = new EntitySelectorParser(stringreader, sharedsuggestionprovider.m_6761_(2));
++         EntitySelectorParser entityselectorparser = new EntitySelectorParser(stringreader, net.minecraftforge.common.ForgeHooks.canUseEntitySelectors(sharedsuggestionprovider));
+ 
+          try {
+             entityselectorparser.m_121377_();

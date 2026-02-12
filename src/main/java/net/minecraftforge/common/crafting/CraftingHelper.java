@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.annotation.Nullable;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Lists;
@@ -40,6 +38,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.jetbrains.annotations.Nullable;
 
 public class CraftingHelper
 {
@@ -96,7 +95,7 @@ public class CraftingHelper
         return serializer.parse(buffer);
     }
 
-    public static Ingredient getIngredient(JsonElement json)
+    public static Ingredient getIngredient(JsonElement json, boolean allowEmpty)
     {
         if (json == null || json.isJsonNull())
             throw new JsonSyntaxException("Json cannot be null");
@@ -107,7 +106,7 @@ public class CraftingHelper
             List<Ingredient> vanilla = Lists.newArrayList();
             json.getAsJsonArray().forEach((ele) ->
             {
-                Ingredient ing = CraftingHelper.getIngredient(ele);
+                Ingredient ing = CraftingHelper.getIngredient(ele, allowEmpty);
 
                 if (ing.getClass() == Ingredient.class) //Vanilla, Due to how we read it splits each itemstack, so we pull out to re-merge later
                     vanilla.add(ing);
@@ -119,7 +118,13 @@ public class CraftingHelper
                 ingredients.add(Ingredient.merge(vanilla));
 
             if (ingredients.size() == 0)
+            {
+                if (allowEmpty)
+                {
+                    return Ingredient.EMPTY;
+                }
                 throw new JsonSyntaxException("Item array cannot be empty, at least one item must be defined");
+            }
 
             if (ingredients.size() == 1)
                 return ingredients.get(0);
@@ -199,27 +204,9 @@ public class CraftingHelper
         return new ItemStack(item, GsonHelper.getAsInt(json, "count", 1));
     }
 
-    /**
-     * @deprecated Please use the {@linkplain #processConditions(JsonObject, String, ICondition.IContext) other more general overload}.
-     */
-    @Deprecated(forRemoval = true, since = "1.18.2")
-    public static boolean processConditions(JsonObject json, String memberName)
-    {
-        return processConditions(json, memberName, ICondition.IContext.EMPTY);
-    }
-
     public static boolean processConditions(JsonObject json, String memberName, ICondition.IContext context)
     {
         return !json.has(memberName) || processConditions(GsonHelper.getAsJsonArray(json, memberName), context);
-    }
-
-    /**
-     * @deprecated Please use the {@linkplain #processConditions(JsonArray, ICondition.IContext) other more general overload}.
-     */
-    @Deprecated(forRemoval = true, since = "1.18.2")
-    public static boolean processConditions(JsonArray conditions)
-    {
-        return processConditions(conditions, ICondition.IContext.EMPTY);
     }
 
     public static boolean processConditions(JsonArray conditions, ICondition.IContext context)
@@ -252,5 +239,15 @@ public class CraftingHelper
         if (serializer == null)
             throw new JsonSyntaxException("Unknown condition type: " + condition.getID().toString());
         return serializer.getJson(condition);
+    }
+
+    public static JsonArray serialize(ICondition... conditions)
+    {
+        JsonArray arr = new JsonArray();
+        for(ICondition iCond : conditions)
+        {
+            arr.add(serialize(iCond));
+        }
+        return arr;
     }
 }

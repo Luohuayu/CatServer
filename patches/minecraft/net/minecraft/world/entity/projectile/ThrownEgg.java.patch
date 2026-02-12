@@ -1,91 +1,73 @@
 --- a/net/minecraft/world/entity/projectile/ThrownEgg.java
 +++ b/net/minecraft/world/entity/projectile/ThrownEgg.java
-@@ -2,7 +_,9 @@
- 
- import net.minecraft.core.particles.ItemParticleOption;
- import net.minecraft.core.particles.ParticleTypes;
-+import net.minecraft.server.level.ServerPlayer;
- import net.minecraft.world.damagesource.DamageSource;
-+import net.minecraft.world.entity.Entity;
- import net.minecraft.world.entity.EntityType;
- import net.minecraft.world.entity.LivingEntity;
- import net.minecraft.world.entity.animal.Chicken;
-@@ -11,6 +_,10 @@
- import net.minecraft.world.level.Level;
+@@ -11,6 +_,13 @@
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
-+import org.bukkit.entity.Ageable;
-+import org.bukkit.entity.Player;
-+import org.bukkit.event.entity.CreatureSpawnEvent;
-+import org.bukkit.event.player.PlayerEggThrowEvent;
  
++// CraftBukkit start
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Entity;
++import org.bukkit.entity.Ageable;
++import org.bukkit.event.player.PlayerEggThrowEvent;
++// CraftBukkit end
++
  public class ThrownEgg extends ThrowableItemProjectile {
     public ThrownEgg(EntityType<? extends ThrownEgg> p_37473_, Level p_37474_) {
-@@ -41,28 +_,58 @@
-       p_37486_.m_82443_().m_6469_(DamageSource.m_19361_(this, this.m_37282_()), 0.0F);
-    }
- 
-+   // CatServer start
-+   private boolean catserver$hatching;
-+
-+   private org.bukkit.entity.EntityType hatchingType;
-+
-+   private void setHatching() {
-+      this.catserver$hatching = this.f_19796_.nextInt(8) == 0;
-+   }
-+
-+   private int callEggThrowEvent(int value) {
-+      if (!catserver$hatching) {
-+         value = 0;
-+      }
-+      hatchingType = org.bukkit.entity.EntityType.CHICKEN;
-+      Entity shooter = this.m_37282_();
-+      if (shooter instanceof ServerPlayer) {
-+         PlayerEggThrowEvent event = new PlayerEggThrowEvent((Player) shooter.getBukkitEntity(), (org.bukkit.entity.Egg) this.getBukkitEntity(), catserver$hatching, (byte) value, hatchingType);
-+         this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
-+         value = event.getNumHatches();
-+         catserver$hatching = event.isHatching();
-+         hatchingType = event.getHatchingType();
-+      }
-+      return value;
-+   }
-+
+       super(p_37473_, p_37474_);
+@@ -43,18 +_,51 @@
     protected void m_6532_(HitResult p_37488_) {
        super.m_6532_(p_37488_);
-       if (!this.f_19853_.f_46443_) {
--         if (this.f_19796_.nextInt(8) == 0) {
-+         this.setHatching(); // CatServer
+       if (!this.m_9236_().f_46443_) {
+-         if (this.f_19796_.m_188503_(8) == 0) {
++         // CraftBukkit start
++         boolean hatching = this.f_19796_.m_188503_(8) == 0;
 +         if (true) {
++            // CraftBukkit end
              int i = 1;
-             if (this.f_19796_.nextInt(32) == 0) {
+             if (this.f_19796_.m_188503_(32) == 0) {
                 i = 4;
              }
--
--            for(int j = 0; j < i; ++j) {
--               Chicken chicken = EntityType.f_20555_.m_20615_(this.f_19853_);
--               chicken.m_146762_(-24000);
--               chicken.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), 0.0F);
--               this.f_19853_.m_7967_(chicken);
-+            i = this.callEggThrowEvent(i);
-+            if (catserver$hatching) {
-+               for (int j = 0; j < i; ++j) {
-+                  Chicken entity = (Chicken) f_19853_.getWorld().createEntity(new org.bukkit.Location(f_19853_.getWorld(), this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), 0.0F), hatchingType.getEntityClass());
-+                  if (entity.getBukkitEntity() instanceof Ageable) {
-+                     ((Ageable) entity.getBukkitEntity()).setBaby();
-+                  }
-+                  this.f_19853_.addFreshEntity(entity, CreatureSpawnEvent.SpawnReason.EGG);
-+               }
-             }
-+            // CraftBukkit end
-          }
--
-          this.f_19853_.m_7605_(this, (byte)3);
-          this.m_146870_();
-+         this.catserver$hatching = false; // CatServer - reset
-       }
--
-    }
-+   // CatServer end
  
-    protected Item m_7881_() {
-       return Items.f_42521_;
++            // CraftBukkit start
++            org.bukkit.entity.EntityType hatchingType = org.bukkit.entity.EntityType.CHICKEN;
++            Entity shooter = this.m_19749_();
++            if (!hatching) {
++               i = 0;
++            }
++            if (shooter instanceof ServerPlayer) {
++               PlayerEggThrowEvent event = new PlayerEggThrowEvent((org.bukkit.entity.Player) shooter.getBukkitEntity(), (org.bukkit.entity.Egg) this.getBukkitEntity(), hatching, (byte)i, hatchingType);
++               this.m_9236_().getCraftServer().getPluginManager().callEvent(event);
++
++               i = event.getNumHatches();
++               hatching = event.isHatching();
++               hatchingType = event.getHatchingType();
++               // If hatching is set to false, ensure child count is 0
++               if (!hatching) {
++                  i = 0;
++               }
++            }
++            // CraftBukkit end
++
+             for(int j = 0; j < i; ++j) {
+-               Chicken chicken = EntityType.f_20555_.m_20615_(this.m_9236_());
++               Entity chicken = this.m_9236_().getWorld().createEntity(new org.bukkit.Location(this.m_9236_().getWorld(), this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), 0.0F), hatchingType.getEntityClass()); // CraftBukkit
+                if (chicken != null) {
+-                  chicken.m_146762_(-24000);
+-                  chicken.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_146908_(), 0.0F);
+-                  this.m_9236_().m_7967_(chicken);
++                  // CraftBukkit start
++                  if (chicken.getBukkitEntity() instanceof Ageable) {
++                     ((Ageable) chicken.getBukkitEntity()).setBaby();
++                  }
++                  // CatServer start - compat:fabric-mod:pehkui-3.8.3+1.14.4-1.21:virtuoel.pehkui.mixin.compat116plus.EggEntityMixin#pehkui$onCollision$entity
++                  try {
++                     catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevel$addFreshEntity$reason.push(this.m_9236_(), org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.EGG);
++                     this.m_9236_().m_7967_(chicken);
++                  } finally {
++                     catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevel$addFreshEntity$reason.pop(this.m_9236_());
++                  }
++                  // CatServer end
++                  // CraftBukkit end
+                }
+             }
+          }

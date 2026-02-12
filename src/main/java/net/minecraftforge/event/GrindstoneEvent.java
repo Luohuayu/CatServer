@@ -11,11 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 
-/**
- * Shared logic for the two events fired from grindstones.
- * @see OnPlaceItem
- * @see OnTakeItem
- */
 public abstract class GrindstoneEvent extends Event
 {
     private final ItemStack top;
@@ -29,19 +24,26 @@ public abstract class GrindstoneEvent extends Event
         this.xp = xp;
     }
 
-    /** {@return the item in the top input grindstone slot} */
+    /**
+     * @return The item in the top input grindstone slot. <br>
+     */
     public ItemStack getTopItem()
     {
         return top;
     }
 
-    /** {@return the item in the bottom input grindstone slot} */
+    /**
+     * @return The item in the bottom input grindstone slot. <br>
+     */
     public ItemStack getBottomItem()
     {
         return bottom;
     }
 
-    /** {@return the experience amount given to the player} It will be {@code -1} unless {@link #setXp(int)} is called. */
+    /**
+     * This is the experience amount determined by the event. It will be {@code -1} unless {@link #setXp(int)} is called. <br>
+     * @return The experience amount given to the player. <br>
+     */
     public int getXp()
     {
         return xp;
@@ -110,11 +112,11 @@ public abstract class GrindstoneEvent extends Event
     }
 
     /**
-     * This event is {@link Cancelable}.<br>
-     * {@link OnTakeItem} is fired when the output of a grindstone is taken. <br>
-     * The event is called from {@link GrindstoneMenu#GrindstoneMenu(int, Inventory)}. <br>
+     * This event is {@link Cancelable} <br>
+     * {@link OnTakeItem} is fired when the output in a grindstone are is taken. <br>
+     * It is called from {@link GrindstoneMenu#GrindstoneMenu(int, Inventory)}. <br>
      * If the event is canceled, vanilla behavior will not run, and no inputs will be consumed. <br>
-     * If the amount of experience is larger than or equal to 0, the vanilla behavior for calculating experience will not be used. <br>
+     * if the amount of experience is larger than or equal 0, the vanilla behavior for calculating experience will not run. <br>
      */
     @Cancelable
     public static class OnTakeItem extends GrindstoneEvent
@@ -127,31 +129,44 @@ public abstract class GrindstoneEvent extends Event
             super(top, bottom, xp);
         }
 
-        /** {@return the item in that will be in the top input grindstone slot after the event.} */
+        /**
+         * @return The item in that will be in the top input grindstone slot after the event. <br>
+         */
         public ItemStack getNewTopItem()
         {
             return newTop;
         }
 
-        /** {@return the item in that will be in the bottom input grindstone slot after the event} */
+        /**
+         * @return The item in that will be in the bottom input grindstone slot after the event. <br>
+         */
         public ItemStack getNewBottomItem()
         {
             return newBottom;
         }
 
-        /** Sets the itemstack in the top slot. */
+        /**
+         * Sets the itemstack in the top slot. <br>
+         * @param newTop
+         */
         public void setNewTopItem(ItemStack newTop)
         {
             this.newTop = newTop;
         }
 
-        /** Sets the itemstack in the bottom slot. */
+        /**
+         * Sets the itemstack in the bottom slot. <br>
+         * @param newBottom
+         */
         public void setNewBottomItem(ItemStack newBottom)
         {
             this.newBottom = newBottom;
         }
 
-        /** {@return the experience amount given to the player, will be the value from vanilla calculations unless modified by the event} */
+        /**
+         * This is the experience amount that will be returned by the event. <br>
+         * @return The experience amount given to the player. <br>
+         */
         public int getXp()
         {
             return super.getXp();

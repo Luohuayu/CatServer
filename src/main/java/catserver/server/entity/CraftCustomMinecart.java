@@ -1,8 +1,8 @@
 package catserver.server.entity;
 
 import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftMinecart;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftMinecart;
 import org.bukkit.entity.EntityType;
 
 public class CraftCustomMinecart extends CraftMinecart {

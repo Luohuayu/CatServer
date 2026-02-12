@@ -5,13 +5,12 @@
 
 package net.minecraftforge.common.util;
 
+import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
@@ -21,6 +20,8 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * This object encapsulates a lazy value, with typical transformation operations
@@ -35,43 +36,40 @@ import org.apache.logging.log4j.Logger;
  * must never be null.
  * <p>
  * The empty instance can be retrieved with {@link #empty()}.
- * 
+ *
  * @param <T> The type of the optional value.
  */
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class LazyOptional<T>
-{
+public class LazyOptional<T> {
     private final NonNullSupplier<T> supplier;
     private final Object lock = new Object();
     // null -> not resolved yet
     // non-null and contains non-null value -> resolved
     // non-null and contains null -> resolved, but supplier returned null (contract violation)
     private Mutable<T> resolved;
-    private Set<NonNullConsumer<LazyOptional<T>>> listeners = new HashSet<>();
+    private final Set<NonNullConsumer<LazyOptional<T>>> listeners = new HashSet<>();
     private boolean isValid = true;
 
-    private static final @Nonnull LazyOptional<Void> EMPTY = new LazyOptional<>(null);
+    private static final @NotNull LazyOptional<Void> EMPTY = new LazyOptional<>(null);
     private static final Logger LOGGER = LogManager.getLogger();
 
     /**
      * Construct a new {@link LazyOptional} that wraps the given
      * {@link NonNullSupplier}.
-     * 
+     *
      * @param instanceSupplier The {@link NonNullSupplier} to wrap. Cannot return
      *                         null, but can be null itself. If null, this method
      *                         returns {@link #empty()}.
      */
-    public static <T> LazyOptional<T> of(final @Nullable NonNullSupplier<T> instanceSupplier)
-    {
+    public static <T> LazyOptional<T> of(final @Nullable NonNullSupplier<T> instanceSupplier) {
         return instanceSupplier == null ? empty() : new LazyOptional<>(instanceSupplier);
     }
 
     /**
      * @return The singleton empty instance
      */
-    public static <T> LazyOptional<T> empty()
-    {
+    public static <T> LazyOptional<T> empty() {
         return EMPTY.cast();
     }
 
@@ -79,31 +77,25 @@ public class LazyOptional<T>
      * This method hides an unchecked cast to the inferred type. Only use this if
      * you are sure the type should match. For capabilities, generally
      * {@link Capability#orEmpty(Capability, LazyOptional)} should be used.
-     * 
+     *
      * @return This {@link LazyOptional}, cast to the inferred generic type
      */
     @SuppressWarnings("unchecked")
-    public <X> LazyOptional<X> cast()
-    {
+    public <X> LazyOptional<X> cast() {
         return (LazyOptional<X>)this;
     }
 
-    private LazyOptional(@Nullable NonNullSupplier<T> instanceSupplier)
-    {
+    private LazyOptional(@Nullable NonNullSupplier<T> instanceSupplier) {
         this.supplier = instanceSupplier;
     }
 
-    private @Nullable T getValue()
-    {
+    private @Nullable T getValue() {
         if (!isValid || supplier == null)
             return null;
-        if (resolved == null)
-        {
-            synchronized (lock)
-            {
+        if (resolved == null) {
+            synchronized (lock) {
                 // resolved == null: Double checked locking to prevent two threads from resolving
-                if (resolved == null)
-                {
+                if (resolved == null) {
                     T temp = supplier.get();
                     if (temp == null)
                         LOGGER.catching(Level.WARN, new NullPointerException("Supplier should not return null value"));
@@ -114,24 +106,20 @@ public class LazyOptional<T>
         return resolved.getValue();
     }
 
-    private T getValueUnsafe()
-    {
+    private T getValueUnsafe() {
         T ret = getValue();
         if (ret == null)
-        {
             throw new IllegalStateException("LazyOptional is empty or otherwise returned null from getValue() unexpectedly");
-        }
         return ret;
     }
 
     /**
      * Check if this {@link LazyOptional} is non-empty.
-     * 
+     *
      * @return {@code true} if this {@link LazyOptional} is non-empty, i.e. holds a
      *         non-null supplier
      */
-    public boolean isPresent()
-    {
+    public boolean isPresent() {
         return supplier != null && isValid;
     }
 
@@ -142,8 +130,7 @@ public class LazyOptional<T>
      * @param consumer The {@link NonNullConsumer} to run if this optional is non-empty.
      * @throws NullPointerException if {@code consumer} is null and this {@link LazyOptional} is non-empty
      */
-    public void ifPresent(NonNullConsumer<? super T> consumer)
-    {
+    public void ifPresent(NonNullConsumer<? super T> consumer) {
         Objects.requireNonNull(consumer);
         T val = getValue();
         if (isValid && val != null)
@@ -169,8 +156,7 @@ public class LazyOptional<T>
      *         present, otherwise an empty {@link LazyOptional}
      * @throws NullPointerException if {@code mapper} is null.
      */
-    public <U> LazyOptional<U> lazyMap(NonNullFunction<? super T, ? extends U> mapper)
-    {
+    public <U> LazyOptional<U> lazyMap(NonNullFunction<? super T, ? extends U> mapper) {
         Objects.requireNonNull(mapper);
         return isPresent() ? of(() -> mapper.apply(getValueUnsafe())) : empty();
     }
@@ -189,8 +175,7 @@ public class LazyOptional<T>
      *         present, otherwise an empty {@link Optional}
      * @throws NullPointerException if {@code mapper} is null.
      */
-    public <U> Optional<U> map(NonNullFunction<? super T, ? extends U> mapper)
-    {
+    public <U> Optional<U> map(NonNullFunction<? super T, ? extends U> mapper) {
         Objects.requireNonNull(mapper);
         return isPresent() ? Optional.of(mapper.apply(getValueUnsafe())) : Optional.empty();
     }
@@ -202,7 +187,7 @@ public class LazyOptional<T>
      * <em>It is important to note that this method is <strong>not</strong> lazy, as
      * it must resolve the value of the supplier to validate it with the
      * predicate.</em>
-     * 
+     *
      * @param predicate A {@link NonNullPredicate} to apply to the result of the
      *                  contained supplier, if non-empty
      * @return An {@link Optional} containing the result of the contained
@@ -211,8 +196,7 @@ public class LazyOptional<T>
      * @throws NullPointerException If {@code predicate} is null and this
      *                              {@link Optional} is non-empty
      */
-    public Optional<T> filter(NonNullPredicate<? super T> predicate)
-    {
+    public Optional<T> filter(NonNullPredicate<? super T> predicate) {
         Objects.requireNonNull(predicate);
         final T value = getValue(); // To keep the non-null contract we have to evaluate right now. Should we allow this function at all?
         return value != null && predicate.test(value) ? Optional.of(value) : Optional.empty();
@@ -222,8 +206,7 @@ public class LazyOptional<T>
      * Resolves the value of this LazyOptional, turning it into a standard non-lazy {@link Optional<T>}
      * @return The resolved optional.
      */
-    public Optional<T> resolve()
-    {
+    public Optional<T> resolve() {
         return isPresent() ? Optional.of(getValueUnsafe()) : Optional.empty();
     }
 
@@ -234,8 +217,7 @@ public class LazyOptional<T>
      * @param other the value to be returned if this {@link LazyOptional} is empty
      * @return the result of the supplier, if non-empty, otherwise {@code other}
      */
-    public T orElse(T other)
-    {
+    public T orElse(T other) {
         T val = getValue();
         return val != null ? val : other;
     }
@@ -251,8 +233,7 @@ public class LazyOptional<T>
      * @throws NullPointerException If {@code other} is null and this
      *                              {@link LazyOptional} is non-empty
      */
-    public T orElseGet(NonNullSupplier<? extends T> other)
-    {
+    public T orElseGet(NonNullSupplier<? extends T> other) {
         T val = getValue();
         return val != null ? val : other.get();
     }
@@ -273,8 +254,7 @@ public class LazyOptional<T>
      * @throws NullPointerException If {@code exceptionSupplier} is null and this
      *                              {@link LazyOptional} is empty
      */
-    public <X extends Throwable> T orElseThrow(NonNullSupplier<? extends X> exceptionSupplier) throws X
-    {
+    public <X extends Throwable> T orElseThrow(NonNullSupplier<? extends X> exceptionSupplier) throws X {
         T val = getValue();
         if (val != null)
             return val;
@@ -286,16 +266,19 @@ public class LazyOptional<T>
      * <p>
      * If this {@link LazyOptional} is empty, the listener will be called immediately.
      */
-    public void addListener(NonNullConsumer<LazyOptional<T>> listener)
-    {
+    public void addListener(NonNullConsumer<LazyOptional<T>> listener) {
         if (isPresent())
-        {
             this.listeners.add(listener);
-        }
         else
-        {
             listener.accept(this);
-        }
+    }
+
+    /**
+     * Unregisters a {@link NonNullConsumer listener} from the list to be notified when this {@link LazyOptional} becomes invalid (via {@link #invalidate()}).<br>
+     * This allows modder who know they will not need to be notified, to remove the hard reference that this holds to their listener.
+     */
+    public void removeListener(NonNullConsumer<LazyOptional<T>> listener) {
+        this.listeners.remove(listener);
     }
 
     /**
@@ -312,12 +295,11 @@ public class LazyOptional<T>
      * etc... This allows modders to keep a cache of capability objects instead of
      * re-checking them every tick.
      */
-    public void invalidate()
-    {
-        if (this.isValid)
-        {
+    public void invalidate() {
+        if (this.isValid) {
             this.isValid = false;
             this.listeners.forEach(e -> e.accept(this));
+            this.listeners.clear();
         }
     }
 }

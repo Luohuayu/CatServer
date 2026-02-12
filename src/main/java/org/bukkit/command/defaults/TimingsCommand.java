@@ -1,28 +1,35 @@
 package org.bukkit.command.defaults;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-
-import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredListener;
-import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.TimedRegisteredListener;
 import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
+
+// Spigot start
+// CHECKSTYLE:OFF
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.logging.Level;
+import org.bukkit.command.RemoteConsoleCommandSender;
+import org.bukkit.plugin.SimplePluginManager;
 import org.spigotmc.CustomTimingsHandler;
+// CHECKSTYLE:ON
+// Spigot end
 
 public class TimingsCommand extends BukkitCommand {
     private static final List<String> TIMINGS_SUBCOMMANDS = ImmutableList.of("report", "reset", "on", "off", "paste"); // Spigot
@@ -47,10 +54,12 @@ public class TimingsCommand extends BukkitCommand {
             sender.sendMessage("Disabled Timings");
             return;
         }
+
         if (!Bukkit.getPluginManager().useTimings()) {
             sender.sendMessage("Please enable timings by typing /timings on");
             return;
         }
+
         boolean paste = "paste".equals(args[0]);
         if ("reset".equals(args[0])) {
             CustomTimingsHandler.reload();
@@ -66,17 +75,22 @@ public class TimingsCommand extends BukkitCommand {
             PrintStream fileTimings = null;
             try {
                 fileTimings = (paste) ? new PrintStream(bout) : new PrintStream(timings);
+
                 CustomTimingsHandler.printTimings(fileTimings);
                 fileTimings.println("Sample time " + sampleTime + " (" + sampleTime / 1E9 + "s)");
+
                 fileTimings.println("<spigotConfig>");
                 fileTimings.println(Bukkit.spigot().getConfig().saveToString());
                 fileTimings.println("</spigotConfig>");
+
                 if (paste) {
                     new PasteThread(sender, bout).start();
                     return;
                 }
+
                 sender.sendMessage("Timings written to " + timings.getPath());
                 sender.sendMessage("Paste contents of file into form at http://www.spigotmc.org/go/timings to read results.");
+
             } catch (IOException e) {
             } finally {
                 if (fileTimings != null) {
@@ -178,9 +192,9 @@ public class TimingsCommand extends BukkitCommand {
     @NotNull
     @Override
     public List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) {
-        Validate.notNull(sender, "Sender cannot be null");
-        Validate.notNull(args, "Arguments cannot be null");
-        Validate.notNull(alias, "Alias cannot be null");
+        Preconditions.checkArgument(sender != null, "Sender cannot be null");
+        Preconditions.checkArgument(args != null, "Arguments cannot be null");
+        Preconditions.checkArgument(alias != null, "Alias cannot be null");
 
         if (args.length == 1) {
             return StringUtil.copyPartialMatches(args[0], TIMINGS_SUBCOMMANDS, new ArrayList<String>(TIMINGS_SUBCOMMANDS.size()));
@@ -190,6 +204,7 @@ public class TimingsCommand extends BukkitCommand {
 
     // Spigot start
     private static class PasteThread extends Thread {
+
         private final CommandSender sender;
         private final ByteArrayOutputStream bout;
 
@@ -215,11 +230,14 @@ public class TimingsCommand extends BukkitCommand {
                 con.setDoOutput(true);
                 con.setRequestMethod("POST");
                 con.setInstanceFollowRedirects(false);
+
                 OutputStream out = con.getOutputStream();
                 out.write(bout.toByteArray());
                 out.close();
+
                 com.google.gson.JsonObject location = new com.google.gson.Gson().fromJson(new java.io.InputStreamReader(con.getInputStream()), com.google.gson.JsonObject.class);
                 con.getInputStream().close();
+
                 String pasteID = location.get("key").getAsString();
                 sender.sendMessage(ChatColor.GREEN + "Timings results can be viewed at https://www.spigotmc.org/go/timings?url=" + pasteID);
             } catch (IOException ex) {

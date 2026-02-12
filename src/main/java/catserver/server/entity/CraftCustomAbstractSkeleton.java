@@ -2,8 +2,8 @@ package catserver.server.entity;
 
 import catserver.server.BukkitInjector;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAbstractSkeleton;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftAbstractSkeleton;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Skeleton;
 import org.jetbrains.annotations.NotNull;

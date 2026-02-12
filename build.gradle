@@ -5,8 +5,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:[5.1.39,5.2.0)'
-        classpath "dev.vankka:gradle-plugin:1.2.1"
+        classpath 'net.minecraftforge.gradle:ForgeGradle:[6.0.11,6.2)'
+        // classpath "dev.vankka:gradle-plugin:1.2.1"
+        classpath "dev.vankka:gradle-plugin:2.0.0"
     }
 }
 
@@ -15,6 +16,7 @@ import net.minecraftforge.forge.tasks.checks.CheckExcs
 import net.minecraftforge.forge.tasks.checks.CheckPatches
 import net.minecraftforge.forge.tasks.checks.CheckSAS
 import net.minecraftforge.forge.tasks.checks.CheckTask
+import net.minecraftforge.forge.tasks.FixPatchImports // 1.20.1
 
 import java.nio.file.Files
 import net.minecraftforge.forge.tasks.*
@@ -27,12 +29,13 @@ import net.minecraftforge.gradle.common.tasks.SignJar
 import net.minecraftforge.gradle.userdev.tasks.RenameJar
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
+import org.objectweb.asm.Opcodes // 1.20.1
 
 plugins {
-    id 'com.github.ben-manes.versions' version '0.36.0'
+    id 'com.github.ben-manes.versions' version '0.46.0'
     id 'net.minecraftforge.gradleutils' version '[2.2,2.3)'
     id 'eclipse'
-    id 'de.undercouch.download' version '5.1.3'
+    id 'de.undercouch.download' version '5.4.0'
 }
 
 Util.init() //Init all our extension methods!
@@ -42,32 +45,52 @@ def gitVersion = 'git rev-parse --short HEAD'.execute().text.trim()
 ext {
     JAR_SIGNER = null
     MAPPING_CHANNEL = 'official'
-    MAPPING_VERSION = '1.18.2'
-    MC_VERSION = '1.18.2'
-    MCP_VERSION = '20220404.173914'
-    SPI_VERSION = '4.0.15-4.x'
+    MAPPING_VERSION = '1.20.1'
+    MC_VERSION = '1.20.1'
+    MCP_VERSION = '20230612.114412'
+    SPI_VERSION = '7.0.1'
     ACCESSTRANSFORMERS_VERSION = '8.0.4'
-    COREMODS_VERSION = '5.0.1'
-    EVENTBUS_VERSION = '5.0.3'
-    MODLAUNCHER_VERSION = '9.1.3'
-    SECUREJARHANDLER_VERSION = '1.0.8'
-    BOOTSTRAPLAUNCHER_VERSION = '1.0.0'
-    ASM_VERSION = '9.5'
-    INSTALLER_VERSION = '2.1.+'
+    COREMODS_VERSION = '5.2.4'
+    EVENTBUS_VERSION = '6.0.5'
+    MODLAUNCHER_VERSION = '10.0.9'
+    SECUREJARHANDLER_VERSION = '2.1.10'
+    BOOTSTRAPLAUNCHER_VERSION = '1.1.2'
+    ASM_VERSION = '9.8'
+    INSTALLER_VERSION = '2.2.+'
     MIXIN_VERSION = '0.8.5'
     JARJAR_VERSION = '0.3.19'
 
+    // CatServer start - 1.20.1 from Forge
+    JETBRAINS_ANNOTATIONS_VERSION = '23.0.0'
+    MERGETOOL_VERSION = '1.1.5'
+    LOG4J_VERSION = '2.19.0'
+    SLF4J_API_VERSION = '2.0.1'
+    GUAVA_VERSION = '31.1-jre'
+    GSON_VERSION = '2.10'
+    APACHE_MAVEN_ARTIFACT_VERSION = '3.9.6'
+    APACHE_COMMONS_LANG3_VERSION = '3.12.0'
+    NIGHTCONFIG_VERSION = '3.6.4'
+    MOJANG_LOGGING_VERSION = '1.1.1'
+    JOPT_SIMPLE_VERSION = '5.0.4'
+    TERMINALCONSOLEAPPENDER_VERSION = '1.2.0'
+    JLINE_VERSION = '3.12.+'
+    COMMONS_IO_VERSION = '2.11.0'
+    // CatServer end
+
+    // Paper
+    adventureVersion = '4.14.0'
+
     GIT_INFO = gradleutils.gitInfo
-    FORGE_VERSION = "40.2.18"
-    VERSION = "1.18.2-$FORGE_VERSION"
-    CATSERVER_VERSION = "1.18.2-" + gitVersion
+    FORGE_VERSION = "47.4.10"
+    VERSION = "1.20.1-$FORGE_VERSION"
+    CATSERVER_VERSION = "1.20.1-" + gitVersion
     // FML_VERSION = gradleutils.getFilteredMCTagOffsetBranchVersion(true, 'FML', MC_VERSION)
 
-    BINPATCH_TOOL = 'net.minecraftforge:binarypatcher:1.0.12:fatjar'
-    INSTALLER_TOOLS = 'net.minecraftforge:installertools:1.2.10'
+    BINPATCH_TOOL = 'net.minecraftforge:binarypatcher:1.1.1:fatjar'
+    INSTALLER_TOOLS = 'net.minecraftforge:installertools:1.4.1'
     JAR_SPLITTER = 'net.minecraftforge:jarsplitter:1.1.4'
     FART = 'net.minecraftforge:ForgeAutoRenamingTool:0.1.22:all'
-    MIN_TAG_FOR_CHANGELOG = "39.0"
+    MIN_TAG_FOR_CHANGELOG = "41.0"
 
     // remove :fatjar
     BIN_PATCHER = BINPATCH_TOOL.substring(0, BINPATCH_TOOL.length() - 1 - BINPATCH_TOOL.split(':')[3].length())
@@ -79,7 +102,7 @@ println('Version: ' + VERSION +
         ' Arch: ' + System.getProperty('os.arch'))
 
 task downloadVersionManifest(type: Download) {
-    src 'https://launchermeta.mojang.com/mc/game/version_manifest_v2.json'
+    src 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'
     dest file('build/versions/version_manifest.json')
     useETag 'all'
     onlyIfModified true
@@ -204,20 +227,21 @@ def sharedDeps = {
     installer "org.ow2.asm:asm-util:${ASM_VERSION}"
     installer "org.ow2.asm:asm-analysis:${ASM_VERSION}"
     installer "net.minecraftforge:accesstransformers:${ACCESSTRANSFORMERS_VERSION}"
-    installer 'org.antlr:antlr4-runtime:4.9.1' //Dep of AccessTransformer
+    installer 'org.antlr:antlr4-runtime:4.9.1' // Dep of AccessTransformer
     installer "net.minecraftforge:eventbus:${EVENTBUS_VERSION}"
     installer "net.minecraftforge:forgespi:${SPI_VERSION}"
     installer "net.minecraftforge:coremods:${COREMODS_VERSION}"
     installer "cpw.mods:modlauncher:${MODLAUNCHER_VERSION}"
     installer 'net.minecraftforge:unsafe:0.2.+'
-    installer 'com.electronwill.night-config:core:3.6.4'
-    installer 'com.electronwill.night-config:toml:3.6.4'
-    installer 'org.apache.maven:maven-artifact:3.6.3'
+    installer "net.minecraftforge:mergetool:${MERGETOOL_VERSION}:api"
+    installer "com.electronwill.night-config:core:${NIGHTCONFIG_VERSION}"
+    installer "com.electronwill.night-config:toml:${NIGHTCONFIG_VERSION}"
+    installer "org.apache.maven:maven-artifact:${APACHE_MAVEN_ARTIFACT_VERSION}"
     installer 'org.apache.commons:commons-lang3:3.12.0'
-    installer 'net.jodah:typetools:0.8.3'
-    installer 'net.minecrell:terminalconsoleappender:1.2.0'
-    installer 'org.jline:jline-reader:3.12.1'   //Dep of TerminaalConsoleeAppender
-    installer 'org.jline:jline-terminal:3.12.1' //Dep of TerminaalConsoleeAppender
+    installer 'net.jodah:typetools:0.6.3'
+    installer "net.minecrell:terminalconsoleappender:${TERMINALCONSOLEAPPENDER_VERSION}"
+    installer "org.jline:jline-reader:${JLINE_VERSION}"   // Dep of TerminaalConsoleeAppender
+    installer "org.jline:jline-terminal:${JLINE_VERSION}" // Dep of TerminaalConsoleeAppender
     installer 'org.jline:jline-terminal-jansi:3.12.1'
     installer "org.spongepowered:mixin:${MIXIN_VERSION}"
     installer 'org.openjdk.nashorn:nashorn-core:15.3'
@@ -227,22 +251,31 @@ def sharedDeps = {
     // bukkit
     moduleonly 'commons-lang:commons-lang:2.6'
     moduleonly 'commons-codec:commons-codec:1.10'
-    installer 'org.yaml:snakeyaml:1.30'
-    installer 'org.apache.maven:maven-resolver-provider:3.8.4'
-    installer 'org.apache.maven.resolver:maven-resolver-connector-basic:1.7.2'
-    installer 'org.apache.maven.resolver:maven-resolver-transport-http:1.7.2'
-    compileOnly 'org.jetbrains:annotations:21.0.1'
+    installer 'org.yaml:snakeyaml:2.0'
+    compileOnly 'org.jetbrains:annotations:24.0.1'
     // craftbukkit
     installer 'org.fusesource.jansi:jansi:1.18'
     installer 'jline:jline:2.12.1'
     installer 'com.googlecode.json-simple:json-simple:1.1.1'
-    installer 'org.xerial:sqlite-jdbc:3.36.0.3'
-    installer 'mysql:mysql-connector-java:8.0.27'
-    installer 'org.apache.logging.log4j:log4j-iostreams:2.17.1'
+    installer 'org.xerial:sqlite-jdbc:3.42.0.0'
+    installer 'mysql:mysql-connector-java:8.0.33'
+    installer 'org.apache.logging.log4j:log4j-iostreams:2.19.0'
     installer 'net.md-5:SpecialSource:1.10.0'
 
     // spigot
-    installer 'net.md-5:bungeecord-chat:1.16-R0.4'
+    installer 'net.md-5:bungeecord-chat:1.20-R0.1'
+
+    // paper
+    /*
+    installer "org.spongepowered:configurate-yaml:4.2.0"
+    installer "net.kyori:adventure-bom:${adventureVersion}"
+    installer "net.kyori:adventure-api:${adventureVersion}"
+    installer "net.kyori:adventure-text-minimessage:${adventureVersion}"
+    installer "net.kyori:adventure-text-serializer-gson:${adventureVersion}"
+    installer "net.kyori:adventure-text-serializer-legacy:${adventureVersion}"
+    installer "net.kyori:adventure-text-serializer-plain:${adventureVersion}"
+    installer "net.kyori:adventure-text-logger-slf4j:${adventureVersion}"
+    */
 
     /*
     installer 'org.lwjgl:lwjgl:3.2.2'
@@ -314,7 +347,8 @@ def sharedFmlonlyForge = { Project prj ->
                 environment 'MOD_CLASSES', '{source_roots}'
                 environment 'MCP_MAPPINGS', '{mcp_mappings}'
 
-                property 'nativesDirectory', '{natives}'
+                // Natives are loaded from the classpath now in all cases
+                // property 'nativesDirectory', '{natives}'
                 if (prj.name == 'forge') {
                     property 'forge.enableGameTest', 'true'
                 }
@@ -377,9 +411,9 @@ def sharedFmlonlyForge = { Project prj ->
         }
 
         // SecureJarHandler bootstrap values.
-        run.property 'ignoreList', prj.configurations.moduleonly.files.collect {it.name.replaceAll(/([-_]([.\d]*\d+)|\.jar$)/, '') }.join(',') + ",client-extra,fmlcore,javafmllanguage,lowcodelanguage,mclanguage,${prj.name}-"
+        run.property 'ignoreList', prj.configurations.moduleonly.files.collect {it.name.replaceAll(/([-_]([.\d]*\d+)|\.jar$)/, '') }.join(',') + ",client-extra,fmlcore,fmlearlydisplay,javafmllanguage,lowcodelanguage,mclanguage,${prj.name}-"
         // FIXME: Without this jna doesn't work at runtime. Someone figure out why please?
-        run.property 'mergeModules', 'jna-5.10.0.jar,jna-platform-5.10.0.jar,java-objc-bridge-1.0.0.jar'
+        run.property 'mergeModules', 'jna-5.12.1.jar,jna-platform-5.12.1.jar'
         if (userdevRuns.contains(run)) {
             run.property 'legacyClassPath.file', '{minecraft_classpath_file}'
             run.jvmArgs '-p', '{modules}'
@@ -399,7 +433,8 @@ def sharedFmlonlyForge = { Project prj ->
         run.workingDirectory prj.file('run')
 
         if (run.name.contains('client') || run.name.contains('data')) {
-            run.property 'nativesDirectory', prj.extractNatives.output.get().asFile
+            // Natives are loaded from the classpath now in all cases
+            // run.property 'nativesDirectory', prj.extractNatives.output.get().asFile
             run.args '--assetsDir', prj.downloadAssets.output
             run.args '--assetIndex', "{asset_index}"
         }
@@ -451,26 +486,58 @@ def sharedFmlonlyForge = { Project prj ->
             CLASS_PATH +=
                     (
                             [
-                                    "libraries/com/github/oshi/oshi-core/5.8.5/oshi-core-5.8.5.jar",
-                                    "libraries/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar",
+                                    "libraries/com/github/oshi/oshi-core/6.2.2/oshi-core-6.2.2.jar",
+                                    "libraries/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar",
                                     "libraries/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar",
-                                    "libraries/com/google/guava/guava/31.0.1-jre/guava-31.0.1-jre.jar",
-                                    "libraries/com/mojang/authlib/3.3.39/authlib-3.3.39.jar",
-                                    "libraries/com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar",
-                                    "libraries/com/mojang/datafixerupper/4.1.27/datafixerupper-4.1.27.jar",
+                                    "libraries/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar",
+                                    "libraries/com/mojang/authlib/4.0.43/authlib-4.0.43.jar",
+                                    "libraries/com/mojang/brigadier/1.1.8/brigadier-1.1.8.jar",
+                                    "libraries/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar",
                                     "libraries/com/mojang/javabridge/1.2.24/javabridge-1.2.24.jar",
-                                    "libraries/com/mojang/logging/1.0.0/logging-1.0.0.jar",
+                                    "libraries/com/mojang/logging/1.1.1/logging-1.1.1.jar",
+                                    "libraries/commons-codec/commons-codec/1.10/commons-codec-1.10.jar",
                                     "libraries/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar",
-                                    "libraries/io/netty/netty-all/4.1.68.Final/netty-all-4.1.68.Final.jar",
-                                    "libraries/it/unimi/dsi/fastutil/8.5.6/fastutil-8.5.6.jar",
-                                    "libraries/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar",
-                                    "libraries/net/java/dev/jna/jna-platform/5.10.0/jna-platform-5.10.0.jar",
+                                    "libraries/io/netty/netty-transport-native-unix-common/4.1.82.Final/netty-transport-native-unix-common-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-transport-native-epoll/4.1.82.Final/netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar",
+                                    "libraries/io/netty/netty-transport-native-epoll/4.1.82.Final/netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar",
+                                    "libraries/io/netty/netty-transport-classes-epoll/4.1.82.Final/netty-transport-classes-epoll-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-transport/4.1.82.Final/netty-transport-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-resolver/4.1.82.Final/netty-resolver-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-handler/4.1.82.Final/netty-handler-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-common/4.1.82.Final/netty-common-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-codec/4.1.82.Final/netty-codec-4.1.82.Final.jar",
+                                    "libraries/io/netty/netty-buffer/4.1.82.Final/netty-buffer-4.1.82.Final.jar",
+                                    "libraries/it/unimi/dsi/fastutil/8.5.9/fastutil-8.5.9.jar",
+                                    "libraries/net/java/dev/jna/jna/5.12.1/jna-5.12.1.jar",
+                                    "libraries/net/java/dev/jna/jna-platform/5.12.1/jna-platform-5.12.1.jar",
                                     "libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar",
                                     "libraries/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar",
-                                    "libraries/org/apache/logging/log4j/log4j-api/2.17.0/log4j-api-2.17.0.jar",
-                                    "libraries/org/apache/logging/log4j/log4j-core/2.17.0/log4j-core-2.17.0.jar",
-                                    "libraries/org/apache/logging/log4j/log4j-slf4j18-impl/2.17.0/log4j-slf4j18-impl-2.17.0.jar",
-                                    "libraries/org/slf4j/slf4j-api/1.8.0-beta4/slf4j-api-1.8.0-beta4.jar"
+                                    "libraries/org/apache/logging/log4j/log4j-api/2.19.0/log4j-api-2.19.0.jar",
+                                    "libraries/org/apache/logging/log4j/log4j-core/2.19.0/log4j-core-2.19.0.jar",
+                                    "libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.19.0/log4j-slf4j2-impl-2.19.0.jar",
+                                    "libraries/org/joml/joml/1.10.5/joml-1.10.5.jar", // 1.20.1
+                                    "libraries/org/slf4j/slf4j-api/2.0.1/slf4j-api-2.0.1.jar",
+                                    "libraries/plugin-only/org/apache/maven/maven-model/3.9.6/maven-model-3.9.6.jar", // 1.20.1 plugin-only handled in FoxServerLauncher
+                                    "libraries/plugin-only/org/apache/maven/maven-model-builder/3.9.6/maven-model-builder-3.9.6.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/maven-resolver-provider/3.9.6/maven-resolver-provider-3.9.6.jar",
+                                    "libraries/plugin-only/org/apache/maven/maven-builder-support/3.9.6/maven-builder-support-3.9.6.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/maven-repository-metadata/3.9.6/maven-repository-metadata-3.9.6.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-impl/1.9.18/maven-resolver-impl-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-spi/1.9.18/maven-resolver-spi-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-named-locks/1.9.18/maven-resolver-named-locks-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-connector-basic/1.9.18/maven-resolver-connector-basic-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-transport-file/1.9.18/maven-resolver-transport-file-1.9.18.jar", // 1.20.1
+                                    "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-transport-http/1.9.18/maven-resolver-transport-http-1.9.18.jar", // 1.20.1
+                                    "libraries/org/apache/http/httpclient/4.5.14/httpclient-4.5.14.jar", // 1.20.1
+                                    "libraries/org/apache/http/httpcore/4.4.14/httpcore-4.4.14.jar", // 1.20.1
+                                    "libraries/javax/inject/1/javax.inject-1.jar", // 1.20.1
+                                    "libraries/org/apache/commons/logging/jcl-over-slf4j/1.7.36/jcl-over-slf4j-1.7.36.jar", // 1.20.1
+                                    "libraries/org/eclipse/sisu/org.eclipse.sisu.inject/0.3.5/org.eclipse.sisu.inject-0.3.5.jar", // 1.20.1
+                                    "libraries/org/codehaus/plexus/interpolation/plexus-interpolation/1.26/plexus-interpolation-1.26.jar", // 1.20.1
+                                    "libraries/org/codehaus/plexus/util/plexus-utils/3.5.1/plexus-utils-3.5.1.jar", // 1.20.1
+                                    "libraries/com/google/protobuf/protobuf-java/3.21.9/protobuf-java-3.21.9.jar" // 1.20.1
                             ].findAll { it.startsWith('libraries/') && !claimed.contains(it.rsplit('/', 2)[0]) }
                     )
 
@@ -515,7 +582,7 @@ project(':fmlonly') {
 
     ext {
         MCP_ARTIFACT = project(':mcp').mcp.config.get()
-        PACKED_DEPS = [':fmlcore:jar', ':fmlloader:jar', ':javafmllanguage:jar', ':lowcodelanguage:jar', ':mclanguage:jar']
+        PACKED_DEPS = [':fmlcore:jar', ':fmlloader:jar', ':fmlearlydisplay:jar', ':javafmllanguage:jar', ':lowcodelanguage:jar', ':mclanguage:jar']
         MAVEN_PATH = "${group.replace('.', '/')}/${project.name}/${VERSION}"
     }
 
@@ -531,7 +598,7 @@ project(':fmlonly') {
     }
 
     configurations {
-        moduleonly
+        modu0leonly
         installer {
             // Don't pull all libraries, if we're missing something, add it to the installer list so the installer knows to download it.
             transitive = false
@@ -543,6 +610,7 @@ project(':fmlonly') {
     dependencies {
         implementation project(':fmlcore')
         implementation project(':fmlloader')
+        implementation project(':fmlearlydisplay')
         implementation project(':javafmllanguage')
         implementation project(':lowcodelanguage')
         implementation project(':mclanguage')
@@ -579,7 +647,7 @@ project(':fmlonly') {
     sharedFmlonlyForge.call(project)
 
     task launcherJson(type: LauncherJson) {
-        packedDependencies = [':fmlloader:jar']
+        packedDependencies = [':fmlloader:jar',':fmlearlydisplay:jar']
         doFirst {
             def fmlonly_client = project(':fmlonly').patcher.runs.fmlonly_client
             json = [
@@ -832,7 +900,8 @@ project(':forge') {
             java {
                 srcDirs = [
                     "$rootDir/src/main/java",
-                    "$rootDir/src/fmlcommon/java"
+                    "$rootDir/src/fmlcommon/java",
+                    "$rootDir/src/snapshots/java"
                 ]
             }
             resources {
@@ -854,7 +923,7 @@ project(':forge') {
         // Essentially, the same as the old, except dropping the first number, and the builds are no longer unique.
         MCP_ARTIFACT = project(':mcp').mcp.config.get()
         VERSION_JSON = project(':mcp').file('build/mcp/downloadJson/version.json')
-        PACKED_DEPS = [':fmlcore:jar', ':fmlloader:jar', ':javafmllanguage:jar', ':lowcodelanguage:jar', ':mclanguage:jar']
+        PACKED_DEPS = [':fmlcore:jar', ':fmlloader:jar', ':fmlearlydisplay:jar', ':javafmllanguage:jar', ':lowcodelanguage:jar', ':mclanguage:jar']
         MAVEN_PATH = "${group.replace('.', '/')}/${project.name}/${VERSION}"
     }
 
@@ -877,6 +946,7 @@ project(':forge') {
         testImplementation 'org.hamcrest:hamcrest-all:1.3' // needs advanced matching for list order
         implementation project(':fmlcore')
         implementation project(':fmlloader')
+        implementation project(':fmlearlydisplay')
         implementation project(':javafmllanguage')
         implementation project(':lowcodelanguage')
         implementation project(':mclanguage')
@@ -1009,6 +1079,9 @@ project(':forge') {
                             '--mod', 'tag_based_tool_types',
                             '--mod', 'custom_transformtype_test',
                             '--mod', 'data_pack_registries_test',
+                            '--mod', 'biome_modifiers_test',
+                            '--mod', 'structure_modifiers_test',
+                            '--mod', 'custom_preset_editor_test',
                             '--output', rootProject.file('src/generated_test/resources/'),
                             '--existing', sourceSets.main.resources.srcDirs[0],
                             '--existing', sourceSets.test.resources.srcDirs[0]
@@ -1070,10 +1143,10 @@ project(':forge') {
                     'Specification-Vendor':     'forge',
                     'Specification-Version':    '1',
                     'Implementation-Title':     'bootstraplauncher',
-                    'Implementation-Version':   '1.0.0+1.0.0+main.26de0917',
+                    'Implementation-Version':   '1.1.2+1.1.2+main.09c1f998',
                     'Implementation-Vendor':    'Forge',
-                    'Implementation-Timestamp': '2022-01-18T01:39:57.247731535Z',
-                    'Git-Commit':               '26de0917',
+                    'Implementation-Timestamp': '2022-07-05T21:40:10.035180220Z',
+                    'Git-Commit':               '09c1f998',
                     'Git-Branch':               'main'
             ] as LinkedHashMap,
             'catserver/server/': [
@@ -1081,15 +1154,15 @@ project(':forge') {
                     'Specification-Vendor'  : 'CatServerMC',
                     'Specification-Version':  project.version.substring(MC_VERSION.length() + 1),
                     'Implementation-Title'  : 'CatServer',
-                    'Implementation-Version': '1.18.2-' + gitVersion,
+                    'Implementation-Version': '1.20.1-' + gitVersion,
                     'Implementation-Vendor' : 'CatServerMC'
             ] as LinkedHashMap,
-            'org/bukkit/craftbukkit/v1_18_R2/': [
+            'org/bukkit/craftbukkit/v1_20_R1/': [
                     'Specification-Title'   : MCP_VERSION,
                     'Specification-Vendor'  : 'SpigotMC',
-                    'Specification-Version':  '1.18.2',
+                    'Specification-Version':  '1.20.1',
                     'Implementation-Title'  : 'Spigot',
-                    'Implementation-Version': '1.18.2-' + gitVersion,
+                    'Implementation-Version': '1.20.1-' + gitVersion,
                     'Implementation-Vendor' : 'SpigotMC'
             ] as LinkedHashMap,
             'io/izzel/arclight/': [
@@ -1111,7 +1184,7 @@ project(':forge') {
         output = rootProject.file('build/libraries/')
     }
 
-    task extractInheritance(type: ExtractInheritance, dependsOn: [genJoinedBinPatches, downloadLibraries]) {
+    task extractInheritance(type: ExtractInheritance, dependsOn: [downloadLibraries]) {
         tool = INSTALLER_TOOLS + ':fatjar'
         args.add '--annotations'
         input = genJoinedBinPatches.cleanJar
@@ -1137,12 +1210,31 @@ project(':forge') {
         }
     }
 
+    task findFinalizeSpawnTargets(type: BytecodePredicateFinder, dependsOn: ['createJoinedSRG']) {
+        jar = createJoinedSRG.output
+        output = rootProject.file('src/main/resources/coremods/finalize_spawn_targets.json')
+        predicate = {
+            parent, node, insn ->
+                'net/minecraft/world/level/BaseSpawner' != parent.name // Ignore this class as we special case it.
+                        && insn.getOpcode() == Opcodes.INVOKEVIRTUAL
+                        && insn.name.equals('m_6518_')
+                        && insn.desc.equals('(Lnet/minecraft/world/level/ServerLevelAccessor;Lnet/minecraft/world/DifficultyInstance;Lnet/minecraft/world/entity/MobSpawnType;Lnet/minecraft/world/entity/SpawnGroupData;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/entity/SpawnGroupData;')
+        }
+    }
+
+    tasks.register('validateDeprecations', ValidateDeprecations) {
+        input = tasks.jar.archiveFile
+        mcVersion = MC_VERSION
+    }
+
+    tasks.jar.finalizedBy 'validateDeprecations'
+
     tasks.register('checkAll') {
         dependsOn 'checkLicenses'
         group = 'checks'
     }
     tasks.register('checkAllAndFix') {
-        dependsOn 'findFieldInstanceChecks', 'checkLicenses'
+        dependsOn 'findFinalizeSpawnTargets', 'findFieldInstanceChecks', 'checkLicenses'
         group = 'checks'
     }
 
@@ -1172,6 +1264,11 @@ project(':forge') {
                 'minecraft/net/minecraft/client/renderer/ViewArea.java.patch',
                 'minecraft/net/minecraft/data/models/blockstates/Variant.java.patch',
         ]
+    }
+
+    tasks.register('fixPatchImports', FixPatchImports) {
+        clean.set(rootProject.file('projects/clean/src/main/java'))
+        patched.set(rootProject.file('projects/forge/src/main/java'))
     }
 
     genPatches {
@@ -1231,7 +1328,7 @@ project(':forge') {
     }
 
     task launcherJson(type: LauncherJson) {
-        packedDependencies = [':fmlloader:jar']
+        packedDependencies = [':fmlloader:jar',':fmlearlydisplay:jar']
         doFirst {
             def forge_client = project(':forge').patcher.runs.forge_client
             json = [
@@ -1267,13 +1364,13 @@ project(':forge') {
         }
     }
 
-    task generateLibraries(type: dev.vankka.dependencydownload.task.GenerateDependencyDownloadResourceTask) {
-        var conf = configurations.autolibraries
-        configuration = conf
-        file = "data/libraries.txt"
-        // Not necessary to include in the resource
-        includeShadowJarRelocations = false
-    }
+//    task generateLibraries(type: dev.vankka.dependencydownload.task.GenerateDependencyDownloadResourceTask) {
+//        var conf = providers.provider { configurations.autolibraries }
+//        configuration = conf
+//        file = "data/libraries.txt"
+//        // Not necessary to include in the resource
+//        includeShadowJarRelocations = false
+//    }
 
 
     task buildCatServer(type: Jar, dependsOn: [genServerBinPatches]) {
@@ -1292,27 +1389,58 @@ project(':forge') {
         CLASS_PATH +=
                 (
                         [
-                                "libraries/com/github/oshi/oshi-core/5.8.5/oshi-core-5.8.5.jar",
-                                "libraries/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar",
+                                "libraries/com/github/oshi/oshi-core/6.2.2/oshi-core-6.2.2.jar",
+                                "libraries/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar",
                                 "libraries/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar",
-                                "libraries/com/google/guava/guava/31.0.1-jre/guava-31.0.1-jre.jar",
-                                "libraries/com/mojang/authlib/3.3.39/authlib-3.3.39.jar",
-                                "libraries/com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar",
-                                "libraries/com/mojang/datafixerupper/4.1.27/datafixerupper-4.1.27.jar",
+                                "libraries/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar",
+                                "libraries/com/mojang/authlib/4.0.43/authlib-4.0.43.jar",
+                                "libraries/com/mojang/brigadier/1.1.8/brigadier-1.1.8.jar",
+                                "libraries/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar",
                                 "libraries/com/mojang/javabridge/1.2.24/javabridge-1.2.24.jar",
-                                "libraries/com/mojang/logging/1.0.0/logging-1.0.0.jar",
+                                "libraries/com/mojang/logging/1.1.1/logging-1.1.1.jar",
                                 "libraries/commons-codec/commons-codec/1.10/commons-codec-1.10.jar",
                                 "libraries/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar",
-                                "libraries/io/netty/netty-all/4.1.68.Final/netty-all-4.1.68.Final.jar",
-                                "libraries/it/unimi/dsi/fastutil/8.5.6/fastutil-8.5.6.jar",
-                                "libraries/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar",
-                                "libraries/net/java/dev/jna/jna-platform/5.10.0/jna-platform-5.10.0.jar",
+                                "libraries/io/netty/netty-transport-native-unix-common/4.1.82.Final/netty-transport-native-unix-common-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-transport-native-epoll/4.1.82.Final/netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar",
+                                "libraries/io/netty/netty-transport-native-epoll/4.1.82.Final/netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar",
+                                "libraries/io/netty/netty-transport-classes-epoll/4.1.82.Final/netty-transport-classes-epoll-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-transport/4.1.82.Final/netty-transport-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-resolver/4.1.82.Final/netty-resolver-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-handler/4.1.82.Final/netty-handler-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-common/4.1.82.Final/netty-common-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-codec/4.1.82.Final/netty-codec-4.1.82.Final.jar",
+                                "libraries/io/netty/netty-buffer/4.1.82.Final/netty-buffer-4.1.82.Final.jar",
+                                "libraries/it/unimi/dsi/fastutil/8.5.9/fastutil-8.5.9.jar",
+                                "libraries/net/java/dev/jna/jna/5.12.1/jna-5.12.1.jar",
+                                "libraries/net/java/dev/jna/jna-platform/5.12.1/jna-platform-5.12.1.jar",
                                 "libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar",
                                 "libraries/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar",
-                                "libraries/org/apache/logging/log4j/log4j-api/2.17.0/log4j-api-2.17.0.jar",
-                                "libraries/org/apache/logging/log4j/log4j-core/2.17.0/log4j-core-2.17.0.jar",
-                                "libraries/org/apache/logging/log4j/log4j-slf4j18-impl/2.17.0/log4j-slf4j18-impl-2.17.0.jar",
-                                "libraries/org/slf4j/slf4j-api/1.8.0-beta4/slf4j-api-1.8.0-beta4.jar"
+                                "libraries/org/apache/logging/log4j/log4j-api/2.19.0/log4j-api-2.19.0.jar",
+                                "libraries/org/apache/logging/log4j/log4j-core/2.19.0/log4j-core-2.19.0.jar",
+                                "libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.19.0/log4j-slf4j2-impl-2.19.0.jar",
+                                "libraries/org/joml/joml/1.10.5/joml-1.10.5.jar", // 1.20.1
+                                "libraries/org/slf4j/slf4j-api/2.0.1/slf4j-api-2.0.1.jar",
+                                "libraries/plugin-only/org/apache/maven/maven-model/3.9.6/maven-model-3.9.6.jar", // 1.20.1 plugin-only handled in FoxServerLauncher
+                                "libraries/plugin-only/org/apache/maven/maven-model-builder/3.9.6/maven-model-builder-3.9.6.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/maven-resolver-provider/3.9.6/maven-resolver-provider-3.9.6.jar",
+                                "libraries/plugin-only/org/apache/maven/maven-builder-support/3.9.6/maven-builder-support-3.9.6.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/maven-repository-metadata/3.9.6/maven-repository-metadata-3.9.6.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-impl/1.9.18/maven-resolver-impl-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-spi/1.9.18/maven-resolver-spi-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-named-locks/1.9.18/maven-resolver-named-locks-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-connector-basic/1.9.18/maven-resolver-connector-basic-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-transport-file/1.9.18/maven-resolver-transport-file-1.9.18.jar", // 1.20.1
+                                "libraries/plugin-only/org/apache/maven/resolver/maven-resolver-transport-http/1.9.18/maven-resolver-transport-http-1.9.18.jar", // 1.20.1
+                                "libraries/org/apache/http/httpclient/4.5.14/httpclient-4.5.14.jar", // 1.20.1
+                                "libraries/org/apache/http/httpcore/4.4.14/httpcore-4.4.14.jar", // 1.20.1
+                                "libraries/javax/inject/1/javax.inject-1.jar", // 1.20.1
+                                "libraries/org/apache/commons/logging/jcl-over-slf4j/1.7.36/jcl-over-slf4j-1.7.36.jar", // 1.20.1
+                                "libraries/org/eclipse/sisu/org.eclipse.sisu.inject/0.3.5/org.eclipse.sisu.inject-0.3.5.jar", // 1.20.1
+                                "libraries/org/codehaus/plexus/interpolation/plexus-interpolation/1.26/plexus-interpolation-1.26.jar", // 1.20.1
+                                "libraries/org/codehaus/plexus/util/plexus-utils/3.5.1/plexus-utils-3.5.1.jar", // 1.20.1
+                                "libraries/com/google/protobuf/protobuf-java/3.21.9/protobuf-java-3.21.9.jar" // 1.20.1
                         ].findAll { it.startsWith('libraries/') && !claimed.contains(it.rsplit('/', 2)[0]) }
                 )
         def MODULE_PATH = Util.getArtifactsOffline(project, project.configurations.moduleonly, false).values().collect { "libraries/${it.downloads.artifact.path}" }
@@ -1361,6 +1489,9 @@ project(':forge') {
         from(project(':fmlcore').tasks.jar.outputs) {
             rename { 'data/fmlcore-' + MC_VERSION + '-' + FORGE_VERSION + '.jar' }
         }
+        from(project(':fmlearlydisplay').tasks.jar.outputs) {
+            rename { 'data/fmlearlydisplay-' + MC_VERSION + '-' + FORGE_VERSION + '.jar' }
+        }
         from(project(':javafmllanguage').tasks.jar.outputs) {
             rename { 'data/javafmllanguage-' + MC_VERSION + '-' + FORGE_VERSION + '.jar' }
         }
@@ -1376,7 +1507,7 @@ project(':forge') {
             rename { 'data/libraries-launch.txt' }
         }
 
-        from(generateLibraries)
+//        from(generateLibraries)
 
         from(rootProject.file('server_libs/installertools-1.2.10.jar')) {
             rename { 'data/installertools-1.2.10.jar' }
@@ -1420,9 +1551,8 @@ project(':forge') {
         }
     }
 
-    reobfJar {
-        tool = FART
-        args = ['--input', '{input}', '--output', '{output}', '--map', '{srg}']
+    tasks.register('genAllData') {
+        dependsOn 'forge_data', 'forge_mdk_data', 'forge_test_data'
     }
 
     tasks.eclipse.dependsOn('genEclipseRuns')
@@ -1453,6 +1583,17 @@ task setup() {  //These must be strings so that we can do lazy resolution. Else 
         dependsOn ':fmlonly:extractMapped'
     dependsOn ':forge:extractMapped'
 }
+
+task doChecks {
+    dependsOn ':forge:checkJarCompatibility'
+    dependsOn ':forge:publish'
+}
+
+if (symlinkValid)
+    project.gradle.startParameter.excludedTaskNames.add(':fmlonly:genPatches')
+
+if (!System.env.TEAMCITY_VERSION)
+    project.gradle.startParameter.excludedTaskNames.add(':clean:genPatches')
 
 //Also output FMLOnly when building a version.
 if (System.env.TEAMCITY_VERSION) {

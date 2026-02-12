@@ -4,9 +4,6 @@ import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.commons.lang3.Validate;
-import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.material.MaterialData;
@@ -15,18 +12,27 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Represents a shaped (ie normal) crafting recipe.
  */
-public class ShapedRecipe implements Recipe, Keyed {
-    private final NamespacedKey key;
-    private final ItemStack output;
+public class ShapedRecipe extends CraftingRecipe {
     private String[] rows;
     private Map<Character, RecipeChoice> ingredients = new HashMap<>();
-    private String group = "";
 
+    /**
+     * Create a shaped recipe to craft the specified ItemStack. The
+     * constructor merely determines the result and type; to set the actual
+     * recipe, you'll need to call the appropriate methods.
+     *
+     * @param result The item you want the recipe to create.
+     * @see ShapedRecipe#shape(String...)
+     * @see ShapedRecipe#setIngredient(char, Material)
+     * @see ShapedRecipe#setIngredient(char, Material, int)
+     * @see ShapedRecipe#setIngredient(char, MaterialData)
+     * @see ShapedRecipe#setIngredient(char, RecipeChoice)
+     * @deprecated Recipes must have keys. Use {@link #ShapedRecipe(NamespacedKey, ItemStack)}
+     * instead.
+     */
     @Deprecated
     public ShapedRecipe(@NotNull ItemStack result) {
-        Preconditions.checkArgument(result.getType() != Material.AIR, "Recipe must have non-AIR result.");
-        this.key = NamespacedKey.randomKey();
-        this.output = new ItemStack(result);
+        super(NamespacedKey.randomKey(), result);
     }
 
     /**
@@ -40,13 +46,10 @@ public class ShapedRecipe implements Recipe, Keyed {
      * @see ShapedRecipe#setIngredient(char, Material)
      * @see ShapedRecipe#setIngredient(char, Material, int)
      * @see ShapedRecipe#setIngredient(char, MaterialData)
+     * @see ShapedRecipe#setIngredient(char, RecipeChoice)
      */
     public ShapedRecipe(@NotNull NamespacedKey key, @NotNull ItemStack result) {
-        Preconditions.checkArgument(key != null, "key");
-        Preconditions.checkArgument(result.getType() != Material.AIR, "Recipe must have non-AIR result.");
-
-        this.key = key;
-        this.output = new ItemStack(result);
+        super(key, result);
     }
 
     /**
@@ -62,15 +65,15 @@ public class ShapedRecipe implements Recipe, Keyed {
      */
     @NotNull
     public ShapedRecipe shape(@NotNull final String... shape) {
-        Validate.notNull(shape, "Must provide a shape");
-        Validate.isTrue(shape.length > 0 && shape.length < 4, "Crafting recipes should be 1, 2 or 3 rows, not ", shape.length);
+        Preconditions.checkArgument(shape != null, "Must provide a shape");
+        Preconditions.checkArgument(shape.length > 0 && shape.length < 4, "Crafting recipes should be 1, 2 or 3 rows, not ", shape.length);
 
         int lastLen = -1;
         for (String row : shape) {
-            Validate.notNull(row, "Shape cannot have null rows");
-            Validate.isTrue(row.length() > 0 && row.length() < 4, "Crafting rows should be 1, 2, or 3 characters, not ", row.length());
+            Preconditions.checkArgument(row != null, "Shape cannot have null rows");
+            Preconditions.checkArgument(row.length() > 0 && row.length() < 4, "Crafting rows should be 1, 2, or 3 characters, not ", row.length());
 
-            Validate.isTrue(lastLen == -1 || lastLen == row.length(), "Crafting recipes must be rectangular");
+            Preconditions.checkArgument(lastLen == -1 || lastLen == row.length(), "Crafting recipes must be rectangular");
             lastLen = row.length();
         }
         this.rows = new String[shape.length];
@@ -92,10 +95,14 @@ public class ShapedRecipe implements Recipe, Keyed {
 
     /**
      * Sets the material that a character in the recipe shape refers to.
+     * <p>
+     * Note that before an ingredient can be set, the recipe's shape must be defined
+     * with {@link #shape(String...)}.
      *
      * @param key The character that represents the ingredient in the shape.
      * @param ingredient The ingredient.
      * @return The changed recipe, so you can chain calls.
+     * @throws IllegalArgumentException if the {@code key} does not appear in the shape.
      */
     @NotNull
     public ShapedRecipe setIngredient(char key, @NotNull MaterialData ingredient) {
@@ -104,10 +111,14 @@ public class ShapedRecipe implements Recipe, Keyed {
 
     /**
      * Sets the material that a character in the recipe shape refers to.
+     * <p>
+     * Note that before an ingredient can be set, the recipe's shape must be defined
+     * with {@link #shape(String...)}.
      *
      * @param key The character that represents the ingredient in the shape.
      * @param ingredient The ingredient.
      * @return The changed recipe, so you can chain calls.
+     * @throws IllegalArgumentException if the {@code key} does not appear in the shape.
      */
     @NotNull
     public ShapedRecipe setIngredient(char key, @NotNull Material ingredient) {
@@ -116,17 +127,21 @@ public class ShapedRecipe implements Recipe, Keyed {
 
     /**
      * Sets the material that a character in the recipe shape refers to.
+     * <p>
+     * Note that before an ingredient can be set, the recipe's shape must be defined
+     * with {@link #shape(String...)}.
      *
      * @param key The character that represents the ingredient in the shape.
      * @param ingredient The ingredient.
      * @param raw The raw material data as an integer.
      * @return The changed recipe, so you can chain calls.
+     * @throws IllegalArgumentException if the {@code key} does not appear in the shape.
      * @deprecated Magic value
      */
     @Deprecated
     @NotNull
     public ShapedRecipe setIngredient(char key, @NotNull Material ingredient, int raw) {
-        Validate.isTrue(ingredients.containsKey(key), "Symbol does not appear in the shape:", key);
+        Preconditions.checkArgument(ingredients.containsKey(key), "Symbol does not appear in the shape:", key);
 
         // -1 is the old wildcard, map to Short.MAX_VALUE as the new one
         if (raw == -1) {
@@ -137,9 +152,20 @@ public class ShapedRecipe implements Recipe, Keyed {
         return this;
     }
 
+    /**
+     * Sets the {@link RecipeChoice} that a character in the recipe shape refers to.
+     * <p>
+     * Note that before an ingredient can be set, the recipe's shape must be defined
+     * with {@link #shape(String...)}.
+     *
+     * @param key The character that represents the ingredient in the shape.
+     * @param ingredient The ingredient.
+     * @return The changed recipe, so you can chain calls.
+     * @throws IllegalArgumentException if the {@code key} does not appear in the shape.
+     */
     @NotNull
     public ShapedRecipe setIngredient(char key, @NotNull RecipeChoice ingredient) {
-        Validate.isTrue(ingredients.containsKey(key), "Symbol does not appear in the shape:", key);
+        Preconditions.checkArgument(ingredients.containsKey(key), "Symbol does not appear in the shape:", key);
 
         ingredients.put(key, ingredient);
         return this;
@@ -163,6 +189,11 @@ public class ShapedRecipe implements Recipe, Keyed {
         return result;
     }
 
+    /**
+     * Get a copy of the choice map.
+     *
+     * @return The mapping of character to ingredients.
+     */
     @NotNull
     public Map<Character, RecipeChoice> getChoiceMap() {
         Map<Character, RecipeChoice> result = new HashMap<>();
@@ -185,45 +216,5 @@ public class ShapedRecipe implements Recipe, Keyed {
     @NotNull
     public String[] getShape() {
         return rows.clone();
-    }
-
-    /**
-     * Get the result.
-     *
-     * @return The result stack.
-     */
-    @Override
-    @NotNull
-    public ItemStack getResult() {
-        return output.clone();
-    }
-
-    @NotNull
-    @Override
-    public NamespacedKey getKey() {
-        return key;
-    }
-
-    /**
-     * Get the group of this recipe. Recipes with the same group may be grouped
-     * together when displayed in the client.
-     *
-     * @return recipe group. An empty string denotes no group. May not be null.
-     */
-    @NotNull
-    public String getGroup() {
-        return group;
-    }
-
-    /**
-     * Set the group of this recipe. Recipes with the same group may be grouped
-     * together when displayed in the client.
-     *
-     * @param group recipe group. An empty string denotes no group. May not be
-     * null.
-     */
-    public void setGroup(@NotNull String group) {
-        Preconditions.checkArgument(group != null, "group");
-        this.group = group;
     }
 }

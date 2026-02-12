@@ -1,8 +1,18 @@
 package org.bukkit.block.data;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.SoundGroup;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.BlockSupport;
+import org.bukkit.block.PistonMoveReaction;
+import org.bukkit.block.structure.Mirror;
+import org.bukkit.block.structure.StructureRotation;
+import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -103,4 +113,138 @@ public interface BlockData extends Cloneable {
      */
     @NotNull
     SoundGroup getSoundGroup();
+
+    /**
+     * Get the amount of light emitted by this state when in the world.
+     *
+     * @return the light emission
+     */
+    int getLightEmission();
+
+    /**
+     * Check whether or not this state will occlude other blocks.
+     * <p>
+     * Block state occlusion affects visual features of other blocks (e.g. leaves and
+     * wet sponges will not spawn dripping water particles if an occluding state is
+     * below it), or whether light will pass through it.
+     *
+     * @return true if occluding, false otherwise
+     */
+    boolean isOccluding();
+
+    /**
+     * Check whether or not this state requires a specific item to be used to drop
+     * items when broken. For example, diamond ore requires an iron pickaxe and will
+     * not drop diamonds when broken with a wooden or stone pickaxe.
+     *
+     * @return true if a more specific item is required for drops, false if any item
+     * (or an empty hand) will drop items
+     */
+    boolean requiresCorrectToolForDrops();
+
+    /**
+     * Returns if the given item is a preferred choice to break this Block.
+     *
+     * In some cases this determines if a block will drop anything or extra
+     * loot.
+     *
+     * @param tool The tool or item used for breaking this block
+     * @return true if the tool is preferred for breaking this block.
+     */
+    boolean isPreferredTool(@NotNull ItemStack tool);
+
+    /**
+     * Returns the reaction of the block when moved by a piston
+     *
+     * @return reaction
+     */
+    @NotNull
+    PistonMoveReaction getPistonMoveReaction();
+
+    /**
+     * Checks if this state would be properly supported if it were placed at
+     * the given {@link Block}.
+     * <p>
+     * This may be useful, for instance, to check whether or not a wall torch is
+     * capable of surviving on its neighbouring block states.
+     *
+     * @param block the block position at which the state would be placed
+     * @return true if the block is supported, false if this state would not survive
+     * the world conditions
+     */
+    boolean isSupported(@NotNull Block block);
+
+    /**
+     * Checks if this state would be properly supported if it were placed at
+     * the block at the given {@link Location}.
+     * <p>
+     * This may be useful, for instance, to check whether or not a wall torch is
+     * capable of surviving on its neighbouring block states.
+     *
+     * @param location the location at which the state would be placed
+     *
+     * @return true if the block is supported, false if this state would not survive
+     * the world conditions
+     */
+    boolean isSupported(@NotNull Location location);
+
+    /**
+     * Checks if a state's {@link BlockFace} is capable of providing a given level
+     * of {@link BlockSupport} for neighbouring block states.
+     * <p>
+     * Any given state may support either none, one, or more than one level of block
+     * support depending on its states. A common example would be a wall's ability to support
+     * torches only on the center of the upper block face, whereas a grass block would
+     * support all levels of block support on all block faces.
+     *
+     * @param face the face to check
+     * @param support the possible support level
+     *
+     * @return true if the face is sturdy and can support a block, false otherwise
+     */
+    boolean isFaceSturdy(@NotNull BlockFace face, @NotNull BlockSupport support);
+
+    /**
+     * Gets the material that a player would use to place this block.
+     * <p>
+     * For most blocks this is the same as {@link #getMaterial()} but some blocks
+     * have different materials used to place them.
+     *
+     * For example:
+     * <pre>
+     * {@link Material#REDSTONE_WIRE} -> {@link Material#REDSTONE}
+     * {@link Material#CARROTS} -> {@link Material#CARROT}
+     * </pre>
+     * @return placement material
+     */
+    @NotNull
+    Material getPlacementMaterial();
+
+    /**
+     * Rotates this blockdata by the specified {@link StructureRotation}.
+     * <p>
+     * This has no effect on blocks that do not have any rotatable states.
+     *
+     * @param rotation the rotation
+     */
+    void rotate(@NotNull StructureRotation rotation);
+
+    /**
+     * Mirrors this blockdata using the specified {@link Mirror}.
+     * <p>
+     * This has no effect on blocks that do not have any mirrorable states.
+     *
+     * @param mirror the mirror
+     */
+    void mirror(@NotNull Mirror mirror);
+
+    /**
+     * Creates a new default {@link BlockState} for this type of Block, not
+     * bound to a location.
+     *
+     * @return a new {@link BlockState}
+     */
+    @NotNull
+    @ApiStatus.Experimental
+    BlockState createBlockState();
 }

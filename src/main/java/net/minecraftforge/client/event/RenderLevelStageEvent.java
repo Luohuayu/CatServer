@@ -11,20 +11,31 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.ForgeRenderTypes;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.event.IModBusEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.joml.Matrix4f;
 
 /**
- * Fires at various times during LevelRenderer.renderLevel. 
+ * Fires at various times during LevelRenderer.renderLevel.
  * Check {@link #getStage} to render during the appropriate time for your use case.
+ *
+ * <p>This event is not {@linkplain Cancelable cancellable}, and does not {@linkplain HasResult have a result}. </p>
+ *
+ * <p>This event is fired on the {@linkplain MinecraftForge#EVENT_BUS main Forge event bus},
+ * only on the {@linkplain LogicalSide#CLIENT logical client}. </p>
  */
 public class RenderLevelStageEvent extends Event
 {
@@ -50,7 +61,7 @@ public class RenderLevelStageEvent extends Event
     }
 
     /**
-     * {@return the current {@link Stage} that is being rendered. Check this before doing rendering to ensure
+     * {@return the current {@linkplain Stage stage} that is being rendered. Check this before doing rendering to ensure
      * that rendering happens at the appropriate time.}
      */
     public Stage getStage()
@@ -58,23 +69,32 @@ public class RenderLevelStageEvent extends Event
         return stage;
     }
 
+    /**
+     * {@return the level renderer}
+     */
     public LevelRenderer getLevelRenderer()
     {
         return levelRenderer;
     }
 
+    /**
+     * {@return the pose stack used for rendering}
+     */
     public PoseStack getPoseStack()
     {
         return poseStack;
     }
 
+    /**
+     * {@return the projection matrix}
+     */
     public Matrix4f getProjectionMatrix()
     {
         return projectionMatrix;
     }
 
     /**
-     * {@return the current "ticks" value in {@link LevelRenderer}}
+     * {@return the current "ticks" value in the {@linkplain LevelRenderer level renderer}}
      */
     public int getRenderTick()
     {
@@ -82,28 +102,37 @@ public class RenderLevelStageEvent extends Event
     }
 
     /**
-     * {@return the current partialTick value at the start of LevelRenderer.renderChunkLayer}
+     * {@return the current partialTick value used for rendering}
      */
     public float getPartialTick()
     {
         return partialTick;
     }
 
+    /**
+     * {@return the camera}
+     */
     public Camera getCamera()
     {
         return camera;
     }
 
+    /**
+     * {@return the frustum}
+     */
     public Frustum getFrustum()
     {
         return frustum;
     }
 
     /**
-     * Use to create a custom {@link RenderLevelStageEvent.Stage}s.
+     * Use to create a custom {@linkplain RenderLevelStageEvent.Stage stages}.
      * Fired after the LevelRenderer has been created.
-     * 
-     * Fired on the Mod bus {@link IModBusEvent}
+     *
+     * <p>This event is not {@linkplain Cancelable cancellable}, and does not {@linkplain HasResult have a result}. </p>
+     *
+     * <p>This event is fired on the {@linkplain FMLJavaModLoadingContext#getModEventBus() mod-specific event bus},
+     * only on the {@linkplain LogicalSide#CLIENT logical client}. </p>
      */
     public static class RegisterStageEvent extends Event implements IModBusEvent
     {
@@ -148,6 +177,14 @@ public class RenderLevelStageEvent extends Event
         public static final Stage AFTER_CUTOUT_BLOCKS = register("after_cutout_blocks", RenderType.cutout());
         /**
          * Use this to render custom block-like geometry into the world.
+         */
+        public static final Stage AFTER_ENTITIES = register("after_entities", null);
+        /**
+         * Use this to render custom block-like geometry into the world.
+         */
+        public static final Stage AFTER_BLOCK_ENTITIES = register("after_block_entities", null);
+        /**
+         * Use this to render custom block-like geometry into the world.
          * Due to how transparency sorting works, this stage may not work properly with translucency. If you intend to render translucency,
          * try using {@link #AFTER_TRIPWIRE_BLOCKS} or {@link #AFTER_PARTICLES}.
          * Although this is called within a fabulous graphics target, it does not function properly in many cases.
@@ -161,7 +198,7 @@ public class RenderLevelStageEvent extends Event
          * Use this to render custom effects into the world, such as custom entity-like objects or special rendering effects.
          * Called within a fabulous graphics target.
          * Happens after entities render.
-         * 
+         *
          * @see ForgeRenderTypes#TRANSLUCENT_ON_PARTICLES_TARGET
          */
         public static final Stage AFTER_PARTICLES = register("after_particles", null);
@@ -170,6 +207,11 @@ public class RenderLevelStageEvent extends Event
          * Called within a fabulous graphics target.
          */
         public static final Stage AFTER_WEATHER = register("after_weather", null);
+        /**
+         * Use this to render after everything in the level has been rendered.
+         * Called after {@link LevelRenderer#renderLevel(PoseStack, float, long, boolean, Camera, GameRenderer, LightTexture, Matrix4f)} finishes.
+         */
+        public static final Stage AFTER_LEVEL = register("after_level", null);
 
         private final String name;
 
@@ -198,7 +240,7 @@ public class RenderLevelStageEvent extends Event
         }
 
         /**
-         * {@return the Stage bound to the RenderType, or null if no value is present}
+         * {@return the {@linkplain Stage stage} bound to the {@linkplain RenderType render type}, or null if no value is present}
          */
         @Nullable
         public static Stage fromRenderType(RenderType renderType)

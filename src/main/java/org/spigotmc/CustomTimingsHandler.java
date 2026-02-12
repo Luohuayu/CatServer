@@ -1,17 +1,21 @@
 package org.spigotmc;
 
+import java.io.PrintStream;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.defaults.TimingsCommand;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.PrintStream;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
+/**
+ * Provides custom timing sections for /timings merged.
+ */
 public class CustomTimingsHandler {
+
     private static Queue<CustomTimingsHandler> HANDLERS = new ConcurrentLinkedQueue<CustomTimingsHandler>();
+    /*========================================================================*/
     private final String name;
     private final CustomTimingsHandler parent;
     private long count = 0;
@@ -31,6 +35,11 @@ public class CustomTimingsHandler {
         HANDLERS.add(this);
     }
 
+    /**
+     * Prints the timings and extra data to the given stream.
+     *
+     * @param printStream output stream
+     */
     public static void printTimings(@NotNull PrintStream printStream) {
         printStream.println("Minecraft");
         for (CustomTimingsHandler timings : HANDLERS) {
@@ -40,6 +49,7 @@ public class CustomTimingsHandler {
                 continue;
             }
             long avg = time / count;
+
             printStream.println("    " + timings.name + " Time: " + time + " Count: " + count + " Avg: " + avg + " Violations: " + timings.violations);
         }
         printStream.println("# Version " + Bukkit.getVersion());
@@ -53,6 +63,9 @@ public class CustomTimingsHandler {
         printStream.println("# LivingEntities " + livingEntities);
     }
 
+    /**
+     * Resets all timings.
+     */
     public static void reload() {
         if (Bukkit.getPluginManager().useTimings()) {
             for (CustomTimingsHandler timings : HANDLERS) {
@@ -62,6 +75,10 @@ public class CustomTimingsHandler {
         TimingsCommand.timingStart = System.nanoTime();
     }
 
+    /**
+     * Ticked every tick by CraftBukkit to count the number of times a timer
+     * caused TPS loss.
+     */
     public static void tick() {
         if (Bukkit.getPluginManager().useTimings()) {
             for (CustomTimingsHandler timings : HANDLERS) {
@@ -74,6 +91,9 @@ public class CustomTimingsHandler {
         }
     }
 
+    /**
+     * Starts timing to track a section of code.
+     */
     public void startTiming() {
         // If second condtion fails we are already timing
         if (Bukkit.getPluginManager().useTimings() && ++timingDepth == 1) {
@@ -84,6 +104,9 @@ public class CustomTimingsHandler {
         }
     }
 
+    /**
+     * Stops timing a section of code.
+     */
     public void stopTiming() {
         if (Bukkit.getPluginManager().useTimings()) {
             if (--timingDepth != 0 || start == 0) {
@@ -100,6 +123,9 @@ public class CustomTimingsHandler {
         }
     }
 
+    /**
+     * Reset this timer, setting all values to zero.
+     */
     public void reset() {
         count = 0;
         violations = 0;

@@ -12,9 +12,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
+import joptsimple.util.PathConverter;
 import org.fusesource.jansi.AnsiConsole;
-import net.minecrell.terminalconsole.TerminalConsoleAppender;
 
 public class Main {
     public static boolean useJline = true;
@@ -58,6 +57,15 @@ public class Main {
                         .withRequiredArg()
                         .ofType(Integer.class)
                         .describedAs("Port");
+
+                accepts("serverId", "Server ID")
+                        .withRequiredArg();
+
+                accepts("jfrProfile", "Enable JFR profiling");
+
+                accepts("pidFile", "pid File")
+                        .withRequiredArg()
+                        .withValuesConvertedBy(new PathConverter());
 
                 acceptsAll(asList("o", "online-mode"), "Whether to use online authentication")
                         .withRequiredArg()
@@ -124,6 +132,8 @@ public class Main {
 
                 acceptsAll(asList("demo"), "Demo mode");
 
+                acceptsAll(asList("initSettings"), "Only create configuration files and then exit"); // SPIGOT-5761: Add initSettings option
+
                 // Spigot Start
                 acceptsAll(asList("S", "spigot-settings"), "File for spigot settings")
                         .withRequiredArg()
@@ -149,7 +159,7 @@ public class Main {
                 Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
             }
         } else if (options.has("v")) {
-            System.out.println(CraftServer.class.getPackage().getImplementationVersion());
+            System.out.println(org.bukkit.craftbukkit.v1_20_R1.CraftServer.class.getPackage().getImplementationVersion());
         } else {
             // Do you love Java using + and ! as string based identifiers? I sure do!
             String path = new File(".").getAbsolutePath();
@@ -163,21 +173,30 @@ public class Main {
                 System.err.println("Unsupported Java detected (" + javaVersion + "). This version of Minecraft requires at least Java 17. Check your Java version with the command 'java -version'.");
                 return;
             }
-            if (javaVersion > 62.0) {
-                System.err.println("Unsupported Java detected (" + javaVersion + "). Only up to Java 18 is supported.");
+            if (javaVersion > 65.0) {
+                System.err.println("Unsupported Java detected (" + javaVersion + "). Only up to Java 21 is supported.");
+                return;
+            }
+            String javaVersionName = System.getProperty("java.version");
+            // J2SE SDK/JRE Version String Naming Convention
+            boolean isPreRelease = javaVersionName.contains("-");
+            if (isPreRelease && javaVersion == 61.0) {
+                System.err.println("Unsupported Java detected (" + javaVersionName + "). You are running an outdated, pre-release version. Only general availability versions of Java are supported. Please update your Java version.");
                 return;
             }
 
+            // CatServer start
             if (options.has("nojline")) {
-                System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
+                System.setProperty(net.minecrell.terminalconsole.TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
                 useJline = false;
             }
 
             if (options.has("noconsole")) {
                 useConsole = false;
                 useJline = false;
-                System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
+                System.setProperty(net.minecrell.terminalconsole.TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false");
             }
+            // CatServer end
         }
     }
 
