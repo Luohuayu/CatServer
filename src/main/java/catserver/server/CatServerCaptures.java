@@ -17,7 +17,7 @@ public class CatServerCaptures {
     private Entity entity = null;
     private ItemEntity itemEntity = null;
     private CreatureSpawnEvent.SpawnReason spawnReason = null;
-    private CreatureSpawnEvent.SpawnReason NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+    private CreatureSpawnEvent.SpawnReason ServerLevelAccessor$addFreshEntityWithPassengers$reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
     private boolean doPlace = true;
     private int createPortalRadius = 16;
     private BlockPos blockPos = null;
@@ -205,13 +205,13 @@ public class CatServerCaptures {
         return result;
     }
 
-    public void captureNaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason(CreatureSpawnEvent.SpawnReason NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason) {
-        this.NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason = NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason;
+    public void captureServerLevelAccessor$addFreshEntityWithPassengers$reason(CreatureSpawnEvent.SpawnReason NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason) {
+        this.ServerLevelAccessor$addFreshEntityWithPassengers$reason = NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason;
     }
 
-    public CreatureSpawnEvent.SpawnReason getCaptureNaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason() {
-        var result = this.NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason;
-        this.NaturalSpawner$spawnCategoryForPosition$addFreshEntityWithPassengers$reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+    public CreatureSpawnEvent.SpawnReason getCaptureServerLevelAccessor$addFreshEntityWithPassengers$reason() {
+        var result = this.ServerLevelAccessor$addFreshEntityWithPassengers$reason;
+        this.ServerLevelAccessor$addFreshEntityWithPassengers$reason = CreatureSpawnEvent.SpawnReason.DEFAULT;
         return result;
     }
 }
