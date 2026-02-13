@@ -1,7 +1,7 @@
 package catserver.server.bukkit;
 
 import net.minecraft.world.item.enchantment.Enchantment;
-import org.bukkit.craftbukkit.v1_18_R2.enchantments.CraftEnchantment;
+import org.bukkit.craftbukkit.v1_20_R1.enchantments.CraftEnchantment;
 import org.jetbrains.annotations.NotNull;
 
 public class CraftCustomEnchantment extends CraftEnchantment {

@@ -6,18 +6,23 @@
 package net.minecraftforge.common.util;
 
 import com.mojang.authlib.GameProfile;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-import net.minecraft.core.BlockPos;
+import java.util.Set;
+import javax.annotation.ParametersAreNonnullByDefault;
 import net.minecraft.network.Connection;
+import net.minecraft.network.PacketSendListener;
+import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundBlockEntityTagQuery;
 import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
+import net.minecraft.network.protocol.game.ServerboundChatAckPacket;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
+import net.minecraft.network.protocol.game.ServerboundChatSessionUpdatePacket;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
 import net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket;
@@ -64,16 +69,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.stats.Stat;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.server.ServerLifecycleHooks;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.Set;
-import java.util.UUID;
-
-//Preliminary, simple Fake Player class
+/**
+ * A basic fake server player implementation that can be used to simulate player actions.
+ */
 public class FakePlayer extends ServerPlayer
 {
     public FakePlayer(ServerLevel level, GameProfile name)
@@ -82,17 +85,13 @@ public class FakePlayer extends ServerPlayer
         this.connection = new FakePlayerNetHandler(level.getServer(), this);
     }
 
-    @Override public Vec3 position(){ return new Vec3(0, 0, 0); }
-    @Override public BlockPos blockPosition(){ return BlockPos.ZERO; }
-    @Override public void displayClientMessage(Component chatComponent, boolean actionBar){}
-    @Override public void sendMessage(Component component, UUID senderUUID) {}
-    @Override public void awardStat(Stat par1StatBase, int par2){}
-    //@Override public void openGui(Object mod, int modGuiId, World world, int x, int y, int z){}
-    @Override public boolean isInvulnerableTo(DamageSource source){ return true; }
-    @Override public boolean canHarmPlayer(Player player){ return false; }
-    @Override public void die(DamageSource source){ return; }
-    @Override public void tick(){ return; }
-    @Override public void updateOptions(ServerboundClientInformationPacket pkt){ return; }
+    @Override public void displayClientMessage(Component chatComponent, boolean actionBar) { }
+    @Override public void awardStat(Stat stat, int amount) { }
+    @Override public boolean isInvulnerableTo(DamageSource source) { return true; }
+    @Override public boolean canHarmPlayer(Player player) { return false; }
+    @Override public void die(DamageSource source) { }
+    @Override public void tick() { }
+    @Override public void updateOptions(ServerboundClientInformationPacket packet) { }
     @Override @Nullable public MinecraftServer getServer() { return ServerLifecycleHooks.getCurrentServer(); }
 
     @ParametersAreNonnullByDefault
@@ -127,7 +126,6 @@ public class FakePlayer extends ServerPlayer
         @Override public void handleBlockEntityTagQuery(ServerboundBlockEntityTagQuery packet) { }
         @Override public void handleMovePlayer(ServerboundMovePlayerPacket packet) { }
         @Override public void teleport(double x, double y, double z, float yaw, float pitch) { }
-        @Override public void teleport(double x, double y, double z, float yaw, float pitch, Set<ClientboundPlayerPositionPacket.RelativeArgument> flags) { }
         @Override public void handlePlayerAction(ServerboundPlayerActionPacket packet) { }
         @Override public void handleUseItemOn(ServerboundUseItemOnPacket packet) { }
         @Override public void handleUseItem(ServerboundUseItemPacket packet) { }
@@ -136,7 +134,7 @@ public class FakePlayer extends ServerPlayer
         @Override public void handlePaddleBoat(ServerboundPaddleBoatPacket packet) { }
         @Override public void onDisconnect(Component message) { }
         @Override public void send(Packet<?> packet) { }
-        @Override public void send(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> listener) { }
+        @Override public void send(Packet<?> packet, @Nullable PacketSendListener sendListener) { }
         @Override public void handleSetCarriedItem(ServerboundSetCarriedItemPacket packet) { }
         @Override public void handleChat(ServerboundChatPacket packet) { }
         @Override public void handleAnimate(ServerboundSwingPacket packet) { }
@@ -155,5 +153,13 @@ public class FakePlayer extends ServerPlayer
         @Override public void handleCustomPayload(ServerboundCustomPayloadPacket packet) { }
         @Override public void handleChangeDifficulty(ServerboundChangeDifficultyPacket packet) { }
         @Override public void handleLockDifficulty(ServerboundLockDifficultyPacket packet) { }
+        @Override public void teleport(double x, double y, double z, float yaw, float pitch, Set<RelativeMovement> relativeSet) { }
+        @Override public void ackBlockChangesUpTo(int sequence) { }
+        @Override public void handleChatCommand(ServerboundChatCommandPacket packet) { }
+        @Override public void handleChatAck(ServerboundChatAckPacket packet) { }
+        @Override public void addPendingMessage(PlayerChatMessage message) { }
+        @Override public void sendPlayerChatMessage(PlayerChatMessage message, ChatType.Bound boundChatType) { }
+        @Override public void sendDisguisedChatMessage(Component content, ChatType.Bound boundChatType) { }
+        @Override public void handleChatSessionUpdate(ServerboundChatSessionUpdatePacket packet) { }
     }
 }

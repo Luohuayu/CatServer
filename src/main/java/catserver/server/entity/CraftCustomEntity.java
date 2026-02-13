@@ -4,8 +4,8 @@ import catserver.server.BukkitInjector;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import org.apache.logging.log4j.util.Strings;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftEntity;
 import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
 

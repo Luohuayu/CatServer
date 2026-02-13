@@ -1,35 +1,36 @@
 --- a/net/minecraft/world/level/chunk/ChunkAccess.java
 +++ b/net/minecraft/world/level/chunk/ChunkAccess.java
-@@ -71,13 +_,18 @@
+@@ -71,14 +_,19 @@
     protected final UpgradeData f_187606_;
     @Nullable
     protected BlendingData f_187607_;
 -   protected final Map<Heightmap.Types, Heightmap> f_187608_ = Maps.newEnumMap(Heightmap.Types.class);
-+   public final Map<Heightmap.Types, Heightmap> f_187608_ = Maps.newEnumMap(Heightmap.Types.class);
-    private final Map<ConfiguredStructureFeature<?, ?>, StructureStart> f_187617_ = Maps.newHashMap();
-    private final Map<ConfiguredStructureFeature<?, ?>, LongSet> f_187618_ = Maps.newHashMap();
++   public final Map<Heightmap.Types, Heightmap> f_187608_ = Maps.newEnumMap(Heightmap.Types.class); // CatServer - protected -> public
+    protected ChunkSkyLightSources f_283754_;
+    private final Map<Structure, StructureStart> f_187617_ = Maps.newHashMap();
+    private final Map<Structure, LongSet> f_187618_ = Maps.newHashMap();
     protected final Map<BlockPos, CompoundTag> f_187609_ = Maps.newHashMap();
 -   protected final Map<BlockPos, BlockEntity> f_187610_ = Maps.newHashMap();
-+   public final Map<BlockPos, BlockEntity> f_187610_ = Maps.newHashMap();
++   public final Map<BlockPos, BlockEntity> f_187610_ = Maps.newHashMap(); // CatServer - protected -> public
     protected final LevelHeightAccessor f_187611_;
     protected final LevelChunkSection[] f_187612_;
 +   // CraftBukkit start - SPIGOT-6814: move to IChunkAccess to account for 1.17 to 1.18 chunk upgrading.
-+   private static final org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry();
-+   public org.bukkit.craftbukkit.v1_18_R2.persistence.DirtyCraftPersistentDataContainer persistentDataContainer = new org.bukkit.craftbukkit.v1_18_R2.persistence.DirtyCraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++   private static final org.bukkit.craftbukkit.v1_20_R1.persistence.CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new org.bukkit.craftbukkit.v1_20_R1.persistence.CraftPersistentDataTypeRegistry();
++   public org.bukkit.craftbukkit.v1_20_R1.persistence.DirtyCraftPersistentDataContainer persistentDataContainer = new org.bukkit.craftbukkit.v1_20_R1.persistence.DirtyCraftPersistentDataContainer(DATA_TYPE_REGISTRY);
 +   public final Registry<Biome> biomeRegistry;
 +   // CraftBukkit end
  
     public ChunkAccess(ChunkPos p_187621_, UpgradeData p_187622_, LevelHeightAccessor p_187623_, Registry<Biome> p_187624_, long p_187625_, @Nullable LevelChunkSection[] p_187626_, @Nullable BlendingData p_187627_) {
        this.f_187604_ = p_187621_;
-@@ -96,6 +_,7 @@
+@@ -98,6 +_,7 @@
        }
  
-       m_187634_(p_187623_, p_187624_, this.f_187612_);
-+      this.biomeRegistry = p_187624_;
+       m_280116_(p_187624_, this.f_187612_);
++      this.biomeRegistry = p_187624_; // CraftBukkit
     }
  
-    private static void m_187634_(LevelHeightAccessor p_187635_, Registry<Biome> p_187636_, LevelChunkSection[] p_187637_) {
-@@ -248,11 +_,29 @@
+    private static void m_280116_(Registry<Biome> p_281389_, LevelChunkSection[] p_282796_) {
+@@ -253,11 +_,29 @@
  
     public void m_8092_(boolean p_62094_) {
        this.f_187603_ = p_62094_;
@@ -61,7 +62,43 @@
  
     public abstract ChunkStatus m_6415_();
  
-@@ -411,4 +_,7 @@
+@@ -299,25 +_,30 @@
+    public abstract CompoundTag m_8051_(BlockPos p_62104_);
+ 
+    public final void m_284254_(BiConsumer<BlockPos, BlockState> p_285269_) {
+-      this.m_284478_((p_284897_) -> {
+-         return p_284897_.m_60791_() != 0;
++      this.findBlocks((p_284897_, pos) -> {
++         return p_284897_.getLightEmission(this, pos) != 0;
+       }, p_285269_);
+    }
+ 
+    public void m_284478_(Predicate<BlockState> p_285343_, BiConsumer<BlockPos, BlockState> p_285030_) {
++      findBlocks((state, pos) -> p_285343_.test(state), p_285030_);
++   }
++
++   public void findBlocks(java.util.function.BiPredicate<BlockState, BlockPos> p_285343_, BiConsumer<BlockPos, BlockState> p_285030_) {
+       BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
+ 
+       for(int i = this.m_151560_(); i < this.m_151561_(); ++i) {
+          LevelChunkSection levelchunksection = this.m_183278_(this.m_151566_(i));
+-         if (levelchunksection.m_63002_(p_285343_)) {
++         if (levelchunksection.m_63002_((state) -> p_285343_.test(state, BlockPos.f_121853_))) {
+             BlockPos blockpos = SectionPos.m_123196_(this.f_187604_, i).m_123249_();
+ 
+             for(int j = 0; j < 16; ++j) {
+                for(int k = 0; k < 16; ++k) {
+                   for(int l = 0; l < 16; ++l) {
+                      BlockState blockstate = levelchunksection.m_62982_(l, j, k);
+-                     if (p_285343_.test(blockstate)) {
+-                        p_285030_.accept(blockpos$mutableblockpos.m_122154_(blockpos, l, j, k), blockstate);
++                     blockpos$mutableblockpos.m_122154_(blockpos, l, j, k);
++                     if (p_285343_.test(blockstate, blockpos$mutableblockpos.m_7949_())) {
++                        p_285030_.accept(blockpos$mutableblockpos, blockstate);
+                      }
+                   }
+                }
+@@ -463,4 +_,7 @@
  
     public static record TicksToSave(SerializableTickContainer<Block> f_187680_, SerializableTickContainer<Fluid> f_187681_) {
     }

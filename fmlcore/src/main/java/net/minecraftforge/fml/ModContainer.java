@@ -9,6 +9,8 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.config.IConfigEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.IModBusEvent;
+import net.minecraftforge.fml.loading.moddiscovery.ModFileInfo;
+import net.minecraftforge.fml.loading.progress.ProgressMeter;
 import net.minecraftforge.forgespi.language.IModInfo;
 
 import java.util.EnumMap;
@@ -58,11 +60,12 @@ public abstract class ModContainer
         this.modInfo = info;
         this.modLoadingStage = ModLoadingStage.CONSTRUCT;
 
-        final String displayTestString = info.getConfig().<String>getConfigElement("displayTest").orElse("MATCH_VERSION"); // missing defaults to DEFAULT type
+        final String displayTestString = info.getConfig().<String>getConfigElement("displayTest")
+                .orElseGet(() -> (Boolean) info.getOwningFile().getFileProperties().getOrDefault(ModFileInfo.CLIENT_SIDE_ONLY_PROP, Boolean.FALSE) ? "IGNORE_ALL_VERSION" : "MATCH_VERSION");
         Supplier<IExtensionPoint.DisplayTest> displayTestSupplier = switch (displayTestString) {
             case "MATCH_VERSION" -> // default displaytest checks for version string match
                     () -> new IExtensionPoint.DisplayTest(() -> this.modInfo.getVersion().toString(),
-                            (incoming, isNetwork) -> Objects.equals(incoming, this.modInfo.getVersion().toString()));
+                        (incoming, isNetwork) -> Objects.equals(incoming, this.modInfo.getVersion().toString()));
             case "IGNORE_SERVER_VERSION" -> // Ignores any version information coming from the server - use for server only mods
                     IExtensionPoint.DisplayTest.IGNORE_SERVER_VERSION;
             case "IGNORE_ALL_VERSION" -> // Ignores all information and provides no information
@@ -114,6 +117,7 @@ public abstract class ModContainer
     public static <T extends Event & IModBusEvent> CompletableFuture<Void> buildTransitionHandler(
             final ModContainer target,
             final IModStateTransition.EventGenerator<T> eventGenerator,
+            final ProgressMeter progressBar,
             final BiFunction<ModLoadingStage, Throwable, ModLoadingStage> stateChangeHandler,
             final Executor executor) {
         return CompletableFuture
@@ -124,6 +128,7 @@ public abstract class ModContainer
                 }, executor)
                 .whenComplete((mc, exception) -> {
                     target.modLoadingStage = stateChangeHandler.apply(target.modLoadingStage, exception);
+                    progressBar.increment();
                     ModLoadingContext.get().setActiveContainer(null);
                 });
     }

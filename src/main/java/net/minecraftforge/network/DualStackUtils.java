@@ -6,6 +6,7 @@
 package net.minecraftforge.network;
 
 import com.mojang.logging.LogUtils;
+import com.google.common.net.InetAddresses;
 import net.minecraft.client.multiplayer.resolver.ResolvedServerAddress;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.multiplayer.resolver.ServerNameResolver;
@@ -14,7 +15,15 @@ import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
-import java.net.*;
+import java.net.Inet4Address;
+import net.minecraftforge.common.ForgeConfig;
+
+import javax.annotation.Nullable;
+import java.net.SocketAddress;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Optional;
 
 public class DualStackUtils
@@ -106,7 +115,7 @@ public class DualStackUtils
             return false;
         }
     }
-    
+
     /**
      * Get the device's local IP address, taking into account scenarios where the client's network adapter
      * supports IPv6 and has it enabled but the router's LAN does not.
@@ -145,5 +154,27 @@ public class DualStackUtils
     public static void logInitialPreferences() {
         LOGGER.debug("Initial IPv4 stack preference: " + INITIAL_PREFER_IPv4_STACK);
         LOGGER.debug("Initial IPv6 addresses preference: " + INITIAL_PREFER_IPv6_ADDRESSES);
+    }
+
+    /**
+     * {@link SocketAddress#toString()} but with IPv6 address compression support
+     */
+    public static String getAddressString(final SocketAddress address) {
+        if (address instanceof final InetSocketAddress inetAddress) {
+            String formatted;
+            if (inetAddress.isUnresolved()) {
+                formatted = inetAddress.getHostName() + "/<unresolved>";
+            } else {
+                formatted = InetAddresses.toAddrString(inetAddress.getAddress());
+                if (inetAddress.getAddress() instanceof Inet6Address)
+                    formatted = '[' + formatted + ']';
+
+                formatted = '/' + formatted;
+            }
+
+            return formatted + ':' + inetAddress.getPort();
+        }
+
+        return address.toString();
     }
 }

@@ -1,6 +1,7 @@
 package org.bukkit;
 
 import java.util.Collection;
+import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
@@ -10,7 +11,11 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents a chunk of blocks
+ * Represents a chunk of blocks.
+ *
+ * If the chunk is not yet fully generated and data is requested from the chunk,
+ * then the chunk will only be generated as far as it needs to provide the
+ * requested data.
  */
 public interface Chunk extends PersistentDataHolder {
 
@@ -92,6 +97,13 @@ public interface Chunk extends PersistentDataHolder {
      */
     @NotNull
     BlockState[] getTileEntities();
+
+    /**
+     * Checks if the chunk is fully generated.
+     *
+     * @return True if it is fully generated.
+     */
+    boolean isGenerated();
 
     /**
      * Checks if the chunk is loaded.
@@ -212,7 +224,8 @@ public interface Chunk extends PersistentDataHolder {
     /**
      * Gets the amount of time in ticks that this chunk has been inhabited.
      *
-     * Note that the time is incremented once per tick per player in the chunk.
+     * Note that the time is incremented once per tick per player within mob
+     * spawning distance of this chunk.
      *
      * @return inhabited time
      */
@@ -232,4 +245,48 @@ public interface Chunk extends PersistentDataHolder {
      * @return if the block is contained within
      */
     boolean contains(@NotNull BlockData block);
+
+    /**
+     * Tests if this chunk contains the specified biome.
+     *
+     * @param biome biome to test
+     * @return if the biome is contained within
+     */
+    boolean contains(@NotNull Biome biome);
+
+    /**
+     * Gets the load level of this chunk, which determines what game logic is
+     * processed.
+     *
+     * @return the load level
+     */
+    @NotNull
+    LoadLevel getLoadLevel();
+
+    /**
+     * An enum to specify the load level of a chunk.
+     */
+    public enum LoadLevel {
+
+        /**
+         * No game logic is processed, world generation may still occur.
+         */
+        INACCESSIBLE,
+        /**
+         * Most game logic is not processed, including entities and redstone.
+         */
+        BORDER,
+        /**
+         * All game logic except entities is processed.
+         */
+        TICKING,
+        /**
+         * All game logic is processed.
+         */
+        ENTITY_TICKING,
+        /**
+         * This chunk is not loaded.
+         */
+        UNLOADED;
+    }
 }

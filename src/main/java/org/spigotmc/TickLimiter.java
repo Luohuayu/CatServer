@@ -1,6 +1,7 @@
 package org.spigotmc;
 
 public class TickLimiter {
+
     private final int maxTime;
     private long startTime;
 

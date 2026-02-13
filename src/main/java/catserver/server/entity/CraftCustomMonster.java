@@ -1,8 +1,8 @@
 package catserver.server.entity;
 
 import catserver.server.BukkitInjector;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftMonster;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftMonster;
 import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
 

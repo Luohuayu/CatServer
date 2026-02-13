@@ -1,8 +1,13 @@
 package org.bukkit.entity;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.UUID;
-
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Map;
+import org.bukkit.BanEntry;
 import org.bukkit.DyeColor;
 import org.bukkit.Effect;
 import org.bukkit.GameMode;
@@ -19,19 +24,27 @@ import org.bukkit.WeatherType;
 import org.bukkit.WorldBorder;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
+import org.bukkit.ban.IpBanList;
+import org.bukkit.ban.ProfileBanList;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
+import org.bukkit.block.TileState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.sign.Side;
 import org.bukkit.conversations.Conversable;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
+import org.bukkit.event.player.PlayerExpCooldownChangeEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.map.MapView;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.PluginMessageRecipient;
+import org.bukkit.profile.PlayerProfile;
 import org.bukkit.scoreboard.Scoreboard;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,6 +52,13 @@ import org.jetbrains.annotations.Nullable;
  * Represents a player, connected or not
  */
 public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginMessageRecipient {
+
+    /**
+     * {@inheritDoc}
+     */
+    @NotNull
+    @Override
+    public String getName();
 
     /**
      * Gets the "friendly" name to display of this player. This may include
@@ -156,6 +176,102 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @param message kick message
      */
     public void kickPlayer(@Nullable String message);
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires date for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Date expires, @Nullable String source, boolean kickPlayer);
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires date for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Instant expires, @Nullable String source, boolean kickPlayer);
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param duration the duration how long the ban lasts, or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Duration duration, @Nullable String source, boolean kickPlayer);
+
+    /**
+     * Adds this user's current IP address to the {@link IpBanList}. If a previous ban exists, this will
+     * update the entry. If {@link #getAddress()} is null this method will throw an exception.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires date for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<InetAddress> banIp(@Nullable String reason, @Nullable Date expires, @Nullable String source, boolean kickPlayer);
+
+    /**
+     * Adds this user's current IP address to the {@link IpBanList}. If a previous ban exists, this will
+     * update the entry. If {@link #getAddress()} is null this method will throw an exception.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires date for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<InetAddress> banIp(@Nullable String reason, @Nullable Instant expires, @Nullable String source, boolean kickPlayer);
+
+    /**
+     * Adds this user's current IP address to the {@link IpBanList}. If a previous ban exists, this will
+     * update the entry. If {@link #getAddress()} is null this method will throw an exception.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param duration the duration how long the ban lasts, or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @param kickPlayer if the player need to be kick
+     *
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<InetAddress> banIp(@Nullable String reason, @Nullable Duration duration, @Nullable String source, boolean kickPlayer);
 
     /**
      * Says a message (or runs a command).
@@ -318,10 +434,10 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * sound will be heard by the player if their client does not have the
      * respective sound for the value passed.
      *
-     * @param location the location to play the sound
-     * @param sound the internal sound name to play
-     * @param volume the volume of the sound
-     * @param pitch the pitch of the sound
+     * @param location The location to play the sound
+     * @param sound The internal sound name to play
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
      */
     public void playSound(@NotNull Location location, @NotNull String sound, float volume, float pitch);
 
@@ -345,11 +461,11 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * will be heard by the player if their client does not have the respective
      * sound for the value passed.
      *
-     * @param location the location to play the sound
-     * @param sound the internal sound name to play
+     * @param location The location to play the sound
+     * @param sound The internal sound name to play
      * @param category The category of the sound
-     * @param volume the volume of the sound
-     * @param pitch the pitch of the sound
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
      */
     public void playSound(@NotNull Location location, @NotNull String sound, @NotNull SoundCategory category, float volume, float pitch);
 
@@ -372,11 +488,36 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      *
      * @param entity The entity to play the sound
      * @param sound The sound to play
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
+     */
+    public void playSound(@NotNull Entity entity, @NotNull String sound, float volume, float pitch);
+
+    /**
+     * Play a sound for a player at the location of the entity.
+     * <p>
+     * This function will fail silently if Entity or Sound are null.
+     *
+     * @param entity The entity to play the sound
+     * @param sound The sound to play
      * @param category The category of the sound
      * @param volume The volume of the sound
      * @param pitch The pitch of the sound
      */
     public void playSound(@NotNull Entity entity, @NotNull Sound sound, @NotNull SoundCategory category, float volume, float pitch);
+
+    /**
+     * Play a sound for a player at the location of the entity.
+     * <p>
+     * This function will fail silently if Entity or Sound are null.
+     *
+     * @param entity The entity to play the sound
+     * @param sound The sound to play
+     * @param category The category of the sound
+     * @param volume The volume of the sound
+     * @param pitch The pitch of the sound
+     */
+    public void playSound(@NotNull Entity entity, @NotNull String sound, @NotNull SoundCategory category, float volume, float pitch);
 
     /**
      * Stop the specified sound from playing.
@@ -407,6 +548,13 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @param category the category of the sound
      */
     public void stopSound(@NotNull String sound, @Nullable SoundCategory category);
+
+    /**
+     * Stop the specified sound category from playing.
+     *
+     * @param category the sound category to stop
+     */
+    public void stopSound(@NotNull SoundCategory category);
 
     /**
      * Stop all sounds from playing.
@@ -480,8 +628,53 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
     public void sendBlockChange(@NotNull Location loc, @NotNull BlockData block);
 
     /**
-     * Send block damage. This fakes block break progress for a user at a
-     * certain location. This will not actually change the block's break
+     * Send a multi-block change. This fakes a block change packet for a user
+     * at multiple locations. This will not actually change the world in any
+     * way.
+     * <p>
+     * This method may send multiple packets to the client depending on the
+     * blocks in the collection. A packet must be sent for each chunk section
+     * modified, meaning one packet for each 16x16x16 block area. Even if only
+     * one block is changed in two different chunk sections, two packets will
+     * be sent.
+     * <p>
+     * Additionally, this method cannot guarantee the functionality of changes
+     * being sent to the player in chunks not loaded by the client. It is the
+     * responsibility of the caller to ensure that the client is within range
+     * of the changed blocks or to handle any side effects caused as a result.
+     *
+     * @param blocks the block states to send to the player
+     */
+    public void sendBlockChanges(@NotNull Collection<BlockState> blocks);
+
+    /**
+     * Send a multi-block change. This fakes a block change packet for a user
+     * at multiple locations. This will not actually change the world in any
+     * way.
+     * <p>
+     * This method may send multiple packets to the client depending on the
+     * blocks in the collection. A packet must be sent for each chunk section
+     * modified, meaning one packet for each 16x16x16 block area. Even if only
+     * one block is changed in two different chunk sections, two packets will
+     * be sent.
+     * <p>
+     * Additionally, this method cannot guarantee the functionality of changes
+     * being sent to the player in chunks not loaded by the client. It is the
+     * responsibility of the caller to ensure that the client is within range
+     * of the changed blocks or to handle any side effects caused as a result.
+     *
+     * @param blocks the block states to send to the player
+     * @param suppressLightUpdates whether or not light updates should be
+     * suppressed when updating the blocks on the client
+     * @deprecated suppressLightUpdates is not functional in versions greater
+     * than 1.19.4
+     */
+    @Deprecated
+    public void sendBlockChanges(@NotNull Collection<BlockState> blocks, boolean suppressLightUpdates);
+
+    /**
+     * Send block damage. This fakes block break progress at a certain location
+     * sourced by this player. This will not actually change the block's break
      * progress in any way.
      *
      * @param loc the location of the damaged block
@@ -491,25 +684,71 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
     public void sendBlockDamage(@NotNull Location loc, float progress);
 
     /**
-     * Send the equipment change of an entity. This fakes the equipment change
-     * of an entity for a user. This will not actually change the inventory of
-     * the specified entity in any way.
+     * Send block damage. This fakes block break progress at a certain location
+     * sourced by the provided entity. This will not actually change the block's
+     * break progress in any way.
+     * <p>
+     * At the same location for each unique damage source sent to the player, a
+     * separate damage overlay will be displayed with the given progress. This allows
+     * for block damage at different progress from multiple entities at once.
      *
-     * @param entity The entity that the player will see the change for
-     * @param slot The slot of the spoofed equipment change
-     * @param item The ItemStack to display for the player
+     * @param loc the location of the damaged block
+     * @param progress the progress from 0.0 - 1.0 where 0 is no damage and
+     * 1.0 is the most damaged
+     * @param source the entity to which the damage belongs
      */
-    public void sendEquipmentChange(@NotNull LivingEntity entity, @NotNull EquipmentSlot slot, @NotNull ItemStack item);
+    public void sendBlockDamage(@NotNull Location loc, float progress, @NotNull Entity source);
+
+    /**
+     * Send block damage. This fakes block break progress at a certain location
+     * sourced by the provided entity id. This will not actually change the block's
+     * break progress in any way.
+     * <p>
+     * At the same location for each unique damage source sent to the player, a
+     * separate damage overlay will be displayed with the given progress. This allows
+     * for block damage at different progress from multiple entities at once.
+     *
+     * @param loc the location of the damaged block
+     * @param progress the progress from 0.0 - 1.0 where 0 is no damage and
+     * 1.0 is the most damaged
+     * @param sourceId the entity id of the entity to which the damage belongs.
+     * Can be an id that does not associate directly with an existing or loaded entity.
+     */
+    public void sendBlockDamage(@NotNull Location loc, float progress, int sourceId);
+
+    /**
+     * Send an equipment change for the target entity. This will not
+     * actually change the entity's equipment in any way.
+     *
+     * @param entity the entity whose equipment to change
+     * @param slot the slot to change
+     * @param item the item to which the slot should be changed, or null to set
+     * it to air
+     */
+    public void sendEquipmentChange(@NotNull LivingEntity entity, @NotNull EquipmentSlot slot, @Nullable ItemStack item);
+
+    /**
+     * Send multiple equipment changes for the target entity. This will not
+     * actually change the entity's equipment in any way.
+     *
+     * @param entity the entity whose equipment to change
+     * @param items the slots to change, where the values are the items to which
+     * the slot should be changed. null values will set the slot to air
+     */
+    public void sendEquipmentChange(@NotNull LivingEntity entity, @NotNull Map<EquipmentSlot, ItemStack> items);
 
     /**
      * Send a sign change. This fakes a sign change packet for a user at
      * a certain location. This will not actually change the world in any way.
      * This method will use a sign at the location's block or a faked sign
      * sent via
-     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.Material, byte)}.
+     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.block.data.BlockData)}.
      * <p>
      * If the client does not have a sign at the given location it will
      * display an error message to the user.
+     * <p>
+     * To change all attributes of a sign, including the back Side, use
+     * {@link #sendBlockUpdate(org.bukkit.Location, org.bukkit.block.TileState)}.
      *
      * @param loc the location of the sign
      * @param lines the new text on the sign or null to clear it
@@ -523,10 +762,13 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * a certain location. This will not actually change the world in any way.
      * This method will use a sign at the location's block or a faked sign
      * sent via
-     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.Material, byte)}.
+     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.block.data.BlockData)}.
      * <p>
      * If the client does not have a sign at the given location it will
      * display an error message to the user.
+     * <p>
+     * To change all attributes of a sign, including the back Side, use
+     * {@link #sendBlockUpdate(org.bukkit.Location, org.bukkit.block.TileState)}.
      *
      * @param loc the location of the sign
      * @param lines the new text on the sign or null to clear it
@@ -542,10 +784,13 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * a certain location. This will not actually change the world in any way.
      * This method will use a sign at the location's block or a faked sign
      * sent via
-     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.Material, byte)}.
+     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.block.data.BlockData)}.
      * <p>
      * If the client does not have a sign at the given location it will
      * display an error message to the user.
+     * <p>
+     * To change all attributes of a sign, including the back Side, use
+     * {@link #sendBlockUpdate(org.bukkit.Location, org.bukkit.block.TileState)}.
      *
      * @param loc the location of the sign
      * @param lines the new text on the sign or null to clear it
@@ -558,6 +803,26 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
     public void sendSignChange(@NotNull Location loc, @Nullable String[] lines, @NotNull DyeColor dyeColor, boolean hasGlowingText) throws IllegalArgumentException;
 
     /**
+     * Send a TileState change. This fakes a TileState change for a user at
+     * the given location. This will not actually change the world in any way.
+     * This method will use a TileState at the location's block or a faked TileState
+     * sent via
+     * {@link #sendBlockChange(org.bukkit.Location, org.bukkit.block.data.BlockData)}.
+     * <p>
+     * If the client does not have an appropriate tile at the given location it
+     * may display an error message to the user.
+     * <p>
+     * {@link BlockData#createBlockState()} can be used to create a {@link BlockState}.
+     *
+     * @param loc the location of the sign
+     * @param tileState the tile state
+     * @throws IllegalArgumentException if location is null
+     * @throws IllegalArgumentException if tileState is null
+     */
+    @ApiStatus.Experimental
+    public void sendBlockUpdate(@NotNull Location loc, @NotNull TileState tileState) throws IllegalArgumentException;
+
+    /**
      * Render a map and send it to the player in its entirety. This may be
      * used when streaming the map in the normal manner is not desirable.
      *
@@ -566,12 +831,53 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
     public void sendMap(@NotNull MapView map);
 
     /**
+     * Send a hurt animation. This fakes incoming damage towards the player from
+     * the given yaw relative to the player's direction.
+     *
+     * @param yaw the yaw in degrees relative to the player's direction where 0
+     * is in front of the player, 90 is to the right, 180 is behind, and 270 is
+     * to the left
+     */
+    public void sendHurtAnimation(float yaw);
+
+    /**
+     * Add custom chat completion suggestions shown to the player while typing a
+     * message.
+     *
+     * @param completions the completions to send
+     */
+    public void addCustomChatCompletions(@NotNull Collection<String> completions);
+
+    /**
+     * Remove custom chat completion suggestions shown to the player while
+     * typing a message.
+     *
+     * Online player names cannot be removed with this method. This will affect
+     * only custom completions added by {@link #addCustomChatCompletions(Collection)}
+     * or {@link #setCustomChatCompletions(Collection)}.
+     *
+     * @param completions the completions to remove
+     */
+    public void removeCustomChatCompletions(@NotNull Collection<String> completions);
+
+    /**
+     * Set the list of chat completion suggestions shown to the player while
+     * typing a message.
+     * <p>
+     * If completions were set previously, this method will remove them all and
+     * replace them with the provided completions.
+     *
+     * @param completions the completions to set
+     */
+    public void setCustomChatCompletions(@NotNull Collection<String> completions);
+
+    /**
      * Forces an update of the player's entire inventory.
      *
-     * @deprecated This method should not be relied upon as it is a temporary
-     *     work-around for a larger, more complicated issue.
+     * @apiNote It should not be necessary for plugins to use this method. If it
+     * is required for some reason, it is probably a bug.
      */
-    // @Deprecated // Spigot - undeprecate
+    @ApiStatus.Internal
     public void updateInventory();
 
     /**
@@ -654,6 +960,27 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * by server conditions.
      */
     public void resetPlayerWeather();
+
+    /**
+     * Gets the player's cooldown between picking up experience orbs.
+     *
+     * @return The cooldown in ticks
+     */
+    public int getExpCooldown();
+
+    /**
+     * Sets the player's cooldown between picking up experience orbs..
+     *
+     * <strong>Note:</strong> Setting this to 0 allows the player to pick up
+     * instantly, but setting this to a negative value will cause the player to
+     * be unable to pick up xp-orbs.
+     *
+     * Calling this Method will result in {@link PlayerExpCooldownChangeEvent}
+     * being called.
+     *
+     * @param ticks The cooldown in ticks
+     */
+    public void setExpCooldown(int ticks);
 
     /**
      * Gives the player the amount of experience specified.
@@ -813,9 +1140,9 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      *
      * @param plugin Plugin that wants to hide the entity
      * @param entity Entity to hide
-     * @deprecated draft API
+     * @apiNote draft API
      */
-    @Deprecated
+    @ApiStatus.Experimental
     public void hideEntity(@NotNull Plugin plugin, @NotNull Entity entity);
 
     /**
@@ -825,9 +1152,9 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      *
      * @param plugin Plugin that wants to show the entity
      * @param entity Entity to show
-     * @deprecated draft API
+     * @apiNote draft API
      */
-    @Deprecated
+    @ApiStatus.Experimental
     public void showEntity(@NotNull Plugin plugin, @NotNull Entity entity);
 
     /**
@@ -836,9 +1163,9 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @param entity Entity to check
      * @return True if the provided entity is not being hidden from this
      *     player
-     * @deprecated draft API
+     * @apiNote draft API
      */
-    @Deprecated
+    @ApiStatus.Experimental
     public boolean canSee(@NotNull Entity entity);
 
     /**
@@ -1178,6 +1505,25 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
      * @see Server#createWorldBorder()
      */
     public void setWorldBorder(@Nullable WorldBorder border);
+
+    /**
+     * Send a health update to the player. This will adjust the health, food, and
+     * saturation on the client and will not affect the player's actual values on
+     * the server. As soon as any of these values change on the server, changes sent
+     * by this method will no longer be visible.
+     *
+     * @param health the health. If 0.0, the client will believe it is dead
+     * @param foodLevel the food level
+     * @param saturation the saturation
+     */
+    public void sendHealthUpdate(double health, int foodLevel, float saturation);
+
+    /**
+     * Send a health update to the player using its known server values. This will
+     * synchronize the health, food, and saturation on the client and therefore may
+     * be useful when changing a player's maximum health attribute.
+     */
+    public void sendHealthUpdate();
 
     /**
      * Gets if the client is displayed a 'scaled' health, that is, health on a
@@ -1552,6 +1898,16 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
     public void openSign(@NotNull Sign sign);
 
     /**
+     * Open a Sign for editing by the Player.
+     *
+     * The Sign must be placed in the same world as the player.
+     *
+     * @param sign The sign to edit
+     * @param side The side to edit
+     */
+    public void openSign(@NotNull Sign sign, @NotNull Side side);
+
+    /**
      * Shows the demo screen to the player, this screen is normally only seen in
      * the demo version of the game.
      * <br>
@@ -1568,6 +1924,7 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
 
     // Spigot start
     public class Spigot extends Entity.Spigot {
+
         /**
          * Gets the connection address of this player, regardless of whether it
          * has been spoofed or not.
@@ -1579,20 +1936,18 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        @Deprecated
-        public boolean getCollidesWithEntities() {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Deprecated
-        public void setCollidesWithEntities(boolean collides) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
+        /**
+         * Respawns the player if dead.
+         */
         public void respawn() {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Gets all players hidden with {@link #hidePlayer(org.bukkit.entity.Player)}.
+         *
+         * @return a Set with all hidden players
+         */
         @NotNull
         public java.util.Set<Player> getHiddenPlayers() {
             throw new UnsupportedOperationException("Not supported yet.");
@@ -1608,21 +1963,53 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Sends the component to the specified screen position of this player
+         *
+         * @param position the screen position
+         * @param component the components to send
+         */
         public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @NotNull net.md_5.bungee.api.chat.BaseComponent component) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Sends an array of components as a single message to the specified screen position of this player
+         *
+         * @param position the screen position
+         * @param components the components to send
+         */
         public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @Nullable UUID sender, @NotNull net.md_5.bungee.api.chat.BaseComponent component) {
+        /**
+         * Sends the component to the specified screen position of this player
+         *
+         * @param position the screen position
+         * @param sender the sender of the message
+         * @param component the components to send
+         */
+        public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @Nullable java.util.UUID sender, @NotNull net.md_5.bungee.api.chat.BaseComponent component) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
-        public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @Nullable UUID sender, @NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
+        /**
+         * Sends an array of components as a single message to the specified screen position of this player
+         *
+         * @param position the screen position
+         * @param sender the sender of the message
+         * @param components the components to send
+         */
+        public void sendMessage(@NotNull net.md_5.bungee.api.ChatMessageType position, @Nullable java.util.UUID sender, @NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
+
+        // Paper start
+        public int getPing() {
+            throw new UnsupportedOperationException( "Not supported yet." );
+        }
+        // Paper end
     }
 
     @NotNull

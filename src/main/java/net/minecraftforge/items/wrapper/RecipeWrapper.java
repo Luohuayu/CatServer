@@ -10,7 +10,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftHumanEntity;
 import org.bukkit.inventory.InventoryHolder;
 
 public class RecipeWrapper implements Container {
@@ -87,6 +87,7 @@ public class RecipeWrapper implements Container {
         return inv.isItemValid(slot, stack);
     }
 
+    // CatServer start
     @Override
     public void onOpen(CraftHumanEntity who) {
     }
@@ -110,6 +111,7 @@ public class RecipeWrapper implements Container {
     public Location getLocation() {
         return null;
     }
+    // CatServer end
 
     @Override
     public void clearContent() 

@@ -23,11 +23,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.DimensionArgument;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -45,15 +44,15 @@ class EntityCommand
 
     private static class EntityListCommand
     {
-        private static final SimpleCommandExceptionType INVALID_FILTER = new SimpleCommandExceptionType(new TranslatableComponent("commands.forge.entity.list.invalid"));
-        private static final DynamicCommandExceptionType INVALID_DIMENSION = new DynamicCommandExceptionType(dim -> new TranslatableComponent("commands.forge.entity.list.invalidworld", dim));
-        private static final SimpleCommandExceptionType NO_ENTITIES = new SimpleCommandExceptionType(new TranslatableComponent("commands.forge.entity.list.none"));
+        private static final SimpleCommandExceptionType INVALID_FILTER = new SimpleCommandExceptionType(Component.translatable("commands.forge.entity.list.invalid"));
+        private static final DynamicCommandExceptionType INVALID_DIMENSION = new DynamicCommandExceptionType(dim -> Component.translatable("commands.forge.entity.list.invalidworld", dim));
+        private static final SimpleCommandExceptionType NO_ENTITIES = new SimpleCommandExceptionType(Component.translatable("commands.forge.entity.list.none"));
         static ArgumentBuilder<CommandSourceStack, ?> register()
         {
             return Commands.literal("list")
                 .requires(cs->cs.hasPermission(2)) //permission
                 .then(Commands.argument("filter", StringArgumentType.string())
-                    .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(ForgeRegistries.ENTITIES.getKeys().stream().map(ResourceLocation::toString).map(StringArgumentType::escapeIfRequired), builder))
+                    .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(ForgeRegistries.ENTITY_TYPES.getKeys().stream().map(ResourceLocation::toString).map(StringArgumentType::escapeIfRequired), builder))
                     .then(Commands.argument("dim", DimensionArgument.dimension())
                         .executes(ctx -> execute(ctx.getSource(), StringArgumentType.getString(ctx, "filter"), DimensionArgument.getDimension(ctx, "dim").dimension()))
                     )
@@ -66,7 +65,7 @@ class EntityCommand
         {
             final String cleanFilter = filter.replace("?", ".?").replace("*", ".*?");
 
-            Set<ResourceLocation> names = ForgeRegistries.ENTITIES.getKeys().stream().filter(n -> n.toString().matches(cleanFilter)).collect(Collectors.toSet());
+            Set<ResourceLocation> names = ForgeRegistries.ENTITY_TYPES.getKeys().stream().filter(n -> n.toString().matches(cleanFilter)).collect(Collectors.toSet());
 
             if (names.isEmpty())
                 throw INVALID_FILTER.create();
@@ -77,7 +76,7 @@ class EntityCommand
 
             Map<ResourceLocation, MutablePair<Integer, Map<ChunkPos, Integer>>> list = Maps.newHashMap();
             level.getEntities().getAll().forEach(e -> {
-                MutablePair<Integer, Map<ChunkPos, Integer>> info = list.computeIfAbsent(e.getType().getRegistryName(), k -> MutablePair.of(0, Maps.newHashMap()));
+                MutablePair<Integer, Map<ChunkPos, Integer>> info = list.computeIfAbsent(ForgeRegistries.ENTITY_TYPES.getKey(e.getType()), k -> MutablePair.of(0, Maps.newHashMap()));
                 ChunkPos chunk = new ChunkPos(e.blockPosition());
                 info.left++;
                 info.right.put(chunk, info.right.getOrDefault(chunk, 0) + 1);
@@ -90,7 +89,7 @@ class EntityCommand
                 if (info == null)
                     throw NO_ENTITIES.create();
 
-                sender.sendSuccess(new TranslatableComponent("commands.forge.entity.list.single.header", name, info.getLeft()), false);
+                sender.sendSuccess(() -> Component.translatable("commands.forge.entity.list.single.header", name, info.getLeft()), false);
                 List<Map.Entry<ChunkPos, Integer>> toSort = new ArrayList<>();
                 toSort.addAll(info.getRight().entrySet());
                 toSort.sort((a, b) -> {
@@ -104,7 +103,7 @@ class EntityCommand
                 for (Map.Entry<ChunkPos, Integer> e : toSort)
                 {
                     if (limit-- == 0) break;
-                    sender.sendSuccess(new TextComponent("  " + e.getValue() + ": " + e.getKey().x + ", " + e.getKey().z), false);
+                    sender.sendSuccess(() -> Component.literal("  " + e.getValue() + ": " + e.getKey().x + ", " + e.getKey().z), false);
                 }
                 return toSort.size();
             }
@@ -130,8 +129,8 @@ class EntityCommand
                     throw NO_ENTITIES.create();
 
                 int count = info.stream().mapToInt(Pair::getRight).sum();
-                sender.sendSuccess(new TranslatableComponent("commands.forge.entity.list.multiple.header", count), false);
-                info.forEach(e -> sender.sendSuccess(new TextComponent("  " + e.getValue() + ": " + e.getKey()), false));
+                sender.sendSuccess(() -> Component.translatable("commands.forge.entity.list.multiple.header", count), false);
+                info.forEach(e -> sender.sendSuccess(() -> Component.literal("  " + e.getValue() + ": " + e.getKey()), false));
                 return info.size();
             }
         }

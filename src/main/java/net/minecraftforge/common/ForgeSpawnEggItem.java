@@ -16,13 +16,13 @@ import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ColorHandlerEvent;
+import net.minecraftforge.client.event.RegisterColorHandlersEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -63,7 +63,10 @@ public class ForgeSpawnEggItem extends SpawnEggItem
         return ret != null ? ret : SpawnEggItem.byId(type);
     }
 
-
+    @Override
+    protected EntityType<?> getDefaultType() {
+        return this.typeSupplier.get();
+    }
 
     private static final DispenseItemBehavior DEFAULT_DISPENSE_BEHAVIOR = (source, stack) ->
     {
@@ -81,7 +84,7 @@ public class ForgeSpawnEggItem extends SpawnEggItem
         }
 
         stack.shrink(1);
-        source.getLevel().gameEvent(GameEvent.ENTITY_PLACE, source.getPos());
+        source.getLevel().gameEvent(GameEvent.ENTITY_PLACE, source.getPos(), GameEvent.Context.of(source.getBlockState()));
         return stack;
     };
 
@@ -108,7 +111,7 @@ public class ForgeSpawnEggItem extends SpawnEggItem
     private static class ColorRegisterHandler
     {
         @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public static void registerSpawnEggColors(ColorHandlerEvent.Item event)
+        public static void registerSpawnEggColors(RegisterColorHandlersEvent.Item event)
         {
             MOD_EGGS.forEach(egg ->
                     event.getItemColors().register((stack, layer) -> egg.getColor(layer), egg)

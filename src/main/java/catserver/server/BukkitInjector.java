@@ -11,7 +11,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.izzel.arclight.api.Unsafe;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.stats.Stats;
@@ -19,7 +21,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.decoration.Motive;
+import net.minecraft.world.entity.decoration.PaintingVariant;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potions;
@@ -27,19 +29,15 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.bukkit.Art;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Statistic;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Biome;
-import org.bukkit.craftbukkit.v1_18_R2.CraftStatistic;
-import org.bukkit.craftbukkit.v1_18_R2.block.data.CraftBlockData;
-import org.bukkit.craftbukkit.v1_18_R2.potion.CraftPotionUtil;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftMagicNumbers;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftNamespacedKey;
-import org.bukkit.craftbukkit.v1_18_R2.util.CraftSpawnCategory;
+import org.bukkit.craftbukkit.v1_20_R1.CraftStatistic;
+import org.bukkit.craftbukkit.v1_20_R1.block.data.CraftBlockData;
+import org.bukkit.craftbukkit.v1_20_R1.potion.CraftPotionUtil;
+import org.bukkit.craftbukkit.v1_20_R1.util.CraftMagicNumbers;
+import org.bukkit.craftbukkit.v1_20_R1.util.CraftNamespacedKey;
+import org.bukkit.craftbukkit.v1_20_R1.util.CraftSpawnCategory;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.SpawnCategory;
@@ -55,6 +53,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class BukkitInjector {
 
@@ -63,9 +62,10 @@ public class BukkitInjector {
     public static Map<org.bukkit.attribute.Attribute, ResourceLocation> attributeToNameMap = new HashMap<>();
     public static Map<ResourceLocation, org.bukkit.attribute.Attribute> nameToAttributeMap = new HashMap<>();
     public static Map<net.minecraft.world.entity.EntityType<?>, String> entityTypeMap = new HashMap<>();
-    public static Map<Motive, Art> artMap = new HashMap<>();
+    public static Map<Holder<PaintingVariant>, Art> artMap = new HashMap<>(); // 1.18.2 PaintingVariant -> 1.20.1 Holder<PaintingVariant>
 
     public static void registerAll() {
+        registerFluids(); // 1.20.1
         registerMaterials();
         registerEnchantments();
         registerPotionEffects();
@@ -104,11 +104,21 @@ public class BukkitInjector {
     private static void registerAttribute() {
         int length = Attribute.values().length;
         List<Attribute> attributes = Lists.newArrayList();
-        for (var attribute : ForgeRegistries.ATTRIBUTES) {
-            ResourceLocation location = attribute.getRegistryName();
+        List<String> bukkitArtKeys = Arrays.stream(Attribute.values()).map(a -> a.getKey().getKey()).collect(Collectors.toList()); // org.bukkit.attribute.Attribute has key, so we use it instead of enum name
+        for (var entry : ForgeRegistries.ATTRIBUTES.getEntries()) {
+            ResourceLocation location = entry.getKey().location();
             String name = standardize(location);
-            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+            // Skip minecraft
+            if (location == null) {
                 continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                if (bukkitArtKeys.contains(location.getPath())) {
+                    continue;
+                } else {
+                    // mod added but using minecraft as namespace
+                    // ...
+                    // do nothing, just don't continue
+                }
             }
             Attribute bukkitAttribute = EnumHelper.makeEnum(org.bukkit.attribute.Attribute.class, name, length++, ImmutableList.of(NamespacedKey.class), ImmutableList.of(CraftNamespacedKey.fromMinecraft(location)));
             attributes.add(bukkitAttribute);
@@ -125,18 +135,29 @@ public class BukkitInjector {
         List<Art> arts = Lists.newArrayList();
         HashMap<String, Art> BY_NAME = ObfuscationReflectionHelper.getPrivateValue(Art.class, null, "BY_NAME");
         HashMap<Integer, Art> BY_ID = ObfuscationReflectionHelper.getPrivateValue(Art.class, null, "BY_ID");
-        for (Motive motive : ForgeRegistries.PAINTING_TYPES) {
+        for (Map.Entry<ResourceKey<PaintingVariant>, PaintingVariant> entry : ForgeRegistries.PAINTING_VARIANTS.getEntries()) {
+            PaintingVariant motive = entry.getValue();
             var width = motive.getWidth();
             var height = motive.getHeight();
-            ResourceLocation location = motive.getRegistryName();
-            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+            ResourceLocation location = entry.getKey().location();
+            // Skip minecraft
+            if (location == null) {
                 continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                try {
+                    Art.valueOf(location.getPath().toUpperCase(Locale.ROOT));
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // mod added but using minecraft as namespace
+                    // ...
+                    // do nothing, just don't continue
+                }
             }
             var motiveName = standardize(location);
             int id = length - 1;
             Art art = EnumHelper.makeEnum(Art.class, motiveName, length++, ImmutableList.of(Integer.TYPE, Integer.TYPE, Integer.TYPE), ImmutableList.of(id, width, height));
             arts.add(art);
-            artMap.put(motive, art);
+            artMap.put(ForgeRegistries.PAINTING_VARIANTS.getHolder(motive).orElseThrow(), art);
             BY_NAME.put(motiveName, art);
             BY_ID.put(id, art);
             CatServer.LOGGER.debug("Save-Art: {}", motiveName);
@@ -188,33 +209,35 @@ public class BukkitInjector {
 
         int i = Statistic.values().length;
         List<Statistic> statistics = Lists.newArrayList();
-        for (var stat : ForgeRegistries.STAT_TYPES) {
+        for (var entry : ForgeRegistries.STAT_TYPES.getEntries()) {
+            var stat = entry.getValue();
+            ResourceLocation registryName = entry.getKey().location();
             // Skip minecraft
-            if (stat.getRegistryName() == null || Objects.equals(NamespacedKey.MINECRAFT, stat.getRegistryName().getNamespace())) {
+            if (registryName == null || Objects.equals(NamespacedKey.MINECRAFT, registryName.getNamespace())) {
                 continue;
             }
             if (stat == Stats.CUSTOM) continue;
-            Statistic statistic = STATS.get(stat.getRegistryName());
+            Statistic statistic = STATS.get(registryName);
             if (statistic != null) {
-                String statName = standardize(stat.getRegistryName());
+                String statName = standardize(registryName);
                 Statistic.Type type;
-                if (stat.getRegistry() == Registry.ENTITY_TYPE) {
+                if (stat.getRegistry() == BuiltInRegistries.ENTITY_TYPE) {
                     type = Statistic.Type.ENTITY;
-                } else if (stat.getRegistry() == Registry.BLOCK) {
+                } else if (stat.getRegistry() == BuiltInRegistries.BLOCK) {
                     type = Statistic.Type.BLOCK;
-                } else if (stat.getRegistry() == Registry.ITEM) {
+                } else if (stat.getRegistry() == BuiltInRegistries.ITEM) {
                     type = Statistic.Type.ITEM;
                 } else {
                     type = Statistic.Type.UNTYPED;
                 }
                 statistic = EnumHelper.makeEnum(Statistic.class, statName, i++, ImmutableList.of(Statistic.Type.class), ImmutableList.of(type));
                 statistics.add(statistic);
-                STATS.put(stat.getRegistryName(), statistic);
+                STATS.put(registryName, statistic);
                 CatServer.LOGGER.debug("Save-Stats: {}", statistic.name());
             }
         }
         // Custom Stats
-        for (var location : Registry.CUSTOM_STAT) {
+        for (var location : BuiltInRegistries.CUSTOM_STAT) {
             // Skip minecraft
             if (Objects.equals(NamespacedKey.MINECRAFT, location.getNamespace())) {
                 continue;
@@ -236,11 +259,20 @@ public class BukkitInjector {
     private static void registerVillagerProfessions() {
         int i = Villager.Profession.values().length;
         List<Villager.Profession> professions = Lists.newArrayList();
-        for (var forgeProfessions: ForgeRegistries.PROFESSIONS.getEntries()) {
+        for (var forgeProfessions: ForgeRegistries.VILLAGER_PROFESSIONS.getEntries()) {
             ResourceLocation location = forgeProfessions.getKey().location();
             // Skip minecraft
-            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+            if (location == null) {
                 continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                try {
+                    Villager.Profession.valueOf(location.getPath().toUpperCase(Locale.ROOT));
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // mod added but using minecraft as namespace
+                    // ...
+                    // do nothing, just don't continue
+                }
             }
             var newPfName = standardize(location);
             var bukkitProfessions = EnumHelper.makeEnum(Villager.Profession.class, newPfName, i++, ImmutableList.of(), ImmutableList.of());
@@ -258,15 +290,24 @@ public class BukkitInjector {
 
         int i = EntityType.values().length;
         List<EntityType> entityTypes = Lists.newArrayList();
-        for (var entry : ForgeRegistries.ENTITIES.getEntries()) {
-            ResourceLocation location = entry.getValue().getRegistryName();
+        for (var entry : ForgeRegistries.ENTITY_TYPES.getEntries()) {
+            ResourceLocation location = entry.getKey().location();
             // Skip minecraft
-            if (location == null || Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+            if (location == null) {
                 continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                try {
+                    EntityType.fromName(location.getPath().toLowerCase(Locale.ROOT)); // Don't use valueOf() because of minecarts whose Enum name is different from its registry name like MINECART_CHEST("chest_minecart", StorageMinecart.class, 43)
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // mod added but using minecraft as namespace
+                    // ...
+                    // do nothing, just don't continue
+                }
             }
             String entityName = standardize(location);
             int typeId = entityName.hashCode();
-            EntityType entityType = EnumHelper.makeEnum(EntityType.class, entityName, i++, List.of(String.class, Class.class, Integer.TYPE, Boolean.TYPE), List.of(entityName.toLowerCase(), CraftCustomEntity.class, typeId, false));
+            EntityType entityType = EnumHelper.makeEnum(EntityType.class, entityName, i++, List.of(String.class, Class.class, Integer.TYPE, Boolean.TYPE, NamespacedKey.class), List.of(entityName.toLowerCase(), CraftCustomEntity.class, typeId, false, CraftNamespacedKey.fromMinecraft(location))); // 1.20.1 added private EntityType(/*@Nullable*/ String name, /*@Nullable*/ Class<? extends Entity> clazz, int typeId, boolean independent, NamespacedKey key)
             NAME_MAP.put(entityName.toLowerCase(), entityType);
             ID_MAP.put((short) typeId, entityType);
             BukkitInjector.entityTypeMap.put(entry.getValue(), entityName);
@@ -283,11 +324,20 @@ public class BukkitInjector {
         for (var biome : ForgeRegistries.BIOMES.getEntries()) {
             ResourceLocation location = biome.getKey().location();
             // Skip minecraft
-            if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)) {
+            if (location == null) {
                 continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                try {
+                    Biome.valueOf(location.getPath().toUpperCase(Locale.ROOT));
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // mod added but using minecraft as namespace
+                    // ...
+                    // do nothing, just don't continue
+                }
             }
             String biomeName = standardize(location);
-            Biome bukkitBiome = EnumHelper.makeEnum(Biome.class, biomeName, i++, ImmutableList.of(), ImmutableList.of());
+            Biome bukkitBiome = EnumHelper.makeEnum(Biome.class, biomeName, i++, ImmutableList.of(NamespacedKey.class), ImmutableList.of(CraftNamespacedKey.fromMinecraft(location))); // 1.20.1 added private Biome(NamespacedKey key)
             enumBiomes.add(bukkitBiome);
             CatServer.LOGGER.debug("Save-Biome: {}", bukkitBiome.name());
         }
@@ -298,7 +348,7 @@ public class BukkitInjector {
     private static void registerPotionEffects() {
         int i = 0;
         for (var potion : ForgeRegistries.MOB_EFFECTS.getEntries()) {
-            var name = standardize(potion.getValue().getRegistryName());
+            var name = standardize(potion.getKey().location());
             CraftCustomPotionEffect potionEffect = new CraftCustomPotionEffect(potion.getValue(), name);
             PotionEffectType.registerPotionEffectType(potionEffect);
             i++;
@@ -311,12 +361,12 @@ public class BukkitInjector {
         List<PotionType> potionTypes = Lists.newArrayList();
         BiMap<PotionType, String> regularMap = HashBiMap.create(CraftPotionUtil.regular);
         for (var potionType : ForgeRegistries.POTIONS.getEntries()) {
-            if (CraftPotionUtil.toBukkit(potionType.getValue().getRegistryName().toString()).getType() == PotionType.UNCRAFTABLE && potionType.getValue() != Potions.EMPTY) {
-                var name = standardize(potionType.getValue().getRegistryName());
+            if (CraftPotionUtil.toBukkit(potionType.getKey().location().toString()).getType() == PotionType.UNCRAFTABLE && potionType.getValue() != Potions.EMPTY) {
+                var name = standardize(potionType.getKey().location());
                 MobEffectInstance effectInstance = potionType.getValue().getEffects().isEmpty() ? null : potionType.getValue().getEffects().get(0);
                 PotionType type = EnumHelper.makeEnum(PotionType.class, name, ordinal++, Arrays.asList(PotionEffectType.class, boolean.class, boolean.class), Arrays.asList(effectInstance == null ? null : PotionEffectType.getById(MobEffect.getId(effectInstance.getEffect())), false, false));
                 potionTypes.add(type);
-                regularMap.put(type, potionType.getValue().getRegistryName().toString());
+                regularMap.put(type, potionType.getKey().location().toString());
                 CatServer.LOGGER.debug("Save-PotionType: {}", type);
             }
         }
@@ -324,10 +374,11 @@ public class BukkitInjector {
         CatServer.LOGGER.info("Registered {} new potion type into Bukkit", regularMap.size());
     }
 
+    // From bukkit patch in net.minecraft.world.item.enchantment.Enchantments
     private static void registerEnchantments() {
         int i = 0;
         for (var enchantment : ForgeRegistries.ENCHANTMENTS.getEntries()) {
-            var name = standardize(enchantment.getValue().getRegistryName());
+            var name = standardize(enchantment.getKey().location());
             CraftCustomEnchantment enchantmentCb = new CraftCustomEnchantment(enchantment.getValue(), name);
             Enchantment.registerEnchantment(enchantmentCb);
             i++;
@@ -335,6 +386,37 @@ public class BukkitInjector {
         }
         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
         CatServer.LOGGER.info("Registered {} enchantments into Bukkit", i);
+    }
+
+    // 1.20.1 This method should be called before registerMaterials() to prepare Registries#FLUID before CraftMagicNumbers#<cinit> invoked
+    private static void registerFluids() {
+        int i = Fluid.values().length;
+        List<Fluid> enumFluids = Lists.newArrayList();
+        for (var fluid : ForgeRegistries.FLUIDS.getEntries()) {
+            ResourceLocation location = fluid.getKey().location();
+            // Skip minecraft
+            if (location == null) {
+                continue;
+            } else if (Objects.equals(location.getNamespace(), NamespacedKey.MINECRAFT)){
+                try {
+                    Fluid.valueOf(location.getPath().toUpperCase(Locale.ROOT));
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // mod added but using minecraft as namespace
+                    // forge minecraft:empty
+                    // create minecraft:milk
+                    // create minecraft:flowing_milk
+                    // ...
+                    // do nothing, just don't continue
+                }
+            }
+            String fluidName = standardize(location);
+            Fluid bukkitFluid = EnumHelper.makeEnum(Fluid.class, fluidName, i++, ImmutableList.of(NamespacedKey.class), ImmutableList.of(CraftNamespacedKey.fromMinecraft(location)));
+            enumFluids.add(bukkitFluid);
+            CatServer.LOGGER.debug("Save-Fluid: {}", bukkitFluid.name());
+        }
+        EnumHelper.addEnums(Fluid.class, enumFluids);
+        CatServer.LOGGER.info("Registered {} fluids into Bukkit", enumFluids.size());
     }
 
     private static void registerMaterials() {

@@ -25,6 +25,7 @@ import net.minecraft.world.scores.Scoreboard;
 
 import java.util.Collection;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,13 +45,13 @@ public class ClientCommandSourceStack extends CommandSourceStack
      * Sends a success message without attempting to get the server side list of admins
      */
     @Override
-    public void sendSuccess(Component message, boolean sendToAdmins)
+    public void sendSuccess(Supplier<Component> message, boolean sendToAdmins)
     {
-        Minecraft.getInstance().player.sendMessage(message, Util.NIL_UUID);
+        Minecraft.getInstance().player.sendSystemMessage(message.get());
     }
 
     /**
-     * Gets the list of teams from the client side
+     * {@return the list of teams from the client side}
      */
     @Override
     public Collection<String> getAllTeams()
@@ -59,7 +60,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the list of online player names from the client side
+     * {@return the list of online player names from the client side}
      */
     @Override
     public Collection<String> getOnlinePlayerNames()
@@ -68,7 +69,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets a {@link Stream} of recipe ids that are available on the client
+     * {@return a {@link Stream} of recipe ids that are available on the client}
      */
     @Override
     public Stream<ResourceLocation> getRecipeNames()
@@ -77,7 +78,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets a set of {@link ResourceKey} for levels from the client side
+     * {@return a set of {@link ResourceKey} for levels from the client side}
      */
     @Override
     public Set<ResourceKey<Level>> levels()
@@ -86,7 +87,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the {@link RegistryAccess} from the client side
+     * {@return the {@link RegistryAccess} from the client side}
      */
     @Override
     public RegistryAccess registryAccess()
@@ -95,7 +96,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the scoreboard from the client side
+     * {@return the scoreboard from the client side}
      */
     @Override
     public Scoreboard getScoreboard()
@@ -104,7 +105,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the advancement from the id from the client side where the advancement needs to be visible to the player
+     * {@return the advancement from the id from the client side where the advancement needs to be visible to the player}
      */
     @Override
     public Advancement getAdvancement(ResourceLocation id)
@@ -113,7 +114,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the {@link RecipeManager} from the client side
+     * {@return the {@link RecipeManager} from the client side}
      */
     @Override
     public RecipeManager getRecipeManager()
@@ -122,7 +123,7 @@ public class ClientCommandSourceStack extends CommandSourceStack
     }
 
     /**
-     * Gets the level from the client side
+     * {@return the level from the client side}
      */
     @Override
     public Level getUnsidedLevel()

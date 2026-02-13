@@ -5,12 +5,11 @@
 
 package net.minecraftforge.common.extensions;
 
-import javax.annotation.Nonnull;
-
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,10 +21,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.client.model.ModelDataManager;
-import net.minecraftforge.client.model.data.EmptyModelData;
-import net.minecraftforge.client.model.data.IModelData;
+import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import org.jetbrains.annotations.NotNull;
 
 public interface IForgeBlockEntity extends ICapabilitySerializable<CompoundTag>
 {
@@ -73,12 +71,12 @@ public interface IForgeBlockEntity extends ICapabilitySerializable<CompoundTag>
      }
 
     /**
-     * Gets a {@link CompoundTag} that can be used to store custom data for this tile entity.
+     * Gets a {@link CompoundTag} that can be used to store custom data for this block entity.
      * It will be written, and read from disc, so it persists over world saves.
      *
-     * @return A compound tag for custom data
+     * @return A compound tag for custom persistent data
      */
-     CompoundTag getTileData();
+     CompoundTag getPersistentData();
 
      default void onChunkUnloaded(){}
 
@@ -137,7 +135,7 @@ public interface IForgeBlockEntity extends ICapabilitySerializable<CompoundTag>
              {
                  // We have to capture any exceptions that may occur here because BUKKIT servers like to send
                  // the tile entity data BEFORE the chunk data, you know, the OPPOSITE of what vanilla does!
-                 // So we can not GARENTEE that the world state is the real state for the block...
+                 // So we can not GUARANTEE that the world state is the real state for the block...
                  // So, once again in the long line of US having to accommodate BUKKIT breaking things,
                  // here it is, assume that the TE is only 1 cubic block. Problem with this is that it may
                  // cause the TileEntity renderer to error further down the line! But alas, nothing we can do.
@@ -158,7 +156,11 @@ public interface IForgeBlockEntity extends ICapabilitySerializable<CompoundTag>
          Level level = te.getLevel();
          if (level != null && level.isClientSide)
          {
-             ModelDataManager.requestModelDataRefresh(te);
+             var modelDataManager = level.getModelDataManager();
+             if (modelDataManager != null)
+             {
+                 modelDataManager.requestRefresh(te);
+             }
          }
      }
 
@@ -169,8 +171,19 @@ public interface IForgeBlockEntity extends ICapabilitySerializable<CompoundTag>
      * <b>Note that this method may be called on a chunk render thread instead of the main client thread</b>
      * @return Your model data
      */
-     default @Nonnull IModelData getModelData()
+     default @NotNull ModelData getModelData()
      {
-         return EmptyModelData.INSTANCE;
+         return ModelData.EMPTY;
      }
+
+    /**
+     * Returns whether this {@link BlockEntity} has custom outline rendering behavior.
+     *
+     * @param player the local player currently viewing this {@code BlockEntity}
+     * @return {@code true} to enable outline processing
+     */
+    default boolean hasCustomOutlineRendering(Player player)
+    {
+        return false;
+    }
 }

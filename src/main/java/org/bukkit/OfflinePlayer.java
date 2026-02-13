@@ -1,6 +1,10 @@
 package org.bukkit;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.UUID;
+import org.bukkit.ban.ProfileBanList;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.EntityType;
@@ -10,6 +14,11 @@ import org.bukkit.profile.PlayerProfile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Represents a reference to a player identity and the data belonging to a
+ * player that is stored on the disk and can, thus, be retrieved without the
+ * player needing to be online.
+ */
 public interface OfflinePlayer extends ServerOperator, AnimalTamer, ConfigurationSerializable {
 
     /**
@@ -53,11 +62,53 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
     PlayerProfile getPlayerProfile();
 
     /**
-     * Checks if this player is banned or not
+     * Checks if this player has had their profile banned.
      *
      * @return true if banned, otherwise false
      */
     public boolean isBanned();
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires date for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Date expires, @Nullable String source);
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param expires instant for the ban's expiration (unban), or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Instant expires, @Nullable String source);
+
+    /**
+     * Adds this user to the {@link ProfileBanList}. If a previous ban exists, this will
+     * update the entry.
+     *
+     * @param reason reason for the ban, null indicates implementation default
+     * @param duration how long the ban last, or null to imply
+     *     forever
+     * @param source source of the ban, null indicates implementation default
+     * @return the entry for the newly created ban, or the entry for the
+     *     (updated) previous ban
+     */
+    @Nullable
+    public BanEntry<PlayerProfile> ban(@Nullable String reason, @Nullable Duration duration, @Nullable String source);
 
     /**
      * Checks if this player is whitelisted or not
@@ -366,4 +417,12 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
      *     for the statistic
      */
     public void setStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType, int newValue);
+
+    /**
+     * Gets the player's last death location.
+     *
+     * @return the last death location if it exists, otherwise null.
+     */
+    @Nullable
+    public Location getLastDeathLocation();
 }

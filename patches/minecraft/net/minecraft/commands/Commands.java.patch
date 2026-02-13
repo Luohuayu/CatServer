@@ -9,7 +9,7 @@
  import com.google.common.collect.Maps;
  import com.mojang.brigadier.CommandDispatcher;
  import com.mojang.brigadier.ParseResults;
-@@ -12,6 +_,9 @@
+@@ -13,6 +_,9 @@
  import com.mojang.brigadier.tree.CommandNode;
  import com.mojang.brigadier.tree.RootCommandNode;
  import com.mojang.logging.LogUtils;
@@ -17,59 +17,61 @@
 +import java.util.Collection;
 +import java.util.LinkedHashSet;
  import java.util.Map;
+ import java.util.Optional;
  import java.util.Set;
- import java.util.function.Predicate;
-@@ -105,6 +_,8 @@
- import net.minecraft.server.commands.data.DataCommands;
+@@ -118,6 +_,8 @@
  import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.tags.TagKey;
  import net.minecraft.util.profiling.jfr.JvmProfiler;
 +import org.bukkit.event.player.PlayerCommandSendEvent;
 +import org.bukkit.event.server.ServerCommandEvent;
  import org.slf4j.Logger;
  
  public class Commands {
-@@ -114,9 +_,10 @@
+@@ -127,9 +_,10 @@
     public static final int f_165684_ = 2;
     public static final int f_165685_ = 3;
     public static final int f_165686_ = 4;
 -   private final CommandDispatcher<CommandSourceStack> f_82090_ = new CommandDispatcher<>();
 +   private final CommandDispatcher<CommandSourceStack> f_82090_ = new CatServerCommandDispatcher(this); // CatServer
  
-    public Commands(Commands.CommandSelection p_82093_) {
+    public Commands(Commands.CommandSelection p_230943_, CommandBuildContext p_230944_) {
 +      // this(); // CatServer - move down
        AdvancementCommands.m_136310_(this.f_82090_);
-       AttributeCommand.m_136444_(this.f_82090_);
-       ExecuteCommand.m_137042_(this.f_82090_);
-@@ -177,7 +_,7 @@
+       AttributeCommand.m_245835_(this.f_82090_, p_230944_);
+       ExecuteCommand.m_214434_(this.f_82090_, p_230944_);
+@@ -193,7 +_,7 @@
           JfrCommand.m_183645_(this.f_82090_);
        }
  
 -      if (SharedConstants.f_136183_) {
 +      if (net.minecraftforge.gametest.ForgeGameTestHooks.isGametestEnabled()) {
           TestCommand.m_127946_(this.f_82090_);
+          SpawnArmorTrimsCommand.m_266283_(this.f_82090_);
        }
- 
-@@ -201,18 +_,70 @@
-       if (p_82093_.f_82144_) {
+@@ -218,7 +_,16 @@
+       if (p_230943_.f_82144_) {
           PublishCommand.m_138184_(this.f_82090_);
        }
-+      net.minecraftforge.event.ForgeEventFactory.onCommandRegister(this.f_82090_, p_82093_);
- 
-       this.f_82090_.findAmbiguities((p_82108_, p_82109_, p_82110_, p_82111_) -> {
--         f_82089_.warn("Ambiguity between arguments {} and {} with inputs: {}", this.f_82090_.getPath(p_82109_), this.f_82090_.getPath(p_82110_), p_82111_);
-+         // LOGGER.warn("Ambiguity between arguments {} and {} with inputs: {}", this.dispatcher.getPath(p_82109_), this.dispatcher.getPath(p_82110_), p_82111_);
-       });
-+      this.f_82090_.setConsumer((p_82104_, p_82105_, p_82106_) -> p_82104_.getSource().m_81342_(p_82104_, p_82105_, p_82106_)); // CatServer - rollback
+-
++      net.minecraftforge.event.ForgeEventFactory.onCommandRegister(this.f_82090_, p_230943_, p_230944_);
++
++      this.f_82090_.setConsumer((p_230954_, p_230955_, p_230956_) -> {
++         p_230954_.getSource().m_81342_(p_230954_, p_230955_, p_230956_);
++      }); // CatServer - rollback
 +      // CraftBukkit start
 +   }
 +
 +   public Commands() {
 +      // CraftBukkit end
-       this.f_82090_.setConsumer((p_82104_, p_82105_, p_82106_) -> {
-          p_82104_.getSource().m_81342_(p_82104_, p_82105_, p_82106_);
+       this.f_82090_.setConsumer((p_230954_, p_230955_, p_230956_) -> {
+          p_230954_.getSource().m_81342_(p_230954_, p_230955_, p_230956_);
        });
+@@ -230,12 +_,65 @@
+       return new ParseResults<>(commandcontextbuilder1, p_242928_.getReader(), p_242928_.getExceptions());
     }
  
++   // CraftBukkit start
 +   public int dispatchServerCommand(CommandSourceStack sender, String command) {
 +      Joiner joiner = Joiner.on(" ");
 +      if (command.startsWith("/")) {
@@ -102,33 +104,41 @@
 +      }
 +
 +      String newCommand = joiner.join(args);
-+      return this.performCommand(sender, newCommand, newCommand, false);
++      return this.performPrefixedCommand(sender, newCommand, newCommand);
 +   }
++   // CraftBukkit end
++
++   // CatServer start - 1.20.1
++   public int performPrefixedCommand(CommandSourceStack p_230958_, String p_230959_, String label) {
++      this.performCommandLabel = label;
++      return this.m_230957_(p_230958_, p_230959_);
++   }
++
+    public int m_230957_(CommandSourceStack p_230958_, String p_230959_) {
++      this.performCommandLabel = this.performCommandLabel == null ? p_230959_ : this.performCommandLabel; // CatServer
+       p_230959_ = p_230959_.startsWith("/") ? p_230959_.substring(1) : p_230959_;
+       return this.m_242674_(this.f_82090_.parse(p_230959_, p_230958_), p_230959_);
+    }
++   // CatServer end
 +
 +   // CatServer start
 +   private @Nullable String performCommandLabel;
-+   private boolean performCommandStripSlash;
-+   public int performCommand(CommandSourceStack p_82118_, String p_82119_, String label, boolean stripSlash) {
++   public int performCommand(ParseResults<CommandSourceStack> p_242844_, String p_242841_, String label) {
 +      this.performCommandLabel = label;
-+      this.performCommandStripSlash = stripSlash;
-+      return this.m_82117_(p_82118_, p_82119_);
++      return this.m_242674_(p_242844_, p_242841_);
 +   }
-+
-    public int m_82117_(CommandSourceStack p_82118_, String p_82119_) {
-+      this.performCommandLabel = this.performCommandLabel == null ? p_82119_ : this.performCommandLabel;
-       StringReader stringreader = new StringReader(p_82119_);
--      if (stringreader.canRead() && stringreader.peek() == '/') {
-+      if (this.performCommandStripSlash && stringreader.canRead() && stringreader.peek() == '/') {
-          stringreader.skip();
-       }
  
-@@ -220,7 +_,17 @@
+    public int m_242674_(ParseResults<CommandSourceStack> p_242844_, String p_242841_) {
++      this.performCommandLabel = this.performCommandLabel == null ? p_242841_ : this.performCommandLabel; // CatServer
+       CommandSourceStack commandsourcestack = p_242844_.getContext().getSource();
+       commandsourcestack.m_81377_().m_129905_().m_6521_(() -> {
+          return "/" + p_242841_;
+@@ -243,7 +_,16 @@
  
        try {
           try {
--            return this.f_82090_.execute(stringreader, p_82118_);
-+            ParseResults<CommandSourceStack> parse = this.f_82090_.parse(stringreader, p_82118_);
-+            net.minecraftforge.event.CommandEvent event = new net.minecraftforge.event.CommandEvent(parse);
+-            return this.f_82090_.execute(p_242844_);
++            net.minecraftforge.event.CommandEvent event = new net.minecraftforge.event.CommandEvent(p_242844_);
 +            if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) {
 +               if (event.getException() instanceof Exception exception) {
 +                  throw exception;
@@ -139,25 +149,24 @@
 +            }
 +            return this.f_82090_.execute(event.getParseResults());
           } catch (CommandRuntimeException commandruntimeexception) {
-             p_82118_.m_81352_(commandruntimeexception.m_79226_());
+             commandsourcestack.m_81352_(commandruntimeexception.m_79226_());
              return 0;
-@@ -228,8 +_,9 @@
-             p_82118_.m_81352_(ComponentUtils.m_130729_(commandsyntaxexception.getRawMessage()));
+@@ -251,8 +_,9 @@
+             commandsourcestack.m_81352_(ComponentUtils.m_130729_(commandsyntaxexception.getRawMessage()));
              if (commandsyntaxexception.getInput() != null && commandsyntaxexception.getCursor() >= 0) {
                 int j = Math.min(commandsyntaxexception.getInput().length(), commandsyntaxexception.getCursor());
 +               String finalLabel = this.performCommandLabel; // CatServer - need final label
-                MutableComponent mutablecomponent1 = (new TextComponent("")).m_130940_(ChatFormatting.GRAY).m_130938_((p_82134_) -> {
--                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, p_82119_));
+                MutableComponent mutablecomponent1 = Component.m_237119_().m_130940_(ChatFormatting.GRAY).m_130938_((p_82134_) -> {
+-                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/" + p_242841_));
 +                  return p_82134_.m_131142_(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, finalLabel)); // CatServer
                 });
                 if (j > 10) {
-                   mutablecomponent1.m_130946_("...");
-@@ -269,19 +_,48 @@
+                   mutablecomponent1.m_7220_(CommonComponents.f_238772_);
+@@ -292,19 +_,47 @@
           return 0;
        } finally {
-          p_82118_.m_81377_().m_129905_().m_7238_();
+          commandsourcestack.m_81377_().m_129905_().m_7238_();
 +         // CatServer start - reset
-+         this.performCommandStripSlash = false;
 +         this.performCommandLabel = null;
 +         // CatServer end
        }
@@ -194,7 +203,7 @@
 +         }
 +      }
 +      // CraftBukkit end
-       p_82096_.f_8906_.m_141995_(new ClientboundCommandsPacket(rootcommandnode));
+       p_82096_.f_8906_.m_9829_(new ClientboundCommandsPacket(rootcommandnode));
     }
  
     private void m_82112_(CommandNode<CommandSourceStack> p_82113_, CommandNode<SharedSuggestionProvider> p_82114_, CommandSourceStack p_82115_, Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> p_82116_) {

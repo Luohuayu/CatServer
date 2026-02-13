@@ -25,7 +25,7 @@ public class ClassInheritanceProvider implements InheritanceProvider {
             }
 
             return parents;
-        } catch (Exception e) {
+        } catch (Throwable e) { // may be NoClassDefFoundError (plugin: QuickShop-Hikari), not only Exception
             // Empty catch block
         }
         return null;

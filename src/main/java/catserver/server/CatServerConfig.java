@@ -13,6 +13,7 @@ public class CatServerConfig {
 
     public List<String> fakePlayerPermissions = Lists.<String>newArrayList("essentials.build");
     public boolean versionCheck = true;
+    public int pluginExecutorMaxThreads = -1;
 
     public CatServerConfig(String file) {
         this.configFile = new File(file);
@@ -24,6 +25,8 @@ public class CatServerConfig {
         fakePlayerPermissions = getOrWriteStringListConfig("fakePlayer.permissions", fakePlayerPermissions);
         // general
         versionCheck = getOrWriteBooleanConfig("versionCheck", versionCheck);
+        // thread
+        pluginExecutorMaxThreads = getOrWriteIntConfig("pluginExecutor.maxThreads", pluginExecutorMaxThreads); // 1.20.1 see FMLConfig#MAX_THREADS
         try {
             config.save(configFile);
         } catch (IOException e) {

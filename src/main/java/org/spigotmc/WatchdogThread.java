@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WatchdogThread extends Thread {
+
     private static WatchdogThread instance;
     private long timeoutTime;
     private boolean restart;
@@ -49,6 +50,7 @@ public class WatchdogThread extends Thread {
     @Override
     public void run() {
         while (!stopping) {
+            //
             if (lastTick != 0 && timeoutTime > 0 && monotonicMillis() > lastTick + timeoutTime) {
                 Logger log = Bukkit.getServer().getLogger();
                 log.log(Level.SEVERE, "------------------------------");
@@ -60,26 +62,31 @@ public class WatchdogThread extends Thread {
                 log.log(Level.SEVERE, "If you are unsure or still think this is a Spigot bug, please report to https://www.spigotmc.org/");
                 log.log(Level.SEVERE, "Be sure to include ALL relevant console errors and Minecraft crash reports");
                 log.log(Level.SEVERE, "Spigot version: " + Bukkit.getServer().getVersion());
+                //
                 if (net.minecraft.world.level.Level.lastPhysicsProblem != null) {
                     log.log(Level.SEVERE, "------------------------------");
                     log.log(Level.SEVERE, "During the run of the server, a physics stackoverflow was supressed");
                     log.log(Level.SEVERE, "near " + net.minecraft.world.level.Level.lastPhysicsProblem);
                 }
+                //
                 log.log(Level.SEVERE, "------------------------------");
                 log.log(Level.SEVERE, "Server thread dump (Look for plugins here before reporting to Spigot!):");
                 dumpThread(ManagementFactory.getThreadMXBean().getThreadInfo(MinecraftServer.getServer().serverThread.getId(), Integer.MAX_VALUE), log);
                 log.log(Level.SEVERE, "------------------------------");
+                //
                 log.log(Level.SEVERE, "Entire Thread Dump:");
                 ThreadInfo[] threads = ManagementFactory.getThreadMXBean().dumpAllThreads(true, true);
                 for (ThreadInfo thread : threads) {
                     dumpThread(thread, log);
                 }
                 log.log(Level.SEVERE, "------------------------------");
+
                 if (restart && !MinecraftServer.getServer().hasStopped()) {
                     RestartCommand.restart();
                 }
                 break;
             }
+
             try {
                 sleep(10000);
             } catch (InterruptedException ex) {
@@ -90,6 +97,7 @@ public class WatchdogThread extends Thread {
 
     private static void dumpThread(ThreadInfo thread, Logger log) {
         log.log(Level.SEVERE, "------------------------------");
+        //
         log.log(Level.SEVERE, "Current Thread: " + thread.getThreadName());
         log.log(Level.SEVERE, "\tPID: " + thread.getThreadId()
                 + " | Suspended: " + thread.isSuspended()
@@ -102,6 +110,7 @@ public class WatchdogThread extends Thread {
             }
         }
         log.log(Level.SEVERE, "\tStack:");
+        //
         for (StackTraceElement stack : thread.getStackTrace()) {
             log.log(Level.SEVERE, "\t\t" + stack);
         }

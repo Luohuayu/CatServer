@@ -11,9 +11,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.level.Level;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * This event is fired when a player attempts to use a Empty bucket, it
@@ -30,26 +29,26 @@ public class FillBucketEvent extends PlayerEvent
 {
 
     private final ItemStack current;
-    private final Level world;
+    private final Level level;
     @Nullable
     private final HitResult target;
 
     private ItemStack result;
 
-    public FillBucketEvent(Player player, @Nonnull ItemStack current, Level world, @Nullable HitResult target)
+    public FillBucketEvent(Player player, @NotNull ItemStack current, Level level, @Nullable HitResult target)
     {
         super(player);
         this.current = current;
-        this.world = world;
+        this.level = level;
         this.target = target;
     }
 
-    @Nonnull
+    @NotNull
     public ItemStack getEmptyBucket() { return this.current; }
-    public Level getWorld(){ return this.world; }
+    public Level getLevel(){ return this.level; }
     @Nullable
     public HitResult getTarget() { return this.target; }
-    @Nonnull
+    @NotNull
     public ItemStack getFilledBucket() { return this.result; }
-    public void setFilledBucket(@Nonnull ItemStack bucket) { this.result = bucket; }
+    public void setFilledBucket(@NotNull ItemStack bucket) { this.result = bucket; }
 }

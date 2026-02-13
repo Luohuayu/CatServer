@@ -5,16 +5,13 @@
 
 package net.minecraftforge.client.gui.widget;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiComponent;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.locale.Language;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraftforge.client.gui.ModListScreen;
 import net.minecraftforge.versions.forge.ForgeVersion;
 import net.minecraftforge.common.util.MavenVersionStringHelper;
@@ -29,7 +26,7 @@ public class ModListWidget extends ObjectSelectionList<ModListWidget.ModEntry>
     private static final ResourceLocation VERSION_CHECK_ICONS = new ResourceLocation(ForgeVersion.MOD_ID, "textures/gui/version_check_icons.png");
     private final int listWidth;
 
-    private ModListScreen parent;
+    private final ModListScreen parent;
 
     public ModListWidget(ModListScreen parent, int listWidth, int top, int bottom)
     {
@@ -57,9 +54,9 @@ public class ModListWidget extends ObjectSelectionList<ModListWidget.ModEntry>
     }
 
     @Override
-    protected void renderBackground(PoseStack poseStack)
+    protected void renderBackground(GuiGraphics guiGraphics)
     {
-        this.parent.renderBackground(poseStack);
+        this.parent.renderBackground(guiGraphics);
     }
 
     public class ModEntry extends ObjectSelectionList.Entry<ModEntry> {
@@ -73,26 +70,25 @@ public class ModListWidget extends ObjectSelectionList<ModListWidget.ModEntry>
 
         @Override
         public Component getNarration() {
-            return new TranslatableComponent("narrator.select", modInfo.getDisplayName());
+            return Component.translatable("narrator.select", modInfo.getDisplayName());
         }
 
         @Override
-        public void render(PoseStack poseStack, int entryIdx, int top, int left, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean p_194999_5_, float partialTick)
+        public void render(GuiGraphics guiGraphics, int entryIdx, int top, int left, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean isMouseOver, float partialTick)
         {
-            Component name = new TextComponent(stripControlCodes(modInfo.getDisplayName()));
-            Component version = new TextComponent(stripControlCodes(MavenVersionStringHelper.artifactVersionToString(modInfo.getVersion())));
+            Component name = Component.literal(stripControlCodes(modInfo.getDisplayName()));
+            Component version = Component.literal(stripControlCodes(MavenVersionStringHelper.artifactVersionToString(modInfo.getVersion())));
             VersionChecker.CheckResult vercheck = VersionChecker.getResult(modInfo);
             Font font = this.parent.getFontRenderer();
-            font.draw(poseStack, Language.getInstance().getVisualOrder(FormattedText.composite(font.substrByWidth(name,    listWidth))), left + 3, top + 2, 0xFFFFFF);
-            font.draw(poseStack, Language.getInstance().getVisualOrder(FormattedText.composite(font.substrByWidth(version, listWidth))), left + 3, top + 2 + font.lineHeight, 0xCCCCCC);
+            guiGraphics.drawString(font, Language.getInstance().getVisualOrder(FormattedText.composite(font.substrByWidth(name,    listWidth))), left + 3, top + 2, 0xFFFFFF, false);
+            guiGraphics.drawString(font, Language.getInstance().getVisualOrder(FormattedText.composite(font.substrByWidth(version, listWidth))), left + 3, top + 2 + font.lineHeight, 0xCCCCCC, false);
             if (vercheck.status().shouldDraw())
             {
                 //TODO: Consider adding more icons for visualization
                 RenderSystem.setShaderColor(1, 1, 1, 1);
-                RenderSystem.setShaderTexture(0, VERSION_CHECK_ICONS);
-                poseStack.pushPose();
-                GuiComponent.blit(poseStack, getLeft() + width - 12, top + entryHeight / 4, vercheck.status().getSheetOffset() * 8, (vercheck.status().isAnimated() && ((System.currentTimeMillis() / 800 & 1)) == 1) ? 8 : 0, 8, 8, 64, 16);
-                poseStack.popPose();
+                guiGraphics.pose().pushPose();
+                guiGraphics.blit(VERSION_CHECK_ICONS, getLeft() + width - 12, top + entryHeight / 4, vercheck.status().getSheetOffset() * 8, (vercheck.status().isAnimated() && ((System.currentTimeMillis() / 800 & 1)) == 1) ? 8 : 0, 8, 8, 64, 16);
+                guiGraphics.pose().popPose();
             }
         }
 

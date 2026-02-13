@@ -1,13 +1,15 @@
 --- a/net/minecraft/world/entity/monster/Creeper.java
 +++ b/net/minecraft/world/entity/monster/Creeper.java
-@@ -41,15 +_,18 @@
- import net.minecraft.world.level.GameRules;
+@@ -41,14 +_,20 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.gameevent.GameEvent;
-+import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
-+import org.bukkit.event.entity.CreatureSpawnEvent;
-+import org.bukkit.event.entity.ExplosionPrimeEvent;
  
++// CraftBukkit start;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
++import org.bukkit.event.entity.ExplosionPrimeEvent;
++// CraftBukkit end
++
  public class Creeper extends Monster implements PowerableMob {
     private static final EntityDataAccessor<Integer> f_32268_ = SynchedEntityData.m_135353_(Creeper.class, EntityDataSerializers.f_135028_);
     private static final EntityDataAccessor<Boolean> f_32274_ = SynchedEntityData.m_135353_(Creeper.class, EntityDataSerializers.f_135035_);
@@ -16,60 +18,61 @@
 -   private int f_32270_;
 -   private int f_32271_ = 30;
 -   private int f_32272_ = 3;
-+   public int f_32270_;
-+   public int f_32271_ = 30;
-+   public int f_32272_ = 3;
++   public int f_32270_; // CatServer - private -> public
++   public int f_32271_ = 30; // CatServer - private -> public
++   public int f_32272_ = 3; // CatServer - private -> public
     private int f_32273_;
  
     public Creeper(EntityType<? extends Creeper> p_32278_, Level p_32279_) {
-@@ -73,6 +_,12 @@
-       return Monster.m_33035_().m_22268_(Attributes.f_22279_, 0.25D);
-    }
- 
-+   // CraftServer start
-+   public void setPowered(boolean powered) {
-+      this.f_19804_.m_135381_(Creeper.f_32274_, powered);
-+   }
-+   // CraftBukkit end
-+
-    public int m_6056_() {
-       return this.m_5448_() == null ? 3 : 3 + (int)(this.m_21223_() - 1.0F);
-    }
-@@ -198,7 +_,11 @@
+@@ -196,9 +_,20 @@
  
     public void m_8038_(ServerLevel p_32286_, LightningBolt p_32287_) {
        super.m_8038_(p_32286_, p_32287_);
--      this.f_19804_.m_135381_(f_32274_, true);
 +      // CraftBukkit start
 +      if (CraftEventFactory.callCreeperPowerEvent(this, p_32287_, org.bukkit.event.entity.CreeperPowerEvent.PowerCause.LIGHTNING).isCancelled()) {
 +         return;
 +      }
-+      this.setPowered(true);
++      // CraftBukkit end
+       this.f_19804_.m_135381_(f_32274_, true);
     }
  
++   // CraftBukkit start
++   public void setPowered(boolean powered) {
++      this.f_19804_.m_135381_(f_32274_, powered);
++   }
++   // CraftBukkit end
++
     protected InteractionResult m_6071_(Player p_32301_, InteractionHand p_32302_) {
-@@ -218,14 +_,22 @@
+       ItemStack itemstack = p_32301_.m_21120_(p_32302_);
+       if (itemstack.m_204117_(ItemTags.f_262757_)) {
+@@ -221,13 +_,29 @@
        }
     }
  
 -   private void m_32315_() {
-+   public void m_32315_() {
-       if (!this.f_19853_.f_46443_) {
--         Explosion.BlockInteraction explosion$blockinteraction = this.f_19853_.m_46469_().m_46207_(GameRules.f_46132_) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
-+         Explosion.BlockInteraction explosion$blockinteraction = net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(this.f_19853_, this) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
++   public void m_32315_() { // CatServer - private -> public
+       if (!this.m_9236_().f_46443_) {
           float f = this.m_7090_() ? 2.0F : 1.0F;
 -         this.f_20890_ = true;
--         this.f_19853_.m_46511_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), (float)this.f_32272_ * f, explosion$blockinteraction);
+-         this.m_9236_().m_254849_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), (float)this.f_32272_ * f, Level.ExplosionInteraction.MOB);
 -         this.m_146870_();
 -         this.m_32316_();
 +         // CraftBukkit start
-+         ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), this.f_32272_ * f, false);
-+         this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++         ExplosionPrimeEvent event = CraftEventFactory.callExplosionPrimeEvent(this, this.f_32272_ * f, false);
 +         if (!event.isCancelled()) {
++            // CraftBukkit end
 +            this.f_20890_ = true;
-+            this.f_19853_.m_46518_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), event.getRadius(), event.getFire(), explosion$blockinteraction);
++            // CatServer start - compat:mod:supplementaries-1.20-3.1.42-forge:net.mehvahdjukaar.supplementaries.mixins.CreeperMixin#supp$checkPartyCreeper
++            try {
++               catserver.server.CatServerCaptures.getCatServerCaptures().Level$explode_EntityDDDFExplosionInteraction$p_256634_.push(this.m_9236_(), event.getFire()); // CraftBukkit
++               this.m_9236_().m_254849_(this, this.m_20185_(), this.m_20186_(), this.m_20189_(), event.getRadius(), Level.ExplosionInteraction.MOB);
++            } finally {
++               catserver.server.CatServerCaptures.getCatServerCaptures().Level$explode_EntityDDDFExplosionInteraction$p_256634_.pop(this.m_9236_());
++            }
++            // CatServer end
 +            this.m_146870_();
 +            this.m_32316_();
++            // CraftBukkit start
 +         } else {
 +            f_32270_ = 0;
 +         }
@@ -77,20 +80,20 @@
        }
  
     }
-@@ -234,6 +_,7 @@
+@@ -236,6 +_,7 @@
        Collection<MobEffectInstance> collection = this.m_21220_();
        if (!collection.isEmpty()) {
-          AreaEffectCloud areaeffectcloud = new AreaEffectCloud(this.f_19853_, this.m_20185_(), this.m_20186_(), this.m_20189_());
+          AreaEffectCloud areaeffectcloud = new AreaEffectCloud(this.m_9236_(), this.m_20185_(), this.m_20186_(), this.m_20189_());
 +         areaeffectcloud.m_19718_(this); // CraftBukkit
           areaeffectcloud.m_19712_(2.5F);
           areaeffectcloud.m_19732_(-0.5F);
           areaeffectcloud.m_19740_(10);
-@@ -244,7 +_,7 @@
+@@ -246,7 +_,7 @@
              areaeffectcloud.m_19716_(new MobEffectInstance(mobeffectinstance));
           }
  
--         this.f_19853_.m_7967_(areaeffectcloud);
-+         this.f_19853_.addFreshEntity(areaeffectcloud, CreatureSpawnEvent.SpawnReason.EXPLOSION); // CraftBukkit
+-         this.m_9236_().m_7967_(areaeffectcloud);
++         this.m_9236_().addFreshEntity(areaeffectcloud, CreatureSpawnEvent.SpawnReason.EXPLOSION); // CraftBukkit
        }
  
     }

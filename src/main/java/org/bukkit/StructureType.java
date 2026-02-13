@@ -1,11 +1,11 @@
 package org.bukkit;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.commons.lang3.Validate;
 import org.bukkit.map.MapCursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,8 +17,13 @@ import org.jetbrains.annotations.Nullable;
  * Mansions, etc.
  * <br>
  * The registration of new {@link StructureType}s is case-sensitive.
+ *
+ * @deprecated This class does not represent the structures of a world well. Use
+ * {@link org.bukkit.generator.structure.Structure} or
+ * {@link org.bukkit.generator.structure.StructureType} instead.
  */
 // Order is retrieved from WorldGenFactory
+@Deprecated
 public final class StructureType implements Keyed {
 
     private static final Map<String, StructureType> structureTypeMap = new HashMap<>();
@@ -111,7 +116,7 @@ public final class StructureType implements Keyed {
      * They consist primarily of end stone bricks, purpur blocks, and end rods.
      * They are the only place where shulkers can be found.
      */
-    public static final StructureType END_CITY = register(new StructureType("endcity", MapCursor.Type.RED_X));
+    public static final StructureType END_CITY = register(new StructureType("end_city", MapCursor.Type.RED_X));
 
     /**
      * Mansions (also known as woodland mansions) are massive house structures
@@ -175,7 +180,7 @@ public final class StructureType implements Keyed {
      * not be compatible with explorer maps.
      */
     private StructureType(@NotNull String name, @Nullable MapCursor.Type mapIcon) {
-        Validate.notEmpty(name, "Structure name cannot be empty");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "Structure name cannot be empty");
         this.key = NamespacedKey.minecraft(name);
         this.mapCursor = mapIcon;
     }

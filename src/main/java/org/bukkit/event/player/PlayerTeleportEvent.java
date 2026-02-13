@@ -74,6 +74,14 @@ public class PlayerTeleportEvent extends PlayerMoveEvent {
          */
         CHORUS_FRUIT,
         /**
+         * Indicates the teleportation was caused by a player exiting a vehicle
+         */
+        DISMOUNT,
+        /**
+         * Indicates the teleportation was caused by a player exiting a bed
+         */
+        EXIT_BED,
+        /**
          * Indicates the teleportation was caused by an event not covered by
          * this enum
          */

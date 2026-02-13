@@ -10,16 +10,17 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.AdvancementEvent;
+import net.minecraftforge.event.entity.player.AdvancementEvent.AdvancementEarnEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.block.BlockState;
-import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlock;
-import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockState;
-import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlockState;
+import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -34,8 +35,8 @@ public class CatServerEventHandler {
 
     @SubscribeEvent(receiveCanceled = true)
     public void onLivingDropsEvent(LivingDropsEvent event) {
-        if (!(event.getEntityLiving() instanceof ServerPlayer)) {
-            LivingEntity livingEntity = event.getEntityLiving();
+        if (!(event.getEntity() instanceof ServerPlayer)) {
+            LivingEntity livingEntity = event.getEntity();
             livingEntity.expToDrop = livingEntity.getExpReward();
 
             List<org.bukkit.inventory.ItemStack> bukkitDrops = new ArrayList<>();
@@ -68,12 +69,12 @@ public class CatServerEventHandler {
                 List<BlockState> list = new ArrayList<>(multiPlaceEvent.getReplacedBlockSnapshots().size());
                 for (BlockSnapshot snap : multiPlaceEvent.getReplacedBlockSnapshots()) {
                     BlockPos pos = snap.getPos();
-                    list.add(CraftBlockState.getBlockState(event.getWorld(), pos));
+                    list.add(CraftBlockState.getBlockState(event.getLevel(), pos));
                 }
-                bukkitEvent = CraftEventFactory.callBlockMultiPlaceEvent((ServerLevel) event.getWorld(), (ServerPlayer) event.getEntity(), hand, list, clickPos.getX(), clickPos.getY(), clickPos.getZ());
+                bukkitEvent = CraftEventFactory.callBlockMultiPlaceEvent((ServerLevel) event.getLevel(), (ServerPlayer) event.getEntity(), hand, list, clickPos.getX(), clickPos.getY(), clickPos.getZ());
             } else {
-                CraftBlockState blockState = CraftBlockState.getBlockState(event.getWorld(), event.getPos());
-                bukkitEvent = CraftEventFactory.callBlockPlaceEvent((ServerLevel) event.getWorld(), (ServerPlayer) event.getEntity(), hand, blockState, clickPos.getX(), clickPos.getY(), clickPos.getZ());
+                CraftBlockState blockState = CraftBlockState.getBlockState(event.getLevel(), event.getPos());
+                bukkitEvent = CraftEventFactory.callBlockPlaceEvent((ServerLevel) event.getLevel(), (ServerPlayer) event.getEntity(), hand, blockState, clickPos.getX(), clickPos.getY(), clickPos.getZ());
             }
 
             event.setCanceled(bukkitEvent.isCancelled() || !bukkitEvent.canBuild());
@@ -83,10 +84,11 @@ public class CatServerEventHandler {
         BlockEvent.hand = null;
     }
 
+    // CraftBukkit patch: ServerPlayerGameMode#destroyBlock
     @SubscribeEvent(receiveCanceled = true)
     public void onBreakBlockEvent(BlockEvent.BreakEvent event) {
-        if (!event.getWorld().isClientSide()) {
-            CraftBlock craftBlock = CraftBlock.at(event.getWorld(), event.getPos());
+        if (!event.getLevel().isClientSide()) {
+            CraftBlock craftBlock = CraftBlock.at(event.getLevel(), event.getPos());
             BlockBreakEvent bukkitEvent = new BlockBreakEvent(craftBlock, ((ServerPlayer) event.getPlayer()).getBukkitEntity());
             bukkitEvent.setCancelled(event.isCanceled());
             bukkitEvent.setExpToDrop(event.getExpToDrop());
@@ -97,22 +99,24 @@ public class CatServerEventHandler {
         }
     }
 
+    // CraftBukkit patch: ServerPlayerGameMode#changeGameModeForPlayer
     @SubscribeEvent(receiveCanceled = true)
     public void onPlayerChangeGameModeEvent(PlayerEvent.PlayerChangeGameModeEvent event) {
-        if (event.getPlayer() instanceof ServerPlayer) {
-            ServerPlayer player = (ServerPlayer) event.getPlayer();
+        if (event.getEntity() instanceof ServerPlayer) {
+            ServerPlayer player = (ServerPlayer) event.getEntity();
             PlayerGameModeChangeEvent bukkitEvent = new PlayerGameModeChangeEvent(player.getBukkitEntity(), GameMode.getByValue(event.getNewGameMode().getId()));
             bukkitEvent.setCancelled(event.isCanceled());
-            player.level.getCraftServer().getPluginManager().callEvent(bukkitEvent);
+            player.level().getCraftServer().getPluginManager().callEvent(bukkitEvent);
             event.setCanceled(bukkitEvent.isCancelled());
         }
     }
 
     // Not cancelable
+    // CraftBukkit patch: PlayerAdvancements#award
     @SubscribeEvent
-    public void onAdvancementEvent(AdvancementEvent event) {
-        if (event.getPlayer() instanceof ServerPlayer) {
-            ServerPlayer player = (ServerPlayer) event.getPlayer();
+    public void onAdvancementEvent(AdvancementEarnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer) {
+            ServerPlayer player = (ServerPlayer) event.getEntity();
             Bukkit.getPluginManager().callEvent(new PlayerAdvancementDoneEvent(player.getBukkitEntity(), event.getAdvancement().bukkit));
         }
     }

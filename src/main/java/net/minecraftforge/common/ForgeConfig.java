@@ -5,9 +5,8 @@
 
 package net.minecraftforge.common;
 
-import static net.minecraftforge.fml.Logging.FORGEMOD;
-
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.Logging;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -15,7 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import net.minecraftforge.common.ForgeConfigSpec.BooleanValue;
 import net.minecraftforge.common.ForgeConfigSpec.DoubleValue;
 import net.minecraftforge.common.ForgeConfigSpec.ConfigValue;
-
 
 public class ForgeConfig {
     public static class Server {
@@ -28,12 +26,11 @@ public class ForgeConfig {
         public final DoubleValue zombieBaseSummonChance;
         public final DoubleValue zombieBabyChance;
 
-        public final BooleanValue treatEmptyTagsAsAir;
-        public final BooleanValue skipEmptyShapelessCheck;
-
-        public final BooleanValue fixAdvancementLoading;
-
         public final ConfigValue<String> permissionHandler;
+
+        public final BooleanValue advertiseDedicatedServerToLan;
+
+        public final BooleanValue useItemWithDurationZero;
 
         Server(ForgeConfigSpec.Builder builder) {
             builder.comment("Server configuration settings")
@@ -69,27 +66,26 @@ public class ForgeConfig {
                     .worldRestart()
                     .defineInRange("zombieBabyChance", 0.05D, 0.0D, 1.0D);
 
-            treatEmptyTagsAsAir = builder
-                    .comment("Vanilla will treat crafting recipes using empty tags as air, and allow you to craft with nothing in that slot. This changes empty tags to use BARRIER as the item. To prevent crafting with air.")
-                    .translation("forge.configgui.treatEmptyTagsAsAir")
-                    .define("treatEmptyTagsAsAir", false);
-
-            skipEmptyShapelessCheck = builder
-                  .comment("Skip checking if an ingredient is empty during shapeless recipe deserialization to prevent complex ingredients from caching tags too early.")
-                  .translation("forge.configgui.skipEmptyShapelessCheck")
-                  .define("skipEmptyShapelessCheck", true);
-
-            fixAdvancementLoading = builder
-                    .comment("Fix advancement loading to use a proper topological sort. This may have visibility side-effects and can thus be turned off if needed for data-pack compatibility.")
-                    .translation("forge.configgui.fixAdvancementLoading")
-                    .define("fixAdvancementLoading", true);
-
             permissionHandler = builder
                     .comment("The permission handler used by the server. Defaults to forge:default_handler if no such handler with that name is registered.")
                     .translation("forge.configgui.permissionHandler")
                     .define("permissionHandler", "forge:default_handler");
 
+            advertiseDedicatedServerToLan = builder
+                    .comment("Set this to true to enable advertising the dedicated server to local LAN clients so that it shows up in the Multiplayer screen automatically.")
+                    .translation("forge.configgui.advertiseDedicatedServerToLan")
+                    .define("advertiseDedicatedServerToLan", true);
+
+            useItemWithDurationZero = builder
+                    .comment("Set this to true to enable living entities to use items with durations of 0. Fixes being able to use Eyes of Ender repeatedly by holding down the use button. Disabled by default as it could change interactions with items of existing mods.")
+                    .translation("forge.configgui.useItemWithDurationZero")
+                    .define("useItemWithDurationZero", false);
+
             builder.pop();
+        }
+
+        public final int getUseItemDuration() {
+            return useItemWithDurationZero.get() ? 0 : 1;
         }
     }
 
@@ -97,21 +93,13 @@ public class ForgeConfig {
      * General configuration that doesn't need to be synchronized but needs to be available before server startup
      */
     public static class Common {
-        public final ForgeConfigSpec.ConfigValue<? extends String> defaultWorldType;
 
         Common(ForgeConfigSpec.Builder builder) {
-            builder.comment("General configuration settings")
+            builder.comment("[DEPRECATED / NO EFFECT]: General configuration settings")
                     .push("general");
-
-            defaultWorldType = builder
-                    .comment("Defines a default world type to use. The vanilla default world type is represented by 'default'.",
-                             "The modded world types are registry names which should include the registry namespace, such as 'examplemod:example_world_type'.")
-                    .translation("forge.configgui.defaultWorldType")
-                    .define("defaultWorldType", "default");
 
             builder.pop();
         }
-
     }
 
     /**
@@ -126,9 +114,15 @@ public class ForgeConfig {
 
         public final BooleanValue useCombinedDepthStencilAttachment;
 
-        public final BooleanValue forceSystemNanoTime;
-
+        @Deprecated(since = "1.20.1", forRemoval = true) // Config option ignored.
         public final BooleanValue compressLanIPv6Addresses;
+
+        public final BooleanValue calculateAllNormals;
+
+        public final BooleanValue stabilizeDirectionGetNearest;
+
+        public final BooleanValue allowMipmapLowering;
+
 
         Client(ForgeConfigSpec.Builder builder) {
             builder.comment("Client only settings, mostly things related to rendering")
@@ -156,17 +150,45 @@ public class ForgeConfig {
                     .translation("forge.configgui.useCombinedDepthStencilAttachment")
                     .define("useCombinedDepthStencilAttachment", false);
 
-            forceSystemNanoTime = builder
-                    .comment("Forces the use of System.nanoTime instead of glfwGetTime, as the main Util time provider")
-                    .translation("forge.configgui.forceSystemNanoTime")
-                    .define("forceSystemNanoTime", false);
-
             compressLanIPv6Addresses = builder
-                    .comment("When enabled, Forge will convert discovered 'Open to LAN' IPv6 addresses to their more compact, compressed representation")
+                    .comment("[DEPRECATED] Does nothing anymore, IPv6 addresses will be compressed always")
                     .translation("forge.configgui.compressLanIPv6Addresses")
                     .define("compressLanIPv6Addresses", true);
 
+            calculateAllNormals = builder
+                    .comment("During block model baking, manually calculates the normal for all faces.",
+                            "This was the default behavior of forge between versions 31.0 and 47.1.",
+                            "May result in differences between vanilla rendering and forge rendering.",
+                            "Will only produce differences for blocks that contain non-axis aligned faces.",
+                            "You will need to reload your resources to see results.")
+                    .translation("forge.configgui.calculateAllNormals")
+                    .define("calculateAllNormals", false);
+
+            stabilizeDirectionGetNearest = builder
+                    .comment("When enabled, a slightly biased Direction#getNearest calculation will be used to prevent normal fighting on 45 degree angle faces.")
+                    .translation("forge.configgui.stabilizeDirectionGetNearest")
+                    .define("stabilizeDirectionGetNearest", true);
+
+            allowMipmapLowering = builder
+                .comment("When enabled, Forge will allow mipmaps to be lowered in real-time. This is the default behavior in vanilla. Use this if you experience issues with resource packs that use textures lower than 8x8.")
+                .translation("forge.configgui.allowMipmapLowering")
+                .define("allowMipmapLowering", false);
+
             builder.pop();
+        }
+
+        // Allow these to be called before the config is loaded because its used before loading the error screens.
+        // Prevents a ton of spam when an error screen is displayed.
+        public final boolean calculateAllNormals() {
+            return clientSpec.isLoaded() ? calculateAllNormals.get() : calculateAllNormals.getDefault();
+        }
+
+        public final boolean showLoadWarnings() {
+            return clientSpec.isLoaded() ? showLoadWarnings.get() : showLoadWarnings.getDefault();
+        }
+
+        public final boolean allowMipmapLowering() {
+            return clientSpec.isLoaded() ? allowMipmapLowering.get() : allowMipmapLowering.getDefault();
         }
     }
 
@@ -198,12 +220,12 @@ public class ForgeConfig {
 
     @SubscribeEvent
     public static void onLoad(final ModConfigEvent.Loading configEvent) {
-        LogManager.getLogger().debug(FORGEMOD, "Loaded forge config file {}", configEvent.getConfig().getFileName());
+        LogManager.getLogger().debug(Logging.FORGEMOD, "Loaded forge config file {}", configEvent.getConfig().getFileName());
     }
 
     @SubscribeEvent
     public static void onFileChange(final ModConfigEvent.Reloading configEvent) {
-        LogManager.getLogger().debug(FORGEMOD, "Forge config just got changed on the file system!");
+        LogManager.getLogger().debug(Logging.FORGEMOD, "Forge config just got changed on the file system!");
     }
 
     //General

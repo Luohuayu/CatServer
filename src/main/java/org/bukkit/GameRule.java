@@ -164,6 +164,11 @@ public final class GameRule<T> {
     public static final GameRule<Boolean> DO_TRADER_SPAWNING = new GameRule<>("doTraderSpawning", Boolean.class);
 
     /**
+     * Whether wardens should naturally spawn.
+     */
+    public static final GameRule<Boolean> DO_WARDEN_SPAWNING = new GameRule<>("doWardenSpawning", Boolean.class);
+
+    /**
      * Whether mobs should cease being angry at a player once they die.
      */
     public static final GameRule<Boolean> FORGIVE_DEAD_PLAYERS = new GameRule<>("forgiveDeadPlayers", Boolean.class);
@@ -172,6 +177,35 @@ public final class GameRule<T> {
      * Whether mobs will target all player entities once angered.
      */
     public static final GameRule<Boolean> UNIVERSAL_ANGER = new GameRule<>("universalAnger", Boolean.class);
+    /**
+     * Whether block explosions will destroy dropped items.
+     */
+    public static final GameRule<Boolean> BLOCK_EXPLOSION_DROP_DECAY = new GameRule<>("blockExplosionDropDecay", Boolean.class);
+    /**
+     * * Whether mob explosions will destroy dropped items.
+     */
+    public static final GameRule<Boolean> MOB_EXPLOSION_DROP_DECAY = new GameRule<>("mobExplosionDropDecay", Boolean.class);
+    /**
+     * Whether tnt explosions will destroy dropped items.
+     */
+    public static final GameRule<Boolean> TNT_EXPLOSION_DROP_DECAY = new GameRule<>("tntExplosionDropDecay", Boolean.class);
+    /**
+     * Whether water blocks can convert into water source blocks.
+     */
+    public static final GameRule<Boolean> WATER_SOURCE_CONVERSION = new GameRule<>("waterSourceConversion", Boolean.class);
+    /**
+     * Whether lava blocks can convert into lava source blocks.
+     */
+    public static final GameRule<Boolean> LAVA_SOURCE_CONVERSION = new GameRule<>("lavaSourceConversion", Boolean.class);
+    /**
+     * Whether global level events such as ender dragon, wither, and completed
+     * end portal effects will propagate across the entire server.
+     */
+    public static final GameRule<Boolean> GLOBAL_SOUND_EVENTS = new GameRule<>("globalSoundEvents", Boolean.class);
+    /**
+     * Whether vines will spread.
+     */
+    public static final GameRule<Boolean> DO_VINES_SPREAD = new GameRule<>("doVinesSpread", Boolean.class);
 
     // Numerical rules
     /**
@@ -206,10 +240,16 @@ public final class GameRule<T> {
     public static final GameRule<Integer> MAX_COMMAND_CHAIN_LENGTH = new GameRule<>("maxCommandChainLength", Integer.class);
 
     /**
+     * Determines the maximum number of blocks which a command can modify.
+     */
+    public static final GameRule<Integer> COMMAND_MODIFICATION_BLOCK_LIMIT = new GameRule<>("commandModificationBlockLimit", Integer.class);
+
+    /**
      * The percentage of online players which must be sleeping for the night to
      * advance.
      */
     public static final GameRule<Integer> PLAYERS_SLEEPING_PERCENTAGE = new GameRule<>("playersSleepingPercentage", Integer.class);
+    public static final GameRule<Integer> SNOW_ACCUMULATION_HEIGHT = new GameRule<>("snowAccumulationHeight", Integer.class);
 
     // All GameRules instantiated above this for organizational purposes
     private final String name;

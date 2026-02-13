@@ -6,6 +6,7 @@
 package net.minecraftforge.fml.loading.moddiscovery;
 
 import com.electronwill.nightconfig.core.Config;
+import com.mojang.logging.LogUtils;
 import cpw.mods.jarhandling.SecureJar;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.fml.loading.LogMarkers;
@@ -13,21 +14,24 @@ import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.IModLocator;
 import net.minecraftforge.forgespi.locating.ModFileFactory;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 
 import java.io.IOException;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MinecraftLocator extends AbstractModLocator implements IModLocator {
-    private static final Logger LOGGER = LogManager.getLogger();
+public class MinecraftLocator extends AbstractModProvider implements IModLocator
+{
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Override
-    public List<IModFile> scanMods() {
+    public List<IModLocator.ModFileOrException> scanMods() {
         final var launchHandler = FMLLoader.getLaunchHandler();
         var baseMC = launchHandler.getMinecraftPaths();
         var mcjar = ModJarMetadata.buildFile(j->ModFileFactory.FACTORY.build(j, this, this::buildMinecraftTOML), j->true, baseMC.minecraftFilter(), baseMC.minecraftPaths().toArray(Path[]::new)).orElseThrow();
@@ -36,12 +40,11 @@ public class MinecraftLocator extends AbstractModLocator implements IModLocator 
                 .map(sj -> new ModFile(sj, this, ModFileParser::modsTomlParser))
                 .collect(Collectors.<IModFile>toList());
         var othermods = baseMC.otherModPaths().stream()
-                .map(p -> createMod(p.toArray(Path[]::new)).orElse(null))
-                .filter(Objects::nonNull)
-                .toList();
+                .map(p -> createMod(p.toArray(Path[]::new)))
+                .filter(Objects::nonNull);
         artifacts.add(mcjar);
-        artifacts.addAll(othermods);
-        return artifacts;
+
+        return Stream.concat(artifacts.stream().map(f -> new ModFileOrException(f, null)), othermods).toList();
     }
 
     private IModFileInfo buildMinecraftTOML(final IModFile iModFile) {
@@ -93,9 +96,7 @@ public class MinecraftLocator extends AbstractModLocator implements IModLocator 
 
         final NightConfigWrapper configWrapper = new NightConfigWrapper(conf);
         //final ModFileInfo modFileInfo = new ModFileInfo(modFile, configWrapper, extralangs.build().toList());
-        final ModFileInfo modFileInfo = new ModFileInfo(modFile, configWrapper, List.of());
-        configWrapper.setFile(modFileInfo);
-        return modFileInfo;
+        return new ModFileInfo(modFile, configWrapper, configWrapper::setFile, List.of());
     }
 
     @Override

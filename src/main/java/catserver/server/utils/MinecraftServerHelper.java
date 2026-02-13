@@ -1,32 +1,24 @@
 package catserver.server.utils;
 
-import com.mojang.serialization.DynamicOps;
 import joptsimple.OptionSet;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.server.WorldLoader;
 
 public class MinecraftServerHelper {
     private static MinecraftServerHelper instance = new MinecraftServerHelper();
     private OptionSet optionSet;
-    private DataPackConfig dataPackConfig;
-    private DynamicOps<Tag> dynamicOps;
+    private WorldLoader.DataLoadContext worldLoader; // 1.20.1
 
-    public void load(OptionSet optionSet, DataPackConfig dataPackConfig, DynamicOps<Tag> dynamicOps) {
+    public void load(OptionSet optionSet, WorldLoader.DataLoadContext worldLoader) {
         this.optionSet = optionSet;
-        this.dataPackConfig = dataPackConfig;
-        this.dynamicOps = dynamicOps;
+        this.worldLoader = worldLoader;
     }
 
     public OptionSet getOptionSet() {
         return optionSet;
     }
 
-    public DataPackConfig getDataPackConfig() {
-        return dataPackConfig;
-    }
-
-    public DynamicOps<Tag> getDynamicOps() {
-        return dynamicOps;
+    public WorldLoader.DataLoadContext getWorldLoader() {
+        return worldLoader;
     }
 
     public static MinecraftServerHelper getInstance() {

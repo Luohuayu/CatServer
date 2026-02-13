@@ -92,7 +92,7 @@ public class MappingLoader {
                 unsafe.putObject(jarMapping, unsafe.objectFieldOffset(fieldClasses), fieldClasses.get(globalJarMapping));
                 unsafe.putObject(jarMapping, unsafe.objectFieldOffset(fieldFields), fieldFields.get(globalJarMapping));
                 unsafe.putObject(jarMapping, unsafe.objectFieldOffset(fieldMethods), fieldMethods.get(globalJarMapping));
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -110,7 +110,7 @@ public class MappingLoader {
                 unsafeField.setAccessible(true);
                 sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
                 unsafe.putObject(jarMapping, unsafe.objectFieldOffset(fieldPreFields), fieldFields.get(globalPreJarMapping));
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }

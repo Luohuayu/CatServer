@@ -36,9 +36,9 @@ import cpw.mods.modlauncher.serviceapi.ILaunchPluginService;
  */
 public class CapabilityTokenSubclass implements ILaunchPluginService {
 
-    private final String FUNC_NAME = "getType";
-    private final String FUNC_DESC = "()Ljava/lang/String;";
-    private final String CAP_INJECT = "net/minecraftforge/common/capabilities/CapabilityToken"; //Don't directly reference this to prevent class loading.
+    private static final String FUNC_NAME = "getType";
+    private static final String FUNC_DESC = "()Ljava/lang/String;";
+    private static final String CAP_INJECT = "net/minecraftforge/common/capabilities/CapabilityToken"; //Don't directly reference this to prevent class loading.
 
     @Override
     public String name() {
@@ -51,7 +51,14 @@ public class CapabilityTokenSubclass implements ILaunchPluginService {
     @Override
     public EnumSet<Phase> handlesClass(Type classType, boolean isEmpty)
     {
-        return isEmpty ? NAY : YAY;
+        if (isEmpty)
+            return NAY;
+
+        String internalName = classType.getInternalName();
+        if (internalName.startsWith("net/minecraft/") || internalName.startsWith("com/mojang/"))
+            return NAY;
+        
+        return YAY;
     }
 
     @Override
@@ -75,7 +82,7 @@ public class CapabilityTokenSubclass implements ILaunchPluginService {
             SignatureReader reader = new SignatureReader(classNode.signature); // Having a node version of this would probably be useful.
             reader.accept(new SignatureVisitor(Opcodes.ASM9)
             {
-                Deque<String> stack = new ArrayDeque<>();
+                final Deque<String> stack = new ArrayDeque<>();
 
                 @Override
                 public void visitClassType(final String name)
@@ -113,7 +120,7 @@ public class CapabilityTokenSubclass implements ILaunchPluginService {
         }
     }
 
-    private static class Holder {
+    private static final class Holder {
         String value;
     }
 

@@ -5,6 +5,7 @@
 
 package net.minecraftforge.event;
 
+import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.LogicalSide;
@@ -18,7 +19,6 @@ import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,44 +45,42 @@ public class ModMismatchEvent extends Event implements IModBusEvent
      * The level being loaded. Useful for things like {@link net.minecraft.world.level.storage.DimensionDataStorage}
      * to manage multiple files changing between mod versions.
      */
-    @Nullable
-    private final Path levelPath;
-    
+    private final LevelStorageSource.LevelDirectory levelDirectory;
+
     /**
      * A set of previously-known versions that have mismatched with the currently loaded versions.
      */
     private final HashMap<String, MismatchedVersionInfo> versionDifferences;
-    
+
     /**
      * Which mods have specified that they have handled version mismatches.
      */
     private final HashMap<String, ModContainer> resolved;
-    
+
     @ApiStatus.Internal
-    public ModMismatchEvent(@Nullable Path levelPath, Map<String, ArtifactVersion> previousVersions, Map<String, ArtifactVersion> missingVersions)
+    public ModMismatchEvent(LevelStorageSource.LevelDirectory levelDirectory, Map<String, ArtifactVersion> previousVersions, Map<String, ArtifactVersion> missingVersions)
     {
-        this.levelPath = levelPath;
+        this.levelDirectory = levelDirectory;
         this.resolved = new HashMap<>(previousVersions.size());
         this.versionDifferences = new HashMap<>();
         previousVersions.forEach((modId, version) -> versionDifferences.put(modId, new MismatchedVersionInfo(version, ModList.get()
-            .getModContainerById(modId)
-            .map(ModContainer::getModInfo)
-            .map(IModInfo::getVersion)
-            .orElse(null))));
-        
+                .getModContainerById(modId)
+                .map(ModContainer::getModInfo)
+                .map(IModInfo::getVersion)
+                .orElse(null))));
+
         missingVersions.forEach((modId, version) -> versionDifferences.put(modId, new MismatchedVersionInfo(version, null)));
     }
-    
+
     /**
      * Gets the current level directory for the world being loaded.
      * Can be used for file operations and manual modification of mod files before world load.
      */
-    @Nullable
-    public Path getLevelPath()
+    public LevelStorageSource.LevelDirectory getLevelDirectory()
     {
-        return this.levelPath;
+        return this.levelDirectory;
     }
-    
+
     /**
      * Fetch a previous version of a given mod, if it has been mismatched.
      * @param modId The mod to fetch previous version for.
@@ -93,19 +91,19 @@ public class ModMismatchEvent extends Event implements IModBusEvent
     {
         if (this.versionDifferences.containsKey(modId))
             return this.versionDifferences.get(modId).oldVersion();
-        
+
         return null;
     }
-    
+
     @Nullable
     public ArtifactVersion getCurrentVersion(String modid)
     {
         if (this.versionDifferences.containsKey(modid))
             return this.versionDifferences.get(modid).newVersion();
-        
+
         return null;
     }
-    
+
     /**
      * Marks the mod version mismatch as having been resolved safely by the current mod.
      */
@@ -114,7 +112,7 @@ public class ModMismatchEvent extends Event implements IModBusEvent
         final var resolvedBy = ModLoadingContext.get().getActiveContainer();
         resolved.putIfAbsent(modId, resolvedBy);
     }
-    
+
     /**
      * Fetches the status of a mod mismatch handling state.
      */
@@ -122,42 +120,42 @@ public class ModMismatchEvent extends Event implements IModBusEvent
     {
         return this.resolved.containsKey(modId);
     }
-    
+
     public Optional<MismatchedVersionInfo> getVersionDifference(String modid)
     {
         return Optional.ofNullable(this.versionDifferences.get(modid));
     }
-    
+
     public Optional<ModContainer> getResolver(String modid)
     {
         return Optional.ofNullable(this.resolved.get(modid));
     }
-    
+
     public boolean anyUnresolved()
     {
         return resolved.size() < versionDifferences.size();
     }
-    
+
     public Stream<MismatchResolutionResult> getUnresolved()
     {
         return versionDifferences.keySet().stream()
-                   .filter(modid -> !resolved.containsKey(modid))
-                   .map(unresolved -> new MismatchResolutionResult(unresolved, versionDifferences.get(unresolved), null))
-                   .sorted(Comparator.comparing(MismatchResolutionResult::modid));
+                .filter(modid -> !resolved.containsKey(modid))
+                .map(unresolved -> new MismatchResolutionResult(unresolved, versionDifferences.get(unresolved), null))
+                .sorted(Comparator.comparing(MismatchResolutionResult::modid));
     }
-    
+
     public boolean anyResolved()
     {
         return !resolved.isEmpty();
     }
-    
+
     public Stream<MismatchResolutionResult> getResolved()
     {
         return resolved.keySet().stream()
-                   .map(modid -> new MismatchResolutionResult(modid, versionDifferences.get(modid), resolved.get(modid)))
-                   .sorted(Comparator.comparing(MismatchResolutionResult::modid));
+                .map(modid -> new MismatchResolutionResult(modid, versionDifferences.get(modid), resolved.get(modid)))
+                .sorted(Comparator.comparing(MismatchResolutionResult::modid));
     }
-    
+
     public record MismatchResolutionResult(String modid, MismatchedVersionInfo versionDifference, @Nullable ModContainer resolver)
     {
         public boolean wasSelfResolved()
@@ -165,14 +163,14 @@ public class ModMismatchEvent extends Event implements IModBusEvent
             return resolver != null && resolver.getModId().equals(modid);
         }
     }
-    
+
     public record MismatchedVersionInfo(ArtifactVersion oldVersion, @Nullable ArtifactVersion newVersion)
     {
         public boolean isMissing()
         {
             return newVersion == null;
         }
-        
+
         public boolean wasUpgrade()
         {
             if (newVersion == null) return false;

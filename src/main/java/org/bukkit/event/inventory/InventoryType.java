@@ -82,9 +82,9 @@ public enum InventoryType {
      */
     ANVIL(3, "Repairing"),
     /**
-     * A smithing inventory, with 2 CRAFTING slots and 1 RESULT slot
+     * A smithing inventory, with 3 CRAFTING slots and 1 RESULT slot.
      */
-    SMITHING(3, "Upgrade Gear"),
+    SMITHING(4, "Upgrade Gear"),
     /**
      * A beacon inventory, with 1 CRAFTING slot
      */
@@ -133,7 +133,22 @@ public enum InventoryType {
     /**
      * Pseudo composter inventory with 0 or 1 slots of undefined type.
      */
-    COMPOSTER(1, "Composter")
+    COMPOSTER(1, "Composter", false),
+    /**
+     * Pseudo chiseled bookshelf inventory, with 6 slots of undefined type.
+     */
+    CHISELED_BOOKSHELF(6, "Chiseled Bookshelf", false),
+    /**
+     * Pseudo jukebox inventory with 1 slot of undefined type.
+     */
+    JUKEBOX(1, "Jukebox", false),
+    /**
+     * The new smithing inventory, with 3 CRAFTING slots and 1 RESULT slot.
+     *
+     * @deprecated use {@link #SMITHING}
+     */
+    @Deprecated
+    SMITHING_NEW(4, "Upgrade Gear"),
     ;
 
     private final int size;

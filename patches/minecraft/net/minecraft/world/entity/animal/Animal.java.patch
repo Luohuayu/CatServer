@@ -1,47 +1,43 @@
 --- a/net/minecraft/world/entity/animal/Animal.java
 +++ b/net/minecraft/world/entity/animal/Animal.java
-@@ -29,12 +_,15 @@
+@@ -30,11 +_,18 @@
  import net.minecraft.world.level.block.Blocks;
- import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.pathfinder.BlockPathTypes;
-+import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
-+import org.bukkit.event.entity.EntityEnterLoveModeEvent;
  
++// CraftBukkit start
++import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityBreedEvent;
++import org.bukkit.event.entity.EntityEnterLoveModeEvent;
++// CraftBukkit end
++
  public abstract class Animal extends AgeableMob {
-    static final int f_148714_ = 6000;
+    protected static final int f_148714_ = 6000;
 -   private int f_27554_;
-+   public int f_27554_;
++   public int f_27554_; // CatServer - private -> public
     @Nullable
 -   private UUID f_27555_;
-+   public UUID f_27555_;
++   public UUID f_27555_; // CatServer - private -> public
 +   public ItemStack breedItem; // CraftBukkit - Add breedItem variable
  
     protected Animal(EntityType<? extends Animal> p_27557_, Level p_27558_) {
        super(p_27557_, p_27558_);
-@@ -68,14 +_,18 @@
- 
-    }
- 
--   public boolean m_6469_(DamageSource p_27567_, float p_27568_) {
--      if (this.m_6673_(p_27567_)) {
-+   /* CraftBukkit start
-+   // Function disabled as it has no special function anymore after
-+   // setSitting is disabled.
-+   public boolean hurt(DamageSource p_27567_, float p_27568_) {
-+      if (this.isInvulnerableTo(p_27567_)) {
+@@ -72,8 +_,13 @@
+       if (this.m_6673_(p_27567_)) {
           return false;
        } else {
 -         this.f_27554_ = 0;
 -         return super.m_6469_(p_27567_, p_27568_);
-+         this.inLove = 0;
-+         return super.hurt(p_27567_, p_27568_);
++         // CraftBukkit start
++         boolean result = super.m_6469_(p_27567_, p_27568_);
++         if (result) {
++            this.f_27554_ = 0;
++         }
++         return result;
++         // CraftBukkit end
        }
     }
-+   // CraftBukkit end */
  
-    public float m_5610_(BlockPos p_27573_, LevelReader p_27574_) {
-       return p_27574_.m_8055_(p_27573_.m_7495_()).m_60713_(Blocks.f_50440_) ? 10.0F : p_27574_.m_46863_(p_27573_) - 0.5F;
-@@ -162,9 +_,16 @@
+@@ -160,9 +_,16 @@
     }
  
     public void m_27595_(@Nullable Player p_27596_) {
@@ -54,12 +50,12 @@
 +      this.f_27554_ = entityEnterLoveModeEvent.getTicksInLove();
 +      // CraftBukkit end
        if (p_27596_ != null) {
-          this.f_27555_ = p_27596_.m_142081_();
+          this.f_27555_ = p_27596_.m_20148_();
 +         this.breedItem = p_27596_.m_150109_().m_36056_(); // CraftBukkit
        }
  
-       this.f_19853_.m_7605_(this, (byte)18);
-@@ -208,12 +_,34 @@
+       this.m_9236_().m_7605_(this, (byte)18);
+@@ -206,15 +_,54 @@
  
     public void m_27563_(ServerLevel p_27564_, Animal p_27565_) {
        AgeableMob ageablemob = this.m_142606_(p_27564_, p_27565_);
@@ -75,41 +71,57 @@
 +         return;
 +      }
        if (ageablemob != null) {
-          ServerPlayer serverplayer = this.m_27592_();
-          if (serverplayer == null && p_27565_.m_27592_() != null) {
-             serverplayer = p_27565_.m_27592_();
-          }
- 
+          ageablemob.m_6863_(true);
+          ageablemob.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), 0.0F, 0.0F);
+-         this.m_277117_(p_27564_, p_27565_, ageablemob);
+-         p_27564_.m_47205_(ageablemob);
 +         // CraftBukkit start - call EntityBreedEvent
-+         ageablemob.m_6863_(true);
-+         ageablemob.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), 0.0F, 0.0F);
-+         int experience = this.m_21187_().nextInt(7) + 1;
-+         org.bukkit.event.entity.EntityBreedEvent entityBreedEvent = org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory.callEntityBreedEvent(ageablemob, this, p_27565_, serverplayer, this.breedItem, experience);
++         ServerPlayer breeder = Optional.ofNullable(this.m_27592_()).or(() -> {
++            return Optional.ofNullable(p_27565_.m_27592_());
++         }).orElse(null);
++         int experience = this.m_217043_().m_188503_(7) + 1;
++         EntityBreedEvent entityBreedEvent = org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory.callEntityBreedEvent(ageablemob, this, p_27565_, breeder, this.breedItem, experience);
 +         if (entityBreedEvent.isCancelled()) {
 +            return;
 +         }
 +         experience = entityBreedEvent.getExperience();
++         this.finalizeSpawnChildFromBreeding(p_27564_, p_27565_, ageablemob, experience);
++         // CatServer start - compat:fabric-mod:pehkui-3.8.3+1.14.4-1.21:virtuoel.pehkui.mixin.compat116plus.AnimalEntityMixin#pehkui$breed
++         try {
++            catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevelAccessor$addFreshEntityWithPassengers$reason.push(p_27564_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING);
++            p_27564_.m_47205_(ageablemob);
++         } finally {
++            catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevelAccessor$addFreshEntityWithPassengers$reason.pop(p_27564_);
++         }
++         // CatServer end
 +         // CraftBukkit end
-+
-          if (serverplayer != null) {
-             serverplayer.m_36220_(Stats.f_12937_);
-             CriteriaTriggers.f_10581_.m_147278_(serverplayer, this, p_27565_, ageablemob);
-@@ -223,12 +_,14 @@
-          p_27565_.m_146762_(6000);
-          this.m_27594_();
-          p_27565_.m_27594_();
--         ageablemob.m_6863_(true);
--         ageablemob.m_7678_(this.m_20185_(), this.m_20186_(), this.m_20189_(), 0.0F, 0.0F);
--         p_27564_.m_47205_(ageablemob);
-+         p_27564_.addFreshEntityWithPassengers(ageablemob, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.BREEDING); // CraftBukkit - added SpawnReason
-          p_27564_.m_7605_(this, (byte)18);
-          if (p_27564_.m_46469_().m_46207_(GameRules.f_46135_)) {
--            p_27564_.m_7967_(new ExperienceOrb(p_27564_, this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_21187_().nextInt(7) + 1));
-+            // CraftBukkit start - use event experience
-+            if (experience > 0) {
-+               p_27564_.m_7967_(new ExperienceOrb(p_27564_, this.m_20185_(), this.m_20186_(), this.m_20189_(), experience));
-+            }
-+            // CraftBukkit end
-          }
- 
        }
++   }
++
++   // CatServer start - 1.20.1
++   private @Nullable Integer catserver$finalizeSpawnChildFromBreedingExperience = null;
++   public void finalizeSpawnChildFromBreeding(ServerLevel p_277963_, Animal p_277357_, @Nullable AgeableMob p_277516_, int experience) {
++      this.catserver$finalizeSpawnChildFromBreedingExperience = experience;
++      this.m_277117_(p_277963_, p_277357_, p_277516_);
+    }
+ 
+    public void m_277117_(ServerLevel p_277963_, Animal p_277357_, @Nullable AgeableMob p_277516_) {
++      int experience = this.catserver$finalizeSpawnChildFromBreedingExperience == null ? this.m_217043_().m_188503_(7) + 1 : this.catserver$finalizeSpawnChildFromBreedingExperience;
++      this.catserver$finalizeSpawnChildFromBreedingExperience = null;
++      // CatServer end
+       Optional.ofNullable(this.m_27592_()).or(() -> {
+          return Optional.ofNullable(p_277357_.m_27592_());
+       }).ifPresent((p_277486_) -> {
+@@ -227,7 +_,11 @@
+       p_277357_.m_27594_();
+       p_277963_.m_7605_(this, (byte)18);
+       if (p_277963_.m_46469_().m_46207_(GameRules.f_46135_)) {
+-         p_277963_.m_7967_(new ExperienceOrb(p_277963_, this.m_20185_(), this.m_20186_(), this.m_20189_(), this.m_217043_().m_188503_(7) + 1));
++         // CraftBukkit start - use event experience
++         if (experience > 0) {
++            p_277963_.m_7967_(new ExperienceOrb(p_277963_, this.m_20185_(), this.m_20186_(), this.m_20189_(), experience));
++         }
++         // CraftBukkit end
+       }
+ 
+    }

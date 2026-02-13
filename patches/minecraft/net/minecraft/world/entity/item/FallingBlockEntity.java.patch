@@ -1,70 +1,82 @@
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
-@@ -1,6 +_,9 @@
- package net.minecraft.world.entity.item;
- 
-+import catserver.server.CatServerCaptures;
- import com.mojang.logging.LogUtils;
-+
-+import java.util.concurrent.atomic.AtomicReference;
- import java.util.function.Predicate;
- import javax.annotation.Nullable;
- import net.minecraft.CrashReportCategory;
-@@ -41,6 +_,8 @@
- import net.minecraft.world.phys.BlockHitResult;
- import net.minecraft.world.phys.HitResult;
+@@ -46,15 +_,19 @@
  import net.minecraft.world.phys.Vec3;
-+import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
-+import org.bukkit.event.entity.CreatureSpawnEvent;
  import org.slf4j.Logger;
  
++// CraftBukkit start;
++import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
++// CraftBukkit end
++
  public class FallingBlockEntity extends Entity {
-@@ -49,7 +_,7 @@
+    private static final Logger f_201970_ = LogUtils.getLogger();
+    private BlockState f_31946_ = Blocks.f_49992_.m_49966_();
     public int f_31942_;
     public boolean f_31943_ = true;
-    private boolean f_31947_;
+-   private boolean f_31947_;
 -   private boolean f_31939_;
-+   public boolean f_31939_;
-    private int f_31940_ = 40;
-    private float f_149641_;
+-   private int f_31940_ = 40;
+-   private float f_149641_;
++   public boolean f_31947_; // PAIL private -> public
++   public boolean f_31939_; // CatServer - private -> public
++   public int f_31940_ = 40; // CatServer - private -> public
++   public float f_149641_; // CatServer - private -> public
     @Nullable
-@@ -73,9 +_,14 @@
+    public CompoundTag f_31944_;
+    protected static final EntityDataAccessor<BlockPos> f_31945_ = SynchedEntityData.m_135353_(FallingBlockEntity.class, EntityDataSerializers.f_135038_);
+@@ -76,9 +_,16 @@
     }
  
     public static FallingBlockEntity m_201971_(Level p_201972_, BlockPos p_201973_, BlockState p_201974_) {
-+      return FallingBlockEntity.fall(p_201972_, p_201973_, p_201974_, CreatureSpawnEvent.SpawnReason.DEFAULT); // CatServer
++      // CraftBukkit start
++      return FallingBlockEntity.fall(p_201972_, p_201973_, p_201974_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DEFAULT); // CatServer
 +   }
 +
 +   public static FallingBlockEntity fall(Level p_201972_, BlockPos p_201973_, BlockState p_201974_, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason spawnReason) {
++      // CraftBukkit end
        FallingBlockEntity fallingblockentity = new FallingBlockEntity(p_201972_, (double)p_201973_.m_123341_() + 0.5D, (double)p_201973_.m_123342_(), (double)p_201973_.m_123343_() + 0.5D, p_201974_.m_61138_(BlockStateProperties.f_61362_) ? p_201974_.m_61124_(BlockStateProperties.f_61362_, Boolean.valueOf(false)) : p_201974_);
-+      if (CraftEventFactory.callEntityChangeBlockEvent(fallingblockentity, p_201973_, p_201974_.m_60819_().m_76188_()).isCancelled()) return fallingblockentity; // CraftBukkit
++      if (!CraftEventFactory.callEntityChangeBlockEvent(fallingblockentity, p_201973_, p_201974_.m_60819_().m_76188_())) return fallingblockentity; // CraftBukkit
        p_201972_.m_7731_(p_201973_, p_201974_.m_60819_().m_76188_(), 3);
 -      p_201972_.m_7967_(fallingblockentity);
-+      p_201972_.addFreshEntity(fallingblockentity, spawnReason);
++      p_201972_.addFreshEntity(fallingblockentity, spawnReason); // CraftBukkit
        return fallingblockentity;
     }
  
-@@ -148,6 +_,13 @@
+@@ -120,11 +_,11 @@
+          if (!this.m_9236_().f_46443_) {
+             BlockPos blockpos = this.m_20183_();
+             boolean flag = this.f_31946_.m_60734_() instanceof ConcretePowderBlock;
+-            boolean flag1 = flag && this.m_9236_().m_6425_(blockpos).m_205070_(FluidTags.f_13131_);
++            boolean flag1 = flag && this.f_31946_.canBeHydrated(this.m_9236_(), blockpos, this.m_9236_().m_6425_(blockpos), blockpos);
+             double d0 = this.m_20184_().m_82556_();
+             if (flag && d0 > 1.0D) {
+                BlockHitResult blockhitresult = this.m_9236_().m_45547_(new ClipContext(new Vec3(this.f_19854_, this.f_19855_, this.f_19856_), this.m_20182_(), ClipContext.Block.COLLIDER, ClipContext.Fluid.SOURCE_ONLY, this));
+-               if (blockhitresult.m_6662_() != HitResult.Type.MISS && this.m_9236_().m_6425_(blockhitresult.m_82425_()).m_205070_(FluidTags.f_13131_)) {
++               if (blockhitresult.m_6662_() != HitResult.Type.MISS && this.f_31946_.canBeHydrated(this.m_9236_(), blockpos, this.m_9236_().m_6425_(blockhitresult.m_82425_()), blockhitresult.m_82425_())) {
+                   blockpos = blockhitresult.m_82425_();
+                   flag1 = true;
+                }
+@@ -151,6 +_,13 @@
                             this.f_31946_ = this.f_31946_.m_61124_(BlockStateProperties.f_61362_, Boolean.valueOf(true));
                          }
  
 +                        // CraftBukkit start
-+                        if (CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, this.f_31946_).isCancelled()) {
++                        if (!CraftEventFactory.callEntityChangeBlockEvent(this, blockpos, this.f_31946_)) {
 +                           this.m_146870_(); // SPIGOT-6586 called before the event in previous versions
 +                           return;
 +                        }
 +                        // CraftBukkit end
 +
-                         if (this.f_19853_.m_7731_(blockpos, this.f_31946_, 3)) {
-                            ((ServerLevel)this.f_19853_).m_7726_().f_8325_.m_140201_(this, new ClientboundBlockUpdatePacket(blockpos, this.f_19853_.m_8055_(blockpos)));
+                         if (this.m_9236_().m_7731_(blockpos, this.f_31946_, 3)) {
+                            ((ServerLevel)this.m_9236_()).m_7726_().f_8325_.m_140201_(this, new ClientboundBlockUpdatePacket(blockpos, this.m_9236_().m_8055_(blockpos)));
                             this.m_146870_();
-@@ -225,7 +_,9 @@
- 
+@@ -228,7 +_,9 @@
+             DamageSource damagesource = damagesource1;
              float f = (float)Math.min(Mth.m_14143_((float)i * this.f_149641_), this.f_31940_);
-             this.f_19853_.m_6249_(this, this.m_142469_(), predicate).forEach((p_149649_) -> {
+             this.m_9236_().m_6249_(this, this.m_20191_(), predicate).forEach((p_149649_) -> {
 +               CraftEventFactory.entityDamage = this; // CraftBukkit
                 p_149649_.m_6469_(damagesource, f);
 +               CraftEventFactory.entityDamage = null; // CraftBukkit
              });
              boolean flag = this.f_31946_.m_204336_(BlockTags.f_13033_);
-             if (flag && f > 0.0F && this.f_19796_.nextFloat() < 0.05F + (float)i * 0.05F) {
+             if (flag && f > 0.0F && this.f_19796_.m_188501_() < 0.05F + (float)i * 0.05F) {

@@ -5,8 +5,8 @@ import net.minecraft.world.Container;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_18_R2.block.CraftBlockEntityState;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftHumanEntity;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlockEntityState;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftHumanEntity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -43,10 +43,10 @@ public class CatInventoryUtils {
     }
 
     public static InventoryHolder getOwner(BlockEntity tileEntity) {
-        return getOwner(tileEntity.level, tileEntity.getBlockPos());
+        return getOwner(tileEntity.getLevel(), tileEntity.getBlockPos(), true);
     }
 
-    public static InventoryHolder getOwner(Level world, BlockPos pos) {
+    public static InventoryHolder getOwner(Level world, BlockPos pos, boolean useSnapshot) { // Paper - add useSnapshot
         if (world == null) return null;
         // Spigot start
         org.bukkit.block.Block block = world.getWorld().getBlockAt(pos.getX(), pos.getY(), pos.getZ());
@@ -55,7 +55,8 @@ public class CatInventoryUtils {
             return null;
         }
         // Spigot end
-        org.bukkit.block.BlockState state = block.getState();
+        if (block.getType() == org.bukkit.Material.AIR) return null; // Paper
+        org.bukkit.block.BlockState state = block.getState(useSnapshot); // Paper
         if (state instanceof InventoryHolder) {
             return (InventoryHolder) state;
         } else if (state instanceof CraftBlockEntityState) { // CatServer

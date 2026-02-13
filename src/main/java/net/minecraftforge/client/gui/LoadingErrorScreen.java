@@ -6,16 +6,14 @@
 package net.minecraftforge.client.gui;
 
 import com.google.common.base.Strings;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ErrorScreen;
 import net.minecraft.client.gui.components.ObjectSelectionList;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.Util;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.ChatFormatting;
 import net.minecraftforge.common.ForgeI18n;
 import net.minecraftforge.fml.LoadingFailedException;
@@ -46,7 +44,7 @@ public class LoadingErrorScreen extends ErrorScreen {
 
     public LoadingErrorScreen(LoadingFailedException loadingException, List<ModLoadingWarning> warnings, final File dumpedLocation)
     {
-        super(new TextComponent("Loading Error"), null);
+        super(Component.literal("Loading Error"), null);
         this.modLoadWarnings = warnings;
         this.modLoadErrors = loadingException == null ? Collections.emptyList() : loadingException.getErrors();
         this.modsDir = FMLPaths.MODSDIR.get();
@@ -60,18 +58,18 @@ public class LoadingErrorScreen extends ErrorScreen {
         super.init();
         this.clearWidgets();
 
-        this.errorHeader = new TextComponent(ChatFormatting.RED + ForgeI18n.parseMessage("fml.loadingerrorscreen.errorheader", this.modLoadErrors.size()) + ChatFormatting.RESET);
-        this.warningHeader = new TextComponent(ChatFormatting.YELLOW + ForgeI18n.parseMessage("fml.loadingerrorscreen.warningheader", this.modLoadErrors.size()) + ChatFormatting.RESET);
+        this.errorHeader = Component.literal(ChatFormatting.RED + ForgeI18n.parseMessage("fml.loadingerrorscreen.errorheader", this.modLoadErrors.size()) + ChatFormatting.RESET);
+        this.warningHeader = Component.literal(ChatFormatting.YELLOW + ForgeI18n.parseMessage("fml.loadingerrorscreen.warningheader", this.modLoadErrors.size()) + ChatFormatting.RESET);
 
         int yOffset = 46;
-        this.addRenderableWidget(new ExtendedButton(50, this.height - yOffset, this.width / 2 - 55, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.open.mods.folder")), b -> Util.getPlatform().openFile(modsDir.toFile())));
-        this.addRenderableWidget(new ExtendedButton(this.width / 2 + 5, this.height - yOffset, this.width / 2 - 55, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.open.file", logFile.getFileName())), b -> Util.getPlatform().openFile(logFile.toFile())));
+        this.addRenderableWidget(new ExtendedButton(50, this.height - yOffset, this.width / 2 - 55, 20, Component.literal(ForgeI18n.parseMessage("fml.button.open.mods.folder")), b -> Util.getPlatform().openFile(modsDir.toFile())));
+        this.addRenderableWidget(new ExtendedButton(this.width / 2 + 5, this.height - yOffset, this.width / 2 - 55, 20, Component.literal(ForgeI18n.parseMessage("fml.button.open.file", logFile.getFileName())), b -> Util.getPlatform().openFile(logFile.toFile())));
         if (this.modLoadErrors.isEmpty()) {
-            this.addRenderableWidget(new ExtendedButton(this.width / 4, this.height - 24, this.width / 2, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.continue.launch")), b -> {
+            this.addRenderableWidget(new ExtendedButton(this.width / 4, this.height - 24, this.width / 2, 20, Component.literal(ForgeI18n.parseMessage("fml.button.continue.launch")), b -> {
                 this.minecraft.setScreen(null);
             }));
         } else {
-            this.addRenderableWidget(new ExtendedButton(this.width / 4, this.height - 24, this.width / 2, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.open.file", dumpedLocation.getFileName())), b -> Util.getPlatform().openFile(dumpedLocation.toFile())));
+            this.addRenderableWidget(new ExtendedButton(this.width / 4, this.height - 24, this.width / 2, 20, Component.literal(ForgeI18n.parseMessage("fml.button.open.file", dumpedLocation.getFileName())), b -> Util.getPlatform().openFile(dumpedLocation.toFile())));
         }
 
         this.entryList = new LoadingEntryList(this, this.modLoadErrors, this.modLoadWarnings);
@@ -80,17 +78,17 @@ public class LoadingErrorScreen extends ErrorScreen {
     }
 
     @Override
-    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick)
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick)
     {
-        this.renderBackground(poseStack);
-        this.entryList.render(poseStack, mouseX, mouseY, partialTick);
-        drawMultiLineCenteredString(poseStack, font, this.modLoadErrors.isEmpty() ? warningHeader : errorHeader, this.width / 2, 10);
-        this.renderables.forEach(button -> button.render(poseStack, mouseX, mouseY, partialTick));
+        this.renderBackground(guiGraphics);
+        this.entryList.render(guiGraphics, mouseX, mouseY, partialTick);
+        drawMultiLineCenteredString(guiGraphics, font, this.modLoadErrors.isEmpty() ? warningHeader : errorHeader, this.width / 2, 10);
+        this.renderables.forEach(button -> button.render(guiGraphics, mouseX, mouseY, partialTick));
     }
 
-    private void drawMultiLineCenteredString(PoseStack poseStack, Font fr, Component str, int x, int y) {
+    private void drawMultiLineCenteredString(GuiGraphics guiGraphics, Font fr, Component str, int x, int y) {
         for (FormattedCharSequence s : fr.split(str, this.width)) {
-            fr.drawShadow(poseStack, s, (float) (x - fr.width(s) / 2.0), y, 0xFFFFFF);
+            guiGraphics.drawString(fr, s, (float) (x - fr.width(s) / 2.0), (float) y, 0xFFFFFF, true);
             y+=fr.lineHeight;
         }
     }
@@ -98,19 +96,19 @@ public class LoadingErrorScreen extends ErrorScreen {
         LoadingEntryList(final LoadingErrorScreen parent, final List<ModLoadingException> errors, final List<ModLoadingWarning> warnings) {
             super(Objects.requireNonNull(parent.minecraft), parent.width, parent.height, 35, parent.height - 50,
               Math.max(
-                errors.stream().mapToInt(error -> parent.font.split(new TranslatableComponent(error.getMessage() != null ? error.getMessage() : ""), parent.width - 20).size()).max().orElse(0),
-                warnings.stream().mapToInt(warning -> parent.font.split(new TranslatableComponent(warning.formatToString() != null ? warning.formatToString() : ""), parent.width - 20).size()).max().orElse(0)
+                errors.stream().mapToInt(error -> parent.font.split(Component.literal(error.getMessage() != null ? error.getMessage() : ""), parent.width - 20).size()).max().orElse(0),
+                warnings.stream().mapToInt(warning -> parent.font.split(Component.literal(warning.formatToString() != null ? warning.formatToString() : ""), parent.width - 20).size()).max().orElse(0)
               ) * parent.minecraft.font.lineHeight + 8);
             boolean both = !errors.isEmpty() && !warnings.isEmpty();
             if (both)
                 addEntry(new LoadingMessageEntry(parent.errorHeader, true));
-            errors.forEach(e->addEntry(new LoadingMessageEntry(new TextComponent(e.formatToString()))));
+            errors.forEach(e->addEntry(new LoadingMessageEntry(Component.literal(e.formatToString()))));
             if (both) {
                 int maxChars = (this.width - 10) / parent.minecraft.font.width("-");
-                addEntry(new LoadingMessageEntry(new TextComponent("\n" + Strings.repeat("-", maxChars) + "\n")));
+                addEntry(new LoadingMessageEntry(Component.literal("\n" + Strings.repeat("-", maxChars) + "\n")));
                 addEntry(new LoadingMessageEntry(parent.warningHeader, true));
             }
-            warnings.forEach(w->addEntry(new LoadingMessageEntry(new TextComponent(w.formatToString()))));
+            warnings.forEach(w->addEntry(new LoadingMessageEntry(Component.literal(w.formatToString()))));
         }
 
         @Override
@@ -140,20 +138,20 @@ public class LoadingErrorScreen extends ErrorScreen {
 
             @Override
             public Component getNarration() {
-                return new TranslatableComponent("narrator.select", message);
+                return Component.translatable("narrator.select", message);
             }
 
             @Override
-            public void render(PoseStack poseStack, int entryIdx, int top, int left, final int entryWidth, final int entryHeight, final int mouseX, final int mouseY, final boolean p_194999_5_, final float partialTick) {
+            public void render(GuiGraphics guiGraphics, int entryIdx, int top, int left, final int entryWidth, final int entryHeight, final int mouseX, final int mouseY, final boolean p_194999_5_, final float partialTick) {
                 Font font = Minecraft.getInstance().font;
                 final List<FormattedCharSequence> strings = font.split(message, LoadingEntryList.this.width - 20);
                 int y = top + 2;
                 for (FormattedCharSequence string : strings)
                 {
                     if (center)
-                        font.draw(poseStack, string, left + (width) - font.width(string) / 2F, y, 0xFFFFFF);
+                        guiGraphics.drawString(font, string, left + (width / 2F) - font.width(string) / 2F, (float) y, 0xFFFFFF, false);
                     else
-                        font.draw(poseStack, string, left + 5, y, 0xFFFFFF);
+                        guiGraphics.drawString(font, string, left + 5, y, 0xFFFFFF, false);
                     y += font.lineHeight;
                 }
             }

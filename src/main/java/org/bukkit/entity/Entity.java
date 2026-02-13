@@ -7,6 +7,7 @@ import org.bukkit.EntityEffect;
 import org.bukkit.Location;
 import org.bukkit.Nameable;
 import org.bukkit.Server;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.PistonMoveReaction;
@@ -18,6 +19,7 @@ import org.bukkit.metadata.Metadatable;
 import org.bukkit.persistence.PersistentDataHolder;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -448,6 +450,32 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
     public EntityType getType();
 
     /**
+     * Get the {@link Sound} this entity makes while swimming.
+     *
+     * @return the swimming sound
+     */
+    @NotNull
+    public Sound getSwimSound();
+
+    /**
+     * Get the {@link Sound} this entity makes when splashing in water. For most
+     * entities, this is just {@link Sound#ENTITY_GENERIC_SPLASH}.
+     *
+     * @return the splash sound
+     */
+    @NotNull
+    public Sound getSwimSplashSound();
+
+    /**
+     * Get the {@link Sound} this entity makes when splashing in water at high
+     * speeds. For most entities, this is just {@link Sound#ENTITY_GENERIC_SPLASH}.
+     *
+     * @return the splash sound
+     */
+    @NotNull
+    public Sound getSwimHighSpeedSplashSound();
+
+    /**
      * Returns whether this entity is inside a vehicle.
      *
      * @return True if the entity is in a vehicle.
@@ -464,7 +492,7 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
     public boolean leaveVehicle();
 
     /**
-     * Get the vehicle that this player is inside. If there is no vehicle,
+     * Get the vehicle that this entity is inside. If there is no vehicle,
      * null will be returned.
      *
      * @return The current vehicle.
@@ -492,6 +520,32 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
      * @return if the custom name is displayed
      */
     public boolean isCustomNameVisible();
+
+    /**
+     * Sets whether or not this entity is visible by default.
+     *
+     * If this entity is not visible by default, then
+     * {@link Player#showEntity(org.bukkit.plugin.Plugin, org.bukkit.entity.Entity)}
+     * will need to be called before the entity is visible to a given player.
+     *
+     * @param visible default visibility status
+     * @apiNote draft API
+     */
+    @ApiStatus.Experimental
+    public void setVisibleByDefault(boolean visible);
+
+    /**
+     * Gets whether or not this entity is visible by default.
+     *
+     * If this entity is not visible by default, then
+     * {@link Player#showEntity(org.bukkit.plugin.Plugin, org.bukkit.entity.Entity)}
+     * will need to be called before the entity is visible to a given player.
+     *
+     * @return default visibility status
+     * @apiNote draft API
+     */
+    @ApiStatus.Experimental
+    public boolean isVisibleByDefault();
 
     /**
      * Sets whether the entity has a team colored (default: white) glow.

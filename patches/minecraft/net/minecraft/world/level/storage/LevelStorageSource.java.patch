@@ -1,74 +1,101 @@
 --- a/net/minecraft/world/level/storage/LevelStorageSource.java
 +++ b/net/minecraft/world/level/storage/LevelStorageSource.java
-@@ -52,6 +_,7 @@
- import net.minecraft.world.level.Level;
- import net.minecraft.world.level.LevelSettings;
- import net.minecraft.world.level.dimension.DimensionType;
-+import net.minecraft.world.level.dimension.LevelStem;
- import net.minecraft.world.level.levelgen.WorldGenSettings;
- import org.slf4j.Logger;
- 
-@@ -203,7 +_,11 @@
-             LevelVersion levelversion = LevelVersion.m_78390_(dynamic);
-             LevelSettings levelsettings = LevelSettings.m_46924_(dynamic, p_211739_);
-             Lifecycle lifecycle = pair.getSecond().add(p_211740_);
--            return PrimaryLevelData.m_78530_(dynamic, p_211746_, i, compoundtag2, levelsettings, levelversion, pair.getFirst(), lifecycle);
-+            // CraftBukkit start - Add PDC to world
-+            PrimaryLevelData worldDataServer = PrimaryLevelData.m_78530_(dynamic, p_211746_, i, compoundtag2, levelsettings, levelversion, pair.getFirst(), lifecycle);
-+            worldDataServer.pdc = compoundtag1.m_128423_("BukkitValues");
-+            return worldDataServer;
-+            // CraftBukkit end
-          } catch (Exception exception) {
-             f_78191_.error("Exception reading {}", p_211745_, exception);
-             return null;
-@@ -272,16 +_,22 @@
+@@ -247,6 +_,7 @@
+          WorldDimensions.Complete worlddimensions$complete = worldgensettings.f_64605_().m_245300_(p_249363_);
+          Lifecycle lifecycle = worlddimensions$complete.m_245945_().add(p_251214_);
+          PrimaryLevelData primaryleveldata = PrimaryLevelData.m_78530_(dynamic, p_265021_, i, compoundtag2, levelsettings, levelversion, worlddimensions$complete.f_244634_(), worldgensettings.f_243992_(), lifecycle);
++         primaryleveldata.pdc = compoundtag1.m_128423_("BukkitValues"); // CraftBukkit - Add PDC to world
+          return Pair.of(primaryleveldata, worlddimensions$complete);
+       };
+    }
+@@ -333,20 +_,32 @@
+       return this.f_78195_;
     }
  
-    public LevelStorageSource.LevelStorageAccess m_78260_(String p_78261_) throws IOException {
--      return new LevelStorageSource.LevelStorageAccess(p_78261_);
-+      return createAccess(p_78261_, null);
-    }
- 
--   public class LevelStorageAccess implements AutoCloseable {
-+    public LevelStorageAccess createAccess(String name, ResourceKey<LevelStem> actualDimension) throws IOException {
-+      return new LevelStorageSource.LevelStorageAccess(name, actualDimension);
-+    }
++   // CatServer start
+    public LevelStorageSource.LevelStorageAccess m_289864_(String p_289980_) throws IOException, ContentValidationException {
++      return this.validateAndCreateAccess(p_289980_, null);
++   }
 +
-+    public class LevelStorageAccess implements AutoCloseable {
++   public LevelStorageSource.LevelStorageAccess validateAndCreateAccess(String p_289980_, ResourceKey<LevelStem> dimensionType) throws IOException, ContentValidationException { // CraftBukkit
+       Path path = this.m_289874_(p_289980_);
+       List<ForbiddenSymlinkInfo> list = this.f_289816_.m_289885_(path, true);
+       if (!list.isEmpty()) {
+          throw new ContentValidationException(path, list);
+       } else {
+-         return new LevelStorageSource.LevelStorageAccess(p_289980_, path);
++         return new LevelStorageSource.LevelStorageAccess(p_289980_, path, dimensionType); // CraftBukkit
+       }
+    }
++   // CatServer end
+ 
++   // CatServer start
+    public LevelStorageSource.LevelStorageAccess m_78260_(String p_78261_) throws IOException {
++      return createAccess(p_78261_, null);
++   }
++
++   public LevelStorageAccess createAccess(String p_78261_, ResourceKey<LevelStem> actualDimension) throws IOException { // CraftBukkit
+       Path path = this.m_289874_(p_78261_);
+-      return new LevelStorageSource.LevelStorageAccess(p_78261_, path);
++      return new LevelStorageSource.LevelStorageAccess(p_78261_, path, actualDimension); // CraftBukkit
+    }
++   // CatServer end
+ 
+    public DirectoryValidator m_289863_() {
+       return this.f_289816_;
+@@ -394,11 +_,21 @@
+ 
+    public class LevelStorageAccess implements AutoCloseable {
        final DirectoryLock f_78270_;
--      final Path f_78271_;
-+      public final Path f_78271_;
+-      final LevelStorageSource.LevelDirectory f_230867_;
++      public final LevelStorageSource.LevelDirectory f_230867_; // CatServer - public
        private final String f_78272_;
        private final Map<LevelResource, Path> f_78273_ = Maps.newHashMap();
-+      public final @Nullable ResourceKey<LevelStem> dimensionType;
++      // CraftBukkit start
++      public final ResourceKey<LevelStem> dimensionType;
  
--      public LevelStorageAccess(String p_78276_) throws IOException {
-+      public LevelStorageAccess(String p_78276_, ResourceKey<LevelStem> dimensionType) throws IOException {
++      // CatServer start
+       LevelStorageAccess(String p_289967_, Path p_289988_) throws IOException {
++         this(p_289967_, p_289988_, null);
++      }
++      // CatServer end
++
++      LevelStorageAccess(String p_289967_, Path p_289988_, ResourceKey<LevelStem> dimensionType) throws IOException {
 +         this.dimensionType = dimensionType;
-          this.f_78272_ = p_78276_;
-          this.f_78271_ = LevelStorageSource.this.f_78194_.resolve(p_78276_);
-          this.f_78270_ = DirectoryLock.m_13640_(this.f_78271_);
-@@ -324,6 +_,19 @@
-          return LevelStorageSource.this.m_78229_(this.f_78271_.toFile(), LevelStorageSource.m_211737_(p_211748_, p_211749_, p_211750_));
++         // CraftBukkit end
+          this.f_78272_ = p_289967_;
+          this.f_230867_ = new LevelStorageSource.LevelDirectory(p_289988_);
+          this.f_78270_ = DirectoryLock.m_13640_(p_289988_);
+@@ -413,7 +_,7 @@
+       }
+ 
+       public Path m_197394_(ResourceKey<Level> p_197395_) {
+-         return DimensionType.m_196975_(p_197395_, this.f_230867_.f_230850_());
++         return DimensionType.m_196975_(p_197395_, this.f_230867_.f_230850_()); // CraftBukkit // CatServer - recover
+       }
+ 
+       private void m_78313_() {
+@@ -439,6 +_,19 @@
+          return LevelStorageSource.this.m_230817_(this.f_230867_, LevelStorageSource.m_245503_(p_248747_, p_251873_, p_249187_, p_249736_));
        }
  
 +      public void readAdditionalLevelSaveData() {
 +         m_78313_();
-+         LevelStorageSource.this.m_78229_(this.f_78271_.toFile(), (file, dataFixer) -> {
++         LevelStorageSource.this.m_230817_(this.f_230867_, (path, dataFixer) -> {
 +            try {
-+               CompoundTag compoundTag = NbtIo.m_128937_(file);
-+               net.minecraftforge.common.ForgeHooks.readAdditionalLevelSaveData(compoundTag, this.f_78271_);
++               CompoundTag compoundTag = NbtIo.m_128937_(path.toFile());
++               net.minecraftforge.common.ForgeHooks.readAdditionalLevelSaveData(compoundTag, this.f_230867_);
 +            } catch (Exception e) {
-+                f_78191_.error("Exception reading {}", file, e);
++                f_78191_.error("Exception reading {}", path, e);
 +            }
 +            return ""; // Return non-null to prevent level.dat-old inject
 +         });
 +      }
 +
        @Nullable
-       public DataPackConfig m_78309_() {
+       public WorldDataConfiguration m_247706_() {
           this.m_78313_();
-@@ -340,6 +_,8 @@
+@@ -455,6 +_,8 @@
           CompoundTag compoundtag1 = new CompoundTag();
           compoundtag1.m_128365_("Data", compoundtag);
  
@@ -77,14 +104,14 @@
           try {
              File file2 = File.createTempFile("level", ".dat", file1);
              NbtIo.m_128944_(compoundtag1, file2);
-@@ -354,6 +_,10 @@
+@@ -469,6 +_,10 @@
  
        public Optional<Path> m_182514_() {
-          return !this.f_78270_.m_13639_() ? Optional.empty() : Optional.of(this.f_78271_.resolve("icon.png"));
+          return !this.f_78270_.m_13639_() ? Optional.empty() : Optional.of(this.f_230867_.m_230860_());
 +      }
 +
 +      public Path getWorldDir() {
-+         return f_78271_;
++         return f_78194_;
        }
  
        public void m_78311_() throws IOException {

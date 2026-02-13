@@ -4,11 +4,13 @@ package org.bukkit;
  * Tree and organic structure types.
  */
 public enum TreeType {
+
+    // CatServer start
     /**
      * MOD CUSTOM tree
      */
     MOD_CUSTOM,
-
+    // CatServer end
     /**
      * Regular tree, no branches
      */
@@ -88,5 +90,17 @@ public enum TreeType {
     /**
      * Tree with large roots which grows above lush caves
      */
-    AZALEA
+    AZALEA,
+    /**
+     * Mangrove tree
+     */
+    MANGROVE,
+    /**
+     * Tall mangrove tree
+     */
+    TALL_MANGROVE,
+    /**
+     * Cherry tree
+     */
+    CHERRY,
 }

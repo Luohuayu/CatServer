@@ -5,11 +5,11 @@
 
 package net.minecraftforge.fml.loading.moddiscovery;
 
+import com.mojang.logging.LogUtils;
 import net.minecraftforge.fml.loading.LogMarkers;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.IModLocator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class ExplodedDirectoryLocator implements IModLocator {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public record ExplodedMod(String modid, List<Path> paths) {}
 
@@ -30,14 +30,14 @@ public class ExplodedDirectoryLocator implements IModLocator {
     private final Map<ExplodedMod, IModFile> mods = new HashMap<>();
 
     @Override
-    public List<IModFile> scanMods() {
+    public List<IModLocator.ModFileOrException> scanMods() {
         explodedMods.forEach(explodedMod ->
                 ModJarMetadata.buildFile(this,
-                        jar->jar.findFile("/META-INF/mods.toml").isPresent(),
+                        jar->jar.moduleDataProvider().findFile("/META-INF/mods.toml").isPresent(),
                         (a,b) -> true,
                         explodedMod.paths().toArray(Path[]::new))
                 .ifPresentOrElse(f->mods.put(explodedMod, f), () -> LOGGER.warn(LogMarkers.LOADING, "Failed to find exploded resource mods.toml in directory {}", explodedMod.paths().get(0).toString())));
-        return List.copyOf(mods.values());
+        return mods.values().stream().map(mf->new IModLocator.ModFileOrException(mf, null)).toList();
     }
 
     @Override

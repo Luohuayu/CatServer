@@ -14,26 +14,22 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandRuntimeException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.synchronization.SuggestionProviders;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.ComponentUtils;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.network.chat.*;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.server.command.CommandHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -48,15 +44,12 @@ public class ClientCommandHandler
         MinecraftForge.EVENT_BUS.addListener(ClientCommandHandler::handleClientPlayerLogin);
     }
 
-    private static void handleClientPlayerLogin(ClientPlayerNetworkEvent.LoggedInEvent event)
+    private static void handleClientPlayerLogin(ClientPlayerNetworkEvent.LoggingIn event)
     {
-        // some custom server implementations do not send ClientboundCommandsPacket, provide a fallback
-        var suggestionDispatcher = mergeServerCommands(new CommandDispatcher<>());
-        if (event.getConnection().getPacketListener() instanceof ClientPacketListener listener)
-        {
-            // Must set this, so that suggestions for client-only commands work, if server never sends commands packet
-            listener.commands = suggestionDispatcher;
-        }
+        final ClientPacketListener connection = event.getPlayer().connection;
+        // Some custom server implementations do not send ClientboundCommandsPacket, so we provide a fallback:
+        // Must set this, so that suggestions for client-only commands work, if server never sends commands packet
+        connection.commands = mergeServerCommands(new CommandDispatcher<>(), CommandBuildContext.simple(connection.registryAccess(), connection.enabledFeatures()));
     }
 
     /*
@@ -65,10 +58,11 @@ public class ClientCommandHandler
      * Merges command dispatcher use for suggestions to the command dispatcher used for client commands so they can be sent to the server, and vice versa so client commands appear
      * with server commands in suggestions
      */
-    public static CommandDispatcher<SharedSuggestionProvider> mergeServerCommands(CommandDispatcher<SharedSuggestionProvider> serverCommands)
+    @ApiStatus.Internal
+    public static CommandDispatcher<SharedSuggestionProvider> mergeServerCommands(CommandDispatcher<SharedSuggestionProvider> serverCommands, CommandBuildContext buildContext)
     {
         CommandDispatcher<CommandSourceStack> commandsTemp = new CommandDispatcher<>();
-        MinecraftForge.EVENT_BUS.post(new RegisterClientCommandsEvent(commandsTemp));
+        MinecraftForge.EVENT_BUS.post(new RegisterClientCommandsEvent(commandsTemp, buildContext));
 
         // Copies the client commands into another RootCommandNode so that redirects can't be used with server commands
         commands = new CommandDispatcher<>();
@@ -78,11 +72,6 @@ public class ClientCommandHandler
         RootCommandNode<SharedSuggestionProvider> serverCommandsRoot = serverCommands.getRoot();
         CommandDispatcher<SharedSuggestionProvider> newServerCommands = new CommandDispatcher<>();
         copy(serverCommandsRoot, newServerCommands.getRoot());
-
-        // Copies the server side commands into a temporary server side commands root node to be used later without the client commands
-        RootCommandNode<SharedSuggestionProvider> serverCommandsCopy = new RootCommandNode<>();
-        CommandHelper.mergeCommandNode(newServerCommands.getRoot(), serverCommandsCopy, new IdentityHashMap<>(),
-                Minecraft.getInstance().getConnection().getSuggestionsProvider(), (context) -> 0, (suggestions) -> null);
 
         // Copies the client side commands into the server side commands to be used for suggestions
         CommandHelper.mergeCommandNode(commands.getRoot(), newServerCommands.getRoot(), new IdentityHashMap<>(), getSource(), (context) -> 0, (suggestions) -> {
@@ -105,12 +94,6 @@ public class ClientCommandHandler
             return suggestionProvider;
         });
 
-        // Copies the server side commands into the client side commands so that they can be sent to the server as a chat message
-        CommandHelper.mergeCommandNode(serverCommandsCopy, commands.getRoot(), new IdentityHashMap<>(), Minecraft.getInstance().getConnection().getSuggestionsProvider(),
-                (context) -> {
-                    Minecraft.getInstance().player.chat((context.getInput().startsWith("/") ? "" : "/") + context.getInput());
-                    return 0;
-                }, (suggestions) -> null);
         return newServerCommands;
     }
 
@@ -159,23 +142,17 @@ public class ClientCommandHandler
     }
 
     /**
-     * Always try to execute the cached parsing of client message as a command. Requires that the execute field of the commands to be set to send to server so that they aren't
+     * Always try to execute the cached parsing of a typed command as a clientside command. Requires that the execute field of the commands to be set to send to server so that they aren't
      * treated as client command's that do nothing.
      *
-     * {@link net.minecraft.commands.Commands#performCommand(CommandSourceStack, String)} for reference
+     * {@link net.minecraft.commands.Commands#performCommand(ParseResults, String)} for reference
      *
-     * @param sendMessage
-     *            the chat message
-     * @return false leaves the message to be sent to the server, true means it should be caught before {@link LocalPlayer#chat(String)}
+     * @param command the full command to execute, no preceding slash
+     * @return {@code false} leaves the message to be sent to the server, while {@code true} means it should be caught before LocalPlayer#sendCommand
      */
-    public static boolean sendMessage(String sendMessage)
+    public static boolean runCommand(String command)
     {
-        StringReader reader = new StringReader(sendMessage);
-
-        if (!reader.canRead() || reader.read() != '/')
-        {
-            return false;
-        }
+        StringReader reader = new StringReader(command);
 
         ClientCommandSourceStack source = getSource();
 
@@ -185,7 +162,7 @@ public class ClientCommandHandler
         }
         catch (CommandRuntimeException execution)// Probably thrown by the command
         {
-            Minecraft.getInstance().player.sendMessage(new TextComponent("").append(execution.getComponent()).withStyle(ChatFormatting.RED), Util.NIL_UUID);
+            Minecraft.getInstance().player.sendSystemMessage(Component.literal("").append(execution.getComponent()).withStyle(ChatFormatting.RED));
         }
         catch (CommandSyntaxException syntax)// Usually thrown by the CommandDispatcher
         {
@@ -194,12 +171,12 @@ public class ClientCommandHandler
                 // in case of unknown command, let the server try and handle it
                 return false;
             }
-            Minecraft.getInstance().player.sendMessage(
-                    new TextComponent("").append(ComponentUtils.fromMessage(syntax.getRawMessage())).withStyle(ChatFormatting.RED), Util.NIL_UUID);
+            Minecraft.getInstance().player.sendSystemMessage(
+                    Component.literal("").append(ComponentUtils.fromMessage(syntax.getRawMessage())).withStyle(ChatFormatting.RED));
             if (syntax.getInput() != null && syntax.getCursor() >= 0)
             {
                 int position = Math.min(syntax.getInput().length(), syntax.getCursor());
-                MutableComponent details = new TextComponent("")
+                MutableComponent details = Component.literal("")
                         .withStyle(ChatFormatting.GRAY)
                         .withStyle((style) -> style
                                 .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, reader.getString())));
@@ -210,21 +187,20 @@ public class ClientCommandHandler
                 details.append(syntax.getInput().substring(Math.max(0, position - 10), position));
                 if (position < syntax.getInput().length())
                 {
-                    details.append(new TextComponent(syntax.getInput().substring(position)).withStyle(ChatFormatting.RED, ChatFormatting.UNDERLINE));
+                    details.append(Component.literal(syntax.getInput().substring(position)).withStyle(ChatFormatting.RED, ChatFormatting.UNDERLINE));
                 }
-                details.append(new TranslatableComponent("command.context.here").withStyle(ChatFormatting.RED, ChatFormatting.ITALIC));
-                Minecraft.getInstance().player.sendMessage(new TextComponent("").append(details).withStyle(ChatFormatting.RED), Util.NIL_UUID);
+                details.append(Component.translatable("command.context.here").withStyle(ChatFormatting.RED, ChatFormatting.ITALIC));
+                Minecraft.getInstance().player.sendSystemMessage(Component.literal("").append(details).withStyle(ChatFormatting.RED));
             }
         }
         catch (Exception generic)// Probably thrown by the command
         {
-            TextComponent message = new TextComponent(generic.getMessage() == null ? generic.getClass().getName() : generic.getMessage());
-            Minecraft.getInstance().player.sendMessage(new TranslatableComponent("command.failed")
+            MutableComponent message = Component.literal(generic.getMessage() == null ? generic.getClass().getName() : generic.getMessage());
+            Minecraft.getInstance().player.sendSystemMessage(Component.translatable("command.failed")
                     .withStyle(ChatFormatting.RED)
                     .withStyle((style) -> style
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, message))),
-                    Util.NIL_UUID);
-            LOGGER.error("Error executing client command \"{}\"", sendMessage, generic);
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, message))));
+            LOGGER.error("Error executing client command \"{}\"", command, generic);
         }
         return true;
     }

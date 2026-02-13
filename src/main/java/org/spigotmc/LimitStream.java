@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class LimitStream extends FilterInputStream {
+
     private final NbtAccounter limit;
 
     public LimitStream(InputStream is, NbtAccounter limit) {
@@ -16,19 +17,19 @@ public class LimitStream extends FilterInputStream {
 
     @Override
     public int read() throws IOException {
-        limit.accountBits(8);
+        limit.accountBytes(1);
         return super.read();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-        limit.accountBits(b.length * 8);
+        limit.accountBytes(b.length);
         return super.read(b);
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-        limit.accountBits(len * 8);
+        limit.accountBytes(len);
         return super.read(b, off, len);
     }
 }

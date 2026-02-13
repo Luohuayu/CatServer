@@ -5,6 +5,7 @@ import org.bukkit.Chunk;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Translatable;
 import org.bukkit.World;
 import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
@@ -31,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
  * (i.e. lighting and power) may not be able to be safely accessed during world
  * generation when used in cases like BlockPhysicsEvent!!!!
  */
-public interface Block extends Metadatable {
+public interface Block extends Metadatable, Translatable {
 
     /**
      * Gets the metadata for this block
@@ -270,6 +271,16 @@ public interface Block extends Metadatable {
      */
     @NotNull
     BlockState getState();
+
+    // Paper start
+    /**
+     * @see #getState() optionally disables use of snapshot, to operate on real block data
+     * @param useSnapshot if this block is a TE, should we create a fully copy of the TileEntity
+     * @return BlockState with the current state of this block
+     */
+    @NotNull
+    BlockState getState(boolean useSnapshot);
+    // Paper end
 
     /**
      * Returns the biome that this block resides in

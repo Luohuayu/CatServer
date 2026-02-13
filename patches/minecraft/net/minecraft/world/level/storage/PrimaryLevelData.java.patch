@@ -1,41 +1,41 @@
 --- a/net/minecraft/world/level/storage/PrimaryLevelData.java
 +++ b/net/minecraft/world/level/storage/PrimaryLevelData.java
-@@ -23,8 +_,11 @@
- import net.minecraft.nbt.NbtUtils;
- import net.minecraft.nbt.StringTag;
- import net.minecraft.nbt.Tag;
-+import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
- import net.minecraft.resources.RegistryOps;
- import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.level.ServerLevel;
-+import net.minecraft.server.level.ServerPlayer;
- import net.minecraft.util.datafix.DataFixTypes;
- import net.minecraft.world.Difficulty;
- import net.minecraft.world.level.DataPackConfig;
-@@ -36,13 +_,16 @@
- import net.minecraft.world.level.levelgen.WorldGenSettings;
- import net.minecraft.world.level.timers.TimerCallbacks;
+@@ -42,13 +_,26 @@
  import net.minecraft.world.level.timers.TimerQueue;
+ import org.slf4j.Logger;
+ 
++// CraftBukkit start
++import net.minecraft.core.Registry;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.dimension.LevelStem;
++import net.minecraft.world.level.levelgen.WorldDimensions;
 +import org.bukkit.Bukkit;
 +import org.bukkit.event.weather.ThunderChangeEvent;
 +import org.bukkit.event.weather.WeatherChangeEvent;
- import org.slf4j.Logger;
- 
++// CraftBukkit end
++
  public class PrimaryLevelData implements ServerLevelData, WorldData {
     private static final Logger f_78442_ = LogUtils.getLogger();
     protected static final String f_202314_ = "Player";
     protected static final String f_164940_ = "WorldGenSettings";
 -   private LevelSettings f_78443_;
-+   public LevelSettings f_78443_;
-    private final WorldGenSettings f_78444_;
++   public LevelSettings f_78443_; // CatServer - private -> public
+    private final WorldOptions f_244409_;
+-   private final PrimaryLevelData.SpecialWorldProperty f_244368_;
++   public final PrimaryLevelData.SpecialWorldProperty f_244368_; // CatServer - 1.20.1 private -> public
     private final Lifecycle f_78445_;
     private int f_78446_;
-@@ -76,6 +_,20 @@
-    private final Set<String> f_78439_;
+    private int f_78447_;
+@@ -82,6 +_,21 @@
     private boolean f_78440_;
+    private final Set<String> f_276525_;
     private final TimerQueue<MinecraftServer> f_78441_;
 +   private boolean confirmedExperimentalWarning = false;
 +   // CraftBukkit start - Add world and pdc
++   public Registry<LevelStem> customDimensions;
 +   private ServerLevel world;
 +   protected Tag pdc;
 +
@@ -49,43 +49,45 @@
 +   }
 +   // CraftBukkit end
  
-    private PrimaryLevelData(@Nullable DataFixer p_164942_, int p_164943_, @Nullable CompoundTag p_164944_, boolean p_164945_, int p_164946_, int p_164947_, int p_164948_, float p_164949_, long p_164950_, long p_164951_, int p_164952_, int p_164953_, int p_164954_, boolean p_164955_, int p_164956_, boolean p_164957_, boolean p_164958_, boolean p_164959_, WorldBorder.Settings p_164960_, int p_164961_, int p_164962_, @Nullable UUID p_164963_, Set<String> p_164964_, TimerQueue<MinecraftServer> p_164965_, @Nullable CompoundTag p_164966_, CompoundTag p_164967_, LevelSettings p_164968_, WorldGenSettings p_164969_, Lifecycle p_164970_) {
-       this.f_78452_ = p_164942_;
-@@ -104,7 +_,9 @@
-       this.f_78441_ = p_164965_;
-       this.f_78466_ = p_164966_;
-       this.f_78465_ = p_164967_;
--      this.f_78443_ = p_164968_;
-+      this.f_78443_ = p_164968_.withLifecycle(p_164970_);
-+      if (p_164970_ == Lifecycle.stable()) //Reset to unconfirmed if the lifecycle goes back to stable
-+         this.confirmedExperimentalWarning = false;
-       this.f_78444_ = p_164969_;
-       this.f_78445_ = p_164970_;
-    }
-@@ -120,7 +_,7 @@
-       });
-       return new PrimaryLevelData(p_78532_, p_78533_, p_78534_, p_78531_.get("WasModded").asBoolean(false), p_78531_.get("SpawnX").asInt(0), p_78531_.get("SpawnY").asInt(0), p_78531_.get("SpawnZ").asInt(0), p_78531_.get("SpawnAngle").asFloat(0.0F), i, p_78531_.get("DayTime").asLong(i), p_78536_.m_78389_(), p_78531_.get("clearWeatherTime").asInt(0), p_78531_.get("rainTime").asInt(0), p_78531_.get("raining").asBoolean(false), p_78531_.get("thunderTime").asInt(0), p_78531_.get("thundering").asBoolean(false), p_78531_.get("initialized").asBoolean(true), p_78531_.get("DifficultyLocked").asBoolean(false), WorldBorder.Settings.m_62037_(p_78531_, WorldBorder.f_61907_), p_78531_.get("WanderingTraderSpawnDelay").asInt(0), p_78531_.get("WanderingTraderSpawnChance").asInt(0), p_78531_.get("WanderingTraderId").read(SerializableUUID.f_123272_).result().orElse((UUID)null), p_78531_.get("ServerBrands").asStream().flatMap((p_78529_) -> {
+    private PrimaryLevelData(@Nullable DataFixer p_277859_, int p_277672_, @Nullable CompoundTag p_277888_, boolean p_278109_, int p_277714_, int p_278088_, int p_278037_, float p_277542_, long p_277414_, long p_277635_, int p_277595_, int p_277794_, int p_278007_, boolean p_277943_, int p_277674_, boolean p_277644_, boolean p_277749_, boolean p_278004_, WorldBorder.Settings p_277729_, int p_277856_, int p_278051_, @Nullable UUID p_277341_, Set<String> p_277989_, Set<String> p_277399_, TimerQueue<MinecraftServer> p_277860_, @Nullable CompoundTag p_277936_, EndDragonFight.Data p_289764_, LevelSettings p_278064_, WorldOptions p_278072_, PrimaryLevelData.SpecialWorldProperty p_277548_, Lifecycle p_277915_) {
+       this.f_78452_ = p_277859_;
+@@ -127,7 +_,7 @@
           return p_78529_.asString().result().stream();
--      }).collect(Collectors.toCollection(Sets::newLinkedHashSet)), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), compoundtag, p_78535_, p_78537_, p_78538_);
-+      }).collect(Collectors.toCollection(Sets::newLinkedHashSet)), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), compoundtag, p_78535_, p_78537_, p_78538_).withConfirmedWarning(p_78538_ != Lifecycle.stable() && p_78531_.get("confirmedExperimentalSettings").asBoolean(false));
+       }).collect(Collectors.toCollection(Sets::newLinkedHashSet)), p_78531_.get("removed_features").asStream().flatMap((p_277335_) -> {
+          return p_277335_.asString().result().stream();
+-      }).collect(Collectors.toSet()), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), p_78531_.get("DragonFight").read(EndDragonFight.Data.f_289707_).resultOrPartial(f_78442_::error).orElse(EndDragonFight.Data.f_289709_), p_78535_, p_251864_, p_250651_, p_78538_);
++      }).collect(Collectors.toSet()), new TimerQueue<>(TimerCallbacks.f_82226_, p_78531_.get("ScheduledEvents").asStream()), (CompoundTag)p_78531_.get("CustomBossEvents").orElseEmptyMap().getValue(), p_78531_.get("DragonFight").read(EndDragonFight.Data.f_289707_).resultOrPartial(f_78442_::error).orElse(EndDragonFight.Data.f_289709_), p_78535_, p_251864_, p_250651_, p_78538_).withConfirmedWarning(p_78538_ != Lifecycle.stable() && p_78531_.get("confirmedExperimentalSettings").asBoolean(false));
     }
  
     public CompoundTag m_6626_(RegistryAccess p_78543_, @Nullable CompoundTag p_78544_) {
-@@ -191,6 +_,13 @@
+@@ -156,7 +_,7 @@
+       p_78547_.m_128365_("Version", compoundtag);
+       NbtUtils.m_264171_(p_78547_);
+       DynamicOps<Tag> dynamicops = RegistryOps.m_255058_(NbtOps.f_128958_, p_78546_);
+-      WorldGenSettings.m_245563_(dynamicops, this.f_244409_, p_78546_).resultOrPartial(Util.m_137489_("WorldGenSettings: ", f_78442_::error)).ifPresent((p_78574_) -> {
++      WorldGenSettings.m_246823_(dynamicops, this.f_244409_, new WorldDimensions(this.customDimensions != null ? this.customDimensions : p_78546_.m_175515_(Registries.f_256862_))).resultOrPartial(Util.m_137489_("WorldGenSettings: ", f_78442_::error)).ifPresent((p_78574_) -> { // CraftBukkit - 1.20.1
+          p_78547_.m_128365_("WorldGenSettings", p_78574_);
+       });
+       p_78547_.m_128405_("GameType", this.f_78443_.m_46929_().m_46392_());
+@@ -203,6 +_,17 @@
           p_78547_.m_128362_("WanderingTraderId", this.f_78438_);
        }
  
-+      if (Bukkit.getServer() != null) {
-+         p_78547_.m_128359_("Bukkit.Version",   "CatServer/1.18.2/" + org.bukkit.craftbukkit.v1_18_R2.util.Versioning.getBukkitVersion()); // CatServer - ignore NullPointerException
-+         world.getWorld().storeBukkitValues(p_78547_); // CraftBukkit - add pdc
-+      }
-+
 +      p_78547_.m_128359_("forgeLifecycle", net.minecraftforge.common.ForgeHooks.encodeLifecycle(this.f_78443_.getLifecycle()));
 +      p_78547_.m_128379_("confirmedExperimentalSettings", this.confirmedExperimentalWarning);
++
++      if (Bukkit.getServer() != null) {
++         p_78547_.m_128359_("Bukkit.Version",   "CatServer/1.20.1/" + org.bukkit.craftbukkit.v1_20_R1.util.Versioning.getBukkitVersion()); // CatServer - ignore NullPointerException
++         // CatServer start - 1.20.1 add if (world != null && world.getWorld() != null) to prevent NPE when creating crashreport if server crashes when worlds not created
++         if (world != null && world.getWorld() != null) {
++            world.getWorld().storeBukkitValues(p_78547_); // CraftBukkit - add pdc
++         }
++         // CatServer end
++      }
     }
  
-    public int m_6789_() {
-@@ -288,6 +_,19 @@
+    private static ListTag m_277055_(Set<String> p_277880_) {
+@@ -306,6 +_,19 @@
     }
  
     public void m_5557_(boolean p_78562_) {
@@ -105,7 +107,7 @@
        this.f_78460_ = p_78562_;
     }
  
-@@ -304,6 +_,19 @@
+@@ -322,6 +_,19 @@
     }
  
     public void m_5565_(boolean p_78576_) {
@@ -125,20 +127,20 @@
        this.f_78458_ = p_78576_;
     }
  
-@@ -357,6 +_,12 @@
+@@ -375,6 +_,12 @@
  
     public void m_6166_(Difficulty p_78521_) {
        this.f_78443_ = this.f_78443_.m_46918_(p_78521_);
 +      // CraftBukkit start
 +      ClientboundChangeDifficultyPacket packet = new ClientboundChangeDifficultyPacket(this.m_5472_(), this.m_5474_());
 +      for (ServerPlayer player : world.m_6907_()) {
-+         player.f_8906_.m_141995_(packet);
++         player.f_8906_.m_9829_(packet);
 +      }
 +      // CraftBukkit end
     }
  
     public boolean m_5474_() {
-@@ -453,5 +_,22 @@
+@@ -483,6 +_,23 @@
  
     public LevelSettings m_5926_() {
        return this.f_78443_.m_46935_();
@@ -152,12 +154,13 @@
 +   }
 +   // CraftBukkit end
 +
-+   //FORGE
 +   public boolean hasConfirmedExperimentalWarning() {
 +      return this.confirmedExperimentalWarning;
 +   }
-+   public PrimaryLevelData withConfirmedWarning(boolean confirmedWarning) { //Builder-like to not patch ctor
++
++   public PrimaryLevelData withConfirmedWarning(boolean confirmedWarning) { // Builder-like to not patch ctor
 +      this.confirmedExperimentalWarning = confirmedWarning;
 +      return this;
     }
- }
+ 
+    /** @deprecated */

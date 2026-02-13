@@ -8,6 +8,7 @@ import java.util.Arrays;
 
 public class FoxServerLauncher {
     private static final boolean skipCheckLibraries = Boolean.parseBoolean(System.getProperty("catserver.skipCheckLibraries"));
+    private static final String PLUGIN_ONLY = "plugin-only";
 
     public static void main(String[] args) throws Throwable {
         System.out.println("Loading libraries, please wait...");
@@ -36,9 +37,12 @@ public class FoxServerLauncher {
         LegacyLauncher.loadJars();
 
         System.setProperty("java.net.preferIPv6Addresses", "system");
-        System.setProperty("ignoreList", "bootstraplauncher-1.0.0.jar,securejarhandler-1.0.8.jar,asm-commons-9.5.jar,asm-util-9.5.jar,asm-analysis-9.5.jar,asm-tree-9.5.jar,asm-9.5.jar,JarJarFileSystems-0.3.19.jar");
+        System.setProperty("ignoreList", "bootstraplauncher-1.1.2.jar,securejarhandler-2.1.10.jar,asm-commons-9.8.jar,asm-util-9.8.jar,asm-analysis-9.8.jar,asm-tree-9.8.jar,asm-9.8.jar,JarJarFileSystems-0.3.19.jar");
         System.setProperty("libraryDirectory", "libraries");
-        System.setProperty("legacyClassPath", String.join(Utils.isWindows() ? ";" : ":", DataManager.getLibrariesMap().entrySet().stream().map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
+        System.setProperty("legacyClassPath", String.join(Utils.isWindows() ? ";" : ":", DataManager.getLibrariesMap().entrySet().stream().filter(e -> !e.getValue().getPath().contains(PLUGIN_ONLY)).map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
+
+        // 1.20.1 to load some craftbukkit dependencies which may have same package in different jars
+        System.setProperty("pluginOnlyDependencyClassPath", String.join(Utils.isWindows() ? ";" : ":", DataManager.getLibrariesMap().entrySet().stream().filter(e -> e.getValue().getPath().contains(PLUGIN_ONLY)).map(entry -> entry.getValue().getAbsolutePath() + "/" + entry.getKey()).toArray(String[]::new)));
 
         String[] launchArgs = new String[] {
                 "--launchTarget",
@@ -53,13 +57,13 @@ public class FoxServerLauncher {
                 DataManager.getVersionData("mcp")
         };
 
-        launchArgs = Arrays.copyOf(launchArgs, launchArgs.length + args.length);
-        System.arraycopy(args, 0, launchArgs, launchArgs.length, args.length);
+        final String[] finalLaunchArgs = Arrays.copyOf(launchArgs, launchArgs.length + args.length);
+        System.arraycopy(args, 0, finalLaunchArgs, launchArgs.length, args.length);
 
         DataManager.gc();
         System.setProperty("log4j.configurationFile", "log4j2-catserver.xml");
 
-        Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { launchArgs } );
+        Class.forName("cpw.mods.bootstraplauncher.BootstrapLauncher").getMethod("main", String[].class).invoke(null, new Object[] { finalLaunchArgs } );
     }
 
     private static boolean checkJavaVersion() {

@@ -4,23 +4,50 @@
  package net.minecraft.server;
  
 +import catserver.server.utils.MinecraftServerHelper;
- import com.mojang.authlib.GameProfileRepository;
- import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.authlib.GameProfile;
  import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
-@@ -13,7 +_,9 @@
- import java.net.Proxy;
+ import com.mojang.datafixers.DataFixer;
+@@ -15,6 +_,7 @@
+ import java.nio.file.Files;
  import java.nio.file.Path;
  import java.nio.file.Paths;
 +import java.util.Arrays;
  import java.util.Optional;
-+import java.util.concurrent.atomic.AtomicReference;
+ import java.util.UUID;
  import java.util.function.BooleanSupplier;
- import joptsimple.OptionParser;
- import joptsimple.OptionSet;
-@@ -77,6 +_,36 @@
-       OptionSpec<String> optionspec12 = optionparser.accepts("serverId").withRequiredArg();
+@@ -47,6 +_,7 @@
+ import net.minecraft.util.profiling.jfr.JvmProfiler;
+ import net.minecraft.util.worldupdate.WorldUpgrader;
+ import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.level.DataPackConfig;
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.LevelSettings;
+ import net.minecraft.world.level.WorldDataConfiguration;
+@@ -61,11 +_,19 @@
+ import net.minecraft.world.level.storage.WorldData;
+ import org.slf4j.Logger;
+ 
++// CraftBukkit start
++import com.google.common.base.Charsets;
++import java.io.InputStreamReader;
++import java.util.concurrent.atomic.AtomicReference;
++import net.minecraft.server.packs.PackType;
++import org.bukkit.configuration.file.YamlConfiguration;
++// CraftBukkit end
++
+ public class Main {
+    private static final Logger f_129670_ = LogUtils.getLogger();
+ 
+    @DontObfuscate
+-   public static void main(String[] p_129699_) {
++   public static void main(String[] p_129699_) { // CraftBukkit - replaces main(String[] astring) // CatServer - recover
+       SharedConstants.m_142977_();
+       OptionParser optionparser = new OptionParser();
+       OptionSpec<Void> optionspec = optionparser.accepts("nogui");
+@@ -84,6 +_,37 @@
        OptionSpec<Void> optionspec13 = optionparser.accepts("jfrProfile");
-       OptionSpec<String> optionspec14 = optionparser.nonOptions();
+       OptionSpec<Path> optionspec14 = optionparser.accepts("pidFile").withRequiredArg().withValuesConvertedBy(new PathConverter());
+       OptionSpec<String> optionspec15 = optionparser.nonOptions();
 +      optionparser.accepts("allowUpdates").withRequiredArg().ofType(Boolean.class).defaultsTo(Boolean.TRUE); // Forge: allow mod updates to proceed
 +      optionparser.accepts("gameDir").withRequiredArg().ofType(File.class).defaultsTo(new File(".")); //Forge: Consume this argument, we use it in the launcher, and the client side.
 +      final OptionSpec<net.minecraft.core.BlockPos> spawnPosOpt;
@@ -31,6 +58,7 @@
 +          spawnPosOpt = null;
 +      }
 +
++      // CatServer - from org.bukkit.craftbukkit.Main
 +      optionparser.acceptsAll(Arrays.asList("b", "bukkit-settings"), "File for bukkit settings")
 +              .withRequiredArg()
 +              .ofType(File.class)
@@ -54,32 +82,57 @@
  
        try {
           OptionSet optionset = optionparser.parse(p_129699_);
-@@ -84,6 +_,13 @@
+@@ -91,14 +_,21 @@
              optionparser.printHelpOn(System.err);
              return;
           }
-+         Path path1 = Paths.get("eula.txt");
-+         Eula eula = new Eula(path1);
+-
+-         Path path = optionset.valueOf(optionspec14);
++         Path path2 = Paths.get("eula.txt");
++         Eula eula = new Eula(path2);
 +
 +         if (!eula.m_135944_()) {
 +            f_129670_.info("You need to agree to the EULA in order to run the server. Go to eula.txt for more info.");
 +            return;
 +         }
++
++         Path path = optionset.valueOf(optionspec14); // CraftBukkit - 1.20.1 // CatServer - recover
+          if (path != null) {
+             m_269308_(path);
+          }
  
           CrashReport.m_127529_();
-          if (optionset.has(optionspec13)) {
-@@ -93,29 +_,28 @@
-          Bootstrap.m_135870_();
+-         if (optionset.has(optionspec13)) {
++         if (optionset.has(optionspec13)) { // CraftBukkit // CatServer - recover
+             JvmProfiler.f_185340_.m_183425_(Environment.SERVER);
+          }
+ 
+@@ -106,25 +_,37 @@
           Bootstrap.m_135889_();
           Util.m_137584_();
+          Path path1 = Paths.get("server.properties");
+-         DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path1);
 +         if (!optionset.has(optionspec1)) net.minecraftforge.server.loading.ServerModLoader.load(); // Load mods before we load almost anything else anymore. Single spot now. Only loads if they haven't passed the initserver param
-          Path path = Paths.get("server.properties");
-          DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path);
++         DedicatedServerSettings dedicatedserversettings = new DedicatedServerSettings(path1); // CraftBukkit - CLI argument support // CatServer - recover
           dedicatedserversettings.m_139780_();
--         Path path1 = Paths.get("eula.txt");
--         Eula eula = new Eula(path1);
-          if (optionset.has(optionspec1)) {
-             f_129670_.info("Initialized '{}' and '{}'", path.toAbsolutePath(), path1.toAbsolutePath());
+-         Path path2 = Paths.get("eula.txt");
+-         Eula eula = new Eula(path2);
+-         if (optionset.has(optionspec1)) {
++         if (optionset.has(optionspec1)) { // CraftBukkit // CatServer - recover
++            // CraftBukkit start - 1.20.1 SPIGOT-5761: Create bukkit.yml and commands.yml if not present
++            File configFile = (File) optionset.valueOf("bukkit-settings");
++            YamlConfiguration configuration = YamlConfiguration.loadConfiguration(configFile);
++            configuration.options().copyDefaults(true);
++            configuration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(Main.class.getClassLoader().getResourceAsStream("configurations/bukkit.yml"), Charsets.UTF_8)));
++            configuration.save(configFile);
++
++            File commandFile = (File) optionset.valueOf("commands-settings");
++            YamlConfiguration commandsConfiguration = YamlConfiguration.loadConfiguration(commandFile);
++            commandsConfiguration.options().copyDefaults(true);
++            commandsConfiguration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(Main.class.getClassLoader().getResourceAsStream("configurations/commands.yml"), Charsets.UTF_8)));
++            commandsConfiguration.save(commandFile);
++            // CraftBukkit end
+             f_129670_.info("Initialized '{}' and '{}'", path1.toAbsolutePath(), path2.toAbsolutePath());
              return;
           }
  
@@ -88,31 +141,33 @@
 -            return;
 -         }
 -
-          File file1 = new File(optionset.valueOf(optionspec9));
-          YggdrasilAuthenticationService yggdrasilauthenticationservice = new YggdrasilAuthenticationService(Proxy.NO_PROXY);
-          MinecraftSessionService minecraftsessionservice = yggdrasilauthenticationservice.createMinecraftSessionService();
-          GameProfileRepository gameprofilerepository = yggdrasilauthenticationservice.createProfileRepository();
-          GameProfileCache gameprofilecache = new GameProfileCache(gameprofilerepository, new File(file1, MinecraftServer.f_129742_.getName()));
-          String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_);
+-         File file1 = new File(optionset.valueOf(optionspec9));
++         File file1 = new File(optionset.valueOf(optionspec9)); // CraftBukkit // CatServer - recover
+          Services services = Services.m_214344_(new YggdrasilAuthenticationService(Proxy.NO_PROXY), file1);
+-         String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_);
++         String s = Optional.ofNullable(optionset.valueOf(optionspec10)).orElse(dedicatedserversettings.m_139777_().f_139741_); // CraftBukkit // CatServer - recover
 +         if (s == null || s.isEmpty() || new File(file1, s).getAbsolutePath().equals(new File(s).getAbsolutePath())) {
 +            f_129670_.error("Invalid world directory specified, must not be null, empty or the same directory as your universe! " + s);
 +            return;
 +         }
           LevelStorageSource levelstoragesource = LevelStorageSource.m_78242_(file1.toPath());
-          LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_78260_(s);
+-         LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_289864_(s);
++         LevelStorageSource.LevelStorageAccess levelstoragesource$levelstorageaccess = levelstoragesource.m_289864_(s); // CraftBukkit // CatServer - recover
 +         levelstoragesource$levelstorageaccess.readAdditionalLevelSaveData();
           LevelSummary levelsummary = levelstoragesource$levelstorageaccess.m_78308_();
           if (levelsummary != null) {
              if (levelsummary.m_193020_()) {
-@@ -134,7 +_,30 @@
+@@ -138,18 +_,37 @@
+             }
+          }
+ 
+-         boolean flag = optionset.has(optionspec6);
++         boolean flag = optionset.has(optionspec6); // CraftBukkit // CatServer - recover
+          if (flag) {
              f_129670_.warn("Safe mode active, only vanilla datapack will be loaded");
           }
  
-+         // CatServer start
-+
-+         // CatServer end
-+
-          PackRepository packrepository = new PackRepository(PackType.SERVER_DATA, new ServerPacksSource(), new FolderRepositorySource(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), PackSource.f_10529_));
+          PackRepository packrepository = ServerPacksSource.m_245786_(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_));
 +         // CraftBukkit start
 +         File bukkitDataPackFolder = new File(levelstoragesource$levelstorageaccess.m_78283_(LevelResource.f_78180_).toFile(), "bukkit");
 +         if (!bukkitDataPackFolder.exists()) {
@@ -123,46 +178,54 @@
 +            com.google.common.io.Files.write("{\n"
 +                    + "    \"pack\": {\n"
 +                    + "        \"description\": \"Data pack for resources provided by Bukkit plugins\",\n"
-+                    + "        \"pack_format\": " + SharedConstants.m_183709_().getPackVersion() + "\n"
++                    + "        \"pack_format\": " + SharedConstants.m_183709_().m_264084_(PackType.SERVER_DATA) + "\n"
 +                    + "    }\n"
 +                    + "}\n", mcMeta, com.google.common.base.Charsets.UTF_8);
 +         } catch (java.io.IOException ex) {
 +            throw new RuntimeException("Could not initialize Bukkit datapack", ex);
 +         }
-+         AtomicReference<DataPackConfig> dataPackConfig = new AtomicReference<>();
-+         AtomicReference<DynamicOps<Tag>>dynamicOps = new AtomicReference<>();
++         AtomicReference<WorldLoader.DataLoadContext> worldLoader = new AtomicReference<>();
 +         // CraftBukkit end
  
           WorldStem worldstem;
           try {
-@@ -145,6 +_,10 @@
-             }, (p_206543_, p_206544_) -> {
-                RegistryAccess.Writable registryaccess$writable = RegistryAccess.m_206197_();
-                DynamicOps<Tag> dynamicops = RegistryOps.m_206813_(NbtOps.f_128958_, registryaccess$writable, p_206543_);
-+               // CatServer start
-+               dataPackConfig.set(p_206544_);
-+               dynamicOps.set(dynamicops);
-+               // CatServer end
-                WorldData worlddata1 = levelstoragesource$levelstorageaccess.m_211747_(dynamicops, p_206544_, registryaccess$writable.m_211816_());
-                if (worlddata1 != null) {
-                   return Pair.of(worlddata1, registryaccess$writable.m_203557_());
-@@ -160,6 +_,8 @@
-                      worldgensettings = optionset.has(optionspec3) ? dedicatedserverproperties.m_180927_(registryaccess$writable).m_64671_() : dedicatedserverproperties.m_180927_(registryaccess$writable);
-                   }
+             WorldLoader.InitConfig worldloader$initconfig = m_245383_(dedicatedserversettings.m_139777_(), levelstoragesource$levelstorageaccess, flag, packrepository);
+             worldstem = Util.m_214679_((p_248086_) -> {
+                return WorldLoader.m_214362_(worldloader$initconfig, (p_248079_) -> {
++                  worldLoader.set(p_248079_); // CraftBukkit - 1.20.1
+                   Registry<LevelStem> registry = p_248079_.f_243759_().m_175515_(Registries.f_256862_);
+                   DynamicOps<Tag> dynamicops = RegistryOps.m_255058_(NbtOps.f_128958_, p_248079_.f_244104_());
+                   Pair<WorldData, WorldDimensions.Complete> pair = levelstoragesource$levelstorageaccess.m_246049_(dynamicops, p_248079_.f_244127_(), registry, p_248079_.f_244104_().m_211816_());
+@@ -159,17 +_,19 @@
+                      LevelSettings levelsettings;
+                      WorldOptions worldoptions;
+                      WorldDimensions worlddimensions;
+-                     if (optionset.has(optionspec2)) {
++                     if (optionset.has(optionspec2)) { // CraftBukkit // CatServer - recover
+                         levelsettings = MinecraftServer.f_129743_;
+                         worldoptions = WorldOptions.f_244225_;
+                         worlddimensions = WorldPresets.m_246552_(p_248079_.f_244104_());
+                      } else {
+                         DedicatedServerProperties dedicatedserverproperties = dedicatedserversettings.m_139777_();
+                         levelsettings = new LevelSettings(dedicatedserverproperties.f_139741_, dedicatedserverproperties.f_139740_, dedicatedserverproperties.f_139752_, dedicatedserverproperties.f_139739_, false, new GameRules(), p_248079_.f_244127_());
+-                        worldoptions = optionset.has(optionspec3) ? dedicatedserverproperties.f_243824_.m_247325_(true) : dedicatedserverproperties.f_243824_;
++                        worldoptions = optionset.has(optionspec3) ? dedicatedserverproperties.f_243824_.m_247325_(true) : dedicatedserverproperties.f_243824_; // CraftBukkit // CatServer - recover
+                         worlddimensions = dedicatedserverproperties.m_246483_(p_248079_.f_244104_());
+                      }
  
-+                  // Forge: Deserialize the WorldGenSettings to ensure modded dims are loaded on first server load. Vanilla behavior only loads from the server.properties and deserializes only after the 2nd server load.
-+                  worldgensettings = WorldGenSettings.f_64600_.encodeStart(dynamicops, worldgensettings).flatMap(nbt -> WorldGenSettings.f_64600_.parse(dynamicops, nbt)).getOrThrow(false, errorMsg -> {});
-                   PrimaryLevelData primaryleveldata = new PrimaryLevelData(levelsettings, worldgensettings, Lifecycle.stable());
-                   return Pair.of(primaryleveldata, registryaccess$writable.m_203557_());
-                }
-@@ -181,22 +_,34 @@
-          }
++                     //Forge: Do a write-read-cycle to inject modded dimensions on first start of a dedicated server into its generated world dimensions list.
++                     worlddimensions = WorldDimensions.f_243810_.encoder().encodeStart(dynamicops, worlddimensions).flatMap((writtenPayloadWithModdedDimensions) -> WorldDimensions.f_243810_.decoder().parse(dynamicops, writtenPayloadWithModdedDimensions)).resultOrPartial(f_129670_::error).orElse(worlddimensions);
+                      WorldDimensions.Complete worlddimensions$complete = worlddimensions.m_245300_(registry);
+                      Lifecycle lifecycle = worlddimensions$complete.m_245945_().add(p_248079_.f_244104_().m_211816_());
+                      return new WorldLoader.DataLoadOutput<>(new PrimaryLevelData(levelsettings, worldoptions, worlddimensions$complete.f_244634_(), lifecycle), worlddimensions$complete.m_245593_());
+@@ -190,22 +_,34 @@
  
+          WorldData worlddata = worldstem.f_206895_();
           levelstoragesource$levelstorageaccess.m_78287_(registryaccess$frozen, worlddata);
--         final DedicatedServer dedicatedserver = MinecraftServer.m_129872_((p_206536_) -> {
--            DedicatedServer dedicatedserver1 = new DedicatedServer(p_206536_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
+-         final DedicatedServer dedicatedserver = MinecraftServer.m_129872_((p_236710_) -> {
+-            DedicatedServer dedicatedserver1 = new DedicatedServer(p_236710_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), services, LoggerChunkProgressListener::new);
 +         final MinecraftServer dedicatedserver = MinecraftServer.m_129872_((p_129697_) -> {
-+            MinecraftServerHelper.getInstance().load(optionset, dataPackConfig.get(), dynamicOps.get()); // CatServer
++            MinecraftServerHelper.getInstance().load(optionset, worldLoader.get()); // CatServer
 +            MinecraftServer dedicatedserver1;
 +            if (gametestEnabled) {
 +               net.minecraftforge.gametest.ForgeGameTestHooks.registerGametests();
@@ -170,13 +233,13 @@
 +               net.minecraft.core.BlockPos spawnPos = optionset.valueOf(spawnPosOpt);
 +               dedicatedserver1 = new net.minecraft.gametest.framework.GameTestServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, testBatches, spawnPos);
 +            } else {
-+               dedicatedserver1 = new DedicatedServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), minecraftsessionservice, gameprofilerepository, gameprofilecache, LoggerChunkProgressListener::new);
++               dedicatedserver1 = new DedicatedServer(p_129697_, levelstoragesource$levelstorageaccess, packrepository, worldstem, dedicatedserversettings, DataFixers.m_14512_(), services, LoggerChunkProgressListener::new);
 +            }
-             dedicatedserver1.m_129981_(optionset.valueOf(optionspec8));
+             dedicatedserver1.m_236740_(optionset.has(optionspec8) ? new GameProfile((UUID)null, optionset.valueOf(optionspec8)) : null);
              dedicatedserver1.m_129801_(optionset.valueOf(optionspec11));
              dedicatedserver1.m_129975_(optionset.has(optionspec2));
              dedicatedserver1.m_129948_(optionset.valueOf(optionspec12));
-             boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec14).contains("nogui");
+             boolean flag1 = !optionset.has(optionspec) && !optionset.valuesOf(optionspec15).contains("nogui");
 -            if (flag1 && !GraphicsEnvironment.isHeadless()) {
 -               dedicatedserver1.m_139667_();
 +            if (dedicatedserver1 instanceof DedicatedServer dedicatedServer && flag1 && !GraphicsEnvironment.isHeadless()) {
@@ -194,14 +257,14 @@
              }
           };
           thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(f_129670_));
-@@ -207,8 +_,8 @@
- 
+@@ -241,8 +_,8 @@
+       return new WorldLoader.InitConfig(worldloader$packconfig, Commands.CommandSelection.DEDICATED, p_248563_.f_139711_);
     }
  
--   private static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
+-   private static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, Registry<LevelStem> p_250443_) {
 -      f_129670_.info("Forcing world upgrade!");
-+   public static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, WorldGenSettings p_195493_) {
++   public static void m_195488_(LevelStorageSource.LevelStorageAccess p_195489_, DataFixer p_195490_, boolean p_195491_, BooleanSupplier p_195492_, Registry<LevelStem> p_250443_) { // CatServer - private -> public
 +      f_129670_.info("Forcing world upgrade! {}", p_195489_.m_78277_()); // CraftBukkit
-       WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_195493_, p_195491_);
+       WorldUpgrader worldupgrader = new WorldUpgrader(p_195489_, p_195490_, p_250443_, p_195491_);
        Component component = null;
  

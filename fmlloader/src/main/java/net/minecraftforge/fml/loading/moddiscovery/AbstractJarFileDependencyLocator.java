@@ -5,9 +5,11 @@
 
 package net.minecraftforge.fml.loading.moddiscovery;
 
+import com.mojang.logging.LogUtils;
+import net.minecraftforge.forgespi.locating.IDependencyLocator;
 import net.minecraftforge.forgespi.locating.IModFile;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import net.minecraftforge.forgespi.locating.ModFileLoadingException;
+import org.slf4j.Logger;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -15,9 +17,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-public abstract class AbstractJarFileDependencyLocator extends AbstractJarFileLocator
+public abstract class AbstractJarFileDependencyLocator extends AbstractJarFileModProvider implements IDependencyLocator
 {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     protected Optional<InputStream> loadResourceFromModFile(final IModFile modFile, final Path path) {
         try {
@@ -36,11 +38,11 @@ public abstract class AbstractJarFileDependencyLocator extends AbstractJarFileLo
     protected Optional<IModFile> loadModFileFrom(final IModFile file, final Path path) {
         try {
             final Path pathInModFile = file.findResource(path.toString());
-            return createMod(pathInModFile);
+            return Optional.of(createMod(pathInModFile).file());
         }
         catch (Exception e) {
             LOGGER.error("Failed to load mod file {} from {}", path, file.getFileName());
-            return Optional.empty();
+            throw new ModFileLoadingException("Failed to load mod file "+file.getFileName());
         }
     }
 

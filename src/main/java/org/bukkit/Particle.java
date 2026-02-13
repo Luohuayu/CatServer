@@ -118,6 +118,13 @@ public enum Particle {
     WAX_OFF,
     ELECTRIC_SPARK,
     SCRAPE,
+    SONIC_BOOM,
+    SCULK_SOUL,
+    SCULK_CHARGE(Float.class),
+    SCULK_CHARGE_POP,
+    SHRIEK(Integer.class),
+    CHERRY_LEAVES,
+    EGG_CRACK,
     /**
      * Uses {@link BlockData} as DataType
      */

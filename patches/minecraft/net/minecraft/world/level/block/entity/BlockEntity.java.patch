@@ -1,31 +1,33 @@
 --- a/net/minecraft/world/level/block/entity/BlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/BlockEntity.java
-@@ -13,21 +_,33 @@
- import net.minecraft.world.item.ItemStack;
- import net.minecraft.world.level.Level;
+@@ -15,19 +_,36 @@
  import net.minecraft.world.level.block.state.BlockState;
-+import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer;
-+import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataTypeRegistry;
-+import org.bukkit.inventory.InventoryHolder;
  import org.slf4j.Logger;
-+import org.spigotmc.CustomTimingsHandler;
  
 -public abstract class BlockEntity {
++// CraftBukkit start
++import org.bukkit.craftbukkit.v1_20_R1.persistence.CraftPersistentDataContainer;
++import org.bukkit.craftbukkit.v1_20_R1.persistence.CraftPersistentDataTypeRegistry;
++import org.bukkit.inventory.InventoryHolder;
++// CraftBukkit end
++
++import org.spigotmc.CustomTimingsHandler; // Spigot
++
 +public abstract class BlockEntity extends net.minecraftforge.common.capabilities.CapabilityProvider<BlockEntity> implements net.minecraftforge.common.extensions.IForgeBlockEntity {
-    private static final Logger f_58854_ = LogUtils.getLogger();
-    private final BlockEntityType<?> f_58855_;
-    @Nullable
--   protected Level f_58857_;
-+   public Level f_58857_;
-    protected final BlockPos f_58858_;
-    protected boolean f_58859_;
-    private BlockState f_58856_;
-+   private CompoundTag customTileData;
-+   public CustomTimingsHandler tickTimer = org.bukkit.craftbukkit.v1_18_R2.SpigotTimings.getTileEntityTimings(this); // Spigot
++   public CustomTimingsHandler tickTimer = org.bukkit.craftbukkit.v1_20_R1.SpigotTimings.getTileEntityTimings(this); // Spigot
 +   // CraftBukkit start - data containers
 +   private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
 +   public CraftPersistentDataContainer persistentDataContainer;
 +   // CraftBukkit end
+    private static final Logger f_58854_ = LogUtils.getLogger();
+    private final BlockEntityType<?> f_58855_;
+    @Nullable
+-   protected Level f_58857_;
++   public Level f_58857_; // CatServer - protected -> public
+    protected final BlockPos f_58858_;
+    protected boolean f_58859_;
+    private BlockState f_58856_;
++   private CompoundTag customPersistentData;
  
     public BlockEntity(BlockEntityType<?> p_155228_, BlockPos p_155229_, BlockState p_155230_) {
 +      super(BlockEntity.class);
@@ -33,6 +35,7 @@
        this.f_58858_ = p_155229_.m_7949_();
        this.f_58856_ = p_155230_;
 +      this.gatherCapabilities();
++      this.persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY); // Paper - always init
     }
  
     public static BlockPos m_187472_(CompoundTag p_187473_) {
@@ -42,9 +45,9 @@
  
 +   // CraftBukkit start - read container
     public void m_142466_(CompoundTag p_155245_) {
-+      if (p_155245_.m_128441_("ForgeData")) this.customTileData = p_155245_.m_128469_("ForgeData");
++      if (p_155245_.m_128441_("ForgeData")) this.customPersistentData = p_155245_.m_128469_("ForgeData");
 +      if (getCapabilities() != null && p_155245_.m_128441_("ForgeCaps")) deserializeCaps(p_155245_.m_128469_("ForgeCaps"));
-+      this.persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
++      this.persistentDataContainer.clear(); // Paper - clear instead of init
 +      net.minecraft.nbt.Tag persistentDataTag = p_155245_.m_128423_("PublicBukkitValues");
 +      if (persistentDataTag instanceof CompoundTag) {
 +         this.persistentDataContainer.putAll((CompoundTag) persistentDataTag);
@@ -53,7 +56,7 @@
 +   // CraftBukkit end
  
     protected void m_183515_(CompoundTag p_187471_) {
-+      if (this.customTileData != null) p_187471_.m_128365_("ForgeData", this.customTileData.m_6426_());
++      if (this.customPersistentData != null) p_187471_.m_128365_("ForgeData", this.customPersistentData.m_6426_());
 +      if (getCapabilities() != null) p_187471_.m_128365_("ForgeCaps", serializeCaps());
     }
  
@@ -70,15 +73,6 @@
        return compoundtag;
     }
  
-@@ -133,7 +_,7 @@
-    }
- 
-    protected static void m_155232_(Level p_155233_, BlockPos p_155234_, BlockState p_155235_) {
--      p_155233_.m_151543_(p_155234_);
-+      p_155233_.blockEntityChangedWithoutNeighborUpdates(p_155234_);
-       if (!p_155235_.m_60795_()) {
-          p_155233_.m_46717_(p_155234_, p_155235_.m_60734_());
-       }
 @@ -163,6 +_,13 @@
  
     public void m_7651_() {
@@ -93,15 +87,15 @@
     }
  
     public void m_6339_() {
-@@ -191,9 +_,22 @@
+@@ -191,9 +_,28 @@
        return this.f_58855_;
     }
  
 +   @Override
-+   public CompoundTag getTileData() {
-+      if (this.customTileData == null)
-+         this.customTileData = new CompoundTag();
-+      return this.customTileData;
++   public CompoundTag getPersistentData() {
++      if (this.customPersistentData == null)
++         this.customPersistentData = new CompoundTag();
++      return this.customPersistentData;
 +   }
 +
     /** @deprecated */
@@ -112,7 +106,13 @@
 +
 +   // CatServer start
 +   public InventoryHolder getOwner() {
-+      return catserver.server.inventory.CatInventoryUtils.getOwner(f_58857_, f_58858_);
++      // Paper start
++      return getOwner(true);
++   }
++
++   public InventoryHolder getOwner(boolean useSnapshot) {
++      // Paper end
++      return catserver.server.inventory.CatInventoryUtils.getOwner(f_58857_, f_58858_, useSnapshot); // Paper - add useSnapshot
 +   }
 +   // CatServer end
  }

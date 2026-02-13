@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.Serializable;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -41,12 +42,14 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.loot.LootTable;
 import org.bukkit.map.MapView;
+import org.bukkit.packs.DataPackManager;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.ServicesManager;
 import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.structure.StructureManager;
 import org.bukkit.util.CachedServerIcon;
@@ -98,7 +101,7 @@ public final class Bukkit {
      */
     @NotNull
     public static String getName() {
-        return server.getName();
+        return server == null ? "[NO RUNNING SERVER]" : server.getName(); // CatServer - when net.minecraft.server.Main#main calls CrashReport#preload, server is null
     }
 
     /**
@@ -108,7 +111,7 @@ public final class Bukkit {
      */
     @NotNull
     public static String getVersion() {
-        return server.getVersion();
+        return server == null ? "[NO RUNNING SERVER]" : server.getVersion(); // CatServer - when net.minecraft.server.Main#main calls CrashReport#preload, server is null
     }
 
     /**
@@ -118,7 +121,7 @@ public final class Bukkit {
      */
     @NotNull
     public static String getBukkitVersion() {
-        return server.getBukkitVersion();
+        return server == null ? "[NO RUNNING SERVER]" : server.getBukkitVersion(); // CatServer - when net.minecraft.server.Main#main calls CrashReport#preload, server is null
     }
 
     /**
@@ -160,6 +163,15 @@ public final class Bukkit {
      */
     public static int getMaxPlayers() {
         return server.getMaxPlayers();
+    }
+
+    /**
+     * Set the maximum amount of players allowed to be logged in at once.
+     *
+     * @param maxPlayers The maximum amount of concurrent players
+     */
+    public static void setMaxPlayers(int maxPlayers) {
+        server.setMaxPlayers(maxPlayers);
     }
 
     /**
@@ -245,6 +257,26 @@ public final class Bukkit {
      */
     public static boolean getAllowNether() {
         return server.getAllowNether();
+    }
+
+    @NotNull
+    public static List<String> getInitialEnabledPacks() {
+        return server.getInitialEnabledPacks();
+    }
+
+    @NotNull
+    public static List<String> getInitialDisabledPacks() {
+        return server.getInitialDisabledPacks();
+    }
+
+    /**
+     * Get the DataPack Manager.
+     *
+     * @return the manager
+     */
+    @NotNull
+    public static DataPackManager getDataPackManager() {
+        return server.getDataPackManager();
     }
 
     /**
@@ -1009,6 +1041,28 @@ public final class Bukkit {
     }
 
     /**
+     * Gets whether the server should send a preview of the player's chat
+     * message to the client when the player sends a message
+     *
+     * @return true if the server should send a preview, false otherwise
+     * @deprecated chat previews have been removed
+     */
+    @Deprecated
+    public static boolean shouldSendChatPreviews() {
+        return server.shouldSendChatPreviews();
+    }
+
+    /**
+     * Gets whether the server only allow players with Mojang-signed public key
+     * to join
+     *
+     * @return true if only Mojang-signed players can join, false otherwise
+     */
+    public static boolean isEnforcingSecureProfiles() {
+        return server.isEnforcingSecureProfiles();
+    }
+
+    /**
      * Gets whether the Server hide online players in server status.
      *
      * @return true if the server hide online players, false otherwise
@@ -1154,7 +1208,10 @@ public final class Bukkit {
      * Bans the specified address from the server.
      *
      * @param address the IP address to ban
+     *
+     * @deprecated see {@link #banIP(InetAddress)}
      */
+    @Deprecated
     public static void banIP(@NotNull String address) {
         server.banIP(address);
     }
@@ -1163,8 +1220,29 @@ public final class Bukkit {
      * Unbans the specified address from the server.
      *
      * @param address the IP address to unban
+     *
+     * @deprecated see {@link #unbanIP(InetAddress)}
      */
+    @Deprecated
     public static void unbanIP(@NotNull String address) {
+        server.unbanIP(address);
+    }
+
+    /**
+     * Bans the specified address from the server.
+     *
+     * @param address the IP address to ban
+     */
+    public static void banIP(@NotNull InetAddress address) {
+        server.banIP(address);
+    }
+
+    /**
+     * Unbans the specified address from the server.
+     *
+     * @param address the IP address to unban
+     */
+    public static void unbanIP(@NotNull InetAddress address) {
         server.unbanIP(address);
     }
 
@@ -1180,15 +1258,14 @@ public final class Bukkit {
 
     /**
      * Gets a ban list for the supplied type.
-     * <p>
-     * Bans by name are no longer supported and this method will return
-     * null when trying to request them. The replacement is bans by UUID.
      *
      * @param type the type of list to fetch, cannot be null
+     * @param <T> The ban target
+     *
      * @return a ban list of the specified type
      */
     @NotNull
-    public static BanList getBanList(@NotNull BanList.Type type) {
+    public static <T extends BanList<?>> T getBanList(@NotNull BanList.Type type) {
         return server.getBanList(type);
     }
 
@@ -1370,6 +1447,17 @@ public final class Bukkit {
     }
 
     /**
+     * Gets the amount of consecutive neighbor updates before skipping
+     * additional ones.
+     *
+     * @return the amount of consecutive neighbor updates, if the value is
+     * negative then the limit it's not used
+     */
+    public static int getMaxChainedNeighborUpdates() {
+        return server.getMaxChainedNeighborUpdates();
+    }
+
+    /**
      * Gets user-specified limit for number of monsters that can spawn in a
      * chunk.
      *
@@ -1481,6 +1569,15 @@ public final class Bukkit {
     }
 
     /**
+     * Set the message that is displayed on the server list.
+     *
+     * @param motd The message to be displayed
+     */
+    public static void setMotd(@NotNull String motd) {
+        server.setMotd(motd);
+    }
+
+    /**
      * Gets the default message that is displayed when the server is stopped.
      *
      * @return the shutdown message
@@ -1521,6 +1618,18 @@ public final class Bukkit {
     @Nullable
     public static ScoreboardManager getScoreboardManager() {
         return server.getScoreboardManager();
+    }
+
+    /**
+     * Get (or create) a new {@link Criteria} by its name.
+     *
+     * @param name the criteria name
+     * @return the criteria
+     * @see Criteria Criteria for a list of constants
+     */
+    @NotNull
+    public static Criteria getScoreboardCriteria(@NotNull String name) {
+        return server.getScoreboardCriteria(name);
     }
 
     /**
@@ -1712,14 +1821,13 @@ public final class Bukkit {
 
     // Paper start
     /**
-     * Gets the ccurrent server TPS
+     * Gets the current server TPS
      * @return current server TPS (1m, 5m, 15m in CatServer)
      */
     @NotNull
     public static double[] getTPS() {
         return server.getTPS();
     }
-    // Paper end
 
     /**
      * Get a sample of the servers last tick times (in nanos)
@@ -1905,6 +2013,23 @@ public final class Bukkit {
     }
 
     /**
+     * Returns the registry for the given class.
+     * <br>
+     * If no registry is present for the given class null will be returned.
+     * <br>
+     * Depending on the implementation not every registry present in
+     * {@link Registry} will be returned by this method.
+     *
+     * @param tClass of the registry to get
+     * @param <T> type of the registry
+     * @return the corresponding registry or null if not present
+     */
+    @Nullable
+    public static <T extends Keyed> Registry<T> getRegistry(@NotNull Class<T> tClass) {
+        return server.getRegistry(tClass);
+    }
+
+    /**
      * @return the unsafe values instance
      * @see UnsafeValues
      */
@@ -1913,6 +2038,18 @@ public final class Bukkit {
     public static UnsafeValues getUnsafe() {
         return server.getUnsafe();
     }
+
+    // Paper start
+    /**
+     * Gets the active {@link org.bukkit.command.CommandMap}
+     *
+     * @return the active command map
+     */
+    @NotNull
+    public static org.bukkit.command.CommandMap getCommandMap() {
+        return server.getCommandMap();
+    }
+    // Paper end
 
     @NotNull
     public static Server.Spigot spigot() {

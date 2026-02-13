@@ -7,9 +7,9 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
 import net.minecraftforge.items.wrapper.*;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventory;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryCustom;
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftInventoryPlayer;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventory;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryCustom;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftInventoryPlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 

@@ -5,6 +5,8 @@ import catserver.server.remapper.CatServerRemapper;
 import catserver.server.remapper.MappingLoader;
 import catserver.server.remapper.ReflectionTransformer;
 import catserver.server.remapper.RemapRules;
+import catserver.server.utils.PluginBytecodeHandler;
+import com.google.common.io.ByteStreams;
 import cpw.mods.modlauncher.TransformingClassLoader;
 import io.netty.util.internal.ConcurrentSet;
 import net.md_5.specialsource.JarMapping;
@@ -61,7 +63,7 @@ public class ProxyURLClassLoader extends URLClassLoader
 
     protected Class<?> findClass(final String name) throws ClassNotFoundException {
         if (RemapRules.isNMSPackage(name)) {
-            final String remappedClass = this.jarMapping.classes.get(name.replaceAll("\\.", "\\/"));
+            final String remappedClass = this.jarMapping.classes.getOrDefault(name.replaceAll("\\.", "\\/"), name).replaceAll("\\.", "\\/");
             return launchClassLoader.loadClass(remappedClass);
         }
 
@@ -103,37 +105,42 @@ public class ProxyURLClassLoader extends URLClassLoader
             final String path = name.replace('.', '/').concat(".class");
             final URL url = this.findResource(path);
             if (url != null) {
-                final InputStream stream = url.openStream();
-                if (stream != null) {
-                    final JarURLConnection jarURLConnection = (JarURLConnection)url.openConnection();
-                    final URL jarURL = jarURLConnection.getJarFileURL();
-                    final Manifest manifest = jarURLConnection.getManifest();
+                try (final InputStream stream = url.openStream()) {
+                    if (stream != null) {
+                        final JarURLConnection jarURLConnection = (JarURLConnection)url.openConnection();
+                        final URL jarURL = jarURLConnection.getJarFileURL();
+                        final Manifest manifest = jarURLConnection.getManifest();
 
-                    // Remap the classes
-                    byte[] bytecode = this.remapper.remapClassFile(stream, RuntimeRepo.getInstance());
-                    bytecode = ReflectionTransformer.transform(bytecode);
+                        // Process CompletableFuture#runAsync(Runnable)
+                        byte[] classBytes = ByteStreams.toByteArray(stream);
+                        classBytes = PluginBytecodeHandler.processPluginClass(path, classBytes);
 
-                    // Fix the package
-                    int dot = name.lastIndexOf('.');
-                    if (dot != -1) {
-                        String pkgName = name.substring(0, dot);
-                        if (getPackage(pkgName) == null) {
-                            try {
-                                if (manifest != null) {
-                                    definePackage(pkgName, manifest, url);
-                                } else {
-                                    definePackage(pkgName, null, null, null, null, null, null, null);
-                                }
-                            } catch (IllegalArgumentException ignored) {}
+                        // Remap the classes
+                        byte[] bytecode = this.remapper.remapClassFile(classBytes, RuntimeRepo.getInstance());
+                        bytecode = ReflectionTransformer.transform(bytecode);
+
+                        // Fix the package
+                        int dot = name.lastIndexOf('.');
+                        if (dot != -1) {
+                            String pkgName = name.substring(0, dot);
+                            if (getPackage(pkgName) == null) {
+                                try {
+                                    if (manifest != null) {
+                                        definePackage(pkgName, manifest, url);
+                                    } else {
+                                        definePackage(pkgName, null, null, null, null, null, null, null);
+                                    }
+                                } catch (IllegalArgumentException ignored) {}
+                            }
                         }
-                    }
 
-                    // Define the classes
-                    final CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
-                    result = this.defineClass(name, bytecode, 0, bytecode.length, codeSource);
-                    if (result != null) {
-                        // Resolve it - sets the class loader of the class
-                        this.resolveClass(result);
+                        // Define the classes
+                        final CodeSource codeSource = new CodeSource(jarURL, new CodeSigner[0]);
+                        result = this.defineClass(name, bytecode, 0, bytecode.length, codeSource);
+                        if (result != null) {
+                            // Resolve it - sets the class loader of the class
+                            this.resolveClass(result);
+                        }
                     }
                 }
             }

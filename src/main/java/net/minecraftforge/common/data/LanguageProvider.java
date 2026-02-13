@@ -5,40 +5,30 @@
 
 package net.minecraftforge.common.data;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.nio.file.Files;
+import com.google.gson.JsonObject;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-
-import org.apache.commons.lang3.text.translate.JavaUnicodeEscaper;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.data.DataGenerator;
-import net.minecraft.data.HashCache;
+import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.data.PackOutput;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.block.Block;
 
-@SuppressWarnings("deprecation")
 public abstract class LanguageProvider implements DataProvider {
-    private static final Gson GSON = (new GsonBuilder()).setPrettyPrinting().disableHtmlEscaping().create();
     private final Map<String, String> data = new TreeMap<>();
-    private final DataGenerator gen;
+    private final PackOutput output;
     private final String modid;
     private final String locale;
 
-    public LanguageProvider(DataGenerator gen, String modid, String locale) {
-        this.gen = gen;
+    public LanguageProvider(PackOutput output, String modid, String locale) {
+        this.output = output;
         this.modid = modid;
         this.locale = locale;
     }
@@ -46,10 +36,13 @@ public abstract class LanguageProvider implements DataProvider {
     protected abstract void addTranslations();
 
     @Override
-    public void run(HashCache cache) throws IOException {
+    public CompletableFuture<?> run(CachedOutput cache) {
         addTranslations();
+
         if (!data.isEmpty())
-            save(cache, data, this.gen.getOutputFolder().resolve("assets/" + modid + "/lang/" + locale + ".json"));
+            return save(cache, this.output.getOutputFolder(PackOutput.Target.RESOURCE_PACK).resolve(this.modid).resolve("lang").resolve(this.locale + ".json"));
+
+        return CompletableFuture.allOf();
     }
 
     @Override
@@ -57,19 +50,12 @@ public abstract class LanguageProvider implements DataProvider {
         return "Languages: " + locale;
     }
 
-    private void save(HashCache cache, Object object, Path target) throws IOException {
-        String data = GSON.toJson(object);
-        data = JavaUnicodeEscaper.outsideOf(0, 0x7f).translate(data); // Escape unicode after the fact so that it's not double escaped by GSON
-        String hash = DataProvider.SHA1.hashUnencodedChars(data).toString();
-        if (!Objects.equals(cache.getHash(target), hash) || !Files.exists(target)) {
-           Files.createDirectories(target.getParent());
+    private CompletableFuture<?> save(CachedOutput cache, Path target) {
+        // TODO: DataProvider.saveStable handles the caching and hashing already, but creating the JSON Object this way seems unreliable. -C
+        JsonObject json = new JsonObject();
+        this.data.forEach(json::addProperty);
 
-           try (BufferedWriter bufferedwriter = Files.newBufferedWriter(target)) {
-              bufferedwriter.write(data);
-           }
-        }
-
-        cache.putNew(target, hash);
+        return DataProvider.saveStable(cache, json, target);
     }
 
     public void addBlock(Supplier<? extends Block> key, String name) {

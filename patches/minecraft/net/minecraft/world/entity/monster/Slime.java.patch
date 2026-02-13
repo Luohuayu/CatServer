@@ -1,48 +1,36 @@
 --- a/net/minecraft/world/entity/monster/Slime.java
 +++ b/net/minecraft/world/entity/monster/Slime.java
-@@ -1,6 +_,8 @@
- package net.minecraft.world.entity.monster;
- 
-+import java.util.ArrayList;
- import java.util.EnumSet;
-+import java.util.List;
- import java.util.Random;
- import javax.annotation.Nullable;
- import net.minecraft.core.BlockPos;
-@@ -42,6 +_,9 @@
+@@ -42,6 +_,14 @@
  import net.minecraft.world.level.levelgen.WorldgenRandom;
- import net.minecraft.world.level.storage.loot.BuiltInLootTables;
  import net.minecraft.world.phys.Vec3;
-+import org.bukkit.craftbukkit.v1_18_R2.event.CraftEventFactory;
+ 
++// CraftBukkit start
++import java.util.ArrayList;
++import java.util.List;
++import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
 +import org.bukkit.event.entity.EntityTransformEvent;
 +import org.bukkit.event.entity.SlimeSplitEvent;
- 
++// CraftBukkit end
++
  public class Slime extends Mob implements Enemy {
     private static final EntityDataAccessor<Integer> f_33582_ = SynchedEntityData.m_135353_(Slime.class, EntityDataSerializers.f_135028_);
-@@ -73,7 +_,7 @@
-       this.f_19804_.m_135372_(f_33582_, 1);
-    }
- 
--   protected void m_7839_(int p_33594_, boolean p_33595_) {
-+   public void m_7839_(int p_33594_, boolean p_33595_) {
-       int i = Mth.m_14045_(p_33594_, 1, 127);
-       this.f_19804_.m_135381_(f_33582_, i);
-       this.m_20090_();
-@@ -123,6 +_,7 @@
-       if (this.f_19861_ && !this.f_33583_) {
+    public static final int f_149844_ = 1;
+@@ -124,6 +_,8 @@
+       if (this.m_20096_() && !this.f_33583_) {
           int i = this.m_33632_();
  
-+         if (spawnCustomParticles()) i = 0; // don't spawn particles if it's handled by the implementation itself
++         // Forge: Don't spawn particles if it's handled by the implementation itself
++         if (!spawnCustomParticles())
           for(int j = 0; j < i * 8; ++j) {
-             float f = this.f_19796_.nextFloat() * ((float)Math.PI * 2F);
-             float f1 = this.f_19796_.nextFloat() * 0.5F + 0.5F;
-@@ -183,6 +_,18 @@
+             float f = this.f_19796_.m_188501_() * ((float)Math.PI * 2F);
+             float f1 = this.f_19796_.m_188501_() * 0.5F + 0.5F;
+@@ -184,6 +_,18 @@
           int j = i / 2;
-          int k = 2 + this.f_19796_.nextInt(3);
+          int k = 2 + this.f_19796_.m_188503_(3);
  
 +         // CraftBukkit start
 +         SlimeSplitEvent event = new SlimeSplitEvent((org.bukkit.entity.Slime) this.getBukkitEntity(), k);
-+         this.f_19853_.getCraftServer().getPluginManager().callEvent(event);
++         this.m_9236_().getCraftServer().getPluginManager().callEvent(event);
 +         if (!event.isCancelled() && event.getCount() > 0) {
 +            k = event.getCount();
 +         } else {
@@ -55,13 +43,15 @@
           for(int l = 0; l < k; ++l) {
              float f1 = ((float)(l % 2) - 0.5F) * f;
              float f2 = ((float)(l / 2) - 0.5F) * f;
-@@ -196,8 +_,21 @@
-             slime.m_20331_(this.m_20147_());
-             slime.m_7839_(j, true);
-             slime.m_7678_(this.m_20185_() + (double)f1, this.m_20186_() + 0.5D, this.m_20189_() + (double)f2, this.f_19796_.nextFloat() * 360.0F, 0.0F);
--            this.f_19853_.m_7967_(slime);
+@@ -198,9 +_,26 @@
+                slime.m_20331_(this.m_20147_());
+                slime.m_7839_(j, true);
+                slime.m_7678_(this.m_20185_() + (double)f1, this.m_20186_() + 0.5D, this.m_20189_() + (double)f2, this.f_19796_.m_188501_() * 360.0F, 0.0F);
+-               this.m_9236_().m_7967_(slime);
+-            }
 -         }
-+            slimes.add(slime); // CraftBukkit
++               slimes.add(slime); // CraftBukkit
++            }
 +         }
 +         // CraftBukkit start
 +         if (CraftEventFactory.callEntityTransformEvent(this, slimes, EntityTransformEvent.TransformReason.SPLIT).isCancelled()) {
@@ -70,9 +60,13 @@
 +         }
 +         for (LivingEntity living : slimes) {
 +            // CatServer start - Fix mixin inject
-+            catserver.server.CatServerCaptures.getCatServerCaptures().captureSpawnReason(org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SLIME_SPLIT);
-+            this.f_19853_.m_7967_(living);
-+            catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureSpawnReason(); // CatServer - Make sure reset
++            Level level = this.m_9236_();
++            try {
++               catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevel$addFreshEntity$reason.push(level, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SLIME_SPLIT);
++               this.m_9236_().m_7967_(living);
++            } finally {
++               catserver.server.CatServerCaptures.getCatServerCaptures().ServerLevel$addFreshEntity$reason.pop(level); // CatServer - Make sure reset
++            }
 +            // CatServer end
 +         }
 +         // CraftBukkit end

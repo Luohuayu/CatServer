@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.Serializable;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -41,6 +42,7 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.loot.LootTable;
 import org.bukkit.map.MapView;
+import org.bukkit.packs.DataPackManager;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.ServicesManager;
@@ -48,6 +50,7 @@ import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.plugin.messaging.PluginMessageRecipient;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.structure.StructureManager;
 import org.bukkit.util.CachedServerIcon;
@@ -138,6 +141,13 @@ public interface Server extends PluginMessageRecipient {
     public int getMaxPlayers();
 
     /**
+     * Set the maximum amount of players allowed to be logged in at once.
+     *
+     * @param maxPlayers The maximum amount of concurrent players
+     */
+    void setMaxPlayers(int maxPlayers);
+
+    /**
      * Get the game port that the server runs on.
      *
      * @return the port number of this server
@@ -203,6 +213,30 @@ public interface Server extends PluginMessageRecipient {
      * @return whether this server allows the Nether or not
      */
     public boolean getAllowNether();
+
+    /**
+     * Gets a list of packs to be enabled.
+     *
+     * @return a list of packs names
+     */
+    @NotNull
+    public List<String> getInitialEnabledPacks();
+
+    /**
+     * Gets a list of packs that will not be enabled automatically.
+     *
+     * @return a list of packs names
+     */
+    @NotNull
+    public List<String> getInitialDisabledPacks();
+
+    /**
+     * Get the DataPack Manager.
+     *
+     * @return the manager
+     */
+    @NotNull
+    public DataPackManager getDataPackManager();
 
     /**
      * Gets the server resource pack uri, or empty string if not specified.
@@ -294,8 +328,34 @@ public interface Server extends PluginMessageRecipient {
      *
      * @param message the message
      * @return the number of players
+     * @deprecated use {@link #broadcast(net.kyori.adventure.text.Component)}
      */
+    @Deprecated // Paper
     public int broadcastMessage(@NotNull String message);
+
+    // Paper start
+    /**
+     * Sends the component to all online players.
+     *
+     * @param component the component to send
+     * @deprecated use {@code sendMessage} methods that accept {@link net.kyori.adventure.text.Component}
+     */
+    @Deprecated
+    public default void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent component) {
+        spigot().broadcast(component);
+    }
+
+    /**
+     * Sends an array of components as a single message to all online players.
+     *
+     * @param components the components to send
+     * @deprecated use {@code sendMessage} methods that accept {@link net.kyori.adventure.text.Component}
+     */
+    @Deprecated
+    public default void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
+        spigot().broadcast(components);
+    }
+    // Paper end
 
     /**
      * Gets the name of the update folder. The update folder is used to safely
@@ -854,6 +914,24 @@ public interface Server extends PluginMessageRecipient {
     public void setSpawnRadius(int value);
 
     /**
+     * Gets whether the server should send a preview of the player's chat
+     * message to the client when the player types a message
+     *
+     * @return true if the server should send a preview, false otherwise
+     * @deprecated chat previews have been removed
+     */
+    @Deprecated
+    public boolean shouldSendChatPreviews();
+
+    /**
+     * Gets whether the server only allow players with Mojang-signed public key
+     * to join
+     *
+     * @return true if only Mojang-signed players can join, false otherwise
+     */
+    public boolean isEnforcingSecureProfiles();
+
+    /**
      * Gets whether the Server hide online players in server status.
      *
      * @return true if the server hide online players, false otherwise
@@ -975,15 +1053,35 @@ public interface Server extends PluginMessageRecipient {
      * Bans the specified address from the server.
      *
      * @param address the IP address to ban
+     *
+     * @deprecated see {@link #banIP(InetAddress)}
      */
+    @Deprecated
     public void banIP(@NotNull String address);
 
     /**
      * Unbans the specified address from the server.
      *
      * @param address the IP address to unban
+     *
+     * @deprecated see {@link #unbanIP(InetAddress)}
      */
+    @Deprecated
     public void unbanIP(@NotNull String address);
+
+    /**
+     * Bans the specified address from the server.
+     *
+     * @param address the IP address to ban
+     */
+    public void banIP(@NotNull InetAddress address);
+
+    /**
+     * Unbans the specified address from the server.
+     *
+     * @param address the IP address to unban
+     */
+    public void unbanIP(@NotNull InetAddress address);
 
     /**
      * Gets a set containing all banned players.
@@ -995,15 +1093,14 @@ public interface Server extends PluginMessageRecipient {
 
     /**
      * Gets a ban list for the supplied type.
-     * <p>
-     * Bans by name are no longer supported and this method will return
-     * null when trying to request them. The replacement is bans by UUID.
      *
      * @param type the type of list to fetch, cannot be null
+     * @param <T> The ban target
+     *
      * @return a ban list of the specified type
      */
     @NotNull
-    public BanList getBanList(@NotNull BanList.Type type);
+    public <T extends BanList<?>> T getBanList(@NotNull BanList.Type type);
 
     /**
      * Gets a set containing all player operators.
@@ -1157,6 +1254,15 @@ public interface Server extends PluginMessageRecipient {
     Merchant createMerchant(@Nullable String title);
 
     /**
+     * Gets the amount of consecutive neighbor updates before skipping
+     * additional ones.
+     *
+     * @return the amount of consecutive neighbor updates, if the value is
+     * negative then the limit it's not used
+     */
+    int getMaxChainedNeighborUpdates();
+
+    /**
      * Gets user-specified limit for number of monsters that can spawn in a
      * chunk.
      *
@@ -1249,6 +1355,13 @@ public interface Server extends PluginMessageRecipient {
     String getMotd();
 
     /**
+     * Set the message that is displayed on the server list.
+     *
+     * @param motd The message to be displayed
+     */
+    void setMotd(@NotNull String motd);
+
+    /**
      * Gets the default message that is displayed when the server is stopped.
      *
      * @return the shutdown message
@@ -1282,6 +1395,16 @@ public interface Server extends PluginMessageRecipient {
      */
     @Nullable
     ScoreboardManager getScoreboardManager();
+
+    /**
+     * Get (or create) a new {@link Criteria} by its name.
+     *
+     * @param name the criteria name
+     * @return the criteria
+     * @see Criteria Criteria for a list of constants
+     */
+    @NotNull
+    Criteria getScoreboardCriteria(@NotNull String name);
 
     /**
      * Gets an instance of the server's default server-icon.
@@ -1448,7 +1571,8 @@ public interface Server extends PluginMessageRecipient {
 
     // Paper start
     /**
-     * Gets the ccurrent server TPS
+     * Gets the current server TPS
+     *
      * @return current server TPS (1m, 5m, 15m in CatServer)
      */
     @NotNull
@@ -1468,6 +1592,16 @@ public interface Server extends PluginMessageRecipient {
      * @return Average tick time (in millis)
      */
     double getAverageTickTime();
+    // Paper end
+
+    // Paper start
+    /**
+     * Gets the active {@link org.bukkit.command.CommandMap}
+     *
+     * @return the active command map
+     */
+    @NotNull
+    org.bukkit.command.CommandMap getCommandMap();
     // Paper end
 
     /**
@@ -1615,6 +1749,21 @@ public interface Server extends PluginMessageRecipient {
     StructureManager getStructureManager();
 
     /**
+     * Returns the registry for the given class.
+     * <br>
+     * If no registry is present for the given class null will be returned.
+     * <br>
+     * Depending on the implementation not every registry present in
+     * {@link Registry} will be returned by this method.
+     *
+     * @param tClass of the registry to get
+     * @param <T> type of the registry
+     * @return the corresponding registry or null if not present
+     */
+    @Nullable
+    <T extends Keyed> Registry<T> getRegistry(@NotNull Class<T> tClass);
+
+    /**
      * @return the unsafe values instance
      * @see UnsafeValues
      */
@@ -1624,19 +1773,33 @@ public interface Server extends PluginMessageRecipient {
 
     // Spigot start
     public class Spigot {
+
         @NotNull
         public org.bukkit.configuration.file.YamlConfiguration getConfig() {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Sends the component to the player
+         *
+         * @param component the components to send
+         */
         public void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent component) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Sends an array of components as a single message to the player
+         *
+         * @param components the components to send
+         */
         public void broadcast(@NotNull net.md_5.bungee.api.chat.BaseComponent... components) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        /**
+         * Restart the server. If the server administrator has not configured restarting, the server will stop.
+         */
         public void restart() {
             throw new UnsupportedOperationException("Not supported yet.");
         }

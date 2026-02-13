@@ -37,5 +37,33 @@ public enum Pose {
     /**
      * Entity is dead.
      */
-    DYING;
+    DYING,
+    /**
+     * Entity is croaking.
+     */
+    CROAKING,
+    /**
+     * Entity is using its tongue.
+     */
+    USING_TONGUE,
+    /**
+     * Entity is sitting.
+     */
+    SITTING,
+    /**
+     * Entity is roaring.
+     */
+    ROARING,
+    /**
+     * Entity is sniffing.
+     */
+    SNIFFING,
+    /**
+     * Entity is emerging.
+     */
+    EMERGING,
+    /**
+     * Entity is digging.
+     */
+    DIGGING;
 }

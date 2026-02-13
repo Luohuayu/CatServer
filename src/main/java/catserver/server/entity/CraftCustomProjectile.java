@@ -2,7 +2,7 @@ package catserver.server.entity;
 
 import catserver.server.BukkitInjector;
 import net.minecraft.world.entity.Entity;
-import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
+import org.bukkit.craftbukkit.v1_20_R1.CraftServer;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Projectile;
 import org.bukkit.projectiles.ProjectileSource;

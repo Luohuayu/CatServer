@@ -5,8 +5,9 @@
 
 package net.minecraftforge.fml.loading.targets;
 
-import com.google.common.base.Strings;
 import cpw.mods.jarhandling.SecureJar;
+import cpw.mods.modlauncher.api.ServiceRunner;
+import net.minecraftforge.fml.loading.FileUtils;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -30,8 +31,7 @@ public abstract class CommonDevLaunchHandler extends CommonLaunchHandler {
 
         // The extra jar is on the classpath, so try and pull it out of the legacy classpath
         var legacyCP = Objects.requireNonNull(System.getProperty("legacyClassPath"), "Missing legacyClassPath, cannot find client-extra").split(File.pathSeparator);
-        var extra = Paths.get(Arrays.stream(legacyCP).filter(e -> e.contains("client-extra")).findFirst().orElseThrow(() -> new IllegalStateException("Could not find client-extra in legacy classpath")));
-        mcstream.add(extra);
+        var extra = findJarOnClasspath(legacyCP, "client-extra");
 
         // The MC code/Patcher edits are in exploded directories
         final var modstream = Stream.<List<Path>>builder();
@@ -42,15 +42,17 @@ public abstract class CommonDevLaunchHandler extends CommonLaunchHandler {
         minecraft.stream().distinct().forEach(mcstream::add);
         mods.values().forEach(modstream::add);
 
+        mcstream.add(extra);
         var mcFilter = getMcFilter(extra, minecraft, modstream);
         return new LocatedPaths(mcstream.build().toList(), mcFilter, modstream.build().toList(), getFmlStuff(legacyCP));
     }
 
+    @Override
     protected String[] preLaunch(String[] arguments, ModuleLayer layer) {
+        super.preLaunch(arguments, layer);
+
         if (getDist().isDedicatedServer())
             return arguments;
-
-        fixNatives();
 
         if (isData())
             return arguments;
@@ -80,9 +82,16 @@ public abstract class CommonDevLaunchHandler extends CommonLaunchHandler {
     protected List<Path> getFmlStuff(String[] classpath) {
         // We also want the FML things, fmlcore, javafmllanguage, mclanguage, I don't like hard coding these, but hey whatever works for now.
         return Arrays.stream(classpath)
-            .filter(e -> e.contains("fmlcore") || e.contains("javafmllanguage") || e.contains("lowcodelanguage") || e.contains("mclanguage"))
+            .filter(e -> FileUtils.matchFileName(e, "fmlcore", "javafmllanguage", "lowcodelanguage", "mclanguage"))
             .map(Paths::get)
             .toList();
+    }
+
+    protected static Path findJarOnClasspath(String[] classpath, String match) {
+        return Paths.get(Arrays.stream(classpath)
+            .filter(e -> FileUtils.matchFileName(e, match))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("Could not find " + match + " in classpath")));
     }
 
     protected BiPredicate<String, String> getMcFilter(Path extra, List<Path> minecraft, Stream.Builder<List<Path>> mods) {
@@ -120,17 +129,11 @@ public abstract class CommonDevLaunchHandler extends CommonLaunchHandler {
         return Long.toString(System.nanoTime() % (int) Math.pow(10, length));
     }
 
-    private static void fixNatives() {
-        String paths = System.getProperty("java.library.path");
-        String nativesDir = System.getProperty("nativesDirectory");
-        if (nativesDir == null)
-            return;
-
-        if (Strings.isNullOrEmpty(paths))
-            paths = nativesDir;
-        else
-            paths += File.pathSeparator + nativesDir;
-
-        System.setProperty("java.library.path", paths);
+    @Override
+    protected ServiceRunner makeService(final String[] arguments, final ModuleLayer gameLayer) {
+        var args = preLaunch(arguments, gameLayer);
+        return ()->devService(args, gameLayer);
     }
+
+    abstract void devService(final String[] arguments, final ModuleLayer gameLayer) throws Throwable;
 }

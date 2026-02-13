@@ -14,7 +14,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class VersionChecker {
-    private static final String api = "https://catserver.moe/api/version/?v=catserver_1_18_2";
+    private static final String api = "https://catserver.moe/api/version/?v=catserver_1_20_1";
 
     public VersionChecker() {
         new Timer(true).scheduleAtFixedRate(new TimerTask() {
@@ -33,7 +33,7 @@ public class VersionChecker {
             try {
                 VersionData versionData = new Gson().fromJson(sendSSLRequest(api), VersionData.class);
                 if (!Strings.isNullOrEmpty(versionData.version) && !currentVersion.equals(versionData.version)) {
-                    CatServer.LOGGER.info(String.format("Check CatServer has a new version: %s, you can download the update from https://catserver.moe/download/catserver_1_18_2 or set jvm param to disable the version check (-Dcatserver.disableVersionCheck=false)", versionData.version));
+                    CatServer.LOGGER.info(String.format("Check CatServer has a new version: %s, you can download the update from https://catserver.moe/download/catserver_1_20_1 or set jvm param to disable the version check (-Dcatserver.disableVersionCheck=false)", versionData.version));
                 }
                 if (!Strings.isNullOrEmpty(versionData.message)) {
                     CatServer.LOGGER.info(versionData.message);

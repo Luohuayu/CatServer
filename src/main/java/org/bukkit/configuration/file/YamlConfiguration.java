@@ -1,5 +1,6 @@
 package org.bukkit.configuration.file;
 
+import com.google.common.base.Preconditions;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -12,7 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import org.apache.commons.lang3.Validate;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
@@ -56,16 +56,17 @@ public class YamlConfiguration extends FileConfiguration {
     private final Yaml yaml;
 
     public YamlConfiguration() {
-        constructor = new YamlConstructor();
-        representer = new YamlRepresenter();
-        representer.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-
         yamlDumperOptions = new DumperOptions();
         yamlDumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         yamlLoaderOptions = new LoaderOptions();
         yamlLoaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE); // SPIGOT-5881: Not ideal, but was default pre SnakeYAML 1.26
+        yamlLoaderOptions.setCodePointLimit(Integer.MAX_VALUE); // SPIGOT-7161: Not ideal, but was default pre SnakeYAML 1.32
 
-        yaml = new BukkitYaml(constructor, representer, yamlDumperOptions, yamlLoaderOptions);
+        constructor = new YamlConstructor(yamlLoaderOptions);
+        representer = new YamlRepresenter(yamlDumperOptions);
+        representer.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+
+        yaml = new Yaml(constructor, representer, yamlDumperOptions, yamlLoaderOptions);
     }
 
     @NotNull
@@ -94,16 +95,19 @@ public class YamlConfiguration extends FileConfiguration {
 
     @Override
     public void loadFromString(@NotNull String contents) throws InvalidConfigurationException {
-        Validate.notNull(contents, "String cannot be null");
+        Preconditions.checkArgument(contents != null, "Contents cannot be null");
         yamlLoaderOptions.setProcessComments(options().parseComments());
 
         MappingNode node;
         try (Reader reader = new UnicodeReader(new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8)))) {
-            node = (MappingNode) yaml.compose(reader);
-        } catch (YAMLException | IOException e) {
+            Node rawNode = yaml.compose(reader);
+            try {
+                node = (MappingNode) rawNode;
+            } catch (ClassCastException e) {
+                throw new InvalidConfigurationException("Top level is not a Map.");
+            }
+        } catch (YAMLException | IOException | ClassCastException e) {
             throw new InvalidConfigurationException(e);
-        } catch (ClassCastException e) {
-            throw new InvalidConfigurationException("Top level is not a Map.");
         }
 
         this.map.clear();
@@ -296,7 +300,7 @@ public class YamlConfiguration extends FileConfiguration {
      */
     @NotNull
     public static YamlConfiguration loadConfiguration(@NotNull File file) {
-        Validate.notNull(file, "File cannot be null");
+        Preconditions.checkArgument(file != null, "File cannot be null");
 
         YamlConfiguration config = new YamlConfiguration();
 
@@ -325,7 +329,7 @@ public class YamlConfiguration extends FileConfiguration {
      */
     @NotNull
     public static YamlConfiguration loadConfiguration(@NotNull Reader reader) {
-        Validate.notNull(reader, "Stream cannot be null");
+        Preconditions.checkArgument(reader != null, "Stream cannot be null");
 
         YamlConfiguration config = new YamlConfiguration();
 

@@ -5,11 +5,8 @@
 
 package net.minecraftforge.common.capabilities;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
-import com.google.common.annotations.VisibleForTesting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.Direction;
@@ -17,6 +14,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.ForgeEventFactory;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.function.Supplier;
 
@@ -27,10 +26,9 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
     @VisibleForTesting
     static boolean SUPPORTS_LAZY_CAPABILITIES = true;
 
-    private final @Nonnull Class<B> baseClass;
-    @Nullable
-    public CapabilityDispatcher capabilities;
-    public boolean valid = true;
+    private final @NotNull Class<B> baseClass;
+    private @Nullable CapabilityDispatcher capabilities;
+    private boolean valid = true;
 
     private boolean                       isLazy             = false;
     private Supplier<ICapabilityProvider> lazyParentSupplier = null;
@@ -75,6 +73,7 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
         this.initialized = true;
     }
 
+    @SuppressWarnings("unchecked")
     @NotNull
     B getProvider()
     {
@@ -120,7 +119,7 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
         }
     }
 
-    public final @Nullable CompoundTag serializeCaps()
+    public final @Nullable CompoundTag serializeCaps() // CatServer - protected -> public
     {
         if (isLazy && !initialized)
         {
@@ -177,8 +176,8 @@ public abstract class CapabilityProvider<B extends ICapabilityProviderImpl<B>> i
     }
 
     @Override
-    @Nonnull
-    public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side)
+    @NotNull
+    public <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side)
     {
         final CapabilityDispatcher disp = getCapabilities();
         return !valid || disp == null ? LazyOptional.empty() : disp.getCapability(cap, side);

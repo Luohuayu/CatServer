@@ -29,22 +29,20 @@ import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.locating.IModFile;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nonnull;
-
 public class ResourcePackLoader {
-    private static Map<IModFile, PathResourcePack> modResourcePacks;
+    private static Map<IModFile, PathPackResources> modResourcePacks;
 
-    public static Optional<PathResourcePack> getPackFor(String modId) {
+    public static Optional<PathPackResources> getPackFor(String modId) {
         return Optional.ofNullable(ModList.get().getModFileById(modId)).
                 map(IModFileInfo::getFile).map(mf->modResourcePacks.get(mf));
     }
 
     @Deprecated
-    public static void loadResourcePacks(PackRepository resourcePacks, BiFunction<Map<IModFile, ? extends PathResourcePack>, BiConsumer<? super PathResourcePack, Pack>, ? extends RepositorySource> packFinder) {
+    public static void loadResourcePacks(PackRepository resourcePacks, BiFunction<Map<IModFile, ? extends PathPackResources>, BiConsumer<? super PathPackResources, Pack>, ? extends RepositorySource> packFinder) {
         loadResourcePacks(resourcePacks, (map) -> packFinder.apply(map, (rp,p) -> {}));
     }
 
-    public static void loadResourcePacks(PackRepository resourcePacks, Function<Map<IModFile, ? extends PathResourcePack>, ? extends RepositorySource> packFinder) {
+    public static void loadResourcePacks(PackRepository resourcePacks, Function<Map<IModFile, ? extends PathPackResources>, ? extends RepositorySource> packFinder) {
         modResourcePacks = ModList.get().getModFiles().stream()
                 .filter(mf->mf.requiredLanguageLoaders().stream().noneMatch(ls->ls.languageName().equals("minecraft")))
                 .map(mf -> Pair.of(mf, createPackForMod(mf)))
@@ -53,15 +51,17 @@ public class ResourcePackLoader {
     }
 
     @NotNull
-    public static PathResourcePack createPackForMod(IModFileInfo mf)
+    public static PathPackResources createPackForMod(IModFileInfo mf)
     {
-        return new PathResourcePack(mf.getFile().getFileName(), mf.getFile().getFilePath()){
-            final IModFile modFile = mf.getFile();
-            @Nonnull
+        return new PathPackResources(mf.getFile().getFileName(), true, mf.getFile().getFilePath())
+        {
+            private final IModFile modFile = mf.getFile();
+
+            @NotNull
             @Override
-            protected Path resolve(@Nonnull String... paths)
+            protected Path resolve(@NotNull String... paths)
             {
-                return modFile.findResource(paths);
+                return this.modFile.findResource(paths);
             }
         };
     }

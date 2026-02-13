@@ -14,14 +14,15 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import net.minecraftforge.client.gui.widget.ScrollPanel;
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineLabel;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -33,8 +34,6 @@ import net.minecraft.network.chat.HoverEvent.Action;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.common.ForgeI18n;
@@ -71,8 +70,8 @@ public class ModMismatchDisconnectedScreen extends Screen
         this.listHeight = modMismatchData.containsMismatches() ? 140 : 0;
         this.mismatchedDataFromServer = modMismatchData.mismatchedDataFromServer();
         this.presentModData = modMismatchData.presentModData();
-        this.missingModData = modMismatchData.mismatchedModData().entrySet().stream().filter(e -> e.getValue().equals(NetworkRegistry.ABSENT)).map(Entry::getKey).collect(Collectors.toList());
-        this.mismatchedModData = modMismatchData.mismatchedModData().entrySet().stream().filter(e -> !e.getValue().equals(NetworkRegistry.ABSENT)).collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        this.missingModData = modMismatchData.mismatchedModData().entrySet().stream().filter(e -> e.getValue().equals(NetworkRegistry.ABSENT.version())).map(Entry::getKey).collect(Collectors.toList());
+        this.mismatchedModData = modMismatchData.mismatchedModData().entrySet().stream().filter(e -> !e.getValue().equals(NetworkRegistry.ABSENT.version())).collect(Collectors.toMap(Entry::getKey, Entry::getValue));
         this.allModIds = presentModData.keySet().stream().map(ResourceLocation::getNamespace).distinct().collect(Collectors.toList());
         this.presentModUrls = ModList.get().getMods().stream().filter(info -> allModIds.contains(info.getModId())).map(info -> Pair.of(info.getModId(), (String)info.getConfig().getConfigElement("displayURL").orElse(""))).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
     }
@@ -91,19 +90,25 @@ public class ModMismatchDisconnectedScreen extends Screen
             this.addRenderableWidget(new MismatchInfoPanel(minecraft, listWidth, listHeight, (this.height - this.listHeight) / 2, listLeft));
 
         int buttonWidth = Math.min(210, this.width / 2 - 20);
-        this.addRenderableWidget(new Button(Math.max(this.width / 4 - buttonWidth / 2, listLeft), upperButtonHeight, buttonWidth, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.open.file", logFile.getFileName())), button -> Util.getPlatform().openFile(logFile.toFile())));
-        this.addRenderableWidget(new Button(Math.min(this.width * 3 / 4 - buttonWidth / 2, listLeft + listWidth - buttonWidth), upperButtonHeight, buttonWidth, 20, new TextComponent(ForgeI18n.parseMessage("fml.button.open.mods.folder")), button -> Util.getPlatform().openFile(modsDir.toFile())));
-        this.addRenderableWidget(new Button((this.width - buttonWidth) / 2, lowerButtonHeight, buttonWidth, 20, new TranslatableComponent("gui.toMenu"), button -> this.minecraft.setScreen(this.parent)));
+        this.addRenderableWidget(Button.builder(Component.literal(ForgeI18n.parseMessage("fml.button.open.file", logFile.getFileName())), button -> Util.getPlatform().openFile(logFile.toFile()))
+                .bounds(Math.max(this.width / 4 - buttonWidth / 2, listLeft), upperButtonHeight, buttonWidth, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.literal(ForgeI18n.parseMessage("fml.button.open.mods.folder")), button -> Util.getPlatform().openFile(modsDir.toFile()))
+                .bounds(Math.min(this.width * 3 / 4 - buttonWidth / 2, listLeft + listWidth - buttonWidth), upperButtonHeight, buttonWidth, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.toMenu"), button -> this.minecraft.setScreen(this.parent))
+                .bounds((this.width - buttonWidth) / 2, lowerButtonHeight, buttonWidth, 20)
+                .build());
     }
 
     @Override
-    public void render(PoseStack stack, int mouseX, int mouseY, float partialTicks)
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks)
     {
-        this.renderBackground(stack);
+        this.renderBackground(guiGraphics);
         int textYOffset = modMismatchData.containsMismatches() ? 18 : 0;
-        drawCenteredString(stack, this.font, this.title, this.width / 2, (this.height - this.listHeight - this.textHeight) / 2 - textYOffset - 9 * 2, 0xAAAAAA);
-        this.message.renderCentered(stack, this.width / 2, (this.height - this.listHeight - this.textHeight) / 2 - textYOffset);
-        super.render(stack, mouseX, mouseY, partialTicks);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, (this.height - this.listHeight - this.textHeight) / 2 - textYOffset - 9 * 2, 0xAAAAAA);
+        this.message.renderCentered(guiGraphics, this.width / 2, (this.height - this.listHeight - this.textHeight) / 2 - textYOffset);
+        super.render(guiGraphics, mouseX, mouseY, partialTicks);
     }
 
     class MismatchInfoPanel extends ScrollPanel
@@ -124,36 +129,36 @@ public class ModMismatchDisconnectedScreen extends Screen
             if (!missingModData.isEmpty())
             {
                 //The header of the section, colored in gray
-                rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.missingmods.server" : "fml.modmismatchscreen.missingmods.client")).withStyle(ChatFormatting.GRAY), null));
+                rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.missingmods.server" : "fml.modmismatchscreen.missingmods.client")).withStyle(ChatFormatting.GRAY), null));
                 //This table section contains the mod name and mod version of each mod that has a missing remote counterpart (if the mod is missing on the server, the client mod version is displayed, and vice versa)
-                rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage("fml.modmismatchscreen.table.modname")).withStyle(ChatFormatting.UNDERLINE), Pair.of("", ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.youhave" : "fml.modmismatchscreen.table.youneed"))));
+                rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage("fml.modmismatchscreen.table.modname")).withStyle(ChatFormatting.UNDERLINE), Pair.of("", ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.youhave" : "fml.modmismatchscreen.table.youneed"))));
                 int i = 0;
                 for (ResourceLocation mod : missingModData) {
                     rawTable.add(Pair.of(toModNameComponent(mod, presentModData.get(mod).getLeft(), i), Pair.of("", presentModData.getOrDefault(mod, Pair.of("", "")).getRight())));
                     if (++i >= 10) {
                         //If too many missing mod entries are present, append a line referencing how to see the full list and stop rendering any more entries
-                        rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage("fml.modmismatchscreen.additional", missingModData.size() - i)).withStyle(ChatFormatting.ITALIC), Pair.of("", "")));
+                        rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage("fml.modmismatchscreen.additional", missingModData.size() - i)).withStyle(ChatFormatting.ITALIC), Pair.of("", "")));
                         break;
                     }
                 }
-                rawTable.add(Pair.of(new TextComponent(" "), null)); //padding
+                rawTable.add(Pair.of(Component.literal(" "), null)); //padding
             }
             if (!mismatchedModData.isEmpty())
             {
                 //The header of the table section, colored in gray
-                rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage("fml.modmismatchscreen.mismatchedmods")).withStyle(ChatFormatting.GRAY), null));
+                rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage("fml.modmismatchscreen.mismatchedmods")).withStyle(ChatFormatting.GRAY), null));
                 //This table section contains the mod name and both mod versions of each mod that has a mismatching client and server version
-                rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage("fml.modmismatchscreen.table.modname")).withStyle(ChatFormatting.UNDERLINE), Pair.of(ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.youhave" : "fml.modmismatchscreen.table.serverhas"), ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.serverhas" : "fml.modmismatchscreen.table.youhave"))));
+                rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage("fml.modmismatchscreen.table.modname")).withStyle(ChatFormatting.UNDERLINE), Pair.of(ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.youhave" : "fml.modmismatchscreen.table.serverhas"), ForgeI18n.parseMessage(mismatchedDataFromServer ? "fml.modmismatchscreen.table.serverhas" : "fml.modmismatchscreen.table.youhave"))));
                 int i = 0;
                 for (Map.Entry<ResourceLocation,  String> modData : mismatchedModData.entrySet()) {
                     rawTable.add(Pair.of(toModNameComponent(modData.getKey(), presentModData.get(modData.getKey()).getLeft(), i), Pair.of(presentModData.getOrDefault(modData.getKey(), Pair.of("", "")).getRight(), modData.getValue())));
                     if (++i >= 10) {
                         //If too many mismatched mod entries are present, append a line referencing how to see the full list and stop rendering any more entries
-                        rawTable.add(Pair.of(new TextComponent(ForgeI18n.parseMessage("fml.modmismatchscreen.additional", mismatchedModData.size() - i)).withStyle(ChatFormatting.ITALIC), Pair.of("", "")));
+                        rawTable.add(Pair.of(Component.literal(ForgeI18n.parseMessage("fml.modmismatchscreen.additional", mismatchedModData.size() - i)).withStyle(ChatFormatting.ITALIC), Pair.of("", "")));
                         break;
                     }
                 }
-                rawTable.add(Pair.of(new TextComponent(" "), null)); //padding
+                rawTable.add(Pair.of(Component.literal(" "), null)); //padding
             }
 
             this.lineTable = rawTable.stream().flatMap(p -> splitLineToWidth(p.getKey(), p.getValue()).stream()).collect(Collectors.toList());
@@ -173,8 +178,8 @@ public class ModMismatchDisconnectedScreen extends Screen
             int versionColumns = versions == null ? 0 : (versions.getLeft().isEmpty() ? (versions.getRight().isEmpty() ? 0 : 1) : 2);
             int adaptedNameWidth = nameWidth + versionWidth * (2 - versionColumns) - 4; //the name width may be expanded when the version column string is missing
             List<FormattedCharSequence> nameLines = font.split(name, adaptedNameWidth);
-            List<FormattedCharSequence> clientVersionLines = font.split(new TextComponent(versions != null ? versions.getLeft() : "").setStyle(style), versionWidth - 4);
-            List<FormattedCharSequence> serverVersionLines = font.split(new TextComponent(versions != null ? versions.getRight() : "").setStyle(style), versionWidth - 4);
+            List<FormattedCharSequence> clientVersionLines = font.split(Component.literal(versions != null ? versions.getLeft() : "").setStyle(style), versionWidth - 4);
+            List<FormattedCharSequence> serverVersionLines = font.split(Component.literal(versions != null ? versions.getRight() : "").setStyle(style), versionWidth - 4);
             List<Pair<FormattedCharSequence, Pair<FormattedCharSequence, FormattedCharSequence>>> splitLines = new ArrayList<>();
             int rowsOccupied = Math.max(nameLines.size(), Math.max(clientVersionLines.size(), serverVersionLines.size()));
             for (int i = 0; i < rowsOccupied; i++) {
@@ -195,8 +200,8 @@ public class ModMismatchDisconnectedScreen extends Screen
         {
             String modId = id.getNamespace();
             String tooltipId = id.getPath().isEmpty() ? id.getNamespace() : id.toString();
-            return new TextComponent(modName).withStyle(color % 2 == 0 ? ChatFormatting.GOLD : ChatFormatting.YELLOW)
-                    .withStyle(s -> s.withHoverEvent(new HoverEvent(Action.SHOW_TEXT, new TextComponent(tooltipId + (!presentModUrls.getOrDefault(modId, "").isEmpty() ? "\n" + ForgeI18n.parseMessage("fml.modmismatchscreen.homepage") : "")))))
+            return Component.literal(modName).withStyle(color % 2 == 0 ? ChatFormatting.GOLD : ChatFormatting.YELLOW)
+                    .withStyle(s -> s.withHoverEvent(new HoverEvent(Action.SHOW_TEXT, Component.literal(tooltipId + (!presentModUrls.getOrDefault(modId, "").isEmpty() ? "\n" + ForgeI18n.parseMessage("fml.modmismatchscreen.homepage") : "")))))
                     .withStyle(s -> s.withClickEvent(!presentModUrls.getOrDefault(modId, "").isEmpty() ? new ClickEvent(ClickEvent.Action.OPEN_URL, presentModUrls.get(modId)) : null));
         }
 
@@ -212,7 +217,7 @@ public class ModMismatchDisconnectedScreen extends Screen
         }
 
         @Override
-        protected void drawPanel(PoseStack stack, int entryRight, int relativeY, Tesselator tess, int mouseX, int mouseY)
+        protected void drawPanel(GuiGraphics guiGraphics, int entryRight, int relativeY, Tesselator tess, int mouseX, int mouseY)
         {
             int i = 0;
 
@@ -223,11 +228,11 @@ public class ModMismatchDisconnectedScreen extends Screen
                 int color = Optional.ofNullable(font.getSplitter().componentStyleAtWidth(name, 0)).map(Style::getColor).map(TextColor::getValue).orElse(0xFFFFFF);
                 //Only indent the given name if a version string is present. This makes it easier to distinguish table section headers and mod entries
                 int nameLeft = left + border + (versions == null ? 0 : nameIndent);
-                font.draw(stack, name, nameLeft, relativeY + i * 12, color);
+                guiGraphics.drawString(font, name, nameLeft, relativeY + i * 12, color, false);
                 if (versions != null)
                 {
-                    font.draw(stack, versions.getLeft(), left + border + nameIndent + nameWidth, relativeY + i * 12, color);
-                    font.draw(stack, versions.getRight(), left + border + nameIndent + nameWidth + versionWidth, relativeY + i * 12, color);
+                    guiGraphics.drawString(font, versions.getLeft(), left + border + nameIndent + nameWidth, relativeY + i * 12, color, false);
+                    guiGraphics.drawString(font, versions.getRight(), left + border + nameIndent + nameWidth + versionWidth, relativeY + i * 12, color, false);
                 }
 
                 i++;
@@ -235,13 +240,13 @@ public class ModMismatchDisconnectedScreen extends Screen
         }
 
         @Override
-        public void render(PoseStack stack, int mouseX, int mouseY, float partialTicks)
+        public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks)
         {
-            super.render(stack, mouseX, mouseY, partialTicks);
+            super.render(guiGraphics, mouseX, mouseY, partialTicks);
             Style style = getComponentStyleAt(mouseX, mouseY);
             if (style != null && style.getHoverEvent() != null)
             {
-                ModMismatchDisconnectedScreen.this.renderComponentHoverEffect(stack, style, mouseX, mouseY);
+                guiGraphics.renderComponentHoverEffect(font, style, mouseX, mouseY);
             }
         }
 

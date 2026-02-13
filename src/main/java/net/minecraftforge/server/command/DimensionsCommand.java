@@ -7,10 +7,10 @@ package net.minecraftforge.server.command;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.Registry;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.server.level.ServerLevel;
 
@@ -29,8 +29,8 @@ class DimensionsCommand
         return Commands.literal("dimensions")
             .requires(cs->cs.hasPermission(0)) //permission
             .executes(ctx -> {
-                ctx.getSource().sendSuccess(new TranslatableComponent("commands.forge.dimensions.list"), true);
-                final Registry<DimensionType> reg = ctx.getSource().registryAccess().registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
+                ctx.getSource().sendSuccess(() -> Component.translatable("commands.forge.dimensions.list"), true);
+                final Registry<DimensionType> reg = ctx.getSource().registryAccess().registryOrThrow(Registries.DIMENSION_TYPE);
 
                 Map<ResourceLocation, List<ResourceLocation>> types = new HashMap<>();
                 for (ServerLevel dim : ctx.getSource().getServer().getAllLevels()) {
@@ -38,7 +38,7 @@ class DimensionsCommand
                 }
 
                 types.keySet().stream().sorted().forEach(key -> {
-                    ctx.getSource().sendSuccess(new TextComponent(key + ": " + types.get(key).stream().map(ResourceLocation::toString).sorted().collect(Collectors.joining(", "))), false);
+                    ctx.getSource().sendSuccess(() -> Component.literal(key + ": " + types.get(key).stream().map(ResourceLocation::toString).sorted().collect(Collectors.joining(", "))), false);
                 });
                 return 0;
             });

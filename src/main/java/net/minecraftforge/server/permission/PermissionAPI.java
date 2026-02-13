@@ -22,8 +22,8 @@ import net.minecraftforge.server.permission.nodes.PermissionDynamicContext;
 import net.minecraftforge.server.permission.nodes.PermissionNode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -134,6 +134,7 @@ public final class PermissionAPI
             CatServer.LOGGER.info("Forwarding forge permission {} to bukkit", activeHandler.getIdentifier());
             activeHandler = new CatServerPermissionHandler(activeHandler);
             // CatServer end
+
         }
         catch (ResourceLocationException e)
         {

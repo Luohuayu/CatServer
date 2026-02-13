@@ -38,9 +38,16 @@ public interface Horse extends AbstractHorse {
          */
         LLAMA,
         /**
+         * Also not really a horse :)
+         */
+        CAMEL,
+        // CatServer start
+        /**
          * MOD CUSTOM
          */
-        MOD_CUSTOM
+        MOD_CUSTOM,
+        // CatServer end
+        ;
     }
 
     /**

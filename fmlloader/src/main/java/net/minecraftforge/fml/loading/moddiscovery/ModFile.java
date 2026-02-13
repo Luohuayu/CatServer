@@ -6,21 +6,21 @@
 package net.minecraftforge.fml.loading.moddiscovery;
 
 import com.google.common.collect.ImmutableMap;
+import com.mojang.logging.LogUtils;
 import cpw.mods.jarhandling.SecureJar;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.fml.loading.LogMarkers;
-import net.minecraftforge.fml.loading.progress.StartupMessageManager;
+import net.minecraftforge.fml.loading.progress.StartupNotificationManager;
 import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.minecraftforge.forgespi.language.IModLanguageProvider;
 import net.minecraftforge.forgespi.language.ModFileScanData;
 import net.minecraftforge.forgespi.locating.IModFile;
-import net.minecraftforge.forgespi.locating.IModLocator;
+import net.minecraftforge.forgespi.locating.IModProvider;
 import net.minecraftforge.forgespi.locating.ModFileFactory;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.slf4j.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,7 +39,7 @@ public class ModFile implements IModFile {
     // Mods either must have a mods.toml or a manifest. We can no longer just put any jar on the classpath.
     @Deprecated(forRemoval = true, since = "1.18")
     public static final Manifest DEFAULTMANIFEST;
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     static {
         DEFAULTMANIFEST = new Manifest();
@@ -54,7 +54,7 @@ public class ModFile implements IModFile {
     private final SecureJar jar;
     private final Type modFileType;
     private final Manifest     manifest;
-    private final IModLocator locator;
+    private final IModProvider provider;
     private       IModFileInfo modFileInfo;
     private ModFileScanData fileModFileScanData;
     private CompletableFuture<ModFileScanData> futureScanResult;
@@ -64,16 +64,16 @@ public class ModFile implements IModFile {
     static final Attributes.Name TYPE = new Attributes.Name("FMLModType");
     private SecureJar.Status securityStatus;
 
-    public ModFile(final SecureJar jar, final IModLocator locator, final ModFileFactory.ModFileInfoParser parser) {
-        this(jar, locator, parser, parseType(jar));
+    public ModFile(final SecureJar jar, final IModProvider provider, final ModFileFactory.ModFileInfoParser parser) {
+        this(jar, provider, parser, parseType(jar));
     }
 
-    public ModFile(final SecureJar jar, final IModLocator locator, final ModFileFactory.ModFileInfoParser parser, String type) {
-        this.locator = locator;
+    public ModFile(final SecureJar jar, final IModProvider provider, final ModFileFactory.ModFileInfoParser parser, String type) {
+        this.provider = provider;
         this.jar = jar;
         this.parser = parser;
 
-        manifest = this.jar.getManifest();
+        manifest = this.jar.moduleDataProvider().getManifest();
         modFileType = Type.valueOf(type);
         jarVersion = Optional.ofNullable(manifest.getMainAttributes().getValue(Attributes.Name.IMPLEMENTATION_VERSION)).orElse("0.0NONE");
         this.modFileInfo = ModFileParser.readModList(this, this.parser);
@@ -129,7 +129,7 @@ public class ModFile implements IModFile {
     }
 
     public void scanFile(Consumer<Path> pathConsumer) {
-        locator.scanFile(this, pathConsumer);
+        provider.scanFile(this, pathConsumer);
     }
 
     public void setFutureScanResult(CompletableFuture<ModFileScanData> future) {
@@ -157,7 +157,6 @@ public class ModFile implements IModFile {
         if (throwable != null) {
             this.scanError = throwable;
         }
-        StartupMessageManager.modLoaderConsumer().ifPresent(c->c.accept("Completed deep scan of "+this.getFileName()));
     }
 
     public void setFileProperties(Map<String, Object> fileProperties) {
@@ -194,8 +193,8 @@ public class ModFile implements IModFile {
     }
 
     @Override
-    public IModLocator getLocator() {
-        return locator;
+    public IModProvider getProvider() {
+        return provider;
     }
 
     @Override
@@ -214,7 +213,7 @@ public class ModFile implements IModFile {
     }
 
     private static String parseType(final SecureJar jar) {
-        final Manifest m = jar.getManifest();
+        final Manifest m = jar.moduleDataProvider().getManifest();
         final Optional<String> value = Optional.ofNullable(m.getMainAttributes().getValue(TYPE));
         return value.orElse("MOD");
     }

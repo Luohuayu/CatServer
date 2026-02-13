@@ -6,20 +6,20 @@
 package net.minecraftforge.common;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.thread.BlockableEventLoop;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.loot.LootModifierManager;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.world.ChunkEvent;
-import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.TagsUpdatedEvent;
@@ -34,7 +34,7 @@ import net.minecraftforge.server.command.ConfigCommand;
 public class ForgeInternalHandler
 {
     @SubscribeEvent(priority = EventPriority.HIGH)
-    public void onEntityJoinWorld(EntityJoinWorldEvent event)
+    public void onEntityJoinWorld(EntityJoinLevelEvent event)
     {
         Entity entity = event.getEntity();
         if (entity.getClass().equals(ItemEntity.class))
@@ -43,13 +43,13 @@ public class ForgeInternalHandler
             Item item = stack.getItem();
             if (item.hasCustomEntity(stack))
             {
-                Entity newEntity = item.createEntity(event.getWorld(), entity, stack);
+                Entity newEntity = item.createEntity(event.getLevel(), entity, stack);
                 if (newEntity != null)
                 {
                     entity.discard();
                     event.setCanceled(true);
-                    var executor = LogicalSidedProvider.WORKQUEUE.get(event.getWorld().isClientSide ? LogicalSide.CLIENT : LogicalSide.SERVER);
-                    executor.tell(new TickTask(0, () -> event.getWorld().addFreshEntity(newEntity)));
+                    var executor = LogicalSidedProvider.WORKQUEUE.get(event.getLevel().isClientSide ? LogicalSide.CLIENT : LogicalSide.SERVER);
+                    executor.tell(new TickTask(0, () -> event.getLevel().addFreshEntity(newEntity)));
                 }
             }
         }
@@ -57,10 +57,10 @@ public class ForgeInternalHandler
 
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onDimensionUnload(WorldEvent.Unload event)
+    public void onDimensionUnload(LevelEvent.Unload event)
     {
-        if (event.getWorld() instanceof ServerLevel)
-            FakePlayerFactory.unloadLevel((ServerLevel) event.getWorld());
+        if (event.getLevel() instanceof ServerLevel)
+            FakePlayerFactory.unloadLevel((ServerLevel) event.getLevel());
     }
 
     @SubscribeEvent
@@ -79,7 +79,7 @@ public class ForgeInternalHandler
     @SubscribeEvent
     public void onChunkUnload(ChunkEvent.Unload event)
     {
-        if (!event.getWorld().isClientSide())
+        if (!event.getLevel().isClientSide())
             FarmlandWaterManager.removeTickets(event.getChunk());
     }
 
@@ -95,7 +95,7 @@ public class ForgeInternalHandler
     @SubscribeEvent
     public void playerLogin(PlayerEvent.PlayerLoggedInEvent event)
     {
-        UsernameCache.setUsername(event.getPlayer().getUUID(), event.getPlayer().getGameProfile().getName());
+        UsernameCache.setUsername(event.getEntity().getUUID(), event.getEntity().getGameProfile().getName());
     }
 
     @SubscribeEvent
@@ -134,6 +134,16 @@ public class ForgeInternalHandler
     public void resourceReloadListeners(AddReloadListenerEvent event)
     {
         event.addListener(TierSortingRegistry.getReloadListener());
+        event.addListener(CreativeModeTabRegistry.getReloadListener());
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void builtinMobSpawnBlocker(EntityJoinLevelEvent event)
+    {
+        if(event.getEntity() instanceof Mob mob && mob.isSpawnCancelled())
+        {
+            event.setCanceled(true);
+        }
     }
 }
 

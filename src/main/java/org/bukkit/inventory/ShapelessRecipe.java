@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.lang3.Validate;
-import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.material.MaterialData;
@@ -16,17 +14,12 @@ import org.jetbrains.annotations.NotNull;
  * Represents a shapeless recipe, where the arrangement of the ingredients on
  * the crafting grid does not matter.
  */
-public class ShapelessRecipe implements Recipe, Keyed {
-    private final NamespacedKey key;
-    private final ItemStack output;
+public class ShapelessRecipe extends CraftingRecipe {
     private final List<RecipeChoice> ingredients = new ArrayList<>();
-    private String group = "";
 
     @Deprecated
     public ShapelessRecipe(@NotNull ItemStack result) {
-        Preconditions.checkArgument(result.getType() != Material.AIR, "Recipe must have non-AIR result.");
-        this.key = NamespacedKey.randomKey();
-        this.output = new ItemStack(result);
+        super(NamespacedKey.randomKey(), result);
     }
 
     /**
@@ -44,9 +37,7 @@ public class ShapelessRecipe implements Recipe, Keyed {
      * @see ShapelessRecipe#addIngredient(int,Material,int)
      */
     public ShapelessRecipe(@NotNull NamespacedKey key, @NotNull ItemStack result) {
-        Preconditions.checkArgument(result.getType() != Material.AIR, "Recipe must have non-AIR result.");
-        this.key = key;
-        this.output = new ItemStack(result);
+        super(key, result);
     }
 
     /**
@@ -121,7 +112,7 @@ public class ShapelessRecipe implements Recipe, Keyed {
     @Deprecated
     @NotNull
     public ShapelessRecipe addIngredient(int count, @NotNull Material ingredient, int rawdata) {
-        Validate.isTrue(ingredients.size() + count <= 9, "Shapeless recipes cannot have more than 9 ingredients");
+        Preconditions.checkArgument(ingredients.size() + count <= 9, "Shapeless recipes cannot have more than 9 ingredients");
 
         // -1 is the old wildcard, map to Short.MAX_VALUE as the new one
         if (rawdata == -1) {
@@ -136,7 +127,7 @@ public class ShapelessRecipe implements Recipe, Keyed {
 
     @NotNull
     public ShapelessRecipe addIngredient(@NotNull RecipeChoice ingredient) {
-        Validate.isTrue(ingredients.size() + 1 <= 9, "Shapeless recipes cannot have more than 9 ingredients");
+        Preconditions.checkArgument(ingredients.size() + 1 <= 9, "Shapeless recipes cannot have more than 9 ingredients");
 
         ingredients.add(ingredient);
         return this;
@@ -251,17 +242,6 @@ public class ShapelessRecipe implements Recipe, Keyed {
     }
 
     /**
-     * Get the result of this recipe.
-     *
-     * @return The result stack.
-     */
-    @Override
-    @NotNull
-    public ItemStack getResult() {
-        return output.clone();
-    }
-
-    /**
      * Get the list of ingredients used for this recipe.
      *
      * @return The input list
@@ -282,34 +262,5 @@ public class ShapelessRecipe implements Recipe, Keyed {
             result.add(ingredient.clone());
         }
         return result;
-    }
-
-    @NotNull
-    @Override
-    public NamespacedKey getKey() {
-        return key;
-    }
-
-    /**
-     * Get the group of this recipe. Recipes with the same group may be grouped
-     * together when displayed in the client.
-     *
-     * @return recipe group. An empty string denotes no group. May not be null.
-     */
-    @NotNull
-    public String getGroup() {
-        return group;
-    }
-
-    /**
-     * Set the group of this recipe. Recipes with the same group may be grouped
-     * together when displayed in the client.
-     *
-     * @param group recipe group. An empty string denotes no group. May not be
-     * null.
-     */
-    public void setGroup(@NotNull String group) {
-        Preconditions.checkArgument(group != null, "group");
-        this.group = group;
     }
 }

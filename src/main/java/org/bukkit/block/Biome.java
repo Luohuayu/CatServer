@@ -16,6 +16,7 @@ public enum Biome implements Keyed {
     FOREST,
     TAIGA,
     SWAMP,
+    MANGROVE_SWAMP,
     RIVER,
     NETHER_WASTES,
     THE_END,
@@ -64,12 +65,14 @@ public enum Biome implements Keyed {
     BASALT_DELTAS,
     DRIPSTONE_CAVES,
     LUSH_CAVES,
+    DEEP_DARK,
     MEADOW,
     GROVE,
     SNOWY_SLOPES,
     FROZEN_PEAKS,
     JAGGED_PEAKS,
     STONY_PEAKS,
+    CHERRY_GROVE,
     /**
      * Represents a custom Biome
      */
@@ -80,6 +83,12 @@ public enum Biome implements Keyed {
     private Biome() {
         this.key = NamespacedKey.minecraft(name().toLowerCase(Locale.ROOT));
     }
+
+    // CatServer start
+    private Biome(NamespacedKey key) {
+        this.key = key == null ? NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT)) : key;
+    }
+    // CatServer end
 
     @NotNull
     @Override

@@ -5,32 +5,24 @@
 
 package net.minecraftforge.fml.loading.targets;
 
+import cpw.mods.modlauncher.api.ServiceRunner;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.fml.loading.LibraryFinder;
 import net.minecraftforge.fml.loading.VersionInfo;
 import net.minecraftforge.api.distmarker.Dist;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 
 public abstract class CommonClientLaunchHandler extends CommonLaunchHandler {
-    private static final Logger LOGGER = LogManager.getLogger();
-
     @Override public Dist getDist()  { return Dist.CLIENT; }
     @Override public String getNaming() { return "srg"; }
     @Override public boolean isProduction() { return true; }
 
     @Override
-    public Callable<Void> launchService(String[] arguments, ModuleLayer layer) {
-        return () -> {
-            Class.forName(layer.findModule("minecraft").orElseThrow(),"net.minecraft.client.main.Main").getMethod("main", String[].class).invoke(null, (Object)arguments);
-            return null;
-        };
+    protected ServiceRunner makeService(final String[] arguments, final ModuleLayer gameLayer) {
+        return ()->clientService(arguments, gameLayer);
     }
 
     @Override

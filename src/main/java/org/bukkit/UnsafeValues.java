@@ -5,12 +5,15 @@ import org.bukkit.advancement.Advancement;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.CreativeCategory;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
 import org.bukkit.plugin.InvalidPluginException;
 import org.bukkit.plugin.PluginDescriptionFile;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * This interface provides value conversions that may be specific to a
@@ -78,4 +81,15 @@ public interface UnsafeValues {
     Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(Material material, EquipmentSlot slot);
 
     CreativeCategory getCreativeCategory(Material material);
+
+    String getBlockTranslationKey(Material material);
+
+    String getItemTranslationKey(Material material);
+
+    String getTranslationKey(EntityType entityType);
+
+    String getTranslationKey(ItemStack itemStack);
+
+    @Nullable
+    FeatureFlag getFeatureFlag(@NotNull NamespacedKey key);
 }
