@@ -132,15 +132,18 @@
        if (itemstack.m_41619_()) {
           return false;
        } else if (!PotionBrewing.m_43506_(itemstack)) {
-@@ -164,26 +_,50 @@
+@@ -164,26 +_,70 @@
        }
     }
  
 +   // CatServer start
-+   private static AtomicReference<BrewingStandBlockEntity> catserver$captureBrewBlockEntity = new AtomicReference<>();
 +   private static void doBrew(Level p_155291_, BlockPos p_155292_, NonNullList<ItemStack> p_155293_, BrewingStandBlockEntity blockEntity) {
-+      BrewingStandBlockEntity.catserver$captureBrewBlockEntity.set(blockEntity);
-+      BrewingStandBlockEntity.m_155290_(p_155291_, p_155292_, p_155293_);
++      try {
++         catserver.server.CatServerCaptures.getCatServerCaptures().captureBrewingStandBlockEntity$doBrew$brewingStandBlockEntity(blockEntity);
++         BrewingStandBlockEntity.m_155290_(p_155291_, p_155292_, p_155293_);
++      } finally {
++         catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureBrewingStandBlockEntity$doBrew$brewingStandBlockEntity();
++      }
 +   }
 +
     private static void m_155290_(Level p_155291_, BlockPos p_155292_, NonNullList<ItemStack> p_155293_) {
@@ -150,11 +153,25 @@
 -      for(int i = 0; i < 3; ++i) {
 -         p_155293_.set(i, PotionBrewing.m_43529_(itemstack, p_155293_.get(i)));
 -      }
-+      var tileentitybrewingstand = catserver$captureBrewBlockEntity.getAndSet(null);
-+      InventoryHolder owner = tileentitybrewingstand.getOwner();
+-
+-      itemstack.m_41774_(1);
+-      if (itemstack.m_41720_().m_41470_()) {
+-         ItemStack itemstack1 = new ItemStack(itemstack.m_41720_().m_41469_());
++      net.minecraftforge.common.brewing.BrewingRecipeRegistry.brewPotions(p_155293_, itemstack, f_58974_);
++      net.minecraftforge.event.ForgeEventFactory.onPotionBrewed(p_155293_);
++
++      var tileentitybrewingstand = catserver.server.CatServerCaptures.getCatServerCaptures().getCaptureBrewingStandBlockEntity$doBrew$brewingStandBlockEntity(); // CatServer
++
++      InventoryHolder owner = tileentitybrewingstand == null ? null : tileentitybrewingstand.getOwner(); // CatServer
 +      List<org.bukkit.inventory.ItemStack> brewResults = new ArrayList<>(3);
 +      for (int i = 0; i < 3; ++i) {
-+         brewResults.add(i, CraftItemStack.asCraftMirror(PotionBrewing.m_43529_(itemstack, (ItemStack) p_155293_.get(i))));
++         // CatServer start
++         if (i < p_155293_.size()) {
++            brewResults.add(i, CraftItemStack.asCraftMirror(p_155293_.get(i)));
++         } else {
++            brewResults.add(i, CraftItemStack.asCraftMirror(ItemStack.f_41583_));
++         }
++         // CatServer end
 +      }
 +      if (owner != null) {
 +         BrewEvent event = new BrewEvent(CraftBlock.at(p_155291_, p_155292_), (org.bukkit.inventory.BrewerInventory) owner.getInventory(), brewResults, tileentitybrewingstand.f_58979_);
@@ -164,13 +181,17 @@
 +         }
 +      }
 +      // CraftBukkit end
- 
--      itemstack.m_41774_(1);
--      if (itemstack.m_41720_().m_41470_()) {
--         ItemStack itemstack1 = new ItemStack(itemstack.m_41720_().m_41469_());
-+      net.minecraftforge.common.brewing.BrewingRecipeRegistry.brewPotions(p_155293_, itemstack, f_58974_);
-+      net.minecraftforge.event.ForgeEventFactory.onPotionBrewed(p_155293_);
-+      // CatServer TODO: missing BrewEvent result
++
++      for (int i = 0; i < 3; ++i) {
++         // CraftBukkit start - validate index in case it is cleared by plugins
++         if (i < brewResults.size()) {
++            p_155293_.set(i, CraftItemStack.asNMSCopy(brewResults.get(i)));
++         } else {
++            p_155293_.set(i, ItemStack.f_41583_);
++         }
++         // CraftBukkit end
++      }
++
 +      if (itemstack.hasContainerItem()) {
 +         ItemStack itemstack1 = itemstack.getContainerItem();
 +         itemstack.m_41774_(1);
