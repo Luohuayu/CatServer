@@ -1,6 +1,41 @@
 --- a/net/minecraft/commands/synchronization/ArgumentTypes.java
 +++ b/net/minecraft/commands/synchronization/ArgumentTypes.java
-@@ -122,7 +_,7 @@
+@@ -12,6 +_,7 @@
+ import com.mojang.brigadier.tree.RootCommandNode;
+ import com.mojang.logging.LogUtils;
+ import java.util.Collection;
++import java.util.HashSet;
+ import java.util.Map;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+@@ -61,12 +_,18 @@
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.resources.ResourceLocation;
+ import org.slf4j.Logger;
++import org.spigotmc.SpigotConfig;
+ 
+ public class ArgumentTypes {
+    private static final Logger f_121582_ = LogUtils.getLogger();
+    private static final Map<Class<?>, ArgumentTypes.Entry<?>> f_121583_ = Maps.newHashMap();
+    private static final Map<ResourceLocation, ArgumentTypes.Entry<?>> f_121584_ = Maps.newHashMap();
+ 
++   // CatServer start - Support lightfall (https://github.com/IzzelAliz/Arclight/blob/1.16/arclight-common/src/main/java/io/izzel/arclight/common/mixin/core/command/arguments/ArgumentTypesMixin.java)
++   private static final Set<ResourceLocation> INTERNAL_TYPES = Sets.newHashSet();
++   private static boolean arclight$reentrant = false;
++   // CatServer end
++
+    public static <T extends ArgumentType<?>> void m_121601_(String p_121602_, Class<T> p_121603_, ArgumentSerializer<T> p_121604_) {
+       ResourceLocation resourcelocation = new ResourceLocation(p_121602_);
+       if (f_121583_.containsKey(p_121603_)) {
+@@ -81,6 +_,7 @@
+    }
+ 
+    public static void m_121586_() {
++      INTERNAL_TYPES.addAll(f_121584_.keySet()); // CatServer
+       BrigadierArgumentSerializers.m_121685_();
+       m_121601_("entity", EntityArgument.class, new EntityArgument.Serializer());
+       m_121601_("game_profile", GameProfileArgument.class, new EmptyArgumentSerializer<>(GameProfileArgument::m_94584_));
+@@ -122,11 +_,19 @@
        m_121601_("uuid", UuidArgument.class, new EmptyArgumentSerializer<>(UuidArgument::m_113850_));
        m_121601_("resource", m_211031_(ResourceKeyArgument.class), new ResourceKeyArgument.Serializer());
        m_121601_("resource_or_tag", m_211031_(ResourceOrTagLocationArgument.class), new ResourceOrTagLocationArgument.Serializer());
@@ -9,6 +44,46 @@
           m_121601_("test_argument", TestFunctionArgument.class, new EmptyArgumentSerializer<>(TestFunctionArgument::m_128088_));
           m_121601_("test_class", TestClassNameArgument.class, new EmptyArgumentSerializer<>(TestClassNameArgument::m_127917_));
        }
+ 
++      // CatServer start
++      HashSet<ResourceLocation> set = new HashSet<>(f_121584_.keySet());
++      set.removeAll(INTERNAL_TYPES);
++      INTERNAL_TYPES.clear();
++      INTERNAL_TYPES.addAll(set);
++      INTERNAL_TYPES.add(new ResourceLocation("forge", "enum"));
++      INTERNAL_TYPES.add(new ResourceLocation("forge", "modid"));
++      // CatServer end
+    }
+ 
+    private static <T extends ArgumentType<?>> Class<T> m_211031_(Class<? super T> p_211032_) {
+@@ -149,8 +_,26 @@
+          f_121582_.error("Could not serialize {} ({}) - will not be sent to client!", p_121613_, p_121613_.getClass());
+          p_121612_.m_130085_(new ResourceLocation(""));
+       } else {
++         // CatServer start
++         boolean wrap;
++         if (!arclight$reentrant && !INTERNAL_TYPES.contains(entry.f_121620_)) {
++            arclight$reentrant = wrap = true;
++         } else {
++            wrap = false;
++         }
++         if (wrap) {
++            p_121612_.m_130070_("arclight:wrapped");
++         }
+          p_121612_.m_130085_(entry.f_121620_);
+-         entry.f_121619_.m_6017_(p_121613_, p_121612_);
++
++         FriendlyByteBuf buf = wrap ? new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer()) : p_121612_;
++         entry.f_121619_.m_6017_(p_121613_, buf);
++         if (wrap) {
++            p_121612_.m_130130_(buf.writerIndex());
++            p_121612_.writeBytes(buf);
++            arclight$reentrant = false;
++         }
++         // CatServer end
+       }
+    }
+ 
 @@ -262,5 +_,9 @@
           this.f_121619_ = p_211034_;
           this.f_121620_ = p_211035_;
