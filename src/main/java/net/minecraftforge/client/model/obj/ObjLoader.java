@@ -5,7 +5,6 @@
 
 package net.minecraftforge.client.model.obj;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
